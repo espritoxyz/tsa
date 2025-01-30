@@ -27,7 +27,6 @@ import org.ton.java.utils.Utils
 import java.math.BigInteger
 import java.time.Instant
 
-
 class TvmConcreteEmulator(private val libPath: String) {
     fun getWalletAddress(holderAddress: String, masterAddress: String, masterContractState: ContractState): String {
         val error = ConcreteGetMethodRunFailed("$masterAddress has incorrect implementation of get_wallet_address")
@@ -116,11 +115,15 @@ class TvmConcreteEmulator(private val libPath: String) {
     }
 
     private fun runGetMethod(methodName: String, argsVmStack: VmStack, address: String, state: ContractState): GetMethodResult {
+        // Use it to mark the start of running get method to be able to cut the emulator steps output further
+        System.err.println("$EMULATOR_RUN_GET_METHOD_START_MARK Running method $methodName for address $address")
+
         val emulator = TvmEmulator.builder()
             .pathToEmulatorSharedLib(libPath)
             .codeBoc(state.codeHex.hexToBase64())
             .dataBoc(state.dataHex.hexToBase64())
             .verbosityLevel(TvmVerbosityLevel.TRUNCATED)
+            .printEmulatorInfo(false)
             .build()
 
         try {
@@ -147,6 +150,8 @@ class TvmConcreteEmulator(private val libPath: String) {
             }
 
         } finally {
+            // Use it to mark the finish of running get method to be able to cut the emulator steps output further
+            System.err.println("$EMULATOR_RUN_GET_METHOD_FINISH_MARK Finishing method $methodName for address $address")
             emulator.destroy()
         }
     }
