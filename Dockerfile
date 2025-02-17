@@ -1,12 +1,9 @@
-FROM ubuntu:20.04
+#FROM ubuntu:20.04
+FROM ghcr.io/ton-blockchain/ton:v2025.02
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y -q --no-install-recommends ca-certificates curl wget apt-transport-https gpg git unzip \
-    && curl -fsSL -O https://github.com/ton-blockchain/packages/releases/latest/download/ton-linux-x86-64.tar.gz \
-    && mkdir -p ton-linux && tar -xf ton-linux-x86-64.tar.gz -C ton-linux \
-    && cp -r ton-linux/* /usr/ \
-    && rm -rf ton-linux ton-linux-x86-64.tar.gz
+RUN apt-get update && apt-get install -y -q --no-install-recommends ca-certificates curl wget apt-transport-https gpg git unzip
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs
@@ -24,7 +21,7 @@ RUN wget --no-verbose https://services.gradle.org/distributions/${GRADLE_VERSION
     && rm /tmp/${GRADLE_VERSION}-bin.zip
 
 RUN npm install --global yarn \
-    && yarn global add @tact-lang/compiler
+    && yarn global add @tact-lang/compiler@1.5.3
 
 RUN apt install python3
 
