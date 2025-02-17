@@ -11,7 +11,7 @@ include("tsa-core")
 include("tsa-cli")
 include("tsa-sarif")
 include("tsa-test-gen")
-include("tsa-safety-properties")
+include("tsa-jettons")
 include("tsa-test")
 
 // TODO: fix this module (https://github.com/explyt/tsa/issues/118)

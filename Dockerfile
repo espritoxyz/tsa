@@ -29,7 +29,6 @@ RUN npm install --global yarn \
 RUN apt install python3
 
 COPY tsa-cli/build/libs/tsa-cli.jar /home/tsa.jar
-COPY tsa-safety-properties/build/libs/tsa-safety-properties.jar /home/tsa-safety-properties.jar
 COPY resources/tlbc /home/tlbc
 COPY resources/libcrypto.so.3 /lib/x86_64-linux-gnu/
 COPY resources/entrypoint.py /home/entrypoint.py

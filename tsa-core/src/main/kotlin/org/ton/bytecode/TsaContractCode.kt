@@ -25,3 +25,7 @@ data class TsaContractCode(
         }
     }
 }
+
+fun setTSACheckerFunctions(contractCode: TsaContractCode) {
+    contractCode.isContractWithTSACheckerFunctions = true
+}

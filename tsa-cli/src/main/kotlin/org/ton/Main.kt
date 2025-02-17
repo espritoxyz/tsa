@@ -2,12 +2,14 @@ package org.ton
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoOpCliktCommand
+import com.github.ajalt.clikt.core.ParameterHolder
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.groups.single
+import com.github.ajalt.clikt.parameters.options.NullableOption
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.help
@@ -15,10 +17,10 @@ import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.transformValues
-import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
+import org.ton.bytecode.TsaContractCode
 import org.ton.sarif.toSarifReport
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.gen.generateTests
@@ -29,14 +31,15 @@ import org.usvm.machine.FuncAnalyzer
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TactAnalyzer
 import org.usvm.machine.TactSourcesDescription
+import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.getFuncContract
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.toMethodId
 import java.math.BigInteger
 import java.nio.file.Path
 import kotlin.io.path.readText
-import kotlin.math.abs
 
 class ContractProperties : OptionGroup("Contract properties") {
     val contractData by option("-d", "--data").help("The serialized contract persistent data")
@@ -231,12 +234,26 @@ class BocAnalysis : CliktCommand(name = "boc", help = "Options for analyzing a s
     }
 }
 
-class InterContractAnalysis : CliktCommand(
-    name = "inter-contract",
-    help = "Options for analyzing inter-contract communication of smart contracts",
+class SafetyPropertiesAnalysis : CliktCommand(
+    name = "safety-properties",
+    help = "Options for checking safety properties",
 ) {
     private val fiftOptions by FiftOptions()
     private val funcOptions by FuncOptions()
+
+    private val tlbOptions by TlbOptions()
+
+    private val checkerContractPath by option("--checker")
+        .path(mustExist = true, canBeFile = true, canBeDir = false)
+        .help("The path to the safety properties checker contract.")
+        .required()
+
+    private val pathOptionDescriptor = option().path(mustExist = true, canBeFile = true, canBeDir = false)
+    private val typeOptionDescriptor = option().enum<ContractType>(ignoreCase = true)
+    private val contractSource: ContractSources by contractSourcesOption(
+        pathOptionDescriptor,
+        typeOptionDescriptor
+    ).required()
 
     private val fiftAnalyzer by lazy {
         FiftAnalyzer(
@@ -251,72 +268,71 @@ class InterContractAnalysis : CliktCommand(
         )
     }
 
+    override fun run() {
+        val checkerContract = getFuncContract(
+            checkerContractPath,
+            funcOptions.funcStdlibPath,
+            fiftOptions.fiftStdlibPath,
+            isTSAChecker = true
+        )
+
+        val contractToAnalyze = contractSource.convertToTsaContractCode(fiftAnalyzer, funcAnalyzer)
+
+        // TODO support TL-B schemes in JAR
+        val inputInfo = runCatching {
+            TlbOptions.extractInputInfo(tlbOptions.tlbJsonPath).values.singleOrNull()
+        }
+            .getOrElse { TvmInputInfo() } // In case TL-B scheme is incorrect (not json format, for example), use empty scheme
+            ?: TvmInputInfo() // In case TL-B scheme is not provided, use empty scheme
+
+        val options = TvmOptions(
+            intercontractOptions = IntercontractOptions(communicationScheme = null),
+            turnOnTLBParsingChecks = false
+        )
+
+        val contracts = listOf(checkerContract, contractToAnalyze)
+        val result = analyzeInterContract(
+            contracts,
+            startContractId = 0, // Checker contract is the first to analyze
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = options,
+            inputInfo = inputInfo,
+        )
+
+        echo(result.toSarifReport(methodsMapping = emptyMap(), useShortenedOutput = true))
+    }
+}
+
+class InterContractAnalysis : CliktCommand(
+    name = "inter-contract",
+    help = "Options for analyzing inter-contract communication of smart contracts",
+) {
+    private val fiftOptions by FiftOptions()
+    private val funcOptions by FuncOptions()
+
     private val interContractSchemePath by option("-s", "--scheme")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
         .help("Scheme of the inter-contract communication.")
 
-    private enum class ContractType {
-        Tact,
-        Func,
-        Fift,
-        Boc,
+    private val fiftAnalyzer by lazy {
+        FiftAnalyzer(
+            fiftStdlibPath = fiftOptions.fiftStdlibPath
+        )
     }
 
-    private sealed interface ContractSources
-    private data class SinglePath(val type: ContractType, val path: Path) : ContractSources
-    private data class TactPath(val tactPath: TactSourcesDescription) : ContractSources
+    private val funcAnalyzer by lazy {
+        FuncAnalyzer(
+            funcStdlibPath = funcOptions.funcStdlibPath,
+            fiftStdlibPath = fiftOptions.fiftStdlibPath
+        )
+    }
 
     private val pathOptionDescriptor = option().path(mustExist = true, canBeFile = true, canBeDir = false)
     private val typeOptionDescriptor = option().enum<ContractType>(ignoreCase = true)
 
-    private val contractSources: List<ContractSources> by option("-c", "--contract")
-        .help(
-            """
-                Contracts to analyze. Must be given in format <contract-type> <options>.
-                
-                <contract-type> can be Tact, Func, Fift or Boc.
-                
-                For Func, Fift and Boc <options> is path to contract sources.
-                
-                For Tact, <options> is three values separated by space:
-                <path to tact.config.json> <project name> <contract name>
-                
-                This option should be used for each analyzed contract separately.
-                
-                Examples:
-                
-                -c func jetton-wallet.fc
-                
-                -c tact path/to/tact.config.json Jetton JettonWallet
-            
-            """.trimIndent()
-        )
-        .transformValues(nvalues = 2..4) { args ->
-            val typeRaw = args[0]
-            val type = typeOptionDescriptor.transformValue(this, typeRaw)
-            val pathRaw = args[1]
-            val path = pathOptionDescriptor.transformValue(this, pathRaw)
-            if (type == ContractType.Tact) {
-                require(args.size == 4) {
-                    "Tact expects 3 parameters: path to tact.config.json, project name, contract name."
-                }
-                val taskName = args[2]
-                val contractName = args[3]
-                TactPath(TactSourcesDescription(path, taskName, contractName))
-            } else {
-                require(args.size == 2) {
-                    "Func, Fift and Boc expect only 1 parameter: path to contract source."
-                }
-                SinglePath(type, path)
-            }
-        }
-        .multiple()
-        .validate { args ->
-            require(args.isNotEmpty()) {
-                "At least one contract must be given"
-            }
-        }
+    private val contractSources: List<ContractSources> by contractSourcesOption(pathOptionDescriptor, typeOptionDescriptor)
+        .multiple(required = true)
 
     private fun extractScheme(): Map<ContractId, TvmContractHandlers> {
         val jsonContent = interContractSchemePath.readText()
@@ -334,22 +350,7 @@ class InterContractAnalysis : CliktCommand(
         .help("Id of the starting method in the root contract.")
 
     override fun run() {
-        val contracts = contractSources.map { data ->
-            when (data) {
-                is SinglePath -> {
-                    val analyzer = when (data.type) {
-                        ContractType.Boc -> BocAnalyzer
-                        ContractType.Func -> funcAnalyzer
-                        ContractType.Fift -> fiftAnalyzer
-                        ContractType.Tact -> error("Unexpected contract type ${data.type} with a single path ${data.path}")
-                    }
-                    analyzer.convertToTvmContractCode(data.path)
-                }
-                is TactPath -> {
-                    TactAnalyzer.convertToTvmContractCode(data.tactPath)
-                }
-            }
-        }
+        val contracts = contractSources.map { it.convertToTsaContractCode(fiftAnalyzer, funcAnalyzer) }
 
         val communicationScheme = extractScheme()
         val options = TvmOptions(intercontractOptions = IntercontractOptions(communicationScheme))
@@ -365,8 +366,92 @@ class InterContractAnalysis : CliktCommand(
     }
 }
 
+private enum class ContractType {
+    Tact,
+    Func,
+    Fift,
+    Boc,
+}
+
+private sealed interface ContractSources {
+    fun convertToTsaContractCode(fiftAnalyzer: FiftAnalyzer, funcAnalyzer: FuncAnalyzer): TsaContractCode
+}
+private data class SinglePath(val type: ContractType, val path: Path) : ContractSources {
+    override fun convertToTsaContractCode(
+        fiftAnalyzer: FiftAnalyzer,
+        funcAnalyzer: FuncAnalyzer
+    ): TsaContractCode {
+        val analyzer = when (type) {
+            ContractType.Boc -> BocAnalyzer
+            ContractType.Func -> funcAnalyzer
+            ContractType.Fift -> fiftAnalyzer
+            ContractType.Tact -> error("Unexpected contract type $type with a single path $path")
+        }
+
+        return analyzer.convertToTvmContractCode(path)
+    }
+}
+private data class TactPath(val tactPath: TactSourcesDescription) : ContractSources {
+    override fun convertToTsaContractCode(
+        fiftAnalyzer: FiftAnalyzer,
+        funcAnalyzer: FuncAnalyzer
+    ): TsaContractCode = TactAnalyzer.convertToTvmContractCode(tactPath)
+}
+
+private fun ParameterHolder.contractSourcesOption(
+    pathOptionDescriptor: NullableOption<Path, Path>,
+    typeOptionDescriptor: NullableOption<ContractType, ContractType>
+) = option("-c", "--contract")
+    .help(
+        """
+                Contract to analyze. Must be given in format <contract-type> <options>.
+                
+                <contract-type> can be Tact, Func, Fift or Boc.
+                
+                For Func, Fift and Boc <options> is path to contract sources.
+                
+                For Tact, <options> is three values separated by space:
+                <path to tact.config.json> <project name> <contract name>
+                
+                This option should be used for each analyzed contract separately.
+                
+                Examples:
+                
+                -c func jetton-wallet.fc
+                
+                -c tact path/to/tact.config.json Jetton JettonWallet
+            
+            """.trimIndent()
+    )
+    .transformValues(nvalues = 2..4) { args ->
+        val typeRaw = args[0]
+        val type = typeOptionDescriptor.transformValue(this, typeRaw)
+        val pathRaw = args[1]
+        val path = pathOptionDescriptor.transformValue(this, pathRaw)
+        if (type == ContractType.Tact) {
+            require(args.size == 4) {
+                "Tact expects 3 parameters: path to tact.config.json, project name, contract name."
+            }
+            val taskName = args[2]
+            val contractName = args[3]
+            TactPath(TactSourcesDescription(path, taskName, contractName))
+        } else {
+            require(args.size == 2) {
+                "Func, Fift and Boc expect only 1 parameter: path to contract source."
+            }
+            SinglePath(type, path)
+        }
+    }
+
 class TonAnalysis : NoOpCliktCommand()
 
 fun main(args: Array<String>) = TonAnalysis()
-    .subcommands(TactAnalysis(), FuncAnalysis(), FiftAnalysis(), BocAnalysis(), TestGeneration(), InterContractAnalysis())
-    .main(args)
+    .subcommands(
+        TactAnalysis(),
+        FuncAnalysis(),
+        FiftAnalysis(),
+        BocAnalysis(),
+        TestGeneration(),
+        SafetyPropertiesAnalysis(),
+        InterContractAnalysis()
+    ).main(args)

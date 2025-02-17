@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":tsa-sarif"))
     implementation(project(":tsa-test-gen"))
 
+    implementation("ch.qos.logback:logback-classic:${Versions.logback}")
     implementation("com.github.ajalt.clikt:clikt:${Versions.clikt}")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${Versions.kotlinx_serialization}")

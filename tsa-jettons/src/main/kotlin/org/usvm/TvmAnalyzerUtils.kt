@@ -25,25 +25,6 @@ fun getContractFromBytes(bytes: ByteArray): TsaContractCode {
     }
 }
 
-fun getFuncContract(path: Path, funcStdlibPath: Path, fiftStdlibPath: Path, isTSAChecker: Boolean = false): TsaContractCode {
-    val tmpBocFile = createTempFile(suffix = ".boc")
-    try {
-        FuncAnalyzer(funcStdlibPath, fiftStdlibPath)
-            .compileFuncSourceToBoc(path, tmpBocFile)
-        return BocAnalyzer.loadContractFromBoc(tmpBocFile).also {
-            if (isTSAChecker) {
-                setTSACheckerFunctions(it)
-            }
-        }
-    } finally {
-        tmpBocFile.deleteIfExists()
-    }
-}
-
-fun setTSACheckerFunctions(contractCode: TsaContractCode) {
-    contractCode.isContractWithTSACheckerFunctions = true
-}
-
 const val FUNC_STDLIB_PATH = "/imports"
 const val FIFT_STDLIB_PATH = "/fiftstdlib"
 

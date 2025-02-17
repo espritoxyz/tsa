@@ -12,8 +12,12 @@ import org.usvm.machine.FiftInterpreterResult
 import org.usvm.machine.FuncAnalyzer
 import org.usvm.machine.TactAnalyzer
 import org.usvm.machine.TactSourcesDescription
+import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
+import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.getFuncContract
 import org.usvm.machine.intValue
+import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.types.TvmIntegerType
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
@@ -27,11 +31,7 @@ import org.usvm.test.resolver.TvmTestTupleValue
 import org.usvm.test.resolver.TvmTestValue
 import java.math.BigInteger
 import java.nio.file.Path
-import org.usvm.machine.TvmContext
-import org.usvm.machine.analyzeInterContract
-import org.usvm.machine.state.ContractId
 import kotlin.io.path.Path
-import kotlin.io.path.deleteIfExists
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -160,17 +160,6 @@ fun analyzeFuncIntercontract(
         methodId = TvmContext.RECEIVE_INTERNAL_ID,
         options = options,
     )
-}
-
-fun getFuncContract(path: Path, funcStdlibPath: Path, fiftStdlibPath: Path): TsaContractCode {
-    val tmpBocFile = kotlin.io.path.createTempFile(suffix = ".boc")
-    try {
-        FuncAnalyzer(funcStdlibPath, fiftStdlibPath)
-            .compileFuncSourceToBoc(path, tmpBocFile)
-        return BocAnalyzer.loadContractFromBoc(tmpBocFile)
-    } finally {
-        tmpBocFile.deleteIfExists()
-    }
 }
 
 /**

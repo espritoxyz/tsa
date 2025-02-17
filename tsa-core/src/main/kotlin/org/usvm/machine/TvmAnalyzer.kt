@@ -6,6 +6,7 @@ import mu.KLogging
 import org.ton.TvmInputInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.setTSACheckerFunctions
 import org.ton.cell.Cell
 import org.usvm.machine.FuncAnalyzer.Companion.FIFT_EXECUTABLE
 import org.usvm.machine.state.ContractId
@@ -483,6 +484,21 @@ fun analyzeSpecificMethod(
     }
 
     return TvmTestResolver.resolveSingleMethod(methodId, states, coverage)
+}
+
+fun getFuncContract(path: Path, funcStdlibPath: Path, fiftStdlibPath: Path, isTSAChecker: Boolean = false): TsaContractCode {
+    val tmpBocFile = createTempFile(suffix = ".boc")
+    try {
+        FuncAnalyzer(funcStdlibPath, fiftStdlibPath)
+            .compileFuncSourceToBoc(path, tmpBocFile)
+        return BocAnalyzer.loadContractFromBoc(tmpBocFile).also {
+            if (isTSAChecker) {
+                setTSACheckerFunctions(it)
+            }
+        }
+    } finally {
+        tmpBocFile.deleteIfExists()
+    }
 }
 
 private fun String.toExecutionCommand(): List<String> = listOf("/bin/sh", "-c", this)
