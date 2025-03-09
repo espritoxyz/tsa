@@ -12,7 +12,7 @@ nav_order: 2
 Let's consider a simple smart-contract that stores a single int value `balance`,
 that could be decremented when processing `reduce_balance` operation, but no other operations could do it.
 
-One could implement such a contract in the following way (sources are available [storage.fc](../../../tsa-safety-properties-examples/src/test/resources/examples/step2/storage.fc)):
+One could implement such a contract in the following way (sources are available [storage.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step2/storage.fc)):
 
 ```c
 int load_balance() inline method_id(-42) {
@@ -51,7 +51,7 @@ int load_balance() inline method_id(-42) {
 Now we want to ensure that only the `reduce_balance` operation could decrement the `balance` value –
 in other words, any other operation should not change the `balance` value.
 
-To implement such a checker, one could use the following FunC code (sources are available [balance_reduction_checker.fc](../../../tsa-safety-properties-examples/src/test/resources/examples/step2/balance_reduction_checker.fc)):
+To implement such a checker, one could use the following FunC code (sources are available [balance_reduction_checker.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step2/balance_reduction_checker.fc)):
 
 ```c
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {

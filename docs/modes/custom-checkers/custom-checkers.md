@@ -18,7 +18,7 @@ It could be then run with a Docker or JAR with `safety-properties` argument prov
 
 The checker itself is a FunC file with implemented `recv_internal` method as an entrypoint for the analysis.
 For verifying safety properties of analyzed contracts, 
-some specific functions are provided in the [tsa_functions.fc](../../../tsa-safety-properties-examples/src/test/resources/imports/tsa_functions.fc) file:
+some specific functions are provided in the [tsa_functions.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/imports/tsa_functions.fc) file:
 
 - `tsa_call_[x]_[y](args..., contract, method)` - an instruction for the symbolic interpreter to call the `method` of the specific `contract` 
     that returns `x` values with `y` number of the provided arguments.
@@ -51,7 +51,7 @@ inter-contract communication scheme provided.
 #### Inter-contract communication scheme
 Inter-contract communication scheme – is required when multiple contracts are provided for the analysis.
 It is a JSON file that describes what contract may send a message to what contract by what operation code.
-An example of the scheme could be found in the [test module](../../../tsa-test/src/test/resources/intercontract/sample-intercontract-scheme.json).
+An example of the scheme could be found in the [test module](https://github.com/espritoxyz/tsa/blob/b76343a20ce5c81e78d3e65873936ee26c148771/tsa-test/src/test/resources/intercontract/sample-intercontract-scheme.json).
 
 #### TL-B scheme
 A file with a TL-B scheme for the `recv_internal` method of the first analyzed contract could be optionally provided.
@@ -60,7 +60,7 @@ Motivation for this is described in the [design document](../../design/tlb).
 
 ## Examples
 
-Some examples of the checkers can be found in the [tsa-safety-properties-examples](../../../tsa-safety-properties-examples) module
+Some examples of the checkers can be found in the [tsa-safety-properties-examples](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples) module
 with a detailed description:
 - [Checking the get-method](get-method-checker)
 - [Checking a state of a single contract after accepting a message](single-contract-state-checker)

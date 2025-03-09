@@ -16,7 +16,7 @@ Let's consider a smart-contract that emulates a very simple wallet with two oper
 - `transfer` – transfer money from one wallet to another, decreases the wallet's balance.
 - `receive` – receive money from another wallet, increases the target's balance.
 
-One could implement such a contract in the following way (sources are available [wallet.fc](../../../tsa-safety-properties-examples/src/test/resources/examples/step3/wallet.fc)):
+One could implement such a contract in the following way (sources are available [wallet.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet.fc)):
 
 ```c
 int load_balance() inline method_id(-42) {
@@ -115,7 +115,7 @@ will decrease the sender's balance and increase the receiver's balance with the 
 So, here we have two instances of the same wallet (emulating different accounts), 
 with `contract_id`s `1` and `2`, for `sender` and `target`, correspondingly.
 
-One could implement such a contract in the following way (sources are available [balance_transfer_checker.fc](../../../tsa-safety-properties-examples/src/test/resources/examples/step3/balance_transfer_checker.fc)):
+One could implement such a contract in the following way (sources are available [balance_transfer_checker.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/balance_transfer_checker.fc)):
 
 ```c
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
@@ -188,7 +188,7 @@ This checker contains the following steps:
 
 As we have two contracts that interact with each other, we need to provide an inter-contract communication scheme.
 This scheme is a JSON file that describes what contract may send a message to what contract by what operation code.
-Here we have only 2 operations – `transfer` and `receive`, so the scheme is very simple (sources are available [wallet-intercontract-scheme.json](../../../tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json)):
+Here we have only 2 operations – `transfer` and `receive`, so the scheme is very simple (sources are available [wallet-intercontract-scheme.json](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json)):
 
 ```json
 [

@@ -141,5 +141,5 @@ the `integer out of expected range` error with exit code `5` occurred in the stm
 `2147483648` value passed to this method causes this error,
 and gas usage before raising the error equals to `220`.
 
-For more examples containing erroneous places, take a look at the directory in [the repository with manually written contracts](https://github.com/espritoxyz/tsa/tree/master/tsa-core/src/test/resources).
-Feel free to run TSA by yourself for these contracts or consider [tests for them](https://github.com/espritoxyz/tsa/tree/master/tsa-core/src/test/kotlin/org/ton/examples).
+For more examples containing erroneous places, take a look at the directory in [the repository with manually written contracts](https://github.com/espritoxyz/tsa/tree/master/tsa-test/src/test/resources).
+Feel free to run TSA by yourself for these contracts or consider [tests for them](https://github.com/espritoxyz/tsa/tree/master/tsa-test/src/test/kotlin/org/ton/examples).

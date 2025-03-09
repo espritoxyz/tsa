@@ -34,27 +34,18 @@ docker run --platform linux/amd64 -it --rm -v [SOURCES_DIR_ABSOLUTE_PATH]:/proje
 
 #### Using JAR Executables
 
-The [Releases page](https://github.com/espritoxyz/tsa/releases) provides two JAR executables:
+The [Releases page](https://github.com/espritoxyz/tsa/releases) provides a JAR executable `tsa-cli.jar`.
 
-- `tsa-cli.jar`
-- `tsa-safety-properties.jar`
-
-Before using them, ensure you have the following installed:
+Before using it, ensure you have the following installed:
 
 - [JRE](https://www.java.com/en/download/manual.jsp)
 - [Tact compiler](https://github.com/tact-lang/tact)
 - [FunC and Fift compilers](https://github.com/ton-blockchain/ton/releases/latest)
 
-Then, you can run the analysis in the standard error-checking/tests generation mode:
+Then, you can run the analysis:
 
 ```bash
 java -jar tsa-cli.jar
-```
-
-or in the safety-properties checker mode:
-
-```bash
-java -jar tsa-safety-properties.jar
 ```
 
 ### Windows

@@ -10,7 +10,7 @@ nav_order: 1
 ## Implementing a simple checker
 
 Let's implement a simple conventional checker – verifying that an `abs` method always return a positive value.
-A naive implementation of such a method could look like this in FunC (sources are available [abs.fc](../../../tsa-safety-properties-examples/src/test/resources/examples/step1/abs.fc):
+A naive implementation of such a method could look like this in FunC (sources are available [abs.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step1/abs.fc):
 
 ```c
 int naive_abs(int x) method_id(10) {
@@ -23,7 +23,7 @@ int naive_abs(int x) method_id(10) {
 ```
 
 In more general languages (such as C or Java) this method returns a negative value for the `Int.MIN_VALUE`.
-So, we could check is this behavior similar in TVM using the following checker (sources are available [abs_checker.fc](../../../tsa-safety-properties-examples/src/test/resources/examples/step1/abs_checker.fc)):
+So, we could check is this behavior similar in TVM using the following checker (sources are available [abs_checker.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step1/abs_checker.fc)):
 
 ```c
 #include "../../imports/stdlib.fc";
