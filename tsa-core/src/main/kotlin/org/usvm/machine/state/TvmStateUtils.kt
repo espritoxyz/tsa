@@ -1,13 +1,13 @@
 package org.usvm.machine.state
 
+import io.ksmt.sort.KBvSort
 import io.ksmt.utils.powerOfTwo
-import org.ton.bytecode.TvmArtificialJmpToContInst
+import org.ton.bytecode.MethodId
+import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TvmCellValue
-import org.ton.bytecode.TvmCodeBlock
-import org.ton.bytecode.TvmContractCode
+import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmExceptionContinuation
 import org.ton.bytecode.TvmInst
-import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmOrdContinuation
 import org.usvm.NULL_ADDRESS
 import org.usvm.UBoolExpr
@@ -20,7 +20,6 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.mainMethodId
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmDataCellType
@@ -36,6 +35,13 @@ import org.usvm.mkSizeLeExpr
 import org.usvm.sizeSort
 import org.usvm.types.USingleTypeStream
 import java.math.BigInteger
+import org.ton.bytecode.TsaArtificialActionPhaseInst
+import org.ton.bytecode.TsaArtificialExitInst
+import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
+import org.usvm.machine.maxUnsignedValue
+import org.usvm.machine.state.TmvPhase.ACTION_PHASE
+import org.usvm.machine.state.TmvPhase.COMPUTE_PHASE
+import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 
 val TvmState.lastStmt get() = pathNode.statement
 fun TvmState.newStmt(stmt: TvmInst) {
@@ -69,11 +75,18 @@ fun TvmContext.setFailure(
 
     val c2 = state.registersOfCurrentContract.c2.value
     if (state.c2IsDefault()) {
-        state.methodResult = TvmMethodResult.TvmFailure(failure, level)
+        state.setExit(TvmMethodResult.TvmFailure(failure, level, state.phase))
     } else {
-        state.newStmt(TvmArtificialJmpToContInst(c2, state.lastStmt.location))
+        state.newStmt(TsaArtificialJmpToContInst(c2, state.lastStmt.location))
     }
 }
+
+fun TvmState.setExit(methodResult: TvmMethodResult) =
+    when (phase) {
+        COMPUTE_PHASE -> newStmt(TsaArtificialActionPhaseInst(methodResult, lastStmt.location))
+        ACTION_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
+        else -> error("Unexpected exit on phase: $phase")
+    }
 
 fun <R> TvmStepScopeManager.calcOnStateCtx(block: context(TvmContext) TvmState.() -> R): R = calcOnState {
     block(ctx, this)
@@ -93,7 +106,7 @@ fun TvmState.generateSymbolicCell(): UConcreteHeapRef = generateSymbolicRef(TvmC
 fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) =
     ensureSymbolicRefInitialized(ref, TvmCellType) { initializeSymbolicCell(it) }
 
-fun TvmState.generateSymbolicSlice(): UHeapRef =
+fun TvmState.generateSymbolicSlice(): UConcreteHeapRef =
     generateSymbolicRef(TvmSliceType).also { initializeSymbolicSlice(it) }
 
 fun TvmState.ensureSymbolicSliceInitialized(ref: UHeapRef) =
@@ -162,7 +175,7 @@ fun TvmContext.unsignedIntegerFitsBits(value: UExpr<TvmInt257Sort>, bits: UInt):
         bits == 0u -> value eq zeroValue
         bits >= TvmContext.INT_BITS - 1u -> mkBvSignedGreaterOrEqualExpr(value, zeroValue)
         else -> mkAnd(
-            mkBvSignedLessOrEqualExpr(value, powerOfTwo(bits).minus(BigInteger.ONE).toBv257()),
+            mkBvSignedLessOrEqualExpr(value, maxUnsignedValue(bits).toBv257()),
             mkBvSignedGreaterOrEqualExpr(value, zeroValue),
         )
     }
@@ -192,23 +205,28 @@ fun TvmContext.unsignedIntegerFitsBits(value: UExpr<TvmInt257Sort>, bits: UExpr<
 /**
  * 0 <= [sizeBits] <= 257
  */
-fun TvmContext.bvMinValueSignedExtended(sizeBits: UExpr<TvmInt257Sort>): UExpr<TvmInt257Sort> =
-    mkIte(
-        condition = sizeBits eq zeroValue,
-        trueBranch = zeroValue,
-        falseBranch = mkBvNegationExpr(mkBvShiftLeftExpr(oneValue, mkBvSubExpr(sizeBits, oneValue)))
+fun <Sort : KBvSort> TvmContext.bvMinValueSignedExtended(sizeBits: UExpr<Sort>): UExpr<Sort> {
+    val zero = mkBv(0, sizeBits.sort)
+    val one = mkBv(1, sizeBits.sort)
+    return mkIte(
+        condition = sizeBits eq zero,
+        trueBranch = zero,
+        falseBranch = mkBvNegationExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one)))
     )
-
+}
 
 /**
  * 0 <= [sizeBits] <= 257
  */
-fun TvmContext.bvMaxValueSignedExtended(sizeBits: UExpr<TvmInt257Sort>): UExpr<TvmInt257Sort> =
-    mkIte(
-        condition = sizeBits eq zeroValue,
-        trueBranch = zeroValue,
-        falseBranch = mkBvSubExpr(mkBvShiftLeftExpr(oneValue, mkBvSubExpr(sizeBits, oneValue)), oneValue)
+fun <Sort : KBvSort> TvmContext.bvMaxValueSignedExtended(sizeBits: UExpr<Sort>): UExpr<Sort> {
+    val zero = mkBv(0, sizeBits.sort)
+    val one = mkBv(1, sizeBits.sort)
+    return mkIte(
+        condition = sizeBits eq zero,
+        trueBranch = zero,
+        falseBranch = mkBvSubExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one)), one)
     )
+}
 
 /**
  * 0 <= [sizeBits] <= 256
@@ -246,7 +264,11 @@ fun TvmState.assertType(value: UHeapRef, type: TvmType) {
         if (typeSystem.isSupertype(oldType, type)) {
             memory.types.allocate(ref.address, type)
         } else if (!typeSystem.isSupertype(type, oldType)) {
-            throw TypeCastException(oldType, type)
+            // TODO implement guard types
+            logger.debug {
+                "Type mismatch of $value ($ref) ref. Old type: $oldType, new type: $type"
+            }
+//            throw TypeCastException(oldType, type)
         }
     }
 }
@@ -259,27 +281,55 @@ fun TvmStepScopeManager.killCurrentState() = doWithCtx {
     }
 }
 
-fun TvmCodeBlock.isReceiveInternal() = this is TvmMethod && id == TvmContext.RECEIVE_INTERNAL_ID
-
 fun initializeContractExecutionMemory(
-    contractsCode: List<TvmContractCode>,
+    contractsCode: List<TsaContractCode>,
     state: TvmState,
     contractId: ContractId,
     allowInputStackValues: Boolean,
 ): TvmContractExecutionMemory {
     val contractCode = contractsCode[contractId]
-    val mainMethod = contractCode.methods[mainMethodId]
-        ?: error("No main method found")
     val ctx = state.ctx
+    val c4 = state.contractIdToC4Register[contractId]
+        ?: error("c4 for contract $contractId is not found")
     val firstElementOfC7 = state.contractIdToFirstElementOfC7[contractId]
         ?: error("First element of c7 for contract $contractId not found")
     return TvmContractExecutionMemory(
         TvmStack(ctx, allowInputValues = allowInputStackValues),
-        C0Register(ctx.quit0Cont),
-        C1Register(ctx.quit1Cont),
-        C2Register(TvmExceptionContinuation),
-        C3Register(TvmOrdContinuation(mainMethod)),
-        C5Register(TvmCellValue(state.allocEmptyCell())),
-        C7Register(state.initC7(firstElementOfC7)),
+        TvmRegisters(
+            ctx,
+            C0Register(ctx.quit0Cont),
+            C1Register(ctx.quit1Cont),
+            C2Register(TvmExceptionContinuation),
+            C3Register(TvmOrdContinuation(contractCode.mainMethod)),
+            c4,
+            C5Register(TvmCellValue(state.allocEmptyCell())),
+            C7Register(state.initC7(firstElementOfC7)),
+        )
     )
+}
+
+fun TvmState.contractEpilogue() {
+    contractIdToFirstElementOfC7 = contractIdToFirstElementOfC7.put(
+        currentContract,
+        registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew
+    )
+
+    val commitedState = lastCommitedStateOfContracts[currentContract]
+        ?: return
+
+    contractIdToC4Register = contractIdToC4Register.put(currentContract, commitedState.c4)
+    // last commited state is cleared, as [currentContract] can be visited multiple times
+    lastCommitedStateOfContracts = lastCommitedStateOfContracts.remove(currentContract)
+}
+
+fun TvmState.switchToFirstMethodInContract(contractCode: TsaContractCode, methodId: MethodId) = with(ctx) {
+    if (tvmOptions.useMainMethodForInitialMethodJump) {
+        val methodIdAsInt = methodId.toBv257()
+        stack.addInt(methodIdAsInt)
+        newStmt(contractCode.mainMethod.instList.first())
+    } else {
+        val method = contractCode.methods[methodId]
+            ?: error("Method $methodId not found")
+        newStmt(method.instList.first())
+    }
 }

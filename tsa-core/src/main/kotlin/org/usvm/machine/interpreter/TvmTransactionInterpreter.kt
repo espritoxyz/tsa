@@ -1,59 +1,110 @@
 package org.usvm.machine.interpreter
 
-import org.ton.bytecode.TvmCellValue
+import io.ksmt.utils.uncheckedCast
+import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.usvm.UBoolExpr
-import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.INT_BITS
+import org.usvm.machine.TvmContext.Companion.NONE_ADDRESS_TAG
+import org.usvm.machine.TvmContext.Companion.OP_BITS
+import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
+import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.allocCellFromData
-import org.usvm.machine.state.allocEmptyCell
+import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
+import org.usvm.machine.state.builderStoreGramsTransaction
+import org.usvm.machine.state.builderStoreIntTransaction
 import org.usvm.machine.state.builderStoreSlice
-import org.usvm.machine.state.calcOnStateCtx
+import org.usvm.machine.state.builderStoreSliceTransaction
+import org.usvm.machine.state.builderToCell
+import org.usvm.machine.state.doWithCtx
+import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.getSliceRemainingRefsCount
+import org.usvm.machine.state.sliceLoadAddrTransaction
+import org.usvm.machine.state.sliceLoadGramsTransaction
+import org.usvm.machine.state.sliceLoadIntTransaction
+import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.state.sliceMoveDataPtr
 import org.usvm.machine.state.sliceMoveRefPtr
 import org.usvm.machine.state.slicePreloadAddrLength
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.slicePreloadExternalAddrLength
-import org.usvm.machine.state.slicePreloadInternalAddrLength
-import org.usvm.machine.state.slicePreloadInternalOrNoneAddrLength
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.mkSizeAddExpr
+import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
 class TvmTransactionInterpreter(val ctx: TvmContext) {
+    fun parseActionsToDestinations(
+        scope: TvmStepScopeManager,
+        commitedState: TvmCommitedState
+    ): List<Pair<ContractId, OutMessage>>? = with(ctx) {
+        val scheme = ctx.tvmOptions.intercontractOptions.communicationScheme
+            ?: error("Communication scheme is not found")
 
-    fun executeActions(scope: TvmStepScopeManager, contractId: ContractId): List<OutMessage>? = with(ctx) {
-        val commitedState = scope.calcOnState { lastCommitedStateOfContracts[contractId] }
-        val commitedActions = scope.calcOnState { commitedState?.c5?.value?.value }
-        if (commitedActions == null) {
-            return@with null
+        val actions = parseActions(scope, commitedState)
+            ?: return null
+
+        if (actions.isEmpty()) {
+            return emptyList()
         }
+
+        val contractId = scope.calcOnState { currentContract }
+        val handlers = scheme[contractId]
+            ?: error("Contract handlers are not found")
+
+        val msgBody = scope.calcOnState { lastMsgBody }
+            ?: error("Unexpected null msg_body")
+
+        // TODO possible underflow
+        val op = sliceLoadIntTransaction(scope, msgBody, OP_BITS.toInt())?.second
+            ?: return null
+
+        val handler = handlers.handlers.firstOrNull { handler ->
+            val handlerOp = mkBvHex(handler.op, OP_BITS).zeroExtendToSort(op.sort)
+
+            // TODO maybe use model here ?
+            scope.checkCondition(handlerOp eq op)
+                ?: return null
+        } ?: return null
+
+        check(handler.destinations.size == actions.size) {
+            "The number of actual messages is not equal to the number of destinations in the scheme: " +
+                    "${actions.size} ${handler.destinations.size}"
+        }
+
+        handler.destinations.zip(actions)
+    }
+
+    fun parseActions(scope: TvmStepScopeManager, commitedState: TvmCommitedState): List<OutMessage>? = with(ctx) {
+        val commitedActions = scope.calcOnState { commitedState.c5.value.value }
 
         val actions = extractActions(scope, commitedActions)
             ?: return null
         val outMessages = mutableListOf<OutMessage>()
 
         for (action in actions) {
-            val tag = scope.slicePreloadDataBits(action, 32)
+            val (actionBody, tag) = sliceLoadIntTransaction(scope, action, 32)
                 ?: return null
-            scope.doWithState { sliceMoveDataPtr(action, 32) }
 
-            val isSendMsgAction = scope.checkSat(tag eq sendMsgActionTag)
-            val isReserveAction = scope.checkSat(tag eq reserveActionTag)
+            val isSendMsgAction = scope.checkSat(tag eq sendMsgActionTag.unsignedExtendToInteger())
+            val isReserveAction = scope.checkSat(tag eq reserveActionTag.unsignedExtendToInteger())
 
             require(isSendMsgAction == null || isReserveAction == null) {
                 "Symbolic actions are not supported"
             }
 
             when {
-                isReserveAction != null -> visitReserveAction(scope, action)
+                isReserveAction != null -> visitReserveAction(scope, actionBody)
                     ?: return null
                 isSendMsgAction != null -> {
-                    val msg = visitSendMessageAction(scope, action)
+                    val msg = visitSendMessageAction(scope, actionBody)
                         ?: return null
                     outMessages.add(msg)
                 }
@@ -79,10 +130,9 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
                 break
             }
 
-            cur = scope.slicePreloadNextRef(slice)
+            val action = sliceLoadRefTransaction(scope, slice)?.let { cur = it.second; it.first }
                 ?: return null
-            scope.doWithState { sliceMoveRefPtr(slice) }
-            actionList.add(slice)
+            actionList.add(action)
 
             if (actionList.size > TvmContext.MAX_ACTIONS) {
                 // TODO set error code
@@ -98,212 +148,186 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
             ?: return null
         val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
 
-//        val dest = parseDest(scope, msgSlice)
-//            ?: return null
-        val (dest, mustRewriteSrcAddr) = parseCommonMsgInfoRelaxed(scope, msgSlice)
+        val ptr = ParsingState(msgSlice)
+        val (msgFull, msgValue) = parseCommonMsgInfoRelaxed(scope, ptr)
             ?: return null
-        val hasStateInit = parseStateInit(scope, msgSlice)
+        parseStateInit(scope, ptr)
             ?: return null
-        val bodyCell = parseBody(scope, msgSlice)
+        val bodySlice = parseBody(scope, ptr)
             ?: return null
-        val body = scope.calcOnState { allocSliceFromCell(bodyCell.value) }
 
-        if (!mustRewriteSrcAddr) {
-            return OutMessage(msg, body)
-        }
-
-        // TODO rewrite addr_none to the real contract addr
-//        rewriteSrcAddr(scope, msgSlice)
-        OutMessage(msg, body)
+        OutMessage(msgValue, msgFull, bodySlice)
     }
 
-    private fun rewriteSrcAddr(scope: TvmStepScopeManager, msgSlice: UConcreteHeapRef) = with(ctx) {
-        // int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
-//        val tagAndFlagBits = scope.slicePreloadDataBits(msgSlice, bits = 4)
-//        scope.doWithState { sliceMoveDataPtr(msgSlice, 4) }
+    private fun parseCommonMsgInfoRelaxed(
+        scope: TvmStepScopeManager,
+        ptr: ParsingState
+    ): Pair<UHeapRef, UExpr<TvmInt257Sort>>? = with(ctx) {
+        val msgFull = scope.calcOnState { allocEmptyBuilder() }
 
-        // TODO support rewriting addr_none to the current contract address
-        msgSlice
-    }
+        val tag = sliceLoadIntTransaction(scope, ptr.slice, 1)?.second
+            ?: return@with null
 
-    private fun skipFlags(scope: TvmStepScopeManager, msgSlice: UHeapRef): UHeapRef {
-        // Skip msg_info tag and three following flags ihr_disabled:Bool bounce:Bool bounced:Bool
-        TODO()
-    }
-
-    private fun parseDest(scope: TvmStepScopeManager, msgSlice: UHeapRef): TvmCellValue? = with(ctx) {
-        // Skip msg flag
-        scope.doWithState { sliceMoveDataPtr(msgSlice, 6) }
-
-        // dest:MsgAddressInt
-        val destAddrLength = scope.slicePreloadInternalAddrLength(msgSlice)
-            ?: return null
-        val destAddr = scope.slicePreloadDataBits(msgSlice, destAddrLength)
-            ?: return null
-        scope.doWithState { sliceMoveDataPtr(msgSlice, destAddrLength) }
-
-        // value:CurrencyCollection
-        scope.skipGrams(msgSlice)
-            ?: return null
-
-        val cell = scope.allocCellFromData(destAddr, destAddrLength)
-        TvmCellValue(cell)
-    }
-
-    private fun parseCommonMsgInfoRelaxed(scope: TvmStepScopeManager, msgSlice: UHeapRef): AddressInfo? = with(ctx) {
-        val tag = scope.slicePreloadDataBits(msgSlice, 1)
-            ?: return null
-
-        val isInternalCond = tag eq zeroBit
+        val isInternalCond = tag eq zeroValue
         val isInternal = scope.checkCondition(isInternalCond)
             ?: return null
 
-        val (dest, mustRewriteScrAddr) = if (isInternal) {
+        if (isInternal) {
             // int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
-            scope.doWithState { sliceMoveDataPtr(msgSlice, 4) }
+            val flags = sliceLoadIntTransaction(scope, ptr.slice, 4)?.unwrap(ptr)
+                ?: return@with null
 
-            // src:MsgAddress
-            // TODO comment why addr_none
-            val srcAddrLength = scope.slicePreloadInternalOrNoneAddrLength(msgSlice)
-                ?: return null
-            val isSrcAddrNone = scope.checkCondition(srcAddrLength eq twoSizeExpr)
-                ?: return null
+            builderStoreIntTransaction(scope, msgFull, flags, mkSizeExpr(4))
+                ?: return@with null
 
-            // TODO Do we really need the src addr?
-//            val srcAddr = scope.slicePreloadDataBits(msgSlice, srcAddrLength)
-//                ?: return null
-            scope.doWithState { sliceMoveDataPtr(msgSlice, srcAddrLength) }
+            sliceSkipNoneOrStdAddr(scope, ptr.slice)?.unwrap(ptr)
+                ?: return@with null
+
+            val addrCell = scope.getCellContractInfoParam(ADDRESS_PARAMETER_IDX)
+                ?: return null
+            val addrSlice = scope.calcOnState { allocSliceFromCell(addrCell) }
+            builderStoreSliceTransaction(scope, msgFull, addrSlice)
+                ?: return null
 
             // dest:MsgAddressInt
-            val destAddrLength = scope.slicePreloadInternalAddrLength(msgSlice)
+            val destSlice = sliceLoadAddrTransaction(scope, ptr.slice)?.unwrap(ptr)
+                ?: return@with null
+            builderStoreSliceTransaction(scope, msgFull, destSlice)
                 ?: return null
-            val destAddr = scope.slicePreloadDataBits(msgSlice, destAddrLength)
-                ?: return null
-            scope.doWithState { sliceMoveDataPtr(msgSlice, destAddrLength) }
 
             // value:CurrencyCollection
-            scope.skipGrams(msgSlice)
+            sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
+                ?: return@with null
+
+            // TODO send correct msg_value
+            val symbolicMsgValue = scope.calcOnState { makeSymbolicPrimitive(int257sort) }
+            builderStoreGramsTransaction(scope, msgFull, symbolicMsgValue)
                 ?: return null
-            val extraCurrenciesBit = scope.slicePreloadDataBits(msgSlice, 1)
+
+            // TODO possible cell overflow
+            builderStoreSliceTransaction(scope, msgFull, ptr.slice)
                 ?: return null
-            scope.doWithState { sliceMoveDataPtr(msgSlice, 1) }
-            val extraCurrenciesEmptyConstraint = extraCurrenciesBit eq zeroBit
+
+            val extraCurrenciesBit = sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                ?: return@with null
+
+            val extraCurrenciesEmptyConstraint = extraCurrenciesBit eq zeroValue
             val isExtraCurrenciesEmpty = scope.checkCondition(extraCurrenciesEmptyConstraint)
                 ?: return null
             if (!isExtraCurrenciesEmpty) {
-                scope.slicePreloadNextRef(msgSlice)
-                    ?: return null
-                scope.doWithState { sliceMoveRefPtr(msgSlice) }
+                sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
+                    ?: return@with null
             }
 
-            // ihr_fee:Grams fwd_fee:Grams created_lt:uint64 created_at:uint32
-            scope.skipGrams(msgSlice)
-                ?: return null
-            scope.skipGrams(msgSlice)
-                ?: return null
-            scope.doWithState { sliceMoveDataPtr(msgSlice, 64 + 32) }
-
-            scope.allocCellFromData(destAddr, destAddrLength) to isSrcAddrNone
-        } else {
-            val externalTag = scope.slicePreloadDataBits(msgSlice, 2)
-                ?: return null
-
-            scope.fork(
-                externalTag eq mkBv(value = 3, sizeBits = 2u),
-                falseStateIsExceptional = true,
-                // TODO set cell deserialization failure
-                blockOnFalseState = throwStructuralCellUnderflowError
-            ) ?: return null
-
-            // ext_out_msg_info$11
-            scope.doWithState { sliceMoveDataPtr(msgSlice, 2) }
-
-            // src:MsgAddress
-            val srcAddrLength = scope.slicePreloadAddrLength(msgSlice)
-                ?: return null
-            scope.doWithState { sliceMoveDataPtr(msgSlice, srcAddrLength) }
-
-            // dest:MsgAddressExt
-            val destAddrLength = scope.slicePreloadExternalAddrLength(msgSlice)
-                ?: return null
-            val destAddr = scope.slicePreloadDataBits(msgSlice, destAddrLength)
-                ?: return null
-            scope.doWithState { sliceMoveDataPtr(msgSlice, destAddrLength) }
+            // ihr_fee:Grams fwd_fee:Grams
+            sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
+                ?: return@with null
+            sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
+                ?: return@with null
 
             // created_lt:uint64 created_at:uint32
-            scope.doWithState { sliceMoveDataPtr(msgSlice, 64 + 32) }
+            sliceLoadIntTransaction(scope, ptr.slice, 64)?.unwrap(ptr)
+                ?: return@with null
+            sliceLoadIntTransaction(scope, ptr.slice, 32)?.unwrap(ptr)
+                ?: return@with null
 
-            scope.allocCellFromData(destAddr, destAddrLength) to false
+            return scope.builderToCell(msgFull) to symbolicMsgValue
         }
 
-        AddressInfo(
-            TvmCellValue(dest),
-            mustRewriteScrAddr,
-        )
+        TODO("External messages are not supported")
+
+        scope.builderStoreSlice(msgFull, ptr.slice)
+            ?: return null
+
+        val externalTag = scope.slicePreloadDataBits(ptr.slice, 2)
+            ?: return null
+
+        scope.fork(
+            externalTag eq mkBv(value = 3, sizeBits = 2u),
+            falseStateIsExceptional = true,
+            // TODO set cell deserialization failure
+            blockOnFalseState = throwStructuralCellUnderflowError
+        ) ?: return null
+
+        // ext_out_msg_info$11
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, 2) }
+
+        // src:MsgAddress
+        val srcAddrLength = scope.slicePreloadAddrLength(ptr.slice)
+            ?: return null
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, srcAddrLength) }
+
+        // dest:MsgAddressExt
+        val destAddrLength = scope.slicePreloadExternalAddrLength(ptr.slice)
+            ?: return null
+        val destAddr = scope.slicePreloadDataBits(ptr.slice, destAddrLength)
+            ?: return null
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, destAddrLength) }
+
+        // created_lt:uint64 created_at:uint32
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, 64 + 32) }
+
+        scope.allocCellFromData(destAddr, destAddrLength)
+
+        null
     }
 
-    data class AddressInfo(
-        val destAddress: TvmCellValue,
-        val mustRewriteSrcAddr: Boolean
-    )
-
-    private fun parseStateInit(scope: TvmStepScopeManager, msgSlice: UHeapRef): Boolean? = with(ctx) {
+    private fun parseStateInit(scope: TvmStepScopeManager, ptr: ParsingState): Unit? = with(ctx) {
         // init:(Maybe (Either StateInit ^StateInit))
-        val initMaybeBit = scope.slicePreloadDataBits(msgSlice, 1)
+        val initMaybeBit = sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
             ?: return null
-        val noStateInitConstraint = initMaybeBit eq zeroBit
+        val noStateInitConstraint = initMaybeBit eq zeroValue
         val noStateInit = scope.checkCondition(noStateInitConstraint)
             ?: return null
-        scope.doWithState { sliceMoveDataPtr(msgSlice, 1) }
 
         if (noStateInit) {
-            return false
+            return Unit
         }
 
-        val eitherBit = scope.slicePreloadDataBits(msgSlice, 1)
+        val eitherBit = sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
             ?: return null
-        val isEitherRightCond = eitherBit eq oneBit
+        val isEitherRightCond = eitherBit eq oneValue
         val isEitherRight = scope.checkCondition(isEitherRightCond)
             ?: return null
-        scope.doWithState { sliceMoveDataPtr(msgSlice, 1) }
 
         if (isEitherRight) {
-            scope.slicePreloadNextRef(msgSlice)
+            sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
                 ?: return null
-            scope.doWithState { sliceMoveRefPtr(msgSlice) }
-            return true
+            return Unit
         }
 
+        TODO("Raw state_init is not supported")
+
         // split_depth:(Maybe (## 5))
-        val splitDepthMaybeBit = scope.slicePreloadDataBits(msgSlice, 1)
+        val splitDepthMaybeBit = scope.slicePreloadDataBits(ptr.slice, 1)
             ?: return null
         val splitDepthLen = mkIte(
             splitDepthMaybeBit eq oneBit,
             sixSizeExpr,
             oneSizeExpr
         )
-        scope.doWithState { sliceMoveDataPtr(msgSlice, splitDepthLen) }
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, splitDepthLen) }
 
         // special:(Maybe TickTock)
-        val specialMaybeBit = scope.slicePreloadDataBits(msgSlice, 1)
+        val specialMaybeBit = scope.slicePreloadDataBits(ptr.slice, 1)
             ?: return null
         val specialLen = mkIte(
             specialMaybeBit eq oneBit,
             threeSizeExpr,
             oneSizeExpr
         )
-        scope.doWithState { sliceMoveDataPtr(msgSlice, specialLen) }
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, specialLen) }
 
         // code:(Maybe ^Cell) data:(Maybe ^Cell) library:(Maybe ^Cell)
-        val codeMaybeBit = scope.slicePreloadDataBits(msgSlice, 1)
+        val codeMaybeBit = scope.slicePreloadDataBits(ptr.slice, 1)
             ?: return null
-        scope.doWithState { sliceMoveDataPtr(msgSlice, 1) }
-        val dataMaybeBit = scope.slicePreloadDataBits(msgSlice, 1)
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, 1) }
+        val dataMaybeBit = scope.slicePreloadDataBits(ptr.slice, 1)
             ?: return null
-        scope.doWithState { sliceMoveDataPtr(msgSlice, 1) }
-        val libMaybeBit = scope.slicePreloadDataBits(msgSlice, 1)
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, 1) }
+        val libMaybeBit = scope.slicePreloadDataBits(ptr.slice, 1)
             ?: return null
-        scope.doWithState { sliceMoveDataPtr(msgSlice, 1) }
+        scope.doWithState { sliceMoveDataPtr(ptr.slice, 1) }
 
         val refsToSkip = mkSizeAddExpr(
             mkSizeAddExpr(
@@ -313,30 +337,29 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
             libMaybeBit.zeroExtendToSort(sizeSort),
         )
 
-        scope.doWithState { sliceMoveRefPtr(msgSlice, refsToSkip) }
+        scope.doWithState { sliceMoveRefPtr(ptr.slice, refsToSkip) }
 
-        return true
+        return Unit
     }
 
-    private fun parseBody(scope: TvmStepScopeManager, msgSlice: UHeapRef): TvmCellValue? = with(ctx) {
+    private fun parseBody(scope: TvmStepScopeManager, ptr: ParsingState): UHeapRef? = with(ctx) {
         //  body:(Either X ^X)
-        val bodyEitherBit = scope.slicePreloadDataBits(msgSlice, 1)
+        val bodyEitherBit = sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
             ?: return null
-        val isBodyLeft = scope.checkCondition(bodyEitherBit eq zeroBit)
+        val isBodyLeft = scope.checkCondition(bodyEitherBit eq zeroValue)
             ?: return null
-        scope.doWithState { sliceMoveDataPtr(msgSlice, 1) }
 
         val body = if (isBodyLeft) {
-            val bodyBuilder = scope.calcOnState { allocEmptyCell() }
-            scope.builderStoreSlice(bodyBuilder, msgSlice)
+            val bodyBuilder = scope.calcOnState { allocEmptyBuilder() }
+            builderStoreSliceTransaction(scope, bodyBuilder, ptr.slice)
                 ?: return null
-            bodyBuilder
+            scope.builderToCell(bodyBuilder)
         } else {
-            scope.slicePreloadNextRef(msgSlice)
+            sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
                 ?: return null
         }
 
-        TvmCellValue(body)
+        scope.calcOnState { allocSliceFromCell(body) }
     }
 
     private fun visitReserveAction(scope: TvmStepScopeManager, slice: UHeapRef): Unit? {
@@ -345,17 +368,34 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
         return Unit
     }
 
-    private fun TvmStepScopeManager.skipGrams(slice: UHeapRef) = calcOnStateCtx {
-        val length = slicePreloadDataBits(slice, bits = 4)?.zeroExtendToSort(sizeSort)
-            ?: return@calcOnStateCtx null
+    private fun sliceSkipNoneOrStdAddr(
+        scope: TvmStepScopeManager,
+        slice: UHeapRef,
+    ): Pair<UHeapRef, Unit>? = scope.doWithCtx {
+        val (afterTagSlice, tag) = sliceLoadIntTransaction(scope, slice, 2)
+            ?: return@doWithCtx null
 
-        // TODO: do we need it here?
-        // makeSliceTypeLoad(slice, TvmSymbolicCellDataCoins(ctx, length))
+        val noneTag = mkBv(NONE_ADDRESS_TAG, INT_BITS)
+        val isTagNone = scope.checkCondition(tag eq noneTag.uncheckedCast())
+            ?: return@doWithCtx null
 
-        val extendedLength = mkBvShiftLeftExpr(length, shift = threeSizeExpr)
-        val bitsToSkip = mkSizeAddExpr(fourSizeExpr, extendedLength)
+        if (isTagNone) {
+            return@doWithCtx afterTagSlice to Unit
+        }
 
-        sliceMoveDataPtr(slice, bitsToSkip)
+        // TODO not fallback to old memory
+        val stdTag = mkBv(STD_ADDRESS_TAG, INT_BITS)
+        val isTagStd = scope.checkCondition(tag eq stdTag.uncheckedCast())
+            ?: return@doWithCtx null
+
+        require(isTagStd) {
+            "Only none and std source addresses are supported"
+        }
+
+        val (nextSlice, _) = sliceLoadAddrTransaction(scope, slice)
+            ?: return@doWithCtx null
+
+        nextSlice to Unit
     }
 
     private fun TvmStepScopeManager.checkCondition(cond: UBoolExpr): Boolean? = with(ctx) {
@@ -372,9 +412,19 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
 
         checkRes != null
     }
+
+    private fun <T> Pair<UHeapRef, T>.unwrap(state: ParsingState): T {
+        state.slice = first
+        return second
+    }
+
+    private data class ParsingState(
+        var slice: UHeapRef
+    )
 }
 
 data class OutMessage(
-    val inMsgFull: UHeapRef,
-    val inMsgBody: UHeapRef,
+    val msgValue: UExpr<TvmInt257Sort>,
+    val fullMsgCell: UHeapRef,
+    val msgBodySlice: UHeapRef,
 )

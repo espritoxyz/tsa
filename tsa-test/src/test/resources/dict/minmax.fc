@@ -1,0 +1,19 @@
+#include "stdlib.fc";
+#include "utils.fc";
+
+(int, int, int, int) dict_minmax() method_id(0) {
+    cell d = gen_dict();
+
+    (int key0, _, int f0) = d.idict_get_min?(dict_length());
+    (int key1, _, int f1) = d.idict_get_max?(dict_length());
+
+    (int key2, _, int f2) = d.udict_get_min?(dict_length());
+    (int key3, _, int f3) = d.udict_get_max?(dict_length());
+
+    return (
+        key0.unpack_key(f0),
+        key1.unpack_key(f1),
+        key2.unpack_key(f2),
+        key3.unpack_key(f3)
+    );
+}

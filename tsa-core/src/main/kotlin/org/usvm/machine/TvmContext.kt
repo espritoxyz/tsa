@@ -9,7 +9,9 @@ import io.ksmt.sort.KBvSort
 import io.ksmt.utils.BvUtils.bvMaxValueUnsigned
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.asExpr
+import io.ksmt.utils.powerOfTwo
 import io.ksmt.utils.toBigInteger
+import org.ton.bytecode.MethodId
 import java.math.BigInteger
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
@@ -28,6 +30,8 @@ import org.usvm.machine.state.TvmDictError
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmIntegerOutOfRangeError
 import org.usvm.machine.state.TvmIntegerOverflowError
+import org.usvm.machine.state.TvmStackOverflowError
+import org.usvm.machine.state.TvmStackUnderflowError
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTypeCheckError
 import org.usvm.machine.state.bvMaxValueSignedExtended
@@ -38,6 +42,7 @@ import org.usvm.machine.types.TvmDictCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.dp.AbstractGuard
+import org.usvm.machine.types.dp.AbstractionForUExpr
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
@@ -58,8 +63,8 @@ class TvmContext(
     val int257Ext1Sort = TvmInt257Ext1Sort(this)
     val int257Ext256Sort = TvmInt257Ext256Sort(this)
 
-    val trueValue: KBitVecValue<TvmInt257Sort> = (-1).toBv257()
-    val falseValue: KBitVecValue<TvmInt257Sort> = 0.toBv257()
+    val trueValue: KBitVecValue<TvmInt257Sort> = TRUE_CONCRETE_VALUE.toBv257()
+    val falseValue: KBitVecValue<TvmInt257Sort> = FALSE_CONCRETE_VALUE.toBv257()
     val oneValue: KBitVecValue<TvmInt257Sort> = 1.toBv257()
     val twoValue: KBitVecValue<TvmInt257Sort> = 2.toBv257()
     val threeValue: KBitVecValue<TvmInt257Sort> = 3.toBv257()
@@ -70,6 +75,7 @@ class TvmContext(
     val intBitsValue: KBitVecValue<TvmInt257Sort> = INT_BITS.toInt().toBv257()
     val maxTupleSizeValue: KBitVecValue<TvmInt257Sort> = MAX_TUPLE_SIZE.toBv257()
     val unitTimeMinValue: KBitVecValue<TvmInt257Sort> = UNIX_TIME_MIN.toBv257()
+    val unitTimeMaxValue: KBitVecValue<TvmInt257Sort> = UNIX_TIME_MAX.toBv257()
     val min257BitValue: KExpr<TvmInt257Sort> = bvMinValueSignedExtended(intBitsValue)
     val max257BitValue: KExpr<TvmInt257Sort> = bvMaxValueSignedExtended(intBitsValue)
     val maxGramsValue: KExpr<TvmInt257Sort> = bvMaxValueUnsigned<UBvSort>(MAX_GRAMS_BITS).unsignedExtendToInteger()
@@ -78,12 +84,14 @@ class TvmContext(
     val masterchain: KBitVecValue<TvmInt257Sort> = minusOneValue
     val baseChain: KBitVecValue<TvmInt257Sort> = zeroValue
 
-    val abstractTrue = AbstractGuard { trueExpr }
-    val abstractFalse = AbstractGuard { falseExpr }
+    fun <Abstraction : AbstractionForUExpr<Abstraction>> abstractTrue(): AbstractGuard<Abstraction> =
+        AbstractGuard { trueExpr }
+
+    fun <Abstraction : AbstractionForUExpr<Abstraction>> abstractFalse(): AbstractGuard<Abstraction> =
+        AbstractGuard { falseExpr }
 
     val zeroSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(0)
     val oneSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(1)
-    val twoSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(2)
     val threeSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(3)
     val fourSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(4)
     val sixSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(6)
@@ -106,6 +114,8 @@ class TvmContext(
     val quit1Cont = TvmQuitContinuation(1u)
 
     val throwTypeCheckError: (TvmState) -> Unit = setFailure(TvmTypeCheckError)
+    val throwStackUnderflowError: (TvmState) -> Unit = setFailure(TvmStackUnderflowError)
+    val throwStackOverflowError: (TvmState) -> Unit = setFailure(TvmStackOverflowError)
     val throwIntegerOverflowError: (TvmState) -> Unit = setFailure(TvmIntegerOverflowError)
     val throwIntegerOutOfRangeError: (TvmState) -> Unit = setFailure(TvmIntegerOutOfRangeError)
     val throwCellOverflowError: (TvmState) -> Unit = setFailure(TvmCellOverflowError)
@@ -119,6 +129,8 @@ class TvmContext(
 
     val sendMsgActionTag = mkBvHex("0ec3c86d", 32u)
     val reserveActionTag = mkBvHex("36e6b809", 32u)
+
+    val sendMsgFeeEstimationFlag = powerOfTwo(10u).toBv257()
 
     fun UBoolExpr.toBv257Bool(): UExpr<TvmInt257Sort> = with(ctx) {
         mkIte(
@@ -193,16 +205,22 @@ class TvmContext(
         const val INT_BITS: UInt = 257u
         val CELL_DATA_BITS: UInt = MAX_DATA_LENGTH.toUInt()
 
-        const val UNIX_TIME_MIN: Int = 1712318909
+        // Apr 05 2024 12:08:29 GMT+0000
+        const val UNIX_TIME_MIN: Long = 1712318909
+        // Jan 01 2100 00:00:00 GMT+0000
+        const val UNIX_TIME_MAX: Long = 4102444800
 
+        const val GRAMS_LENGTH_BITS: UInt = 4u
         const val MAX_GRAMS_BITS: UInt = 120u
 
         const val MAX_ACTIONS = 255
 
         const val CONFIG_KEY_LENGTH: Int = 32
 
+        const val HASH_BITS: UInt = 256u
+
         const val STD_WORKCHAIN_BITS: Int = 8
-        const val ADDRESS_BITS: Int = 256
+        val ADDRESS_BITS: Int = HASH_BITS.toInt()
 
         const val ADDRESS_TAG_LENGTH: Int = 2
         val ADDRESS_TAG_BITS: UInt = ADDRESS_TAG_LENGTH.toUInt()
@@ -218,14 +236,18 @@ class TvmContext(
         val INT_EXT256_BITS: UInt = INT_BITS + 256u
 
         // Minimum incoming message value/balance in nanotons
-        const val MIN_MESSAGE_CURRENCY: Long = 10_000_000
+        const val MIN_MESSAGE_CURRENCY: Long = 100_000_000
         // Maximum incoming message value/balance in nanotons
         val MAX_MESSAGE_CURRENCY: BigInteger = BigInteger.TEN.pow(20)
 
         val RECEIVE_INTERNAL_ID: MethodId = 0.toMethodId()
         val RECEIVE_EXTERNAL_ID: MethodId = (-1).toMethodId()
 
-        val cellDataField: TvmField = TvmFieldImpl(TvmCellType, "data")
+        const val OP_BITS: UInt = 32u
+
+        const val TRUE_CONCRETE_VALUE = -1
+        const val FALSE_CONCRETE_VALUE = 0
+
         val cellDataLengthField: TvmField = TvmFieldImpl(TvmCellType, "dataLength")
         val cellRefsLengthField: TvmField = TvmFieldImpl(TvmCellType, "refsLength")
 
@@ -235,7 +257,7 @@ class TvmContext(
 
         val dictKeyLengthField: TvmField = TvmFieldImpl(TvmDictCellType, "keyLength")
 
-        const val stdMsgAddrSize = 2 + 1 + 8 + 256
+        val stdMsgAddrSize = ADDRESS_TAG_LENGTH + 1 + STD_WORKCHAIN_BITS + ADDRESS_BITS
     }
 
     class TvmInt257Sort(ctx: KContext) : KBvCustomSizeSort(ctx, INT_BITS)

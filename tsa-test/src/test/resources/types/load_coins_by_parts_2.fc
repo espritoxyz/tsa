@@ -1,0 +1,16 @@
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    slice in_msg_copy = in_msg;
+
+    int coins_prefix = in_msg~load_uint(4);
+
+    throw_unless(1000, coins_prefix == 1);
+
+    int coins = in_msg_copy~load_coins();
+
+    throw_if(1001, coins == 100000);
+
+    coins~impure_touch();
+}

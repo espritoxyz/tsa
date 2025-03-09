@@ -1,0 +1,4 @@
+const int error::invalidated_invariant = 999;
+
+const int path::end_1 = 101;
+const int path::end_2 = 102;

@@ -26,7 +26,7 @@ import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.defineC0
 import org.usvm.machine.state.defineC2
 import org.usvm.machine.state.extractCurrentContinuation
-import org.usvm.machine.state.jump
+import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.setFailure
@@ -99,19 +99,23 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
             is TvmExceptionsTryInst -> {
                 scope.consumeDefaultGas(stmt)
 
-                val body = scope.calcOnState {
+                val cont = scope.calcOnState { stack.takeLastContinuation() }
+                    ?: return scope.doWithState(ctx.throwTypeCheckError)
+
+                scope.calcOnState {
                     val registers = registersOfCurrentContract
                     val oldC2 = registers.c2.value
                     val cc = extractCurrentContinuation(stmt, saveC0 = true, saveC1 = true, saveC2 = true)
-                    val handler = stack.takeLastContinuation().defineC2(oldC2).defineC0(cc)
+                    val handler = cont.defineC2(oldC2).defineC0(cc)
 
                     registers.c0 = C0Register(cc)
                     registers.c2 = C2Register(handler)
-
-                    stack.takeLastContinuation()
                 }
 
-                scope.jump(body)
+                val body = scope.calcOnState { stack.takeLastContinuation() }
+                    ?: return scope.doWithState(ctx.throwTypeCheckError)
+
+                scope.jumpToContinuation(body)
             }
             else -> TODO("Unknown stmt: $stmt")
         }
@@ -121,7 +125,7 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
         code: Int,
         level: TvmFailureType = TvmFailureType.UnknownError,
         param: UExpr<TvmInt257Sort> = ctx.zeroValue,
-    ) = ctx.setFailure(TvmUnknownFailure(code.toUInt()), level, param, implicitThrow = false)(this)
+    ) = ctx.setFailure(TvmUnknownFailure(code), level, param, implicitThrow = false)(this)
 
     private fun doThrowIfInst(
         scope: TvmStepScopeManager,

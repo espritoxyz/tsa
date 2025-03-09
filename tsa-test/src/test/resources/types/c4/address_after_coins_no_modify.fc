@@ -1,0 +1,39 @@
+#include "../../imports/stdlib.fc";
+
+(int, slice, slice) load_data() {
+    slice ds = get_data().begin_parse();
+    return (
+        ds~load_coins(),
+        ds~load_msg_addr(),
+        ds~load_msg_addr()
+    );
+}
+
+() save_data(int c, slice addr1, slice addr2) impure {
+    set_data(begin_cell()
+        .store_coins(c)
+        .store_slice(addr1)
+        .store_slice(addr2)
+        .end_cell()
+    );
+}
+
+() recv_internal(slice in_msg) {
+    (_, slice initial_addr1, slice initial_addr2) = load_data();
+
+    int i = 0;
+    while (i < 3) {
+        (int c, slice addr1, slice addr2) = load_data();
+        int add = in_msg~load_coins();
+
+        if (add <= 10) {
+            save_data(c + add, addr1, addr2);
+        }
+
+        i += 1;
+    }
+
+    (_, slice addr1, slice addr2) = load_data();
+    throw_unless(1000, equal_slice_bits(addr1, initial_addr1));
+    throw_unless(1001, equal_slice_bits(addr2, initial_addr2));
+}

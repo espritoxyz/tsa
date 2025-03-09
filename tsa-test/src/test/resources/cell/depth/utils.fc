@@ -1,0 +1,45 @@
+#include "stdlib.fc";
+
+cell null_cell() impure method_id {
+    return null();
+}
+
+cell zero_depth_cell() impure method_id {
+    return begin_cell().store_uint(5, 5).end_cell();
+}
+
+cell one_depth_cell() impure method_id {
+    cell r0 = zero_depth_cell();
+    cell r1 = zero_depth_cell();
+
+    return begin_cell()
+        .store_ref(r0)
+        .store_ref(r1)
+        .end_cell();
+}
+
+cell two_depth_cell() impure method_id {
+    cell r0 = zero_depth_cell();
+    cell r1 = one_depth_cell();
+
+    return begin_cell()
+        .store_int(-1, 32)
+        .store_ref(r0)
+        .store_ref(r1)
+        .end_cell();
+}
+
+cell dict_cell() impure method_id {
+    cell dict = new_dict();
+    int key_len = 32;
+    slice value = begin_cell().end_cell().begin_parse();
+
+    dict~idict_set(key_len, -1, value);
+    dict~udict_set(key_len, 31, value);
+    dict~udict_set(key_len, 47, value);
+    dict~udict_set(key_len, 55, value);
+    dict~udict_set(key_len, 59, value);
+    dict~udict_set(key_len, 63, value);
+
+    return dict;
+}

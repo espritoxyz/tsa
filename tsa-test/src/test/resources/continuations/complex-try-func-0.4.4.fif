@@ -1,0 +1,46 @@
+"Fift.fif" include
+"Asm.fif" include
+
+PROGRAM{
+  0 DECLMETHOD some_throwing
+  106 DECLMETHOD test106
+  some_throwing PROC:<{
+    c2 SAVE
+    SAMEALTSAVE
+    DUP
+    1 EQINT
+    IFJMP:<{
+      DROP
+    }>
+    2 EQINT
+    IFJMP:<{
+      RETALT
+    }>
+    42 THROW
+  }>
+  test106 PROC:<{
+    c2 SAVE
+    SAMEALTSAVE
+    c4 PUSH
+    c5 PUSH
+    c7 PUSH
+    <{
+      2DROP
+      42 PUSHINT
+      RETALT
+      DROP
+    }>CONT
+    c7 SETCONT
+    c5 SETCONT
+    c4 SETCONT
+    <{
+      some_throwing CALLDICT
+      1337 PUSHINT
+      RETALT
+    }>CONT
+    c1 PUSH
+    COMPOSALT
+    SWAP
+    TRY
+  }>
+}END>c

@@ -6,6 +6,7 @@ import org.ton.TlbLabel
 import org.ton.TvmParameterInfo
 import org.usvm.UConcreteHeapRef
 import org.usvm.machine.TvmContext
+import org.usvm.machine.types.memory.stack.TlbStack
 
 class TvmSliceToTlbStackMapper(
     private var sliceToTlbStack: PersistentMap<UConcreteHeapRef, TlbStack> = persistentMapOf()

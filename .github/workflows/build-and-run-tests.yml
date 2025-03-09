@@ -11,7 +11,7 @@ jobs:
   run-tests:
     name: 'Run tests'
     runs-on: ubuntu-22.04
-    container: explyt/tsa-env:v1.1.0
+    container: explyt/tsa-env:v1.1.1
 
     steps:
       - name: 'Checkout repository'
@@ -26,12 +26,6 @@ jobs:
 #          java-version: '17'
 #          cache: 'gradle'
 
-      - name: 'Build tvm disasm'
-        working-directory: ./tvm-disasm
-        run: |
-          npm i
-          npm run build
-
       - name: 'Build and run test'
         run: ./gradlew clean build
         env:
@@ -43,3 +37,12 @@ jobs:
         with:
           name: test-report
           path: ${{ github.workspace }}/**/build/reports/tests/
+
+      - name: 'Save generated tests'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-tests
+          path: |
+            **/build/resources/test/sandbox/
+            !**/build/resources/test/sandbox/node_modules/

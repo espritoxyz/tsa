@@ -3,6 +3,19 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     id("tsa.kotlin-conventions")
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
+}
+
+dependencies {
+    implementation(project(":tsa-core"))
+    implementation(project(":tsa-sarif"))
+    implementation(project(":tsa-test-gen"))
+
+    implementation("ch.qos.logback:logback-classic:${Versions.logback}")
+    implementation("com.github.ajalt.clikt:clikt:${Versions.clikt}")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${Versions.kotlinx_serialization}")
+
 }
 
 val mainClassName = "org.ton.MainKt"
@@ -16,14 +29,6 @@ tasks.withType<Jar> {
     manifest {
         attributes["Main-Class"] = mainClassName
     }
-}
-
-dependencies {
-    implementation(project(":tsa-core"))
-    implementation(project(":tsa-sarif"))
-    implementation(project(":tsa-test-gen"))
-
-    implementation("com.github.ajalt.clikt:clikt:${Versions.clikt}")
 }
 
 tasks.withType<ShadowJar> {

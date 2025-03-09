@@ -28,7 +28,7 @@ class TvmStack(
     private var stack: PersistentList<TvmStackEntry> = persistentListOf(), // [n n-1 n-2 ... 2 1 0]
     private var inputElements: PersistentList<TvmInputStackEntry> = persistentListOf(),
     private var inputEntryIdToStackValue: PersistentMap<Int, TvmStackValue> = persistentMapOf(),
-    private val allowInputValues: Boolean = true,
+    val allowInputValues: Boolean = true,
 ) {
     private inline val size: Int get() = stack.size
 
@@ -45,7 +45,13 @@ class TvmStack(
         entries.reversed().forEach { entry ->
             addStackEntry(entry)
         }
-        otherStack.inputEntryIdToStackValue.forEach { (id, value) ->
+        // TODO should `inputElements` be copied here ?
+        copyInputValues(otherStack)
+    }
+
+    fun copyInputValues(other: TvmStack) {
+        inputElements = other.inputElements
+        other.inputEntryIdToStackValue.forEach { (id, value) ->
             putInputEntryValue(TvmInputStackEntry(id), value)
         }
     }
@@ -61,6 +67,12 @@ class TvmStack(
         val lastStackEntry = stack.last()
         stack = stack.removeAt(size - 1)
         return lastStackEntry
+    }
+
+    fun dropLastEntries(num: UInt = 1u) {
+        repeat(num.toInt()) {
+            takeLastEntry()
+        }
     }
 
     fun peekStackEntry(i: Int): TvmStackEntry {
@@ -173,6 +185,14 @@ class TvmStack(
         stack = stack.set(second, tmp)
     }
 
+    fun depth(): UInt {
+        check(!allowInputValues) {
+            "Stack depth is undefined if input values are allowed"
+        }
+
+        return size.toUInt()
+    }
+
     fun clear() {
         stack = stack.clear()
     }
@@ -181,12 +201,12 @@ class TvmStack(
 
     // TODO continuations
     sealed interface TvmStackValue {
-        val continuationValue: TvmContinuation get() = error("Cannot extract continuation from stack value $this")
-        val intValue: UExpr<TvmInt257Sort> get() = error("Cannot extract int from stack value $this")
-        val tupleValue: TvmStackTupleValue get() = error("Cannot extract tuple from stack value $this")
-        val cellValue: UHeapRef? get() = error("Cannot extract cell from stack value $this")
-        val sliceValue: UHeapRef? get() = error("Cannot extract slice from stack value $this")
-        val builderValue: UConcreteHeapRef? get() = error("Cannot extract builder from stack value $this")
+        val continuationValue: TvmContinuation? get() = null
+        val intValue: UExpr<TvmInt257Sort>? get() = null
+        val tupleValue: TvmStackTupleValue? get() = null
+        val cellValue: UHeapRef? get() = null
+        val sliceValue: UHeapRef? get() = null
+        val builderValue: UConcreteHeapRef? get() = null
         val isNull: Boolean get() = false
     }
     data class TvmStackContinuationValue(override val continuationValue: TvmContinuation) : TvmStackValue
@@ -260,10 +280,6 @@ class TvmStack(
         override val isNull: Boolean get() = true
 
         // TODO should tupleValue return an empty tuple?
-
-        override val cellValue: UHeapRef? = null
-        override val sliceValue: UHeapRef? get() = null
-        override val builderValue: UConcreteHeapRef? get() = null
     }
     data class TvmStackSliceValue(override val sliceValue: UHeapRef): TvmStackValue
     data class TvmStackBuilderValue(override val builderValue: UConcreteHeapRef): TvmStackValue

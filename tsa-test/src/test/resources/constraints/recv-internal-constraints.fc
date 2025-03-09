@@ -1,0 +1,16 @@
+#include "stdlib.fc";
+
+() recv_internal(int balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int tag = cs~load_uint(0);
+
+    var value_lower_bound = 5;
+    var value_upper_bound = 1 << 100;
+
+    var invalid_tag = tag != 0;
+    var balance_invalid_range = (balance < value_lower_bound) | (balance > value_upper_bound);
+    var msg_value_invalid_range = (msg_value < value_lower_bound) | (msg_value > value_upper_bound);
+
+    throw_if(101, invalid_tag | balance_invalid_range | msg_value_invalid_range);
+    return ();
+}

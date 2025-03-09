@@ -1,0 +1,27 @@
+#include "stdlib.fc";
+#include "utils.fc";
+
+(int, int, int, int, int) cell_test() impure method_id (0) {
+    int d0 = null_cell().cell_depth();
+    int d1 = zero_depth_cell().cell_depth();
+    int d2 = one_depth_cell().cell_depth();
+    int d3 = two_depth_cell().cell_depth();
+    int d4 = dict_cell().cell_depth();
+
+    return (d0, d1, d2, d3, d4);
+}
+
+(int, int, int, int, int, int) slice_test() impure method_id (1) {
+    int d0 = null_cell().begin_parse().slice_depth();
+    int d1 = zero_depth_cell().begin_parse().slice_depth();
+    int d2 = one_depth_cell().begin_parse().slice_depth();
+    int d3 = two_depth_cell().begin_parse().slice_depth();
+    int d4 = dict_cell().begin_parse().slice_depth();
+
+    slice cs = two_depth_cell().begin_parse();
+    cs~load_int(10);
+
+    int d5 = cs.slice_depth();
+
+    return (d0, d1, d2, d3, d4, d5);
+}

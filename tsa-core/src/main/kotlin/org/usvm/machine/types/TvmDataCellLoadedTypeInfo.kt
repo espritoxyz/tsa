@@ -23,10 +23,10 @@ class TvmDataCellLoadedTypeInfo(
         val cellAddress: UConcreteHeapRef
     }
 
-    class LoadData(
+    class LoadData<ReadResult : TvmCellDataTypeReadValue>(
         override val guard: UBoolExpr,
         override val cellAddress: UConcreteHeapRef,
-        val type: TvmCellDataTypeRead,
+        val type: TvmCellDataTypeRead<ReadResult>,
         val offset: UExpr<TvmSizeSort>,
         val sliceAddress: UConcreteHeapRef,
     ) : Action
@@ -73,13 +73,13 @@ class TvmDataCellLoadedTypeInfo(
     }
 
     context(TvmContext)
-    fun loadData(
+    fun <ReadResult : TvmCellDataTypeReadValue> loadData(
         cellAddress: UHeapRef,
         offset: UExpr<TvmSizeSort>,
-        type: TvmCellDataTypeRead,
+        type: TvmCellDataTypeRead<ReadResult>,
         slice: UHeapRef,
-    ): List<LoadData> {
-        val staticSliceAddresses = extractAddresses(slice, extractAllocated = true)
+    ): List<LoadData<ReadResult>> {
+        val staticSliceAddresses = extractAddresses(slice, extractAllocated = true, extractStatic = true)
         return staticSliceAddresses.fold(emptyList()) { acc, (sliceGuard, sliceRef) ->
             acc + registerAction(cellAddress) { ref ->
                 LoadData(ref.guard and sliceGuard, ref.expr, type, offset, sliceRef)

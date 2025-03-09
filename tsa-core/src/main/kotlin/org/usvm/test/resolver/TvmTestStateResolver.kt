@@ -4,6 +4,7 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbAtomicLabel
+import org.ton.TlbBitArrayByRef
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabel
@@ -57,6 +58,7 @@ import org.usvm.machine.types.TvmCellDataIntegerRead
 import org.usvm.machine.types.TvmCellDataMsgAddrRead
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmCellMaybeConstructorBitRead
+import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.TvmUnexpectedEndOfReading
@@ -64,15 +66,27 @@ import org.usvm.machine.types.TvmUnexpectedRefReading
 import org.usvm.machine.types.defaultCellValue
 import org.usvm.machine.types.dp.getDefaultDict
 import org.usvm.machine.types.getPossibleTypes
+import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.sizeSort
 import java.math.BigInteger
+import org.ton.bytecode.ADDRESS_PARAMETER_IDX
+import org.ton.bytecode.BALANCE_PARAMETER_IDX
+import org.ton.bytecode.CONFIG_PARAMETER_IDX
+import org.ton.bytecode.TIME_PARAMETER_IDX
+import org.ton.bytecode.TvmArtificialInst
+import org.usvm.UBoolExpr
+import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmStack.TvmStackValue
+import org.usvm.machine.state.input.RecvInternalInput
+import org.usvm.machine.state.input.TvmStateStackInput
 
 class TvmTestStateResolver(
     private val ctx: TvmContext,
     val model: UModelBase<TvmType>,
-    private val state: TvmState,
+    val state: TvmState,
+    private val performAdditionalChecks: Boolean = false,  // for testing
 ) {
     private val stack: TvmStack
         get() = state.rootStack
@@ -82,18 +96,81 @@ class TvmTestStateResolver(
 
     private val resolvedCache = mutableMapOf<UConcreteHeapAddress, TvmTestCellValue>()
 
-    fun resolveParameters(): List<TvmTestValue> = stack.inputValues.filterNotNull().map { resolveStackValue(it) }.reversed()
+    private val labelMapper
+        get() = state.dataCellInfoStorage.mapper
 
-    fun resolveInitialData(): TvmTestCellValue = resolveCell(state.rootInitialData.persistentData)
+    fun resolveInput(): TvmTestInput = when (val input = state.input) {
+        is TvmStateStackInput -> {
+            TvmTestInput.StackInput(resolveStackInput())
+        }
+        is RecvInternalInput -> {
+            TvmTestInput.RecvInternalInput(
+                srcAddress = resolveSlice(input.srcAddress),
+                msgValue = resolveInt257(input.msgValue),
+                msgBody = resolveSlice(input.msgBodySlice),
+                bounce = resolveBool(input.bounce),
+                bounced = resolveBool(input.bounced),
+                ihrDisabled = resolveBool(input.ihrDisabled),
+                ihrFee = resolveInt257(input.ihrFee),
+                fwdFee = resolveInt257(input.fwdFee),
+                createdLt = resolveInt257(input.createdLt),
+                createdAt = resolveInt257(input.createdAt),
+            )
+        }
+    }
+
+    private fun resolveBool(boolExpr: UBoolExpr): Boolean = model.eval(boolExpr).isTrue
+
+    private fun resolveStackInput(): List<TvmTestValue> = stack.inputValues.filterNotNull().map { resolveStackValue(it) }.reversed()
+
+    fun resolveFetchedValues(): Map<Int, TvmTestValue> = state.fetchedValues.mapValues { (index, stackEntry) ->
+        val value = stackEntry.cell(stack)
+            ?: error("Fetched value $index was expected to be concrete stack entry, but got $stackEntry")
+
+        resolveStackValue(value)
+    }
+
+    fun resolveInitialData(): Map<ContractId, TvmTestCellValue> = state.contractIdToInitialData.entries.associate { (key, value) ->
+        key to resolveCell(value.persistentData)
+    }
+
+    fun resolveRootData(): TvmTestCellValue = resolveCell(state.rootInitialData.persistentData)
+
+    fun resolveConfig(): TvmTestDictCellValue {
+        val config = getContractParam(CONFIG_PARAMETER_IDX)
+
+        return (resolveStackValue(config) as? TvmTestDictCellValue)
+            ?: error("Unexpected config type")
+    }
 
     fun resolveContractAddress(): TvmTestDataCellValue {
-        val contractInfo = state.rootInitialData.firstElementOfC7
-        val addressCell = contractInfo[8, stack].cell(stack)
-            ?: error("Unexpected contract address")
-        val contractAddress = (resolveStackValue(addressCell) as? TvmTestDataCellValue)
-            ?: error("Unexpected address type")
+        val address = getContractParam(ADDRESS_PARAMETER_IDX)
 
-        return contractAddress
+        return (resolveStackValue(address) as? TvmTestDataCellValue)
+            ?: error("Unexpected address type")
+    }
+
+    fun resolveContractBalance(): TvmTestIntegerValue {
+        val balance = getContractParam(BALANCE_PARAMETER_IDX).tupleValue
+            ?.get(0, stack)?.cell(stack)
+            ?: error("Unexpected contract balance")
+
+        return (resolveStackValue(balance) as? TvmTestIntegerValue)
+            ?: error("Unexpected balance type")
+    }
+
+    fun resolveTime(): TvmTestIntegerValue {
+        val now = getContractParam(TIME_PARAMETER_IDX)
+
+        return (resolveStackValue(now) as? TvmTestIntegerValue)
+            ?: error("Unexpected address type")
+    }
+
+    private fun getContractParam(idx: Int): TvmStackValue {
+        val value = state.rootInitialData.firstElementOfC7[idx, stack]
+
+        return value.cell(stack)
+            ?: error("Unexpected $idx parameter value: $value")
     }
 
     fun resolveResultStack(): TvmMethodSymbolicResult {
@@ -105,7 +182,15 @@ class TvmTestStateResolver(
 
         return when (val it = state.methodResult) {
             TvmMethodResult.NoCall -> error("Missed result for state $state")
-            is TvmMethodResult.TvmFailure -> TvmMethodFailure(it, state.lastStmt, it.exit.exitCode, resolvedResults)
+            is TvmMethodResult.TvmFailure -> {
+                var node = state.pathNode
+                while (node.statement is TvmArtificialInst) {
+                    node = node.parent
+                        ?: error("Unexpected execution path without non-artificial instructions")
+                }
+
+                TvmMethodFailure(it, node.statement, it.exit.exitCode, resolvedResults)
+            }
             is TvmMethodResult.TvmSuccess -> TvmSuccessfulExecution(it.exit.exitCode, resolvedResults)
             is TvmMethodResult.TvmStructuralError -> resolveTvmStructuralError(state.lastStmt, resolvedResults, it)
         }
@@ -128,6 +213,7 @@ class TvmTestStateResolver(
             is TvmUnexpectedEndOfReading -> TvmUnexpectedEndOfReading
             is TvmUnexpectedRefReading -> TvmUnexpectedRefReading
             is TvmReadingOutOfSwitchBounds -> TvmReadingOutOfSwitchBounds(resolveCellDataType(structuralExit.readingType))
+            is TvmReadingSwitchWithUnexpectedType -> TvmReadingSwitchWithUnexpectedType(resolveCellDataType(structuralExit.readingType))
         }
         return TvmExecutionWithStructuralError(lastStmt, stack, resolvedExit)
     }
@@ -141,11 +227,14 @@ class TvmTestStateResolver(
             is TlbResolvedBuiltinLabel -> {
                 label
             }
+            is TlbBitArrayByRef -> {
+                error("Cannot resolve TlbBitArrayByRef")
+            }
         }
 
     fun resolveGasUsage(): Int = model.eval(state.calcConsumedGas()).intValue()
 
-    private fun resolveStackValue(stackValue: TvmStack.TvmStackValue): TvmTestValue {
+    private fun resolveStackValue(stackValue: TvmStackValue): TvmTestValue {
         return when (stackValue) {
             is TvmStack.TvmStackIntValue -> resolveInt257(stackValue.intValue)
             is TvmStack.TvmStackCellValue -> resolveCell(stackValue.cellValue.also { state.ensureSymbolicCellInitialized(it) })
@@ -307,15 +396,13 @@ class TvmTestStateResolver(
         val cached = resolvedCache[modelRef.address]
         if (cached != null) return cached
 
-        val mapper = state.dataCellInfoStorage.mapper
-
         // This is a special situation for a case when a child of some cell with TL-B scheme
         // was requested for the first time only during test resolving process.
         // Since structural constraints are generated lazily, they were not generated for
         // this child yet. To avoid generation of a test that violates TL-B scheme
         // we provide [TvmTestCellValue] with default contents for the scheme.
-        if (!mapper.structuralConstraintsWereCalculated(modelRef) && mapper.addressWasGiven(modelRef)) {
-            return buildDefaultCell(mapper.getLabelFromModel(model, modelRef))
+        if (!labelMapper.proactiveStructuralConstraintsWereCalculated(modelRef) && labelMapper.addressWasGiven(modelRef)) {
+            return buildDefaultCell(labelMapper.getLabelFromModel(model, modelRef))
         }
 
         val typeVariants = state.getPossibleTypes(modelRef)
@@ -323,7 +410,9 @@ class TvmTestStateResolver(
         // If typeVariants has more than one type, we can choose any of them.
         val type = typeVariants.first()
 
-        require(type is TvmDictCellType || type is TvmDataCellType)
+        require(type is TvmDictCellType || type is TvmDataCellType) {
+            "Unexpected type: $type"
+        }
 
         if (type is TvmDictCellType) {
             return resolveDictCell(modelRef, cell)
@@ -379,7 +468,7 @@ class TvmTestStateResolver(
 
     private fun resolveTypeLoad(loads: List<TvmDataCellLoadedTypeInfo.Action>): List<TvmCellDataTypeLoad> {
         val resolved = loads.mapNotNull {
-            if (it is TvmDataCellLoadedTypeInfo.LoadData && model.eval(it.guard).isTrue) {
+            if (it is TvmDataCellLoadedTypeInfo.LoadData<*> && model.eval(it.guard).isTrue) {
                 TvmCellDataTypeLoad(resolveCellDataType(it.type), resolveInt(it.offset))
             } else {
                 null
@@ -389,22 +478,47 @@ class TvmTestStateResolver(
         return resolved.toSet().sortedBy { it.offset }
     }
 
-    private fun resolveCellDataType(type: TvmCellDataTypeRead): TvmTestCellDataTypeRead =
+    private fun resolveCellDataType(type: TvmCellDataTypeRead<*>): TvmTestCellDataTypeRead =
         when (type) {
             is TvmCellDataIntegerRead -> TvmTestCellDataIntegerRead(resolveInt(type.sizeBits), type.isSigned, type.endian)
             is TvmCellMaybeConstructorBitRead -> TvmTestCellDataMaybeConstructorBitRead
             is TvmCellDataBitArrayRead -> TvmTestCellDataBitArrayRead(resolveInt(type.sizeBits))
             is TvmCellDataMsgAddrRead -> TvmTestCellDataMsgAddrRead
-            is TvmCellDataCoinsRead -> TvmTestCellDataCoinsRead(resolveInt(type.coinsPrefix))
+            is TvmCellDataCoinsRead -> TvmTestCellDataCoinsRead
         }
 
-    private fun resolveInt257(expr: UExpr<out USort>): TvmTestIntegerValue {
+    fun resolveInt257(expr: UExpr<out USort>): TvmTestIntegerValue {
         val value = extractInt257(evaluateInModel(expr))
         return TvmTestIntegerValue(value)
     }
 
     private fun resolveCellData(cell: UHeapRef): String = with(ctx) {
-        val symbolicData = memory.readField(cell, TvmContext.cellDataField, cellDataSort)
+        val modelRef = model.eval(cell) as UConcreteHeapRef
+
+        if (labelMapper.addressWasGiven(modelRef)) {
+            val label = labelMapper.getLabelFromModel(model, modelRef)
+            if (label is TvmParameterInfo.DataCellInfo) {
+                val valueFromTlbFields = readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
+
+                if (performAdditionalChecks && modelRef.address in state.cellDataFieldManager.getCellsWithAssertedCellData()) {
+                    val symbolicData = state.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
+                    val data = extractCellData(evaluateInModel(symbolicData))
+                    val dataLength = resolveInt(memory.readField(cell, TvmContext.cellDataLengthField, sizeSort))
+                        .coerceAtMost(TvmContext.MAX_DATA_LENGTH).coerceAtLeast(0)
+                    val dataFromField = data.take(dataLength)
+
+                    check(dataFromField == valueFromTlbFields) {
+                        "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
+                                "cellDataField: $dataFromField\n" +
+                                "   tlb fields: $valueFromTlbFields"
+                    }
+                }
+
+                return valueFromTlbFields
+            }
+        }
+
+        val symbolicData = state.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
         val data = extractCellData(evaluateInModel(symbolicData))
         val dataLength = resolveInt(memory.readField(cell, TvmContext.cellDataLengthField, sizeSort))
             .coerceAtMost(TvmContext.MAX_DATA_LENGTH).coerceAtLeast(0)

@@ -1,0 +1,13 @@
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(slice in_msg) impure {
+    int in_msg_len = in_msg.slice_bits();
+
+    int x = in_msg~load_coins();
+    int y = in_msg~load_coins();
+    int z = in_msg~load_coins();
+
+    throw_if(1000, x + y + z == 1567);
+    throw_if(1001, in_msg_len == 12);
+}

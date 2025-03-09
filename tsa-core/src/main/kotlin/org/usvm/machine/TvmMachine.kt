@@ -3,7 +3,7 @@ package org.usvm.machine
 import mu.KLogging
 import org.ton.TvmInputInfo
 import org.ton.bytecode.TvmCodeBlock
-import org.ton.bytecode.TvmContractCode
+import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmInst
 import org.ton.cell.Cell
 import org.usvm.PathSelectionStrategy
@@ -24,6 +24,7 @@ import org.usvm.statistics.collectors.AllStatesCollector
 import org.usvm.stopstrategies.GroupedStopStrategy
 import org.usvm.stopstrategies.StepLimitStopStrategy
 import org.usvm.stopstrategies.StopStrategy
+import org.usvm.stopstrategies.TimeoutStopStrategy
 import java.math.BigInteger
 import kotlin.time.Duration.Companion.INFINITE
 import kotlin.time.Duration.Companion.seconds
@@ -36,7 +37,7 @@ class TvmMachine(
     private val ctx = TvmContext(tvmOptions, components)
 
     fun analyze(
-        contractCode: TvmContractCode,
+        contractCode: TsaContractCode,
         contractData: Cell,
         coverageStatistics: TvmCoverageStatistics,
         methodId: BigInteger,
@@ -45,7 +46,7 @@ class TvmMachine(
         analyze(listOf(contractCode), startContractId = 0, contractData, coverageStatistics, methodId, inputInfo)
 
     fun analyze(
-        contractsCode: List<TvmContractCode>,
+        contractsCode: List<TsaContractCode>,
         startContractId: ContractId,
         contractData: Cell,
         coverageStatistics: TvmCoverageStatistics,  // TODO: adapt for several contracts
@@ -53,6 +54,7 @@ class TvmMachine(
         inputInfo: TvmInputInfo = TvmInputInfo(),
         additionalStopStrategy: StopStrategy = StopStrategy { false },
         additionalObserver: UMachineObserver<TvmState>? = null,
+        manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
     ): List<TvmState> {
         val interpreter = TvmInterpreter(
             ctx,
@@ -111,8 +113,9 @@ class TvmMachine(
         } else {
             StopStrategy { false }
         }
+        val timeoutStopStrategy = TimeoutStopStrategy(options.timeout, timeStatistics)
 
-        val integrativeStopStrategy = GroupedStopStrategy(listOf(stopStrategy, additionalStopStrategy))
+        val integrativeStopStrategy = GroupedStopStrategy(listOf(stopStrategy, additionalStopStrategy, timeoutStopStrategy))
 
         val statesCollector = when (options.stateCollectionStrategy) {
             StateCollectionStrategy.COVERED_NEW, StateCollectionStrategy.REACHED_TARGET -> TODO("Unsupported strategy ${options.stateCollectionStrategy}")
@@ -122,6 +125,12 @@ class TvmMachine(
         val observers = mutableListOf(statesCollector, stepsStatistics, coverageStatistics, timeStatistics)
         additionalObserver?.let { observers.add(it) }
 
+        if (logger.isDebugEnabled && contractsCode.size == 1) {
+            val code = contractsCode.single()
+            val profiler = getTvmDebugProfileObserver(code)
+            observers.add(profiler)
+        }
+
         run(
             interpreter,
             pathSelector,
@@ -130,17 +139,18 @@ class TvmMachine(
             stopStrategy = integrativeStopStrategy,
         )
 
-        return interpreter.postProcessStates(statesCollector.collectedStates)
+        return interpreter.postProcessStates(statesCollector.collectedStates).flatMap {
+            manualStatePostProcess(it)
+        }
     }
 
-    private fun isStateTerminated(state: TvmState): Boolean =
-        state.methodResult !is TvmMethodResult.NoCall
+    private fun isStateTerminated(state: TvmState): Boolean = state.isTerminated
 
     companion object {
         private val logger = object : KLogging() {}.logger
 
         const val DEFAULT_MAX_RECURSION_DEPTH: Int = 2
-        private const val LOOP_ITERATIONS_LIMIT: Int = 2 // TODO find the best value
+        const val DEFAULT_LOOP_ITERATIONS_LIMIT: Int = 2 // TODO find the best value
         const val DEFAULT_MAX_TLB_DEPTH = 10
         const val DEFAULT_MAX_CELL_DEPTH_FOR_DEFAULT_CELLS_CONSISTENT_WITH_TLB = 10
 
@@ -150,7 +160,7 @@ class TvmMachine(
             timeout = INFINITE,
             stopOnCoverage = -1,
             loopIterativeDeepening = true,
-            loopIterationLimit = LOOP_ITERATIONS_LIMIT,
+            loopIterationLimit = DEFAULT_LOOP_ITERATIONS_LIMIT,
             stepLimit = null,
             solverTimeout = 1.seconds
         )

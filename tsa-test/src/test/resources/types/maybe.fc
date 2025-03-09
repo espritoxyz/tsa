@@ -1,0 +1,12 @@
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(slice in_msg) impure {
+    cell some_cell = in_msg~load_maybe_ref();
+    if (some_cell.null?()) {
+        return ();
+    }
+    slice s = some_cell.begin_parse();
+    cell another_cell = s~load_ref();
+    another_cell~impure_touch();
+}

@@ -1,0 +1,9 @@
+{
+  "projects": [
+    {
+      "name": "Divider",
+      "path": "./divider.tact",
+      "output": "./output"
+    }
+  ]
+}

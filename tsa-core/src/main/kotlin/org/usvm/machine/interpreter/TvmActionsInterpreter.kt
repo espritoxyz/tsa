@@ -2,12 +2,19 @@ package org.usvm.machine.interpreter
 
 import org.ton.bytecode.TvmAppActionsInst
 import org.ton.bytecode.TvmAppActionsRawreserveInst
+import org.ton.bytecode.TvmAppActionsSendmsgInst
 import org.ton.bytecode.TvmAppActionsSendrawmsgInst
 import org.ton.bytecode.TvmAppActionsSetcodeInst
 import org.ton.bytecode.TvmCellValue
+import org.ton.bytecode.TvmInst
+import org.usvm.UExpr
+import org.usvm.UHeapRef
+import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.C5Register
+import org.usvm.machine.state.addInt
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderStoreGrams
@@ -29,6 +36,7 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
 
         when (stmt) {
             is TvmAppActionsSendrawmsgInst -> visitSendRawMsgInst(scope, stmt)
+            is TvmAppActionsSendmsgInst -> visitSendMsgInst(scope, stmt)
             is TvmAppActionsRawreserveInst -> visitRawReserveInst(scope, stmt)
             is TvmAppActionsSetcodeInst -> visitSetCodeInst(scope, stmt)
             else -> TODO("$stmt")
@@ -44,22 +52,46 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
         val notOutOfRangeExpr = unsignedIntegerFitsBits(mode, 8u)
         checkOutOfRange(notOutOfRangeExpr, scope) ?: return
 
-        scope.doWithStateCtx {
-            val registers = registersOfCurrentContract
-            val actions = registers.c5.value.value
-            val updatedActions = allocEmptyCell()
+        doSendMsg(scope, msg, mode, stmt)
+    }
 
-            builderStoreNextRef(updatedActions, actions)
-            builderStoreDataBits(updatedActions, sendMsgActionTag)
-            scope.builderStoreInt(updatedActions, mode, sizeBits = eightValue, isSigned = false) {
-                error("Unexpected cell overflow during SENDRAWMSG instruction")
-            } ?: return@doWithStateCtx
-            builderStoreNextRef(updatedActions, msg)
+    private fun visitSendMsgInst(scope: TvmStepScopeManager, stmt: TvmAppActionsSendmsgInst) = with(ctx) {
+        val mode = scope.takeLastIntOrThrowTypeError()
+            ?: return@with
+        val msg = scope.calcOnState { takeLastCell() }
+            ?: return@with scope.doWithState(throwTypeCheckError)
 
-            registers.c5 = C5Register(TvmCellValue(updatedActions))
+        val sendBit = sendMsgFeeEstimationFlag
+        val sendFlag = mkBvAndExpr(mode, sendBit)
+        val normalizedMode = mkBvSubExpr(mode, sendFlag)
 
-            newStmt(stmt.nextStmt())
+        val notOutOfRangeExpr = unsignedIntegerFitsBits(normalizedMode, 8u)
+        checkOutOfRange(notOutOfRangeExpr, scope) ?: return
+
+        val fee = scope.calcOnState { makeSymbolicPrimitive(int257sort) }
+        scope.assert(
+            constraint = mkAnd(
+                mkBvSignedLessExpr(zeroValue, fee),
+                mkBvSignedLessOrEqualExpr(fee, maxMessageCurrencyValue)
+            ),
+            unsatBlock = {
+                error("Cannot assume message fee constraints")
+            }
+        ) ?: return@with
+
+        scope.doWithState {
+            stack.addInt(fee)
         }
+
+        scope.fork(
+            condition = sendFlag eq zeroValue,
+            falseStateIsExceptional = false,
+            blockOnFalseState = {
+                newStmt(stmt.nextStmt())
+            }
+        ) ?: return@with
+
+        doSendMsg(scope, msg, normalizedMode, stmt)
     }
 
     private fun visitRawReserveInst(scope: TvmStepScopeManager, stmt: TvmAppActionsRawreserveInst) = with(ctx) {
@@ -89,6 +121,30 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
             scope.builderStoreGrams(updatedActions, grams) ?: return@doWithState
             // empty ExtraCurrencyCollection
             builderStoreDataBits(updatedActions, zeroBit)
+
+            registers.c5 = C5Register(TvmCellValue(updatedActions))
+
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun doSendMsg(
+        scope: TvmStepScopeManager,
+        msg: UHeapRef,
+        mode: UExpr<TvmInt257Sort>,
+        stmt: TvmInst
+    ): Unit = with(ctx) {
+        scope.doWithStateCtx {
+            val registers = registersOfCurrentContract
+            val actions = registers.c5.value.value
+            val updatedActions = allocEmptyCell()
+
+            builderStoreNextRef(updatedActions, actions)
+            builderStoreDataBits(updatedActions, sendMsgActionTag)
+            scope.builderStoreInt(updatedActions, mode, sizeBits = eightValue, isSigned = false) {
+                error("Unexpected cell overflow during $stmt instruction")
+            } ?: return@doWithStateCtx
+            builderStoreNextRef(updatedActions, msg)
 
             registers.c5 = C5Register(TvmCellValue(updatedActions))
 

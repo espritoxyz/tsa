@@ -10,7 +10,7 @@ fun <Acc> TlbStructure.fold(
     return when (this) {
         is TlbStructure.KnownTypePrefix -> rest.fold(cur, f)
         is TlbStructure.LoadRef -> rest.fold(cur, f)
-        is TlbStructure.SwitchPrefix -> variants.values.fold(cur) { acc, struct -> struct.fold(acc, f) }
+        is TlbStructure.SwitchPrefix -> variants.fold(cur) { acc, (_, struct) -> struct.fold(acc, f) }
         is TlbStructure.Unknown, is TlbStructure.Empty -> cur
     }
 }

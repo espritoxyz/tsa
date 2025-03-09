@@ -67,8 +67,8 @@ private fun getMaxCellLength(
 
         is TlbStructure.SwitchPrefix -> {
             var longestVariant: Int? = null
-            for (variant in struct.variants.values) {
-                val further = getMaxCellLength(variant, maxLengthFromPreviousDepth)
+            for (variant in struct.variants) {
+                val further = getMaxCellLength(variant.struct, maxLengthFromPreviousDepth)
                 if (further != null && (longestVariant == null || longestVariant < further)) {
                     longestVariant = further
                 }

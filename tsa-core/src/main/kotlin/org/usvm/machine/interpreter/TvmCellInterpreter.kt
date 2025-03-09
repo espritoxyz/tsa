@@ -1,7 +1,9 @@
 package org.usvm.machine.interpreter
 
 import org.ton.Endian
-import org.ton.bytecode.TvmAliasInst
+import org.ton.bytecode.TvmCell
+import org.ton.bytecode.TvmCellBuildBbitsInst
+import org.ton.bytecode.TvmCellBuildBdepthInst
 import org.ton.bytecode.TvmCellBuildEndcInst
 import org.ton.bytecode.TvmCellBuildInst
 import org.ton.bytecode.TvmCellBuildNewcInst
@@ -79,13 +81,13 @@ import org.ton.bytecode.TvmCellParseSdbeginsxInst
 import org.ton.bytecode.TvmCellParseSdbeginsxqInst
 import org.ton.bytecode.TvmCellParseSdcutfirstInst
 import org.ton.bytecode.TvmCellParseSdcutlastInst
+import org.ton.bytecode.TvmCellParseSdepthInst
 import org.ton.bytecode.TvmCellParseSdskipfirstInst
 import org.ton.bytecode.TvmCellParseSdskiplastInst
 import org.ton.bytecode.TvmCellParseSrefsInst
 import org.ton.bytecode.TvmCellParseSskiplastInst
 import org.ton.bytecode.TvmCellParseXctosInst
 import org.ton.bytecode.TvmInst
-import org.ton.bytecode.TvmSubSliceSerializedLoader
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -106,23 +108,23 @@ import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
-import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.assertDataLengthConstraint
 import org.usvm.machine.state.assertRefsLengthConstraint
 import org.usvm.machine.state.assertType
-import org.usvm.machine.state.bitsToBv
 import org.usvm.machine.state.builderCopy
+import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
-import org.usvm.machine.state.builderStoreInt
+import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRef
 import org.usvm.machine.state.builderStoreSlice
+import org.usvm.machine.state.builderStoreSliceTlb
+import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.checkCellDataUnderflow
 import org.usvm.machine.state.checkCellOverflow
 import org.usvm.machine.state.checkCellRefsUnderflow
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
-import org.usvm.machine.state.doPop
 import org.usvm.machine.state.doSwap
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getSliceRemainingBitsCount
@@ -131,15 +133,17 @@ import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceCopy
+import org.usvm.machine.state.sliceLoadIntTlb
+import org.usvm.machine.state.sliceLoadRefTlb
 import org.usvm.machine.state.sliceMoveDataPtr
 import org.usvm.machine.state.sliceMoveRefPtr
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.slicePreloadInt
-import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicePreloadRef
 import org.usvm.machine.state.takeLastBuilder
 import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
+import org.usvm.machine.state.takeLastRef
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.machine.types.TvmBuilderType
@@ -149,10 +153,10 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataIntegerRead
+import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.assertEndOfCell
-import org.usvm.machine.types.loadIntLabelToBuilder
+import org.usvm.machine.types.copyTlbToNewBuilder
 import org.usvm.machine.types.makeCellToSlice
-import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
@@ -177,29 +181,214 @@ class TvmCellInterpreter(
                 val refIdx = scope.calcOnState { takeLastIntOrThrowTypeError() } ?: return
                 doPreloadRef(scope, stmt, refIdx = refIdx.extractToSizeSort())
             }
-            is TvmCellParseLduInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = false, preload = false, quiet = false)
-            is TvmCellParseLduqInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = false, preload = false, quiet = true)
-            is TvmCellParseLduAltInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = false, preload = false, quiet = false)
-            is TvmCellParseLdiInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = true, preload = false, quiet = false)
-            is TvmCellParseLdiqInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = true, preload = false, quiet = true)
-            is TvmCellParseLdiAltInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = true, preload = false, quiet = false)
-            is TvmCellParsePlduInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = false, preload = true, quiet = false)
-            is TvmCellParsePlduqInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = false, preload = true, quiet = true)
-            is TvmCellParsePldiInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = true, preload = true, quiet = false)
-            is TvmCellParsePldiqInst -> visitLoadIntInst(scope, stmt, stmt.c + 1, isSigned = true, preload = true, quiet = true)
-            is TvmCellParseLdule4Inst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 4, isSigned = false, preload = false, quiet = false)
-            is TvmCellParseLdule4qInst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 4, isSigned = false, preload = false, quiet = true)
-            is TvmCellParseLdile4Inst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 4, isSigned = true, preload = false, quiet = false)
-            is TvmCellParseLdule8Inst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 8, isSigned = false, preload = false, quiet = false)
-            is TvmCellParseLdile8Inst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 8, isSigned = true, preload = false, quiet = false)
-            is TvmCellParsePldule4Inst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 4, isSigned = false, preload = true, quiet = false)
-            is TvmCellParsePldule4qInst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 4, isSigned = false, preload = true, quiet = true)
-            is TvmCellParsePldile4Inst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 4, isSigned = true, preload = true, quiet = false)
-            is TvmCellParsePldile4qInst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 4, isSigned = true, preload = true, quiet = true)
-            is TvmCellParsePldule8Inst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 8, isSigned = false, preload = true, quiet = false)
-            is TvmCellParsePldule8qInst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 8, isSigned = false, preload = true, quiet = true)
-            is TvmCellParsePldile8Inst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 8, isSigned = true, preload = true, quiet = false)
-            is TvmCellParsePldile8qInst -> visitLoadIntLEInst(scope, stmt, sizeBytes = 8, isSigned = true, preload = true, quiet = true)
+
+            is TvmCellParseLduInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = false,
+                preload = false,
+                quiet = false
+            )
+
+            is TvmCellParseLduqInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = false,
+                preload = false,
+                quiet = true
+            )
+
+            is TvmCellParseLduAltInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = false,
+                preload = false,
+                quiet = false
+            )
+
+            is TvmCellParseLdiInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = true,
+                preload = false,
+                quiet = false
+            )
+
+            is TvmCellParseLdiqInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = true,
+                preload = false,
+                quiet = true
+            )
+
+            is TvmCellParseLdiAltInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = true,
+                preload = false,
+                quiet = false
+            )
+
+            is TvmCellParsePlduInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = false,
+                preload = true,
+                quiet = false
+            )
+
+            is TvmCellParsePlduqInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = false,
+                preload = true,
+                quiet = true
+            )
+
+            is TvmCellParsePldiInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = true,
+                preload = true,
+                quiet = false
+            )
+
+            is TvmCellParsePldiqInst -> visitLoadIntInst(
+                scope,
+                stmt,
+                stmt.c + 1,
+                isSigned = true,
+                preload = true,
+                quiet = true
+            )
+
+            is TvmCellParseLdule4Inst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 4,
+                isSigned = false,
+                preload = false,
+                quiet = false
+            )
+
+            is TvmCellParseLdule4qInst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 4,
+                isSigned = false,
+                preload = false,
+                quiet = true
+            )
+
+            is TvmCellParseLdile4Inst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 4,
+                isSigned = true,
+                preload = false,
+                quiet = false
+            )
+
+            is TvmCellParseLdule8Inst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 8,
+                isSigned = false,
+                preload = false,
+                quiet = false
+            )
+
+            is TvmCellParseLdile8Inst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 8,
+                isSigned = true,
+                preload = false,
+                quiet = false
+            )
+
+            is TvmCellParsePldule4Inst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 4,
+                isSigned = false,
+                preload = true,
+                quiet = false
+            )
+
+            is TvmCellParsePldule4qInst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 4,
+                isSigned = false,
+                preload = true,
+                quiet = true
+            )
+
+            is TvmCellParsePldile4Inst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 4,
+                isSigned = true,
+                preload = true,
+                quiet = false
+            )
+
+            is TvmCellParsePldile4qInst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 4,
+                isSigned = true,
+                preload = true,
+                quiet = true
+            )
+
+            is TvmCellParsePldule8Inst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 8,
+                isSigned = false,
+                preload = true,
+                quiet = false
+            )
+
+            is TvmCellParsePldule8qInst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 8,
+                isSigned = false,
+                preload = true,
+                quiet = true
+            )
+
+            is TvmCellParsePldile8Inst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 8,
+                isSigned = true,
+                preload = true,
+                quiet = false
+            )
+
+            is TvmCellParsePldile8qInst -> visitLoadIntLEInst(
+                scope,
+                stmt,
+                sizeBytes = 8,
+                isSigned = true,
+                preload = true,
+                quiet = true
+            )
+
             is TvmCellParseLduxInst -> visitLoadIntXInst(scope, stmt, isSigned = false, preload = false, quiet = false)
             is TvmCellParseLduxqInst -> visitLoadIntXInst(scope, stmt, isSigned = false, preload = false, quiet = true)
             is TvmCellParseLdixInst -> visitLoadIntXInst(scope, stmt, isSigned = true, preload = false, quiet = false)
@@ -215,42 +404,55 @@ class TvmCellInterpreter(
             is TvmCellParsePldsliceqInst -> visitLoadSliceInst(scope, stmt, stmt.c + 1, preload = true, quiet = true)
             is TvmCellParseLdslicexInst -> visitLoadSliceXInst(scope, stmt, preload = false, quiet = false) {}
             is TvmCellParseLdslicexqInst -> visitLoadSliceXInst(scope, stmt, preload = false, quiet = true) {}
-            is TvmCellParsePldslicexInst, is TvmCellParseSdcutfirstInst -> visitLoadSliceXInst(scope, stmt, preload = true, quiet = false) {}
+            is TvmCellParsePldslicexInst, is TvmCellParseSdcutfirstInst -> visitLoadSliceXInst(
+                scope,
+                stmt,
+                preload = true,
+                quiet = false
+            ) {}
+
             is TvmCellParsePldslicexqInst -> visitLoadSliceXInst(scope, stmt, preload = true, quiet = true) {}
             is TvmCellParseSrefsInst -> visitSizeRefsInst(scope, stmt)
             is TvmCellParseSbitsInst -> visitSizeBitsInst(scope, stmt)
             is TvmCellParseSbitrefsInst -> visitSizeBitRefsInst(scope, stmt)
             is TvmCellParseSdskipfirstInst -> {
-                visitLoadSliceXInst(scope, stmt, preload = false, quiet = false) {
-                    doPop(scope, 1)
-                }
+                visitLoadSliceXInst(scope, stmt, preload = false, quiet = false, pushResultOnStack = false) {}
             }
+
             is TvmCellParseSdcutlastInst -> {
                 visitCutLastInst(scope, stmt, skipAllRefs = true)
             }
+
             is TvmCellParseScutlastInst -> {
                 visitCutLastInst(scope, stmt, skipAllRefs = false)
             }
+
             is TvmCellParseSdskiplastInst -> {
                 visitSkipLastInst(scope, stmt, keepAllRefs = true)
             }
+
             is TvmCellParseSskiplastInst -> {
                 visitSkipLastInst(scope, stmt, keepAllRefs = false)
             }
+
             is TvmCellParseSdbeginsInst -> {
                 visitBeginsInst(scope, stmt, stmt.s, quiet = false)
             }
+
             is TvmCellParseSdbeginsqInst -> {
                 visitBeginsInst(scope, stmt, stmt.s, quiet = true)
             }
+
             is TvmCellParseSdbeginsxInst -> {
                 visitBeginsXInst(scope, stmt, quiet = false)
             }
+
             is TvmCellParseSdbeginsxqInst -> {
                 visitBeginsXInst(scope, stmt, quiet = true)
             }
-            is TvmCellParseCdepthInst -> visitCellDepthInst(scope, stmt)
-            is TvmAliasInst -> visitCellParseInst(scope, stmt.resolveAlias() as TvmCellParseInst)
+
+            is TvmCellParseCdepthInst -> visitDepthInst(scope, stmt, operandType = TvmCellType)
+            is TvmCellParseSdepthInst -> visitDepthInst(scope, stmt, operandType = TvmSliceType)
             else -> TODO("Unknown stmt: $stmt")
         }
     }
@@ -266,55 +468,65 @@ class TvmCellInterpreter(
             is TvmCellBuildStiInst -> visitStoreIntInst(scope, stmt, stmt.c + 1, true)
             is TvmCellBuildStuxInst -> visitStoreIntXInst(scope, stmt, false)
             is TvmCellBuildStixInst -> visitStoreIntXInst(scope, stmt, true)
+            is TvmCellBuildBbitsInst -> visitBuilderBitsInst(scope, stmt)
             is TvmCellBuildStsliceInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.doStoreSlice(stmt, quiet = false)
             }
+
             is TvmCellBuildStsliceAltInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.doStoreSlice(stmt, quiet = false)
             }
+
             is TvmCellBuildStslicerInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 doSwap(scope)
                 scope.doStoreSlice(stmt, quiet = false)
             }
+
             is TvmCellBuildStsliceqInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.doStoreSlice(stmt, quiet = true)
             }
+
             is TvmCellBuildStslicerqInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 doSwap(scope)
                 scope.doStoreSlice(stmt, quiet = true)
             }
+
             is TvmCellBuildStbInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.doStoreBuilder(stmt, quiet = false)
             }
+
             is TvmCellBuildStbrInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 doSwap(scope)
                 scope.doStoreBuilder(stmt, quiet = false)
             }
+
             is TvmCellBuildStbqInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.doStoreBuilder(stmt, quiet = true)
             }
+
             is TvmCellBuildStbrqInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 doSwap(scope)
                 scope.doStoreBuilder(stmt, quiet = true)
             }
+
             is TvmCellBuildStrefInst -> visitStoreRefInst(scope, stmt, quiet = false)
             is TvmCellBuildStrefqInst -> visitStoreRefInst(scope, stmt, quiet = true)
             is TvmCellBuildStrefAltInst -> visitStoreRefInst(scope, stmt, quiet = false)
@@ -322,10 +534,14 @@ class TvmCellInterpreter(
                 doSwap(scope)
                 visitStoreRefInst(scope, stmt, quiet = false)
             }
+
             is TvmCellBuildStrefrqInst -> {
                 doSwap(scope)
                 visitStoreRefInst(scope, stmt, quiet = true)
             }
+
+            is TvmCellBuildBdepthInst -> visitDepthInst(scope, stmt, operandType = TvmBuilderType)
+
             else -> TODO("$stmt")
         }
     }
@@ -343,17 +559,13 @@ class TvmCellInterpreter(
             memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
         }
 
-        scope.makeSliceRefLoad(slice, updatedSlice) {
-
+        sliceLoadRefTlb(scope, slice, updatedSlice) { value ->
             // hide the original [scope] from this closure
             @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
             val scope = Unit
 
             doWithState {
-                val ref = slicePreloadNextRef(slice) ?: return@doWithState
-                sliceMoveRefPtr(updatedSlice)
-
-                addOnStack(ref, TvmCellType)
+                addOnStack(value, TvmCellType)
                 addOnStack(updatedSlice, TvmSliceType)
 
                 newStmt(stmt.nextStmt())
@@ -361,26 +573,27 @@ class TvmCellInterpreter(
         }
     }
 
-    private fun doPreloadRef(scope: TvmStepScopeManager, stmt: TvmCellParseInst, refIdx: UExpr<TvmSizeSort>) = with(ctx) {
-        scope.consumeDefaultGas(stmt)
+    private fun doPreloadRef(scope: TvmStepScopeManager, stmt: TvmCellParseInst, refIdx: UExpr<TvmSizeSort>) =
+        with(ctx) {
+            scope.consumeDefaultGas(stmt)
 
-        val notOutOfRangeExpr = mkAnd(
-            mkBvSignedLessOrEqualExpr(zeroSizeExpr, refIdx),
-            mkBvSignedLessOrEqualExpr(refIdx, mkSizeExpr(3)),
-        )
-        checkOutOfRange(notOutOfRangeExpr, scope) ?: return@with
+            val notOutOfRangeExpr = mkAnd(
+                mkBvSignedLessOrEqualExpr(zeroSizeExpr, refIdx),
+                mkBvSignedLessOrEqualExpr(refIdx, mkSizeExpr(3)),
+            )
+            checkOutOfRange(notOutOfRangeExpr, scope) ?: return@with
 
-        val slice = scope.calcOnState { stack.takeLastSlice() }
-            ?: return scope.doWithState(throwTypeCheckError)
+            val slice = scope.calcOnState { stack.takeLastSlice() }
+                ?: return scope.doWithState(throwTypeCheckError)
 
-        val ref = scope.slicePreloadRef(slice, refIdx) ?: return
+            val ref = scope.slicePreloadRef(slice, refIdx) ?: return
 
-        scope.doWithState {
-            scope.addOnStack(ref, TvmCellType)
+            scope.doWithState {
+                scope.addOnStack(ref, TvmCellType)
 
-            newStmt(stmt.nextStmt())
+                newStmt(stmt.nextStmt())
+            }
         }
-    }
 
     private fun visitEndSliceInst(scope: TvmStepScopeManager, stmt: TvmCellParseEndsInst) {
         scope.doWithState { consumeGas(18) } // complex gas
@@ -409,15 +622,11 @@ class TvmCellInterpreter(
 
     private fun TvmState.visitLoadDataInstEnd(
         stmt: TvmCellParseInst,
-        slice: UHeapRef,
-        sizeBits: UExpr<TvmSizeSort>,
         preload: Boolean,
         quiet: Boolean,
         updatedSliceAddress: UConcreteHeapRef,
     ) {
         if (!preload) {
-            updatedSliceAddress.also { sliceCopy(slice, it) }
-            sliceMoveDataPtr(updatedSliceAddress, sizeBits)
             addOnStack(updatedSliceAddress, TvmSliceType)
         }
 
@@ -446,25 +655,16 @@ class TvmCellInterpreter(
             return
         }
 
-        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType) }
-        scope.makeSliceTypeLoad(slice, TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.BigEndian), updatedSliceAddress) {
+        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
 
+        sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned) { value ->
             // hide the original [scope] from this closure
             @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
             val scope = Unit
 
-            val value = slicePreloadDataBits(slice, sizeBits)
-                ?: return@makeSliceTypeLoad
-
-            val extendedValue = if (isSigned) {
-                value.signedExtendToInteger()
-            } else {
-                value.unsignedExtendToInteger()
-            }
-
             doWithState {
-                addOnStack(extendedValue, TvmIntegerType)
-                visitLoadDataInstEnd(stmt, slice, mkSizeExpr(sizeBits), preload, quiet, updatedSliceAddress)
+                addOnStack(value, TvmIntegerType)
+                visitLoadDataInstEnd(stmt, preload, quiet, updatedSliceAddress)
             }
         }
     }
@@ -492,22 +692,27 @@ class TvmCellInterpreter(
         )
         checkOutOfRange(notOutOfRangeExpr, scope) ?: return
 
-        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType) }
+        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
         scope.makeSliceTypeLoad(
             slice,
             TvmCellDataIntegerRead(sizeBits.extractToSizeSort(), isSigned, Endian.BigEndian),
             updatedSliceAddress
-        ) {
+        ) { valueFromTlb ->
 
             // hide the original [scope] from this closure
             @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
             val scope = Unit
 
-            val value = slicePreloadInt(slice, sizeBits, isSigned) ?: return@makeSliceTypeLoad
+            val result = valueFromTlb?.expr ?: let {
+                slicePreloadInt(slice, sizeBits, isSigned)
+                    ?: return@makeSliceTypeLoad
+            }
 
             doWithState {
-                addOnStack(value, TvmIntegerType)
-                visitLoadDataInstEnd(stmt, slice, sizeBits.extractToSizeSort(), preload, quiet, updatedSliceAddress)
+                sliceMoveDataPtr(updatedSliceAddress, sizeBits.extractToSizeSort())
+
+                addOnStack(result, TvmIntegerType)
+                visitLoadDataInstEnd(stmt, preload, quiet, updatedSliceAddress)
             }
         }
     }
@@ -530,12 +735,14 @@ class TvmCellInterpreter(
 
         val sizeBits = sizeBytes * Byte.SIZE_BITS
 
-        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType) }
+        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
         scope.makeSliceTypeLoad(
             slice,
             TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.LittleEndian),
             updatedSliceAddress
         ) {
+
+            // TODO: process value from TL-B (or not?). For now, we didn't encounter TL-B for little-endian
 
             // hide the original [scope] from this closure
             @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
@@ -560,8 +767,10 @@ class TvmCellInterpreter(
             }
 
             doWithState {
+                sliceMoveDataPtr(updatedSliceAddress, mkSizeExpr(sizeBits))
+
                 addOnStack(extendedRes, TvmIntegerType)
-                visitLoadDataInstEnd(stmt, slice, mkSizeExpr(sizeBits), preload, quiet, updatedSliceAddress)
+                visitLoadDataInstEnd(stmt, preload, quiet, updatedSliceAddress)
             }
         }
     }
@@ -583,26 +792,33 @@ class TvmCellInterpreter(
             return
         }
 
-        val bits = scope.slicePreloadDataBits(slice, sizeBits) ?: return
-        val cell = scope.calcOnState { allocEmptyCell() }
-
-        scope.builderStoreDataBits(cell, bits, mkSizeExpr(bits.sort.sizeBits.toInt())) ?: return
-
-        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType) }
+        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
         scope.makeSliceTypeLoad(
             slice,
-            TvmCellDataBitArrayRead(mkBv(sizeBits)), updatedSliceAddress
-        ) {
+            TvmCellDataBitArrayRead(mkBv(sizeBits)),
+            updatedSliceAddress,
+        ) { valueFromTlb ->
 
             // hide the original [scope] from this closure
             @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
             val scope = Unit
 
-            val resultSlice = calcOnState { allocSliceFromCell(cell) }
+            val result = valueFromTlb?.expr ?: let {
+                val bits = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
+                val cell = calcOnState { allocEmptyCell() }
+
+                builderStoreDataBits(cell, bits, mkSizeExpr(bits.sort.sizeBits.toInt())) ?: return@makeSliceTypeLoad
+
+                calcOnState { allocSliceFromCell(cell) }
+            }
+
+            // TODO: tlb for result
 
             doWithState {
-                addOnStack(resultSlice, TvmSliceType)
-                visitLoadDataInstEnd(stmt, slice, mkSizeExpr(sizeBits), preload, quiet, updatedSliceAddress)
+                sliceMoveDataPtr(updatedSliceAddress, mkSizeExpr(sizeBits))
+
+                addOnStack(result, TvmSliceType)
+                visitLoadDataInstEnd(stmt, preload, quiet, updatedSliceAddress)
             }
         }
     }
@@ -612,6 +828,7 @@ class TvmCellInterpreter(
         stmt: TvmCellParseInst,
         preload: Boolean,
         quiet: Boolean,
+        pushResultOnStack: Boolean = true,
         doAfterThisStep: TvmStepScopeManager.() -> Unit
     ): Unit = with(ctx) {
         scope.consumeDefaultGas(stmt)
@@ -623,36 +840,50 @@ class TvmCellInterpreter(
             return
         }
 
-        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType) }
-        scope.makeSliceTypeLoad(slice, TvmCellDataBitArrayRead(sizeBits.extractToSizeSort()), updatedSliceAddress) {
+        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
+        scope.makeSliceTypeLoad(
+            slice,
+            TvmCellDataBitArrayRead(sizeBits.extractToSizeSort()),
+            updatedSliceAddress
+        ) { valueFromTlb ->
 
             // hide the original [scope] from this closure
             @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
             val scope = Unit
 
-            val notOutOfRangeExpr = unsignedIntegerFitsBits(sizeBits, bits = 10u)
-            checkOutOfRange(notOutOfRangeExpr, this)
-                ?: return@makeSliceTypeLoad
+            if (pushResultOnStack) {
+                val result = valueFromTlb?.expr ?: let {
+                    val notOutOfRangeExpr = unsignedIntegerFitsBits(sizeBits, bits = 10u)
+                    checkOutOfRange(notOutOfRangeExpr, this)
+                        ?: return@makeSliceTypeLoad
 
-            val quietBlock: (TvmState.() -> Unit)? = if (!quiet) null else fun TvmState.() {
-                addOnStack(slice, TvmSliceType)
-                stack.addInt(zeroValue)
-                newStmt(stmt.nextStmt())
+                    val quietBlock: (TvmState.() -> Unit)? = if (!quiet) null else fun TvmState.() {
+                        addOnStack(slice, TvmSliceType)
+                        stack.addInt(zeroValue)
+                        newStmt(stmt.nextStmt())
+                    }
+                    val bits = slicePreloadDataBits(
+                        slice,
+                        sizeBits.extractToSizeSort(),
+                        quietBlock = quietBlock
+                    ) ?: return@makeSliceTypeLoad
+
+                    val cell = calcOnState { allocEmptyCell() }
+                    builderStoreDataBits(cell, bits, sizeBits.extractToSizeSort())
+                        ?: error("Cannot write $sizeBits bits to the empty builder")
+
+                    calcOnState { allocSliceFromCell(cell) }
+                }
+
+                doWithState {
+                    addOnStack(result, TvmSliceType)
+                }
             }
-            val bits = slicePreloadDataBits(
-                slice,
-                sizeBits.extractToSizeSort(),
-                quietBlock = quietBlock
-            ) ?: return@makeSliceTypeLoad
-
-            val cell = calcOnState { allocEmptyCell() }
-            builderStoreDataBits(cell, bits, sizeBits.extractToSizeSort())
-                ?: error("Cannot write $sizeBits bits to the empty builder")
-            val resultSlice = calcOnState { allocSliceFromCell(cell) }
 
             doWithState {
-                addOnStack(resultSlice, TvmSliceType)
-                visitLoadDataInstEnd(stmt, slice, sizeBits.extractToSizeSort(), preload, quiet, updatedSliceAddress)
+                sliceMoveDataPtr(updatedSliceAddress, sizeBits.extractToSizeSort())
+
+                visitLoadDataInstEnd(stmt, preload, quiet, updatedSliceAddress)
             }
 
             doAfterThisStep()
@@ -721,81 +952,85 @@ class TvmCellInterpreter(
         }
     }
 
-    private fun visitSkipLastInst(scope: TvmStepScopeManager, stmt: TvmCellParseInst, keepAllRefs: Boolean) = with(ctx) {
-        scope.consumeDefaultGas(stmt)
+    private fun visitSkipLastInst(scope: TvmStepScopeManager, stmt: TvmCellParseInst, keepAllRefs: Boolean) =
+        with(ctx) {
+            scope.consumeDefaultGas(stmt)
 
-        val refsToCut = if (keepAllRefs) {
-            zeroSizeExpr
-        } else {
-            scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
+            val refsToCut = if (keepAllRefs) {
+                zeroSizeExpr
+            } else {
+                scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
+                    ?: return
+            }
+
+            val bitsToCut = scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
                 ?: return
-        }
 
-        val bitsToCut = scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
-            ?: return
+            val slice = scope.calcOnState { stack.takeLastSlice() }
+            if (slice == null) {
+                scope.doWithState(throwTypeCheckError)
+                return
+            }
 
-        val slice = scope.calcOnState { stack.takeLastSlice() }
-        if (slice == null) {
-            scope.doWithState(throwTypeCheckError)
-            return
-        }
+            val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
 
-        val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
+            val cellDataLength = scope.calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
+            scope.assertDataLengthConstraint(
+                cellDataLength,
+                unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
+            ) ?: return
 
-        val cellDataLength = scope.calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
-        scope.assertDataLengthConstraint(
-            cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
-        ) ?: return
+            val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
+            scope.assertRefsLengthConstraint(
+                cellRefsLength,
+                unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") }
+            ) ?: return
 
-        val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
-        scope.assertRefsLengthConstraint(
-            cellRefsLength,
-            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") }
-        ) ?: return
+            val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+            val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
 
-        val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
-        val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
-
-        val requiredBitsInCell = mkSizeAddExpr(bitsToCut, dataPos)
-        checkCellDataUnderflow(scope, cell, minSize = requiredBitsInCell)
-            ?: return
-
-        if (!keepAllRefs) {
-            val requiredRefsInCell = mkSizeAddExpr(refsToCut, refsPos)
-            checkCellRefsUnderflow(scope, cell, minSize = requiredRefsInCell)
+            val requiredBitsInCell = mkSizeAddExpr(bitsToCut, dataPos)
+            checkCellDataUnderflow(scope, cell, minSize = requiredBitsInCell)
                 ?: return
+
+            if (!keepAllRefs) {
+                val requiredRefsInCell = mkSizeAddExpr(refsToCut, refsPos)
+                checkCellRefsUnderflow(scope, cell, minSize = requiredRefsInCell)
+                    ?: return
+            }
+
+            val cutCell = scope.calcOnState {
+                memory.allocConcrete(TvmCellType)
+            }.also {
+                scope.builderCopy(cell, it)
+            }
+
+            scope.doWithState {
+                val cutCellDataLength = mkSizeSubExpr(cellDataLength, bitsToCut)
+                val cutCellRefsLength = mkSizeSubExpr(cellRefsLength, refsToCut)
+
+                memory.writeField(cutCell, cellDataLengthField, sizeSort, cutCellDataLength, guard = trueExpr)
+                memory.writeField(cutCell, cellRefsLengthField, sizeSort, cutCellRefsLength, guard = trueExpr)
+
+                val cutSlice = allocSliceFromCell(cutCell)
+
+                addOnStack(cutSlice, TvmSliceType)
+                newStmt(stmt.nextStmt())
+            }
         }
-
-        scope.doWithState {
-            val cutCell = memory.allocConcrete(TvmCellType).also { builderCopy(cell, it) }
-
-            val cutCellDataLength = mkSizeSubExpr(cellDataLength, bitsToCut)
-            val cutCellRefsLength = mkSizeSubExpr(cellRefsLength, refsToCut)
-
-            memory.writeField(cutCell, cellDataLengthField, sizeSort, cutCellDataLength, guard = trueExpr)
-            memory.writeField(cutCell, cellRefsLengthField, sizeSort, cutCellRefsLength, guard = trueExpr)
-
-            val cutSlice = allocSliceFromCell(cutCell)
-
-            addOnStack(cutSlice, TvmSliceType)
-            newStmt(stmt.nextStmt())
-        }
-    }
 
     private fun visitBeginsInst(
         scope: TvmStepScopeManager,
         stmt: TvmCellParseInst,
-        s: TvmSubSliceSerializedLoader,
+        s: TvmCell,
         quiet: Boolean
-    ) = with(ctx) {
+    ) {
         doBeginsInst(scope, stmt, quiet) {
             check(s.refs.isEmpty()) {
                 "Unexpected refs in $stmt"
             }
 
-            val prefixData = s.bitsToBv()
-            scope.calcOnState { allocSliceFromData(prefixData) }
+            scope.calcOnState { allocSliceFromCell(s) }
         }
     }
 
@@ -1002,27 +1237,40 @@ class TvmCellInterpreter(
         }
     }
 
-    private fun visitCellDepthInst(scope: TvmStepScopeManager, stmt: TvmCellParseCdepthInst) {
+    private fun visitDepthInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+        operandType: TvmRealReferenceType,
+    ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
-        val cell = scope.takeLastCell()
-
         scope.doWithStateCtx {
-            val result = if (cell != null) {
-                // TODO make correct implementation
-                makeSymbolicPrimitive(int257sort).also { cellDepth ->
+            val ref = stack.takeLastRef(operandType)
+                ?: run {
+                    // this operation is safe only for cells
+                    if (operandType is TvmCellType) {
+                        stack.addInt(zeroValue)
+                        newStmt(stmt.nextStmt())
+                    } else {
+                        throwTypeCheckError(this)
+                    }
+
+                    return@doWithStateCtx
+                }
+
+            val depth = addressToDepth[ref] ?: run {
+                makeSymbolicPrimitive(ctx.int257sort).also {
+                    addressToDepth = addressToDepth.put(ref, it)
                     scope.assert(
-                        mkBvSignedLessOrEqualExpr(zeroValue, cellDepth),
+                        mkBvSignedLessOrEqualExpr(zeroValue, it),
                         unsatBlock = {
-                            error("Cannot make the cell depth not negative")
+                            error("Cannot make the depth not negative")
                         }
                     ) ?: return@doWithStateCtx
                 }
-            } else {
-                zeroValue
             }
 
-            stack.addInt(result)
+            stack.addInt(depth)
             newStmt(stmt.nextStmt())
         }
     }
@@ -1039,7 +1287,7 @@ class TvmCellInterpreter(
         val intValue = scope.takeLastIntOrThrowTypeError() ?: return
 
         val updatedBuilder = scope.calcOnState {
-            memory.allocConcrete(TvmBuilderType).also { builderCopy(builder, it) }
+            memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
         }
 
         val notOutOfRangeExpr = if (isSigned) {
@@ -1049,10 +1297,15 @@ class TvmCellInterpreter(
         }
         checkOutOfRange(notOutOfRangeExpr, scope) ?: return
 
-        scope.doWithStateCtx {
-            loadIntLabelToBuilder(builder, updatedBuilder, mkSizeExpr(bits), intValue, isSigned, Endian.BigEndian)
-        }
-        scope.builderStoreInt(updatedBuilder, intValue, bits.toBv257(), isSigned) ?: return@with
+        builderStoreIntTlb(
+            scope,
+            builder,
+            updatedBuilder,
+            intValue,
+            mkSizeExpr(bits),
+            isSigned,
+            Endian.BigEndian
+        ) ?: return@with
 
         scope.doWithState {
             addOnStack(updatedBuilder, TvmBuilderType)
@@ -1071,7 +1324,7 @@ class TvmCellInterpreter(
         }
 
         val updatedBuilder = scope.calcOnState {
-            memory.allocConcrete(TvmBuilderType).also { builderCopy(builder, it) }
+            memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
         }
         val bitsUpperBound = if (isSigned) TvmContext.INT_BITS else TvmContext.INT_BITS - 1u
         val bitsNotOutOfRangeExpr = mkAnd(
@@ -1090,13 +1343,32 @@ class TvmCellInterpreter(
         }
         checkOutOfRange(valueNotOutOfRangeExpr, scope) ?: return
 
-        scope.doWithStateCtx {
-            loadIntLabelToBuilder(builder, updatedBuilder, bits.extractToSizeSort(), intValue, isSigned, Endian.BigEndian)
-        }
-        scope.builderStoreInt(updatedBuilder, intValue, bits, isSigned) ?: return@with
+        builderStoreIntTlb(
+            scope,
+            builder,
+            updatedBuilder,
+            intValue,
+            bits.extractToSizeSort(),
+            isSigned,
+            Endian.BigEndian
+        ) ?: return@with
 
         scope.doWithState {
             addOnStack(updatedBuilder, TvmBuilderType)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun visitBuilderBitsInst(scope: TvmStepScopeManager, stmt: TvmCellBuildBbitsInst) = with(ctx) {
+        scope.consumeDefaultGas(stmt)
+
+        val builder = scope.calcOnState { stack.takeLastBuilder() }
+            ?: return scope.doWithState(ctx.throwTypeCheckError)
+
+        scope.doWithState {
+            val dataLength = memory.readField(builder, cellDataLengthField, sizeSort)
+
+            stack.addInt(dataLength.signedExtendToInteger())
             newStmt(stmt.nextStmt())
         }
     }
@@ -1121,14 +1393,9 @@ class TvmCellInterpreter(
             return
         }
 
-        val cell = scope.calcOnState {
-            // TODO static or concrete
-            memory.allocConcrete(TvmDataCellType).also { builderCopy(builder, it) }
-        }
+        val cell = scope.builderToCell(builder)
 
         scope.doWithState {
-            dataCellInfoStorage.mapper.setCellInfoFromBuilder(builder, cell)
-
             addOnStack(cell, TvmCellType)
             newStmt(stmt.nextStmt())
         }
@@ -1163,8 +1430,12 @@ class TvmCellInterpreter(
                 ?: return
 
             scope.doWithState {
-                val updatedBuilder = memory.allocConcrete(TvmBuilderType).also { builderCopy(builder, it) }
+                val updatedBuilder = memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
                 builderStoreNextRef(updatedBuilder, cell)
+
+                // In this case, new builder has the same data structure as the old builder (only refs are changed).
+                // Thus, we just copy tlb structure builder.
+                copyTlbToNewBuilder(builder, updatedBuilder)
 
                 addOnStack(updatedBuilder, TvmBuilderType)
                 if (quiet) {
@@ -1189,7 +1460,8 @@ class TvmCellInterpreter(
             return
         }
 
-        val resultBuilder = calcOnState { memory.allocConcrete(TvmBuilderType).also { builderCopy(builder, it) } }
+        val resultBuilder =
+            calcOnState { memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) } }
 
         val quietBlock: (TvmState.() -> Unit)? = if (!quiet) null else fun TvmState.() {
             addOnStack(slice, TvmSliceType)
@@ -1199,7 +1471,8 @@ class TvmCellInterpreter(
             newStmt(stmt.nextStmt())
         }
 
-        builderStoreSlice(resultBuilder, slice, quietBlock) ?: return
+        builderStoreSliceTlb(this@doStoreSlice, builder, resultBuilder, slice)
+            ?: return@with
 
         doWithState {
             addOnStack(resultBuilder, TvmBuilderType)
@@ -1218,7 +1491,8 @@ class TvmCellInterpreter(
             return
         }
 
-        val resultBuilder = calcOnState { memory.allocConcrete(TvmBuilderType).also { builderCopy(toBuilder, it) } }
+        val resultBuilder =
+            calcOnState { memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(toBuilder, it) } }
 
         val quietBlock: (TvmState.() -> Unit)? = if (!quiet) null else fun TvmState.() {
             addOnStack(fromBuilder, TvmBuilderType)

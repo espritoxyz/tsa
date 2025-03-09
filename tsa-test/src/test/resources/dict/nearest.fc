@@ -1,0 +1,47 @@
+#include "utils.fc";
+
+(int, int, int, int, int, int) signed_nearest() method_id(0) {
+    cell d = gen_dict();
+
+    ;; signed prev
+    (int key0, _, int f0) = d.idict_get_prev?(dict_length(), -1);
+    (int key1, _, int f1) = d.idict_get_prev?(dict_length(), 10);
+    (int key2, _, int f2) = d.idict_get_prev?(dict_length(), -30);
+
+    ;; signed next
+    (int key3, _, int f3) = d.idict_get_next?(dict_length(), -30);
+    (int key4, _, int f4) = d.idict_get_next?(dict_length(), 0);
+    (int key5, _, int f5) = d.idict_get_next?(dict_length(), 30);
+
+    return (
+        key0.unpack_key(f0),
+        key1.unpack_key(f1),
+        key2.unpack_key(f2),
+        key3.unpack_key(f3),
+        key4.unpack_key(f4),
+        key5.unpack_key(f5)
+    );
+}
+
+(int, int, int, int, int, int) unsigned_nearest() method_id(1) {
+    cell d = gen_dict();
+
+    ;; signed prev
+    (int key0, _, int f0) = d.udict_get_prev?(dict_length(), 1);
+    (int key1, _, int f1) = d.udict_get_prev?(dict_length(), 10);
+    (int key2, _, int f2) = d.udict_get_prev?(dict_length(), -30);
+
+    ;; signed next
+    (int key3, _, int f3) = d.udict_get_next?(dict_length(), -30);
+    (int key4, _, int f4) = d.udict_get_next?(dict_length(), 0);
+    (int key5, _, int f5) = d.udict_get_next?(dict_length(), 30);
+
+    return (
+        key0.unpack_key(f0),
+        key1.unpack_key(f1),
+        key2.unpack_key(f2),
+        key3.unpack_key(f3),
+        key4.unpack_key(f4),
+        key5.unpack_key(f5)
+    );
+}

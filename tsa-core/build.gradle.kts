@@ -4,43 +4,39 @@ plugins {
 }
 
 dependencies {
-    implementation("org.ton:ton-kotlin-crypto:0.3.1")
-    implementation("org.ton:ton-kotlin-tvm:0.3.1")
-    implementation("org.ton:ton-kotlin-tonapi-tl:0.3.1")
-    implementation("org.ton:ton-kotlin-tlb:0.3.1")
-    implementation("org.ton:ton-kotlin-tl:0.3.1")
-    implementation("org.ton:ton-kotlin-hashmap-tlb:0.3.1")
-    implementation("org.ton:ton-kotlin-contract:0.3.1")
-    implementation("org.ton:ton-kotlin-block-tlb:0.3.1")
-    implementation("org.ton:ton-kotlin-bitstring:0.3.1")
-    implementation("org.ton:ton-kotlin-bigint:0.3.1")
+    implementation(group = Packages.tvmDisasm, name = "tvm-opcodes", version = Versions.tvmDisasm)
+
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-crypto", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-tvm", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-tonapi-tl", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-tlb", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-tl", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-hashmap-tlb", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-contract", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-block-tlb", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-bitstring", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-bigint", version = Versions.tonKotlin)
+
+    implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
 
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:${Versions.collections}")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${Versions.kotlinx_serialization}")
 
-    implementation(group = "org.slf4j", name = "slf4j-simple", version = Versions.slf4j)
     testImplementation("ch.qos.logback:logback-classic:${Versions.logback}")
 
-    implementation(group = Packages.ksmtBv2Int, name = "ksmt-core", version = Versions.ksmtBv2Int)
+    api(group = Packages.ksmtBv2Int, name = "ksmt-core", version = Versions.ksmtBv2Int)
     implementation(group = Packages.ksmtBv2Int, name = "ksmt-bv2int", version = Versions.ksmtBv2Int)
     implementation(group = Packages.ksmtBv2Int, name = "ksmt-yices", version = Versions.ksmtBv2Int)
     implementation(group = Packages.ksmtBv2Int, name = "ksmt-z3", version = Versions.ksmtBv2Int)
 
     // todo: remove ksmt-core exclude after upgrading ksmt version in USVM
-    implementation(group = Packages.usvm, name = "usvm-core", version = Versions.usvm) {
-        exclude(group = "io.ksmt", module = "ksmt-core")
-        exclude(group = "io.ksmt", module = "ksmt-z3")
+    api(group = Packages.usvm, name = "usvm-core", version = Versions.usvm) {
+        exclude(group = "io.ksmt")
     }
 }
 
-val zipTvmDisasm by tasks.registering(Zip::class) {
-    from("../tvm-disasm")
-    archiveFileName.set("tvm-disasm.zip")
-    destinationDirectory.set(layout.buildDirectory.dir("zips"))
-}
+val pathToSpec = File(rootProject.projectDir, "tvm-spec/cp0.json")
 
 tasks.processResources {
-    from(zipTvmDisasm) {
-        into("lib")
-    }
+    from(pathToSpec)
 }

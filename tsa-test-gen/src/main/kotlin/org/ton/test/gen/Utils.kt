@@ -3,13 +3,16 @@ package org.ton.test.gen
 import java.math.BigInteger
 import java.nio.file.Files.createDirectories
 import java.nio.file.Path
+import org.ton.boc.BagOfCells
 import org.ton.test.gen.dsl.render.TsRenderedTest
 import org.ton.test.gen.dsl.render.TsRenderer
-
-internal const val wrappersDirName: String = "wrappers"
-internal const val testsDirName: String = "tests"
+import org.usvm.machine.TvmContext.Companion.CONFIG_KEY_LENGTH
+import org.usvm.test.resolver.TvmTestDictCellValue
+import org.usvm.test.resolver.transformTestDictCellIntoCell
 
 fun String.binaryToHex(): String = BigInteger(this, 2).toString(16)
+
+fun String.binaryToUnsignedBigInteger(): BigInteger = BigInteger("0$this", 2)
 
 fun String.binaryToSignedDecimal(): String {
     val binaryString = this
@@ -35,4 +38,16 @@ fun writeRenderedTest(projectPath: Path, test: TsRenderedTest) {
         val wrapperFile = wrapperFolder.resolve(fileName).toFile()
         wrapperFile.writeText(code)
     }
+}
+
+@OptIn(ExperimentalStdlibApi::class)
+fun transformTestConfigIntoHex(config: TvmTestDictCellValue): String {
+    val keyLength = config.keyLength
+    require(keyLength == CONFIG_KEY_LENGTH) {
+        "Unexpected config dict key length: $keyLength"
+    }
+    val configCell = transformTestDictCellIntoCell(config)
+    val configBoc = BagOfCells(configCell)
+
+    return configBoc.toByteArray().toHexString()
 }

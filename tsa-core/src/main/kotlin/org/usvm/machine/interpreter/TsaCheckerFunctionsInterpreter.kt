@@ -1,30 +1,27 @@
 package org.usvm.machine.interpreter
 
-import org.ton.bytecode.TvmContractCode
+import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmInst
 import org.usvm.api.makeSymbolicPrimitive
+import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmContractExecutionMemory
 import org.usvm.machine.state.TvmContractPosition
-import org.usvm.machine.state.TvmRegisters
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
-import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.addInt
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
+import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.state.takeLastIntOrNull
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.toMethodId
-import org.usvm.machine.types.TvmCellType
-import org.usvm.machine.types.TvmIntegerType
-import org.usvm.machine.types.TvmSliceType
 import org.usvm.utils.intValueOrNull
 
 class TsaCheckerFunctionsInterpreter(
-    private val contractsCode: List<TvmContractCode>,
-    private val transactionInterpreter: TvmTransactionInterpreter,
+    private val contractsCode: List<TsaContractCode>,
 ) {
     /**
      * return null if operation was executed.
@@ -55,8 +52,11 @@ class TsaCheckerFunctionsInterpreter(
             ASSERT_NOT_METHOD_ID -> {
                 performTsaAssert(scope, stmt, invert = true)
             }
-            PROCESS_ACTIONS_ID -> {
-                processActions(scope, stmt)
+            FETCH_VALUE_ID -> {
+                performFetchValue(scope, stmt)
+            }
+            MK_SYMBOLIC_INT_METHOD_ID -> {
+                performMkSymbolicInt(scope, stmt)
             }
             else -> {
                 return Unit
@@ -80,12 +80,7 @@ class TsaCheckerFunctionsInterpreter(
             val oldStack = stack
             val oldMemory = TvmContractExecutionMemory(
                 oldStack,
-                registersOfCurrentContract.c0,
-                registersOfCurrentContract.c1,
-                registersOfCurrentContract.c2,
-                registersOfCurrentContract.c3,
-                registersOfCurrentContract.c5,
-                registersOfCurrentContract.c7,
+                registersOfCurrentContract.clone()
             )
             // update global c4 and c7
             contractIdToC4Register = contractIdToC4Register.put(currentContract, registersOfCurrentContract.c4)
@@ -101,22 +96,12 @@ class TsaCheckerFunctionsInterpreter(
             val newExecutionMemory = initializeContractExecutionMemory(contractsCode, this, nextContractId, allowInputStackValues = false)
             stack = newExecutionMemory.stack
             stack.takeValuesFromOtherStack(oldStack, stackOperations.putOnNewStack)
-            registersOfCurrentContract = TvmRegisters(
-                ctx,
-                c0 = newExecutionMemory.c0,
-                c1 = newExecutionMemory.c1,
-                c2 = newExecutionMemory.c2,
-                c3 = newExecutionMemory.c3,
-                c4 = contractIdToC4Register[nextContractId] ?: error("Didn't find c4 of contract $nextContractId"),
-                c5 = newExecutionMemory.c5,
-                c7 = newExecutionMemory.c7,
-            )
+            registersOfCurrentContract = newExecutionMemory.registers
 
             val nextContractCode = contractsCode.getOrNull(nextContractId)
                 ?: error("Contract with id $nextContractId not found")
-            val nextMethod = nextContractCode.methods[nextMethodId.toMethodId()]
-                ?: error("Method $nextMethodId in contract $nextContractId not found.")
-            newStmt(nextMethod.instList.first())
+
+            switchToFirstMethodInContract(nextContractCode, nextMethodId.toMethodId())
         }
     }
 
@@ -133,39 +118,42 @@ class TsaCheckerFunctionsInterpreter(
         }
     }
 
-
-    private fun processActions(scope: TvmStepScopeManager, stmt: TvmInst) {
+    private fun performFetchValue(scope: TvmStepScopeManager, stmt: TvmInst) {
         scope.doWithState {
-            val contractIdSymbolic = takeLastIntOrNull()
-            val contractId = contractIdSymbolic?.intValueOrNull
-                ?: error("Contract id must be concrete for processing output actions, but found $contractIdSymbolic")
-            val outMessages = transactionInterpreter.executeActions(scope, contractId)
-                ?: return@doWithState
-            addMessagesOnTheStack(scope, outMessages)
+            val valueIdSymbolic = takeLastIntOrNull()
+            val valueId  = valueIdSymbolic?.intValueOrNull
+                ?: error("Parameter value_id for tsa_fetch_vaslue must be concrete integer, but found $valueIdSymbolic")
+            val entry = stack.takeLastEntry()
+            check(!fetchedValues.containsKey(valueId)) {
+                "Value with id $valueId is already present: $fetchedValues[$valueId]"
+            }
+            fetchedValues = fetchedValues.put(valueId, entry)
             newStmt(stmt.nextStmt())
         }
     }
 
-    private fun addMessagesOnTheStack(scope: TvmStepScopeManager, outMessages: List<OutMessage>) {
-        if (outMessages.size > 1) {
-            // TODO support multiple messages
-            return
-        }
-
-        val message = outMessages.singleOrNull()
-            ?: return
+    private fun performMkSymbolicInt(scope: TvmStepScopeManager, stmt: TvmInst) {
         scope.doWithStateCtx {
-            // TODO write about org.usvm.machine.state.TvmStackUtilsKt.initializeIncomingMsgValue
-            val myBalanceParameter = makeSymbolicPrimitive(int257sort)
-            val msgValueParameter = makeSymbolicPrimitive(int257sort)
+            val isSigned = takeLastIntOrThrowTypeError()?.intValueOrNull
+                ?: return@doWithStateCtx
+            val bits = takeLastIntOrThrowTypeError()?.intValueOrNull
+                ?: return@doWithStateCtx
 
-            val inMsgFullParameter = message.inMsgFull
-            val inMsgBodyParameter = message.inMsgBody
+            check(bits >= 0) {
+                "Bits count must be non-negative, but found $bits"
+            }
 
-            addOnStack(myBalanceParameter, TvmIntegerType)
-            addOnStack(msgValueParameter, TvmIntegerType)
-            addOnStack(inMsgFullParameter, TvmCellType)
-            addOnStack(inMsgBodyParameter, TvmSliceType)
+            val value = makeSymbolicPrimitive(mkBvSort(bits.toUInt())).let {
+                if (isSigned == FALSE_CONCRETE_VALUE) {
+                    it.zeroExtendToSort(int257sort)
+                } else {
+                    // every non-zero integer is considered a true value.
+                    it.signExtendToSort(int257sort)
+                }
+            }
+
+            stack.addInt(value)
+            newStmt(stmt.nextStmt())
         }
     }
 }

@@ -1,0 +1,33 @@
+[
+  {
+    "id": 0,
+    "handlers": [
+      {
+        "op": "00000000",
+        "destinations": [1, 2]
+      },
+      {
+        "op": "10000000",
+        "destinations": [2]
+      }
+    ]
+  },
+  {
+    "id": 1,
+    "handlers": [
+      {
+        "op": "10000000",
+        "destinations": [2]
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "handlers": [
+      {
+        "op": "10000000",
+        "destinations": [1, 2]
+      }
+    ]
+  }
+]

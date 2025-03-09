@@ -1,0 +1,7 @@
+const int op::transfer = 0x10000000;
+const int op::receive = 0x20000000;
+
+const int msg_flag::non_bounceable = 0x10;
+const int msg_flag::bounceable = 0x18;
+
+const int error::unknown_action = 0xFFFF;

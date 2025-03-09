@@ -1,0 +1,38 @@
+#include "stdlib.fc";
+#include "utils.fc";
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    int op = in_msg_body~load_uint(32);
+
+    if (op == 0x00000000) {
+        var msg1 = msg_prefix_inline_body()
+            .store_uint(op, 32)
+            .store_uint(1, 4)
+            .store_grams(1)
+            .end_cell();
+        var msg2 = msg_prefix_ref_body()
+            .store_ref(
+                begin_cell()
+                    .store_uint(op, 32)
+                    .store_uint(2, 4)
+                    .store_grams(2)
+                    .end_cell()
+            ).end_cell();
+
+        send_raw_message(msg1, 0);
+        send_raw_message(msg2, 0);
+
+        return ();
+    }
+
+    if (op == 0x10000000) {
+        var msg1 = msg_prefix_inline_body()
+            .store_uint(op, 32)
+            .store_uint(2, 4)
+            .store_uint(1, 8)
+            .end_cell();
+
+        send_raw_message(msg1, 0);
+        return ();
+    }
+}

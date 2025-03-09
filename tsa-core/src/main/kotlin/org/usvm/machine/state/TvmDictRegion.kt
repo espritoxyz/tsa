@@ -172,7 +172,7 @@ fun TvmState.copyDict(
     dictId: DictId,
     keySort: UBvSort,
 ) = with(ctx) {
-    memory.setUnion(originalDict, resultDict, dictId, keySort, DictKeyInfo, guard = trueExpr)
+    memory.setUnion(originalDict, resultDict, dictId, keySort, DictKeyInfo, guard = trueExpr, ownership)
 
     val dictValueRegionId = TvmDictValueRegionId(dictId, keySort)
     val dictValueRegion = memory.dictValueRegion(dictValueRegionId)

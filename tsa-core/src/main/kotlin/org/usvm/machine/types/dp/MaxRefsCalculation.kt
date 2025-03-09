@@ -36,7 +36,7 @@ private fun getMaximumRefs(
             0
         }
         is TlbStructure.SwitchPrefix -> {
-            struct.variants.values.maxOf { getMaximumRefs(it, maxRefsFromPreviousDepth) ?: -1 }
+            struct.variants.maxOf { getMaximumRefs(it.struct, maxRefsFromPreviousDepth) ?: -1 }
         }
         is TlbStructure.LoadRef -> {
             1 + (getMaximumRefs(struct.rest, maxRefsFromPreviousDepth) ?: return null)

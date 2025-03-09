@@ -1,0 +1,59 @@
+#include "stdlib.fc";
+#include "utils.fc";
+#include "errors.fc";
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    int op = in_msg_body~load_uint(32);
+
+    if (op == 0x00000000) {
+        var contractId = in_msg_body~load_uint(4);
+        var coins = in_msg_body~load_grams();
+
+        throw_unless(error::invalidated_invariant, (contractId == 2) & (coins == 2));
+
+        ;; mark the end of trace
+        throw(path::end_1);
+    }
+
+    if (op == 0x10000000) {
+        var contractId = in_msg_body~load_uint(4);
+        var num = in_msg_body~load_uint(8);
+
+        throw_unless(error::invalidated_invariant, (contractId == 2) & (num == 1));
+
+        var msg1 = msg_prefix_inline_body()
+            .store_uint(op, 32)
+            .store_uint(1, 4)
+            .store_uint(num + 1, 8)
+            .end_cell();
+        var msg2 = msg_prefix_inline_body()
+            .store_uint(0x10000001, 32)
+            .store_uint(2, 4)
+            .store_uint(num + 2, 8)
+            .end_cell();
+
+        send_raw_message(msg1, 0);
+        send_raw_message(msg2, 0);
+
+        return ();
+    }
+
+    if (op == 0x10000001) {
+        var contractId = in_msg_body~load_uint(4);
+        var num = in_msg_body~load_uint(8);
+
+        throw_unless(error::invalidated_invariant, (contractId == 2) & (num == 3));
+        return ();
+    }
+
+    if (op == 0x10000002) {
+        var contractId = in_msg_body~load_uint(4);
+        var num = in_msg_body~load_uint(8);
+
+        throw_unless(error::invalidated_invariant, (contractId == 2) & (num == 4));
+        throw(path::end_2);
+        return ();
+    }
+
+    throw(error::invalidated_invariant);
+}

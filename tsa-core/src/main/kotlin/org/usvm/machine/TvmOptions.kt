@@ -1,20 +1,28 @@
 package org.usvm.machine
 
+import org.ton.TvmContractHandlers
+import org.usvm.machine.TvmMachine.Companion.DEFAULT_LOOP_ITERATIONS_LIMIT
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_CELL_DEPTH_FOR_DEFAULT_CELLS_CONSISTENT_WITH_TLB
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_RECURSION_DEPTH
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_TLB_DEPTH
+import org.usvm.machine.state.ContractId
 import kotlin.time.Duration
 
 data class TvmOptions(
     val quietMode: Boolean = false,
     val enableVarAddress: Boolean = false,
     val enableExternalAddress: Boolean = false,
-    val enableInternalArgsConstraints: Boolean = true,
+    val useRecvInternalInput: Boolean = true,
+    val enableInputValues: Boolean = true,
     val turnOnTLBParsingChecks: Boolean = true,
-    val excludeInputsThatDoNotMatchGivenScheme: Boolean = true,
+    val performAdditionalChecksWhileResolving: Boolean = false,
     val tlbOptions: TlbOptions = TlbOptions(),
     val maxRecursionDepth: Int = DEFAULT_MAX_RECURSION_DEPTH,
-    val timeout: Duration = Duration.INFINITE
+    val timeout: Duration = Duration.INFINITE,
+    val excludeExecutionsWithFailures: Boolean = false,
+    val loopIterationLimit: Int = DEFAULT_LOOP_ITERATIONS_LIMIT,
+    val intercontractOptions: IntercontractOptions = IntercontractOptions(),
+    val useMainMethodForInitialMethodJump: Boolean = true,
 )
 
 data class TlbOptions(
@@ -31,4 +39,11 @@ data class TlbOptions(
                     "but it is $maxCellDepthForDefaultCellsConsistentWithTlb"
         }
     }
+}
+
+data class IntercontractOptions(
+    val communicationScheme: Map<ContractId, TvmContractHandlers>? = null,
+) {
+    val isIntercontractEnabled: Boolean
+        get() = communicationScheme != null
 }

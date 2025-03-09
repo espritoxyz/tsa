@@ -1,0 +1,20 @@
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg) impure {
+    var cs = in_msg_full.begin_parse();
+    var flags = cs~load_uint(4);
+    var src = cs~load_msg_addr();
+    var dest = cs~load_msg_addr();
+    var value = cs~load_coins();
+    cs~skip_bits(1);
+    int ihr_fee = cs~load_coins();
+    int fwd_fee = cs~load_coins();
+    int created_lt = cs~load_uint(64);
+
+    if (created_lt == 123456789) {
+        throw(100);
+    } else {
+        throw(101);
+    }
+}

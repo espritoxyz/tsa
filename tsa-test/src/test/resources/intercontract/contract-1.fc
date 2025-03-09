@@ -1,0 +1,34 @@
+#include "stdlib.fc";
+#include "utils.fc";
+#include "errors.fc";
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    int op = in_msg_body~load_uint(32);
+
+    if (op == 0x00000000) {
+        var contractId = in_msg_body~load_uint(4);
+        var coins = in_msg_body~load_grams();
+
+        throw_unless(error::invalidated_invariant, (contractId == 1) & (coins == 1));
+        return ();
+    }
+
+    if (op == 0x10000000) {
+        var contractId = in_msg_body~load_uint(4);
+        var num = in_msg_body~load_uint(8);
+
+        throw_unless(error::invalidated_invariant, (contractId == 1) & (num == 2));
+
+        var msg = msg_prefix_inline_body()
+            .store_uint(0x10000002, 32)
+            .store_uint(2, 4)
+            .store_uint(num + 2, 8)
+            .end_cell();
+
+        send_raw_message(msg, 0);
+
+        return ();
+    }
+
+    throw(error::invalidated_invariant);
+}

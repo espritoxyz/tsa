@@ -1,0 +1,17 @@
+#include "stdlib.fc";
+
+builder msg_prefix_inline_body() {
+    return begin_cell()
+        .store_uint(0x10, 6)
+        .store_uint(4, 3).store_int(0, 8).store_uint(0, 256)
+        .store_grams(10)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1);
+}
+
+builder msg_prefix_ref_body() {
+    return begin_cell()
+        .store_uint(0x10, 6)
+        .store_uint(4, 3).store_int(0, 8).store_uint(0, 256)
+        .store_grams(10)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1);
+}

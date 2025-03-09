@@ -8,6 +8,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
+import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.isFalse
 import org.usvm.isStaticHeapRef
 import org.usvm.machine.map
@@ -19,7 +20,12 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort: USort>(
     private var refValue: PersistentMap<UConcreteHeapAddress, TvmRefsRegionUpdateNode<KeySort, ValueSort>> = persistentHashMapOf()
 ) : UMemoryRegion<LValue, Nothing> {
     override fun read(key: LValue) = error("Use readRefValue")
-    override fun write(key: LValue, value: UExpr<Nothing>, guard: UBoolExpr) = error("Use writeRefValue")
+    override fun write(
+        key: LValue,
+        value: UExpr<Nothing>,
+        guard: UBoolExpr,
+        ownership: MutabilityOwnership
+    ): UMemoryRegion<LValue, Nothing> = error("Use writeRefValue")
 
     fun readRefValue(
         ref: UHeapRef,

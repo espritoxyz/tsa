@@ -3,6 +3,8 @@ plugins {
 }
 
 dependencies {
+    implementation(group = Packages.tvmDisasm, name = "tvm-opcodes", version = Versions.tvmDisasm)
+
     implementation(project(":tsa-core"))
 
     // https://mvnrepository.com/artifact/io.github.detekt.sarif4k/sarif4k

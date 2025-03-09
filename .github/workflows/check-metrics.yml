@@ -1,0 +1,43 @@
+name: Check TSA metrics
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run metrics every day at 00:00 UTC
+    - cron: "0 0 * * *"
+
+env:
+  TSA_UNSUPPORTED_INSTRUCTIONS_REPORT_PATH: ${{ github.workspace }}/tsa-metrics/build/reports/unsupported-instructions.csv
+
+jobs:
+  check-and-upload-metrics:
+    name: 'Check and upload metrics'
+    runs-on: [ self-hosted, ex44 ]
+    container: explyt/tsa-env:v1.1.1
+
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 'Build'
+        run: ./gradlew clean assemble
+
+      - name: 'Check metrics'
+        id: check-metrics
+        run: ./gradlew tsa-metrics:checkMetrics
+
+      - name: 'Save metrics reports'
+        if: steps.check-metrics.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-report
+          path: |
+            ${{ env.TSA_UNSUPPORTED_INSTRUCTIONS_REPORT_PATH }}

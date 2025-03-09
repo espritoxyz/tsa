@@ -1,0 +1,19 @@
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg) impure {
+    var cs = in_msg_full.begin_parse();
+    var flags = cs~load_uint(4);
+    int ihr_disabled = (flags & 4) != 0;
+    int bounce = (flags & 2) != 0;
+    int bounced = (flags & 1) != 0;
+
+    throw_if(100, ihr_disabled & bounce & bounced);
+    throw_if(101, ihr_disabled & bounce & (~ bounced));
+    throw_if(102, ihr_disabled & (~ bounce) & bounced);
+    throw_if(103, ihr_disabled & (~ bounce) & (~ bounced));
+    throw_if(104, (~ ihr_disabled) & bounce & bounced);
+    throw_if(105, (~ ihr_disabled) & bounce & (~ bounced));
+    throw_if(106, (~ ihr_disabled) & (~ bounce) & bounced);
+    throw_if(107, (~ ihr_disabled) & (~ bounce) & (~ bounced));
+}

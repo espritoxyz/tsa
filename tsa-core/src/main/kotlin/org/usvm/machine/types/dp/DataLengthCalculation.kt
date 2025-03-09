@@ -3,6 +3,7 @@ package org.usvm.machine.types.dp
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
 import org.usvm.machine.TvmContext
+import org.usvm.machine.types.memory.generateGuardForSwitch
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 
@@ -10,13 +11,14 @@ fun calculateDataLengths(
     ctx: TvmContext,
     labelsWithoutUnknowns: Collection<TlbCompositeLabel>,
     individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
-): List<Map<TlbCompositeLabel, AbstractSizeExpr>> =
+    possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
+): List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>> =
     calculateMapsByTlbDepth(ctx.tvmOptions.tlbOptions.maxTlbDepth, labelsWithoutUnknowns) { label, curDepth, prevDepthValues ->
         val tlbDepthBound = individualMaxCellTlbDepth[label]
             ?: error("individualMaxCellTlbDepth must be calculated for all labels")
 
         if (tlbDepthBound >= curDepth) {
-            getDataLength(ctx, label.internalStructure, prevDepthValues)
+            getDataLength(ctx, label.internalStructure, prevDepthValues, possibleSwitchVariants[curDepth])
         } else {
             prevDepthValues[label]
         }
@@ -28,8 +30,9 @@ fun calculateDataLengths(
 private fun getDataLength(
     ctx: TvmContext,
     struct: TlbStructure,
-    lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
-): AbstractSizeExpr? = with(ctx) {
+    lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
+    possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
+): AbstractSizeExpr<SimpleAbstractionForUExpr>? = with(ctx) {
     when (struct) {
         is TlbStructure.Unknown -> {
             error("Cannot calculate length for Unknown leaf")
@@ -40,37 +43,42 @@ private fun getDataLength(
         }
 
         is TlbStructure.LoadRef -> {
-            getDataLength(ctx, struct.rest, lengthsFromPreviousDepth)
+            getDataLength(ctx, struct.rest, lengthsFromPreviousDepth, possibleSwitchVariants)
         }
 
         is TlbStructure.KnownTypePrefix -> {
-            val furtherWithoutShift = getDataLength(ctx, struct.rest, lengthsFromPreviousDepth)
+            val furtherWithoutShift = getDataLength(ctx, struct.rest, lengthsFromPreviousDepth, possibleSwitchVariants)
                 ?: return null  // cannot construct with given depth
 
             val offset = getKnownTypePrefixDataLength(struct, lengthsFromPreviousDepth)
                 ?: return null  // cannot construct with given depth
 
-            furtherWithoutShift.shiftAndAdd(offset)
+            furtherWithoutShift.add(offset)
         }
 
         is TlbStructure.SwitchPrefix -> {
             val switchSize = struct.switchSize
-            val childLengths = struct.variants.mapNotNull { (key, variant) ->
+            val possibleVariants = possibleSwitchVariants[struct]
+                ?: error("Switch variants not found for switch $struct")
 
-                val furtherWithoutShift = getDataLength(ctx, variant, lengthsFromPreviousDepth)
-                    ?: return@mapNotNull null  // cannot construct this variant with given depth
+            val childLengths = possibleVariants.mapIndexedNotNull { idx, (_, variant) ->
 
-                val condition = generateSwitchGuard(switchSize, key)
+                val further = getDataLength(ctx, variant, lengthsFromPreviousDepth, possibleSwitchVariants)
+                    ?: return@mapIndexedNotNull null  // cannot construct this variant with given depth
 
-                condition to furtherWithoutShift.shift(switchSize)
+                val condition = AbstractGuard<SimpleAbstractionForUExpr> { (address, path, state) ->
+                    generateGuardForSwitch(struct, idx, possibleVariants, state, address, path)
+                }
+
+                condition to further
             }
 
             if (childLengths.isEmpty()) {
                 return null  // cannot construct with given depth
             }
 
-            var childIte = childLengths.first().second  // arbitrary value
-            childLengths.subList(1, childLengths.size).forEach { (condition, value) ->
+            var childIte = childLengths.last().second  // arbitrary value
+            childLengths.subList(0, childLengths.size - 1).forEach { (condition, value) ->
                 val prev = childIte
                 childIte = AbstractSizeExpr { param ->
                     mkIte(condition.apply(param), value.apply(param), prev.apply(param))

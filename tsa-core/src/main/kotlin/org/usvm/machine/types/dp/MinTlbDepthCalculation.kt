@@ -33,7 +33,7 @@ private fun zeroDepthIsPossible(label: TlbCompositeLabel) =
 private fun zeroDepthIsPossible(struct: TlbStructure): Boolean =
     constructionIsPossible(struct) { false }
 
-private fun constructionIsPossible(
+fun constructionIsPossible(
     struct: TlbStructure,
     possibleCompositeLabel: (TlbCompositeLabel) -> Boolean
 ): Boolean =
@@ -52,6 +52,6 @@ private fun constructionIsPossible(
             }
         }
         is TlbStructure.SwitchPrefix -> {
-            struct.variants.any { constructionIsPossible(it.value, possibleCompositeLabel) }
+            struct.variants.any { constructionIsPossible(it.struct, possibleCompositeLabel) }
         }
     }

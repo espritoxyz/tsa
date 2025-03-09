@@ -1,0 +1,19 @@
+() some_throwing(int op) impure method_id(0) {
+    if (op == 1) {
+        return ();
+    } elseif (op == 2) {
+        return ();
+    } else {
+        throw(42);
+    }
+}
+
+int test_try_catch(int op) method_id(106) {
+    try {
+        some_throwing(op);
+        return 1337;
+    } catch(_, _) {
+        return 42;
+    }
+    return -1;
+}

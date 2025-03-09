@@ -2,7 +2,6 @@ package org.usvm.machine.interpreter
 
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
-import org.ton.bytecode.TvmAliasInst
 import org.ton.bytecode.TvmComplexGas
 import org.ton.bytecode.TvmInst
 import org.usvm.machine.types.TvmNullType
@@ -111,7 +110,6 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
             is TvmTupleUnpackfirstInst -> TODO()
             is TvmTupleUnpackfirstvarInst -> TODO()
             is TvmTupleUntuplevarInst -> TODO()
-            is TvmAliasInst -> visitTvmTupleInst(scope, stmt.resolveAlias() as TvmTupleInst)
         }
     }
 

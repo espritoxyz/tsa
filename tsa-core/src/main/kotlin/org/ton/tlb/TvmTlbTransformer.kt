@@ -4,20 +4,19 @@ import org.ton.Endian.BigEndian
 import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
+import org.ton.TlbFullMsgAddrLabel
+import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbLabel
+import org.ton.TlbMaybeRefLabel
 import org.ton.TlbStructure
 import org.ton.TlbStructure.Empty
 import org.ton.TlbStructure.KnownTypePrefix
 import org.ton.TlbStructure.LoadRef
 import org.ton.TlbStructure.SwitchPrefix
 import org.ton.TlbStructure.Unknown
-import org.ton.TlbFullMsgAddrLabel
-import org.ton.TlbIntegerLabelOfConcreteSize
-import org.ton.TlbMaybeRefLabel
 import org.ton.TlbStructureIdProvider
 import org.ton.TvmParameterInfo
 import org.ton.TvmParameterInfo.DataCellInfo
-import org.usvm.machine.TvmContext
 
 class TvmTlbTransformer(
     definitions: List<TvmTlbTypeDefinition>,
@@ -87,42 +86,48 @@ class TvmTlbTransformer(
                 require(args.size == 1)
                 when (val arg = args.single()) {
                     is TvmTlbReference -> {
-                        val (internal, hasAny) = transformSequenceOfExprs(listOf(arg.ref))
-                        val label = TlbCompositeLabel(
-                            "<anonymous-label>",
-                            internal,
-                            hasAny,
-                        )
+                        val label = TlbCompositeLabel("<anonymous-label>")
+                        val (internal, hasAny) = transformSequenceOfExprs(listOf(arg.ref), label)
+                        label.internalStructure = internal
+                        label.definitelyHasAny = hasAny
                         return TlbMaybeRefLabel(DataCellInfo(label))
                     }
                     else -> {
-                        val (internal, hasAny) = transformSequenceOfExprs(listOf(arg))
+                        val label = TlbCompositeLabel("Maybe")
+                        val (internal, hasAny) = transformSequenceOfExprs(listOf(arg), label)
                         val structure = SwitchPrefix(
                             id = TlbStructureIdProvider.provideId(),
                             switchSize = 1,
                             mapOf(
                                 "0" to Empty,
                                 "1" to internal
-                            )
+                            ),
+                            owner = label,
                         )
-                        return TlbCompositeLabel("Maybe", structure, hasAny)
+                        label.internalStructure = structure
+                        label.definitelyHasAny = hasAny
+                        return label
                     }
                 }
 
             }
             "Either" -> {
                 require(args.size == 2)
-                val (left, leftHasAny) = transformSequenceOfExprs(listOf(args[0]))
-                val (right, rightHasAny) = transformSequenceOfExprs(listOf(args[1]))
+                val label = TlbCompositeLabel("Either")
+                val (left, leftHasAny) = transformSequenceOfExprs(listOf(args[0]), label)
+                val (right, rightHasAny) = transformSequenceOfExprs(listOf(args[1]), label)
                 val structure = SwitchPrefix(
                     id = TlbStructureIdProvider.provideId(),
                     switchSize = 1,
                     mapOf(
                         "0" to left,
                         "1" to right
-                    )
+                    ),
+                    owner = label,
                 )
-                return TlbCompositeLabel("Either", structure, hasAny = leftHasAny || rightHasAny)
+                label.internalStructure = structure
+                label.definitelyHasAny = leftHasAny || rightHasAny
+                return label
             }
             "MsgAddress" -> {
                 return if (onlyBasicAddresses) TlbBasicMsgAddrLabel else TlbFullMsgAddrLabel
@@ -142,10 +147,14 @@ class TvmTlbTransformer(
         }
         if (someConstructorHasAny) {
             // this one must not be recursive (if it is, it will lead to infinite recursion)
+            val result = TlbCompositeLabel(def.name)
             val structure = transformConstructors(
-                def.constructors.map { ConstructorTagSuffix(it, it.tag) }
+                def.constructors.map { ConstructorTagSuffix(it, it.tag) },
+                owner = result,
             )
-            return TlbCompositeLabel(def.name, structure, hasAny = true)
+            result.internalStructure = structure
+            result.definitelyHasAny = true
+            return result
         }
 
         return TlbCompositeLabel(
@@ -153,7 +162,8 @@ class TvmTlbTransformer(
         ).also { label ->
             transformed[def to args] = label
             val structure = transformConstructors(
-                def.constructors.map { ConstructorTagSuffix(it, it.tag) }
+                def.constructors.map { ConstructorTagSuffix(it, it.tag) },
+                owner = label
             )
             label.internalStructure = structure
         }
@@ -161,9 +171,10 @@ class TvmTlbTransformer(
 
     private fun transformConstructors(
         constructors: List<ConstructorTagSuffix>,
+        owner: TlbCompositeLabel,
     ): TlbStructure {
         if (constructors.size == 1 && constructors.single().tagSuffix.isEmpty()) {
-            return transformConstructor(constructors.single().constructor)
+            return transformConstructor(constructors.single().constructor, owner)
         }
 
         val minLen = constructors.minOf { it.tagSuffix.length }
@@ -176,17 +187,19 @@ class TvmTlbTransformer(
             groupedConstructors.getOrPut(prefix) { mutableListOf() }.add(constructor)
         }
 
-        val variants = groupedConstructors.mapValues { transformConstructors(it.value) }
+        val variants = groupedConstructors.mapValues { transformConstructors(it.value, owner) }
 
         return SwitchPrefix(
             id = TlbStructureIdProvider.provideId(),
             minLen,
             variants,
+            owner,
         )
     }
 
     private fun transformSequenceOfExprs(
         sequence: List<TvmTlbTypeExpr>,
+        owner: TlbCompositeLabel?
     ): Pair<TlbStructure, Boolean> {
         var last: TlbStructure = Empty
         var foundAny = false
@@ -202,7 +215,7 @@ class TvmTlbTransformer(
                         DataCellInfo(it)
                     } ?: TvmParameterInfo.UnknownCellInfo
 
-                    LoadRef(TlbStructureIdProvider.provideId(), dataInfo, last)
+                    LoadRef(TlbStructureIdProvider.provideId(), dataInfo, last, owner)
                 }
 
                 is TvmTlbType -> {
@@ -215,7 +228,7 @@ class TvmTlbTransformer(
                             label.internalStructure
                         } else {
                             check(label.arity == 0)
-                            KnownTypePrefix(TlbStructureIdProvider.provideId(), label, typeArgIds = emptyList(), last)
+                            KnownTypePrefix(TlbStructureIdProvider.provideId(), label, typeArgIds = emptyList(), last, owner)
                         }
                     } ?: let {
                         foundAny = true
@@ -231,10 +244,11 @@ class TvmTlbTransformer(
     }
 
     private fun transformConstructor(
-        constructor: TvmTlbTypeConstructor
+        constructor: TvmTlbTypeConstructor,
+        owner: TlbCompositeLabel,
     ): TlbStructure {
         val exprs = constructor.fields.map { it.typeExpr }
-        return transformSequenceOfExprs(exprs).first
+        return transformSequenceOfExprs(exprs, owner).first
     }
 
     private data class ConstructorTagSuffix(

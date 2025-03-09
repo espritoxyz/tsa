@@ -5,8 +5,8 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.uncheckedCast
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBvSort
+import org.ton.Endian
 import org.ton.bytecode.TvmCell
-import org.ton.bytecode.TvmSubSliceSerializedLoader
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.UBoolExpr
@@ -25,12 +25,12 @@ import org.usvm.machine.TvmContext.Companion.ADDRESS_TAG_BITS
 import org.usvm.machine.TvmContext.Companion.ADDRESS_TAG_LENGTH
 import org.usvm.machine.TvmContext.Companion.CELL_DATA_BITS
 import org.usvm.machine.TvmContext.Companion.EXTERN_ADDRESS_TAG
+import org.usvm.machine.TvmContext.Companion.GRAMS_LENGTH_BITS
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.NONE_ADDRESS_TAG
 import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
 import org.usvm.machine.TvmContext.Companion.STD_WORKCHAIN_BITS
 import org.usvm.machine.TvmContext.Companion.VAR_ADDRESS_TAG
-import org.usvm.machine.TvmContext.Companion.cellDataField
 import org.usvm.machine.TvmContext.Companion.cellDataLengthField
 import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
@@ -41,9 +41,17 @@ import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.types.TlbStructureBuilder
+import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmCellDataCoinsRead
+import org.usvm.machine.types.TvmCellDataIntegerRead
+import org.usvm.machine.types.TvmCellDataMsgAddrRead
+import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
+import org.usvm.machine.types.storeCoinTlbLabelToBuilder
+import org.usvm.machine.types.storeIntTlbLabelToBuilder
+import org.usvm.machine.types.storeSliceTlbLabelInBuilder
 import org.usvm.memory.UWritableMemory
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
@@ -241,32 +249,41 @@ fun TvmStepScopeManager.assertRefsLengthConstraint(
     assert(correctnessConstraint, unsatBlock = unsatBlock)
 }
 
-private fun TvmState.preloadDataBitsFromCellWithoutChecks(
+fun TvmStepScopeManager.preloadDataBitsFromCellWithoutChecks(
     cell: UHeapRef,
     offset: UExpr<TvmSizeSort>,
-    sizeBits: UExpr<TvmSizeSort>
-): UExpr<TvmCellDataSort> = with(ctx) {
-    val cellData = memory.readField(cell, cellDataField, cellDataSort)
-    val endOffset = mkSizeAddExpr(offset, sizeBits)
-    val offsetDataPos = mkSizeSubExpr(maxDataLengthSizeExpr, endOffset)
-    mkBvLogicalShiftRightExpr(cellData, offsetDataPos.zeroExtendToSort(cellDataSort))
+    sizeBits: UExpr<TvmSizeSort>,
+): UExpr<TvmCellDataSort>? {
+    val cellDataFieldManager = calcOnState { cellDataFieldManager }
+    val cellData = cellDataFieldManager.readCellData(this@preloadDataBitsFromCellWithoutChecks, cell)
+        ?: return null
+    return calcOnStateCtx {
+        val endOffset = mkSizeAddExpr(offset, sizeBits)
+        val offsetDataPos = mkSizeSubExpr(maxDataLengthSizeExpr, endOffset)
+        mkBvLogicalShiftRightExpr(cellData, offsetDataPos.zeroExtendToSort(cellDataSort))
+    }
 }
 
-fun TvmState.preloadDataBitsFromCellWithoutChecks(
+fun TvmStepScopeManager.preloadDataBitsFromCellWithoutChecks(
     cell: UHeapRef,
     offset: UExpr<TvmSizeSort>,
     sizeBits: Int,
-): UExpr<KBvSort> = with(ctx) {
+): UExpr<KBvSort>? = doWithCtx {
     val shiftedData = preloadDataBitsFromCellWithoutChecks(cell, offset, mkSizeExpr(sizeBits))
-    return mkBvExtractExpr(high = sizeBits - 1, low = 0, shiftedData)
+        ?: return@doWithCtx null
+    return@doWithCtx mkBvExtractExpr(high = sizeBits - 1, low = 0, shiftedData)
 }
 
-fun TvmState.slicePreloadDataBitsWithoutChecks(
+fun TvmStepScopeManager.slicePreloadDataBitsWithoutChecks(
     slice: UHeapRef,
     sizeBits: Int,
-): UExpr<KBvSort> = with(ctx) {
-    val cell = memory.readField(slice, sliceCellField, addressSort)
-    val dataPosition = memory.readField(slice, sliceDataPosField, sizeSort)
+): UExpr<KBvSort>? {
+    val cell = calcOnStateCtx {
+        memory.readField(slice, sliceCellField, addressSort)
+    }
+    val dataPosition = calcOnStateCtx {
+        memory.readField(slice, sliceDataPosField, sizeSort)
+    }
    return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
 }
 
@@ -306,7 +323,7 @@ fun TvmStepScopeManager.slicePreloadDataBits(
     mkBvExtractExpr(high = bits - 1, low = 0, data)
 }
 
-private fun TvmContext.extractIntFromShiftedData(
+fun TvmContext.extractIntFromShiftedData(
     shiftedData: UExpr<TvmCellDataSort>,
     sizeBits: UExpr<TvmInt257Sort>,
     isSigned: Boolean,
@@ -320,16 +337,6 @@ private fun TvmContext.extractIntFromShiftedData(
     } else {
         mkBvArithShiftRightExpr(shiftedBits, trashBits)
     }
-}
-
-fun TvmState.loadIntFromCellWithoutChecks(
-    cell: UHeapRef,
-    offset: UExpr<TvmSizeSort>,
-    sizeBits: UExpr<TvmInt257Sort>,
-    isSigned: Boolean
-): UExpr<TvmInt257Sort> = with(ctx) {
-    val shiftedData = preloadDataBitsFromCellWithoutChecks(cell, offset, sizeBits.extractToSizeSort())
-    return extractIntFromShiftedData(shiftedData, sizeBits, isSigned)
 }
 
 /**
@@ -349,34 +356,14 @@ fun TvmStepScopeManager.slicePreloadInt(
     }
 }
 
-private fun TvmStepScopeManager.slicePreloadInternalOrNoneAddrLengthConstraint(
-    slice: UHeapRef
-): Pair<UBoolExpr, UExpr<TvmSizeSort>>? = calcOnStateCtx {
-    // addr_none$00
-    val addrNoneTag = slicePreloadDataBitsWithoutChecks(slice, sizeBits = 2)
-    val noneConstraint = addrNoneTag eq mkBv(NONE_ADDRESS_TAG, ADDRESS_TAG_BITS)
-    val noneLength = mkSizeExpr(ADDRESS_TAG_LENGTH)
-
-    val internalAddrLengthConstraint = slicePreloadInternalAddrLengthConstraint(slice)
-        ?: return@calcOnStateCtx null // TODO should we return null or just ignore the failing assert here?
-
-    Pair(
-        noneConstraint or internalAddrLengthConstraint.first,
-        mkIte(
-            noneConstraint,
-            noneLength,
-            internalAddrLengthConstraint.second
-        )
-    )
-}
-
 private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
     slice: UHeapRef
-): Pair<UBoolExpr, UExpr<TvmSizeSort>>? = calcOnStateCtx {
+): Pair<UBoolExpr, UExpr<TvmSizeSort>>? = doWithCtx {
     // addr_var$11 anycast:(Maybe Anycast) addr_len:(## 9) workchain_id:int32
     // addr_std$10 anycast:(Maybe Anycast) workchain_id:int8 ...
     val prefixLen = 44
     val data = slicePreloadDataBitsWithoutChecks(slice, sizeBits = prefixLen)
+        ?: return@doWithCtx null
 
     // addr_std$10
     // addr_var$11
@@ -425,21 +412,22 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
         unsatBlock = {
             error("Cannot assume no anycast")
         }
-    ) ?: return@calcOnStateCtx null
+    ) ?: return@doWithCtx null
 
     constraint to addrLength
 }
 
 private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
     slice: UHeapRef
-): Pair<UBoolExpr, UExpr<TvmSizeSort>> = calcOnStateCtx {
+): Pair<UBoolExpr, UExpr<TvmSizeSort>>? = doWithCtx {
     if (!tvmOptions.enableExternalAddress) {
-        return@calcOnStateCtx falseExpr to zeroSizeExpr
+        return@doWithCtx falseExpr to zeroSizeExpr
     }
     // addr_extern$01 len:(## 9)
     // addr_none$00 ...
     val prefixLen = 11
     val data = slicePreloadDataBitsWithoutChecks(slice, sizeBits = prefixLen)
+        ?: return@doWithCtx null
 
     val tag = mkBvExtractExpr(high = prefixLen - 1, low = prefixLen - 2, data)
 
@@ -462,21 +450,6 @@ private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
     (noneConstraint or externConstraint) to addrLength
 }
 
-fun TvmStepScopeManager.slicePreloadInternalOrNoneAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? {
-    val (constraint, length) = slicePreloadInternalOrNoneAddrLengthConstraint(slice) ?: return null
-
-    fork(
-        constraint,
-        falseStateIsExceptional = true,
-        blockOnFalseState = {
-            // TODO tl-b parsing failure
-            ctx.throwUnknownCellUnderflowError(this)
-        }
-    ) ?: return null
-
-    return length
-}
-
 fun TvmStepScopeManager.slicePreloadInternalAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? {
     val (constraint, length) = slicePreloadInternalAddrLengthConstraint(slice) ?: return null
 
@@ -491,6 +464,7 @@ fun TvmStepScopeManager.slicePreloadInternalAddrLength(slice: UHeapRef): UExpr<T
 
     return length
 }
+
 
 fun TvmStepScopeManager.slicePreloadExternalAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? {
     val (constraint, length) = slicePreloadExternalAddrLengthConstraint(slice) ?: return null
@@ -508,9 +482,8 @@ fun TvmStepScopeManager.slicePreloadExternalAddrLength(slice: UHeapRef): UExpr<T
 }
 
 fun TvmStepScopeManager.slicePreloadAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? = calcOnStateCtx {
-    val (intConstraint, intLength) = slicePreloadInternalAddrLengthConstraint(slice)
-        ?: return@calcOnStateCtx null
-    val (extConstraint, extLength) = slicePreloadExternalAddrLengthConstraint(slice)
+    val (intConstraint, intLength) = slicePreloadInternalAddrLengthConstraint(slice) ?: return@calcOnStateCtx null
+    val (extConstraint, extLength) = slicePreloadExternalAddrLengthConstraint(slice) ?: return@calcOnStateCtx null
 
     assert(intConstraint or extConstraint)
         ?: return@calcOnStateCtx null
@@ -524,29 +497,51 @@ fun TvmStepScopeManager.slicePreloadAddrLength(slice: UHeapRef): UExpr<TvmSizeSo
     length
 }
 
-fun sliceLoadGrams(
+fun sliceLoadGramsTlb(
     scope: TvmStepScopeManager,
     oldSlice: UHeapRef,
     newSlice: UConcreteHeapRef,
     doWithGrams: TvmStepScopeManager.(UExpr<TvmInt257Sort>) -> Unit
-) = scope.calcOnStateCtx {
-    val peekedLength = slicePreloadDataBitsWithoutChecks(newSlice, sizeBits = 4).zeroExtendToSort(sizeSort)
-    scope.makeSliceTypeLoad(oldSlice, TvmCellDataCoinsRead(ctx, peekedLength), newSlice) {
+) = scope.doWithCtx {
+    val ctx = scope.calcOnState { ctx }
+
+    val read = TvmCellDataCoinsRead(ctx)
+    scope.makeSliceTypeLoad(oldSlice, read, newSlice) { valueFromTlb ->
 
         // hide the original [scope] from this closure
         @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
         val scope = Unit
 
-        val length = slicePreloadDataBits(newSlice, bits = 4)?.zeroExtendToSort(sizeSort)
-            ?: return@makeSliceTypeLoad
+        val (length, grams) = valueFromTlb?.let {
+            doWithState {
+                sliceMoveDataPtr(newSlice, bits = 4)
+            }
 
-        sliceMoveDataPtr(newSlice, bits = 4)
+            val length = valueFromTlb.first.zeroExtendToSort(sizeSort)
+
+            val grams = valueFromTlb.second
+
+            length to grams
+        } ?: run {
+            val length = slicePreloadDataBits(newSlice, bits = 4)?.zeroExtendToSort(sizeSort)
+                ?: return@makeSliceTypeLoad
+
+            doWithState {
+                sliceMoveDataPtr(newSlice, bits = 4)
+            }
+
+            val extendedLength = mkBvShiftLeftExpr(length, shift = threeSizeExpr)
+            val grams = slicePreloadInt(newSlice, extendedLength.zeroExtendToSort(int257sort), isSigned = false)
+                ?: return@makeSliceTypeLoad
+
+            length to grams
+        }
 
         val extendedLength = mkBvShiftLeftExpr(length, shift = threeSizeExpr)
-        val grams = slicePreloadInt(newSlice, extendedLength.zeroExtendToSort(int257sort), isSigned = false)
-            ?: return@makeSliceTypeLoad
 
-        sliceMoveDataPtr(newSlice, extendedLength)
+        doWithState {
+            sliceMoveDataPtr(newSlice, extendedLength)
+        }
 
         doWithGrams(grams)
     }
@@ -586,13 +581,22 @@ fun TvmState.sliceCopy(original: UHeapRef, result: UHeapRef) = with(ctx) {
     memory.copyField(original, result, sliceRefPosField, sizeSort)
 }
 
-fun TvmState.sliceDeepCopy(original: UHeapRef, result: UHeapRef) = with(ctx) {
-    val cell = memory.readField(original, sliceCellField, addressSort)
-    val cellCopy = memory.allocConcrete(TvmDataCellType).also { builderCopy(cell, it) }
+fun TvmStepScopeManager.sliceDeepCopy(original: UHeapRef, result: UHeapRef): Unit? = doWithCtx {
+    val cell = calcOnState {
+        memory.readField(original, sliceCellField, addressSort)
+    }
+    val cellCopy = calcOnState {
+        memory.allocConcrete(TvmDataCellType)
+    }.also {
+        builderCopy(cell, it)
+            ?: return@doWithCtx null
+    }
 
-    memory.writeField(result, sliceCellField, addressSort, cellCopy, guard = trueExpr)
-    memory.copyField(original, result, sliceDataPosField, sizeSort)
-    memory.copyField(original, result, sliceRefPosField, sizeSort)
+    doWithState {
+        memory.writeField(result, sliceCellField, addressSort, cellCopy, guard = trueExpr)
+        memory.copyField(original, result, sliceDataPosField, sizeSort)
+        memory.copyField(original, result, sliceRefPosField, sizeSort)
+    }
 }
 
 fun TvmState.sliceMoveDataPtr(slice: UHeapRef, bits: UExpr<TvmSizeSort>) = with(ctx) {
@@ -611,15 +615,34 @@ fun TvmState.sliceMoveRefPtr(slice: UHeapRef, shift: UExpr<TvmSizeSort> = ctx.mk
     memory.writeField(slice, sliceRefPosField, sizeSort, updatedRefPosition, guard = trueExpr)
 }
 
-fun TvmState.builderCopy(original: UHeapRef, result: UConcreteHeapRef) = with(ctx) {
-    memory.copyField(original, result, cellDataField, cellDataSort)
+fun TvmState.allocEmptyBuilder(): UConcreteHeapRef =
+    memory.allocConcrete(TvmBuilderType).also {
+        builderCopyFromBuilder(emptyRefValue.emptyBuilder, it)
+        dataCellInfoStorage.mapper.addTlbBuilder(it, TlbStructureBuilder.empty)
+    }
+
+fun TvmState.builderCopyFromBuilder(original: UConcreteHeapRef, result: UConcreteHeapRef) = with(ctx) {
+    val cellData = cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderCopyFromBuilder, original)
+    cellDataFieldManager.writeCellData(this@builderCopyFromBuilder, result, cellData)
     memory.copyField(original, result, cellDataLengthField, sizeSort)
     memory.copyField(original, result, cellRefsLengthField, sizeSort)
     copyCellRefs(original, result)
 }
 
-fun TvmState.builderStoreDataBits(builder: UHeapRef, bits: UExpr<UBvSort>) = with(ctx) {
-    val builderData = memory.readField(builder, cellDataField, cellDataSort)
+fun TvmStepScopeManager.builderCopy(original: UHeapRef, result: UConcreteHeapRef): Unit? = doWithCtx {
+    val cellDataFieldManager = calcOnState { cellDataFieldManager }
+    val cellData = cellDataFieldManager.readCellData(this, original)
+        ?: return@doWithCtx null
+    doWithState {
+        cellDataFieldManager.writeCellData(this, result, cellData)
+        memory.copyField(original, result, cellDataLengthField, sizeSort)
+        memory.copyField(original, result, cellRefsLengthField, sizeSort)
+        copyCellRefs(original, result)
+    }
+}
+
+fun TvmState.builderStoreDataBits(builder: UConcreteHeapRef, bits: UExpr<UBvSort>) = with(ctx) {
+    val builderData = cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderStoreDataBits, builder)
     val builderDataLength = memory.readField(builder, cellDataLengthField, sizeSort)
 
     val updatedLength = mkSizeAddExpr(builderDataLength, mkSizeExpr(bits.sort.sizeBits.toInt()))
@@ -647,19 +670,20 @@ fun TvmState.builderStoreDataBits(builder: UHeapRef, bits: UExpr<UBvSort>) = wit
         updateBuilderData(builderData, bits.zeroExtendToSort(builderData.sort), updatedLength)
     }
 
-    memory.writeField(builder, cellDataField, cellDataSort, updatedData, guard = trueExpr)
+    cellDataFieldManager.writeCellData(this@builderStoreDataBits, builder, updatedData)
     memory.writeField(builder, cellDataLengthField, sizeSort, updatedLength, guard = trueExpr)
 }
 
 
 context(TvmContext)
 fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
-    builder: UHeapRef,
+    builder: UConcreteHeapRef,
     bits: UExpr<S>,
     sizeBits: UExpr<TvmSizeSort>,
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? {
-    val builderData = calcOnState { memory.readField(builder, cellDataField, cellDataSort) }
+
+    val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
     val builderDataLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
     val newDataLength = mkSizeAddExpr(builderDataLength, sizeBits)
     val extendedBits = bits.zeroExtendToSort(cellDataSort)
@@ -674,20 +698,20 @@ fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
     val updatedData = updateBuilderData(builderData, normalizedBits, newDataLength)
 
     return doWithState {
-        memory.writeField(builder, cellDataField, cellDataSort, updatedData, guard = trueExpr)
+        cellDataFieldManager.writeCellData(this, builder, updatedData)
         memory.writeField(builder, cellDataLengthField, sizeSort, newDataLength, guard = trueExpr)
     }
 }
 
 context(TvmContext)
 fun TvmStepScopeManager.builderStoreInt(
-    builder: UHeapRef,
+    builder: UConcreteHeapRef,
     value: UExpr<TvmInt257Sort>,
     sizeBits: UExpr<TvmInt257Sort>,
     isSigned: Boolean,
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? {
-    val builderData = calcOnState { memory.readField(builder, cellDataField, cellDataSort) }
+    val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
     val builderDataLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
     val updatedLength = mkSizeAddExpr(builderDataLength, sizeBits.extractToSizeSort())
 
@@ -705,7 +729,7 @@ fun TvmStepScopeManager.builderStoreInt(
     val updatedData = updateBuilderData(builderData, normalizedValue.zeroExtendToSort(builderData.sort), updatedLength)
 
     return doWithState {
-        memory.writeField(builder, cellDataField, cellDataSort, updatedData, guard = trueExpr)
+        cellDataFieldManager.writeCellData(this, builder, updatedData)
         memory.writeField(builder, cellDataLengthField, sizeSort, updatedLength, guard = trueExpr)
     }
 }
@@ -723,14 +747,17 @@ private fun TvmContext.updateBuilderData(
     return mkBvOrExpr(builderData, shiftedBits)
 }
 
+/**
+ * Return lengthValue
+ * */
 context(TvmContext)
 fun TvmStepScopeManager.builderStoreGrams(
-    builder: UHeapRef,
+    builder: UConcreteHeapRef,
     value: UExpr<TvmInt257Sort>,
     quietBlock: (TvmState.() -> Unit)? = null
-): Unit? {
+): UExpr<KBvSort>? {
     // var_uint$_ {n:#} len:(#< 16) value:(uint (len * 8))
-    val lenSizeBits = 4
+    val lenSizeBits = GRAMS_LENGTH_BITS.toInt()
     val maxValue = 8 * ((1 shl lenSizeBits) - 1)
 
     val notOutOfRangeValue = unsignedIntegerFitsBits(value, maxValue.toUInt())
@@ -770,13 +797,15 @@ fun TvmStepScopeManager.builderStoreGrams(
         quietBlock
     ) ?: return null
 
-    return builderStoreInt(
+    builderStoreInt(
         builder,
         value,
         valueBits,
         isSigned = false,
         quietBlock
-    )
+    ) ?: return null
+
+    return lengthValue
 }
 
 fun TvmState.builderStoreNextRef(builder: UHeapRef, ref: UHeapRef) = with(ctx) {
@@ -786,12 +815,15 @@ fun TvmState.builderStoreNextRef(builder: UHeapRef, ref: UHeapRef) = with(ctx) {
     memory.writeField(builder, cellRefsLengthField, sizeSort, updatedLength, guard = trueExpr)
 }
 
+/**
+ * Return stored value
+ * */
 context(TvmContext)
 fun TvmStepScopeManager.builderStoreSlice(
-    builder: UHeapRef,
+    builder: UConcreteHeapRef,
     slice: UHeapRef,
     quietBlock: (TvmState.() -> Unit)? = null,
-): Unit? {
+): UExpr<TvmCellDataSort>? {
     val cell = calcOnState { memory.readField(slice, sliceCellField, addressSort) }
     val cellDataLength = calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
 
@@ -801,6 +833,7 @@ fun TvmStepScopeManager.builderStoreSlice(
     ) ?: return null
     val dataPosition = calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
 
+    // TODO: use TL-B values if possible
     val bitsToWriteLength = mkSizeSubExpr(cellDataLength, dataPosition)
     val cellData = slicePreloadDataBits(slice, bitsToWriteLength, quietBlock)
         ?: return null
@@ -819,7 +852,7 @@ fun TvmStepScopeManager.builderStoreSlice(
     builderStoreDataBits(builder, cellData, bitsToWriteLength, quietBlock)
         ?: return null
 
-    return doWithState {
+    doWithState {
         for (i in 0 until TvmContext.MAX_REFS_NUMBER) {
             val sliceRef = readCellRef(cell, mkSizeExpr(i))
             writeCellRef(builder, mkSizeAddExpr(builderRefsSize, mkSizeExpr(i)), sliceRef)
@@ -827,13 +860,18 @@ fun TvmStepScopeManager.builderStoreSlice(
 
         memory.writeField(builder, cellRefsLengthField, sizeSort, resultingRefsSize, guard = trueExpr)
     }
+
+    return cellData
 }
 
-fun TvmState.allocCellFromData(data: UExpr<UBvSort>): UHeapRef = with(ctx) {
+fun TvmState.allocDataCellFromData(data: UExpr<UBvSort>): UConcreteHeapRef = with(ctx) {
     check(data.sort.sizeBits <= CELL_DATA_BITS) { "Unexpected data: $data" }
 
     val cell = allocEmptyCell()
+
+    assertType(cell, TvmDataCellType)
     builderStoreDataBits(cell, data)
+
     cell
 }
 
@@ -849,15 +887,21 @@ fun TvmStepScopeManager.allocCellFromData(
     val shiftedData = mkBvShiftLeftExpr(data, shiftValue)
 
     doWithState {
-        memory.writeField(cell, cellDataField, cellDataSort, shiftedData, guard = trueExpr)
+        cellDataFieldManager.writeCellData(this, cell, shiftedData)
         memory.writeField(cell, cellDataLengthField, sizeSort, sizeBits, guard = trueExpr)
     }
 
     cell
 }
 
+fun TvmState.allocSliceFromCell(data: TvmCell): UHeapRef {
+    val sliceCell = allocateCell(data)
+
+    return allocSliceFromCell(sliceCell)
+}
+
 fun TvmState.allocSliceFromData(data: UExpr<UBvSort>): UHeapRef = with(ctx) {
-    val sliceCell = allocCellFromData(data)
+    val sliceCell = allocDataCellFromData(data)
 
     return allocSliceFromCell(sliceCell)
 }
@@ -893,7 +937,7 @@ fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef = with(ctx) {
 
 fun TvmState.allocEmptyCell() = with(ctx) {
     memory.allocConcrete(TvmCellType).also { cell ->
-        memory.writeField(cell, cellDataField, cellDataSort, mkBv(0, cellDataSort), trueExpr)
+        cellDataFieldManager.writeCellData(memory, cell, mkBv(0, cellDataSort))
         memory.writeField(cell, cellDataLengthField, sizeSort, zeroSizeExpr, trueExpr)
         memory.writeField(cell, cellRefsLengthField, sizeSort, zeroSizeExpr, trueExpr)
     }
@@ -923,12 +967,205 @@ fun TvmState.getSliceRemainingBitsCount(slice: UHeapRef): UExpr<TvmSizeSort> = w
     mkBvSubExpr(dataLength, dataPos)
 }
 
-context(TvmContext)
-fun TvmSubSliceSerializedLoader.bitsToBv(): KBitVecValue<UBvSort> {
-    // todo: check bits order
-    return mkBv(bits.joinToString(""), bits.size.toUInt())
-}
-
 private fun <Field, Sort : USort> UWritableMemory<*>.copyField(from: UHeapRef, to: UHeapRef, field: Field, sort: Sort) {
     writeField(to, field, sort, readField(from, field, sort), guard = from.ctx.trueExpr)
+}
+
+fun TvmStepScopeManager.slicesAreEqual(slice1: UHeapRef, slice2: UHeapRef): UBoolExpr? = doWithCtx {
+    val dataLeft1 = calcOnState {
+        getSliceRemainingBitsCount(slice1)
+    }
+    val dataLeft2 = calcOnState {
+        getSliceRemainingBitsCount(slice2)
+    }
+
+    // TODO: optimizations here?
+
+    val dataPosition1 = calcOnState {
+        memory.readField(slice1, sliceDataPosField, sizeSort)
+    }
+    val cell1 = calcOnState {
+        memory.readField(slice1, sliceCellField, addressSort)
+    }
+    val data1 = preloadDataBitsFromCellWithoutChecks(cell1, dataPosition1, dataLeft1)
+        ?: return@doWithCtx null
+
+    val dataPosition2 = calcOnState {
+        memory.readField(slice2, sliceDataPosField, sizeSort)
+    }
+    val cell2 = calcOnState {
+        memory.readField(slice2, sliceCellField, addressSort)
+    }
+    val data2 = preloadDataBitsFromCellWithoutChecks(cell2, dataPosition2, dataLeft2)
+        ?: return@doWithCtx null
+
+    val shift = mkBvSubExpr(mkSizeExpr(MAX_DATA_LENGTH), dataLeft1).zeroExtendToSort(cellDataSort)
+    val shiftedData1 = mkBvShiftLeftExpr(data1, shift)
+    val shiftedData2 = mkBvShiftLeftExpr(data2, shift)
+
+    mkAnd(dataLeft1 eq dataLeft2, shiftedData1 eq shiftedData2)
+}
+
+fun TvmStepScopeManager.builderToCell(builder: UConcreteHeapRef): UConcreteHeapRef = calcOnState {
+    builderToCell(builder)
+}
+
+fun TvmState.builderToCell(builder: UConcreteHeapRef): UConcreteHeapRef {
+    return memory.allocConcrete(TvmDataCellType).also {
+        builderCopyFromBuilder(builder, it)
+        dataCellInfoStorage.mapper.setCellInfoFromBuilder(builder, it, this)
+    }
+}
+
+fun sliceLoadIntTlb(
+    scope: TvmStepScopeManager,
+    slice: UHeapRef,
+    updatedSlice: UConcreteHeapRef,
+    sizeBits: Int,
+    isSigned: Boolean,
+    action: TvmStepScopeManager.(UExpr<TvmInt257Sort>) -> Unit,
+) = scope.doWithCtx {
+    makeSliceTypeLoad(
+        slice,
+        TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.BigEndian),
+        updatedSlice
+    ) { tlbValue ->
+        // hide the original [scope] from this closure
+        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
+        val scope = Unit
+
+        val result = tlbValue?.expr ?: let {
+            val value = slicePreloadDataBits(slice, sizeBits)
+                ?: return@makeSliceTypeLoad
+
+            if (isSigned) {
+                value.signedExtendToInteger()
+            } else {
+                value.unsignedExtendToInteger()
+            }
+        }
+
+        doWithState {
+            sliceMoveDataPtr(updatedSlice, sizeBits)
+        }
+
+        action(result)
+    }
+}
+
+fun sliceLoadAddrTlb(
+    scope: TvmStepScopeManager,
+    slice: UHeapRef,
+    updatedSlice: UConcreteHeapRef,
+    action: TvmStepScopeManager.(UHeapRef) -> Unit,
+) {
+    val ctx = scope.calcOnState { ctx }
+    scope.makeSliceTypeLoad(slice, TvmCellDataMsgAddrRead(ctx), updatedSlice) { tlbValue ->
+        // hide the original [scope] from this closure
+        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
+        val scope = Unit
+
+        calcOnStateCtx {
+            val addrSlice = if (tlbValue != null) {
+
+                val addrLength = tlbValue.first
+                sliceMoveDataPtr(updatedSlice, addrLength)
+
+                tlbValue.second
+            } else {
+
+                val addrLength = slicePreloadAddrLength(slice)
+                    ?: return@calcOnStateCtx
+                sliceMoveDataPtr(updatedSlice, addrLength)
+
+                val addrSlice = calcOnState {
+                    memory.allocConcrete(TvmSliceType)
+                }.also { sliceDeepCopy(slice, it) }
+
+                val addrDataPos = memory.readField(addrSlice, sliceDataPosField, sizeSort)
+                val addrRefPos = memory.readField(addrSlice, TvmContext.sliceRefPosField, sizeSort)
+                val addrCell = memory.readField(addrSlice, sliceCellField, addressSort)
+                // new data length to ensure that the remaining slice bits count is equal to [addrLength]
+                val addrDataLength = mkBvAddExpr(addrDataPos, addrLength)
+
+                val originalCell = memory.readField(slice, sliceCellField, addressSort)
+                checkCellDataUnderflow(this@makeSliceTypeLoad, originalCell, addrDataLength)
+                    ?: return@calcOnStateCtx
+
+                memory.writeField(addrCell, cellDataLengthField, sizeSort, addrDataLength, guard = trueExpr)
+                // new refs length to ensure that the remaining slice refs count is equal to 0
+                memory.writeField(addrCell, cellRefsLengthField, sizeSort, addrRefPos, guard = trueExpr)
+
+                calcOnState {
+                    dataCellInfoStorage.mapper.addAddressSlice(addrSlice)
+                }
+
+                addrSlice
+            }
+
+            action(addrSlice)
+        }
+    }
+}
+
+fun sliceLoadRefTlb(
+    scope: TvmStepScopeManager,
+    slice: UHeapRef,
+    updatedSlice: UConcreteHeapRef,
+    action: TvmStepScopeManager.(UHeapRef) -> Unit,
+) {
+    scope.makeSliceRefLoad(slice, updatedSlice) {
+        // hide the original [scope] from this closure
+        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
+        val scope = Unit
+
+        val ref = slicePreloadNextRef(slice)
+            ?: return@makeSliceRefLoad
+
+        doWithState { sliceMoveRefPtr(updatedSlice) }
+
+        action(ref)
+    }
+}
+
+fun builderStoreIntTlb(
+    scope: TvmStepScopeManager,
+    builder: UConcreteHeapRef,
+    updatedBuilder: UConcreteHeapRef,
+    value: UExpr<TvmInt257Sort>,
+    sizeBits: UExpr<TvmSizeSort>,
+    isSigned: Boolean = false,
+    endian: Endian,
+): Unit? = scope.doWithCtx {
+    scope.doWithState {
+        storeIntTlbLabelToBuilder(builder, updatedBuilder, sizeBits, value, isSigned, endian)
+    }
+
+    scope.builderStoreInt(updatedBuilder, value, sizeBits.signedExtendToInteger(), isSigned)
+}
+
+fun builderStoreGramsTlb(
+    scope: TvmStepScopeManager,
+    builder: UConcreteHeapRef,
+    updatedBuilder: UConcreteHeapRef,
+    grams: UExpr<TvmInt257Sort>,
+): Unit? = scope.doWithCtx {
+    val length = scope.builderStoreGrams(updatedBuilder, grams)
+        ?: return@doWithCtx null
+
+    scope.doWithState {
+        storeCoinTlbLabelToBuilder(builder, updatedBuilder, length, grams)
+    }
+}
+
+fun builderStoreSliceTlb(
+    scope: TvmStepScopeManager,
+    builder: UConcreteHeapRef,
+    updatedBuilder: UConcreteHeapRef,
+    slice: UHeapRef,
+): Unit? = scope.doWithCtx {
+    builderStoreSlice(updatedBuilder, slice)
+        ?: return@doWithCtx null
+
+    storeSliceTlbLabelInBuilder(builder, updatedBuilder, slice)
 }

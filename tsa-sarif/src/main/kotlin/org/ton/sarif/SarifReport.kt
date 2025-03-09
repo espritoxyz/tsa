@@ -12,10 +12,10 @@ import io.github.detekt.sarif4k.ThreadFlow
 import io.github.detekt.sarif4k.ThreadFlowLocation
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.encodeToJsonElement
+import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmContractCode
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
-import org.usvm.machine.MethodId
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
@@ -23,6 +23,7 @@ import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmSymbolicTestSuite
+import org.usvm.test.resolver.TvmTestInput
 
 fun TvmContractSymbolicTestResult.toSarifReport(methodsMapping: Map<MethodId, String>): String = SarifSchema210(
     schema = TsaSarifSchema.SCHEMA,
@@ -81,11 +82,14 @@ private fun List<TvmSymbolicTest>.toSarifResult(
     val methodName = methodsMapping[methodId]
 
     val properties = PropertyBag(
-        mapOf(
+        listOfNotNull(
             "gasUsage" to it.gasUsage,
-            "usedParameters" to TvmContractCode.json.encodeToJsonElement(it.usedParameters),
+            "usedParameters" to TvmContractCode.json.encodeToJsonElement(it.input),
+            it.fetchedValues.takeIf { it.isNotEmpty() }?.let {
+                "fetchedValues" to TvmContractCode.json.encodeToJsonElement(it)
+            },
             "resultStack" to TvmContractCode.json.encodeToJsonElement(it.result.stack),
-        )
+        ).toMap()
     )
 
     if (useShortenedOutput) {

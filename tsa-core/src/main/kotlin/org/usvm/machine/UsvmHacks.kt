@@ -13,6 +13,7 @@ import org.usvm.collection.map.primitive.UMapRegion
 import org.usvm.collection.map.primitive.UMapRegionId
 import org.usvm.collection.set.primitive.USetRegion
 import org.usvm.collection.set.primitive.USetRegionId
+import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.isStaticHeapRef
 import org.usvm.memory.USymbolicCollectionKeyInfo
 import org.usvm.memory.UWritableMemory
@@ -132,6 +133,7 @@ internal fun <SetType, KeySort : USort, Reg : Region<Reg>> UWritableMemory<*>.se
     keySort: KeySort,
     keyInfo: USymbolicCollectionKeyInfo<UExpr<KeySort>, Reg>,
     guard: UBoolExpr,
+    ownership: MutabilityOwnership,
 ) {
     val regionId = USetRegionId(keySort, type, keyInfo)
     val region = getRegion(regionId)
@@ -140,7 +142,7 @@ internal fun <SetType, KeySort : USort, Reg : Region<Reg>> UWritableMemory<*>.se
         "setUnion is not applicable to $region"
     }
 
-    val newRegion = region.union(srcRef, dstRef, guard)
+    val newRegion = region.union(srcRef, dstRef, guard, ownership)
     setRegion(regionId, newRegion)
 }
 
@@ -152,7 +154,8 @@ internal fun <MapType, KeySort : USort, ValueSort : USort, Reg : Region<Reg>> UW
     sort: ValueSort,
     keyInfo: USymbolicCollectionKeyInfo<UExpr<KeySort>, Reg>,
     keySet: USetRegionId<MapType, KeySort, Nothing>,
-    guard: UBoolExpr
+    guard: UBoolExpr,
+    ownership: MutabilityOwnership,
 ) {
     val regionId = UMapRegionId(keySort, sort, mapType, keyInfo)
     val region = getRegion(regionId)
@@ -166,6 +169,6 @@ internal fun <MapType, KeySort : USort, ValueSort : USort, Reg : Region<Reg>> UW
         "mapMerge is not applicable to set $region"
     }
 
-    val newRegion = region.merge(srcRef, dstRef, mapType, keySetRegion, guard)
+    val newRegion = region.merge(srcRef, dstRef, mapType, keySetRegion, guard, ownership)
     setRegion(regionId, newRegion)
 }

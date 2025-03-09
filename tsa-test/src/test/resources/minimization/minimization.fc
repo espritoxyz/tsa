@@ -1,0 +1,18 @@
+#include "../imports/stdlib.fc";
+
+int main(slice in_msg) impure method_id(0) {
+    int result = 0;
+
+    int f1 = in_msg~load_uint(8);
+    int f2 = in_msg~load_uint(8);
+
+    if (f1 == 1) {
+        result += 1;
+    }
+
+    if (f2 == 1) {
+        result += 1;
+    }
+
+    return result;
+}

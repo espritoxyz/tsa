@@ -1,0 +1,32 @@
+#include "../../imports/stdlib.fc";
+#include "op-codes.fc";
+
+int load_balance() inline method_id(-42) {
+    var ds = get_data().begin_parse();
+
+    return ds~load_uint(32);
+}
+
+() update_balance(int new_balance) impure inline method_id(-422) {
+    var new_data = begin_cell().store_uint(new_balance, 32).end_cell();
+
+    set_data(new_data);
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) {
+        ;; ignore empty messages
+        return ();
+    }
+
+    int op = in_msg_body~load_uint(32);
+
+    if (op != op::reduce_balance) {
+        ;; ignore messages with unknown operation
+    }
+
+    ;; reduce the balance by 1 in case of [reduce_balance] operation
+    int balance = load_balance();
+    balance -= 1;
+    update_balance(balance);
+}

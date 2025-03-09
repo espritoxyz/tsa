@@ -3,7 +3,6 @@ package org.usvm.test.resolver
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import org.ton.Endian
-import org.usvm.machine.TvmContext.Companion.stdMsgAddrSize
 import java.math.BigInteger
 
 @Serializable
@@ -13,6 +12,13 @@ sealed interface TvmTestValue
 @Serializable
 value class TvmTestIntegerValue(
     val value: @Contextual BigInteger
+): TvmTestValue
+
+// Artificial entity to represent one-bit integer test values
+@JvmInline
+@Serializable
+value class TvmTestBooleanValue(
+    val value: Boolean
 ): TvmTestValue
 
 sealed interface TvmTestReferenceValue
@@ -66,35 +72,22 @@ data class TvmTestTupleValue(
 ) : TvmTestValue
 
 @Serializable
-sealed interface TvmTestCellDataTypeRead {
-    val bitSize: Int
-}
+sealed interface TvmTestCellDataTypeRead
 
 @Serializable
-data class TvmTestCellDataIntegerRead(override val bitSize: Int, val isSigned: Boolean, val endian: Endian): TvmTestCellDataTypeRead
+data class TvmTestCellDataIntegerRead(val bitSize: Int, val isSigned: Boolean, val endian: Endian): TvmTestCellDataTypeRead
 
 @Serializable
-data object TvmTestCellDataMaybeConstructorBitRead: TvmTestCellDataTypeRead {
-    override val bitSize: Int = 1
-}
-
-// TODO: only stdAddr is supported now
-@Serializable
-data object TvmTestCellDataMsgAddrRead: TvmTestCellDataTypeRead {
-    override val bitSize: Int = stdMsgAddrSize
-}
+data object TvmTestCellDataMaybeConstructorBitRead: TvmTestCellDataTypeRead
 
 @Serializable
-data class TvmTestCellDataBitArrayRead(override val bitSize: Int): TvmTestCellDataTypeRead
+data object TvmTestCellDataMsgAddrRead : TvmTestCellDataTypeRead
 
 @Serializable
-data class TvmTestCellDataCoinsRead(val coinPrefix: Int): TvmTestCellDataTypeRead {
-    override val bitSize: Int = 4 + coinPrefix * 8
+data class TvmTestCellDataBitArrayRead(val bitSize: Int): TvmTestCellDataTypeRead
 
-    init {
-        require(coinPrefix in 0..15)
-    }
-}
+@Serializable
+data object TvmTestCellDataCoinsRead : TvmTestCellDataTypeRead
 
 @Serializable
 data class TvmCellDataTypeLoad(

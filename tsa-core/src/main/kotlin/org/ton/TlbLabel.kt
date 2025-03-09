@@ -26,7 +26,9 @@ sealed interface TlbBuiltinLabel
 /**
  * TL-B primitive.
  * */
-sealed interface TlbAtomicLabel : TlbLabel
+sealed class TlbAtomicLabel : TlbLabel {
+    val wrapperStructureId: Int = TlbStructureIdProvider.provideId()
+}
 
 sealed interface TlbResolvedBuiltinLabel : TlbBuiltinLabel
 
@@ -35,48 +37,64 @@ sealed interface TlbResolvedBuiltinLabel : TlbBuiltinLabel
  * */
 open class TlbCompositeLabel(
     val name: String,  // TODO: proper id
-    val definitelyHasAny: Boolean = false,
+    var definitelyHasAny: Boolean = false,
 ) : TlbLabel {
     // this is lateinit for supporting recursive structure
     lateinit var internalStructure: TlbStructure
 
     override val arity: Int = 0
-
-    constructor(name: String, internalStructure: TlbStructure, hasAny: Boolean = false) : this(name, hasAny) {
-        this.internalStructure = internalStructure
-    }
 }
 
 fun createWrapperStructure(label: TlbAtomicLabel): TlbStructure {
     require(label.arity == 0)
     return KnownTypePrefix(
-        id = TlbStructureIdProvider.provideId(),
+        id = label.wrapperStructureId,
         typeLabel = label,
         typeArgIds = emptyList(),
         rest = Empty,
+        owner = null,
     )
 }
 
-sealed interface TlbIntegerLabel : TlbBuiltinLabel, TlbAtomicLabel {
-    val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort>
-    val isSigned: Boolean
-    val endian: Endian
-    val lengthUpperBound: Int
+sealed class TlbIntegerLabel : TlbBuiltinLabel, TlbAtomicLabel() {
+    abstract val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort>
+    abstract val isSigned: Boolean
+    abstract val endian: Endian
+    abstract val lengthUpperBound: Int
 }
 
-data class TlbIntegerLabelOfConcreteSize(
-    val concreteSize: Int,
+sealed interface FixedSizeDataLabel {
+    val concreteSize: Int
+}
+
+class TlbBitArrayOfConcreteSize(
+    override val concreteSize: Int
+) : TlbResolvedBuiltinLabel, TlbAtomicLabel(), FixedSizeDataLabel {
+    override val arity: Int = 0
+
+    init {
+        check(concreteSize <= TvmContext.MAX_DATA_LENGTH)
+    }
+}
+
+// only for builders
+class TlbBitArrayByRef(
+    val sizeBits: UExpr<TvmSizeSort>,
+) : TlbAtomicLabel(), TlbBuiltinLabel {
+    override val arity: Int = 0
+}
+
+class TlbIntegerLabelOfConcreteSize(
+    override val concreteSize: Int,
     override val isSigned: Boolean,
     override val endian: Endian,
-) : TlbIntegerLabel, TlbResolvedBuiltinLabel {
+) : TlbIntegerLabel(), TlbResolvedBuiltinLabel, FixedSizeDataLabel {
     override val arity: Int = 0
     override val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort> = { ctx, _ ->
         ctx.mkSizeExpr(concreteSize)
     }
     override val lengthUpperBound: Int
         get() = concreteSize
-    val canBeUsedAsSizeForTlbIntegers: Boolean
-        get() = concreteSize <= 31
 }
 
 class TlbIntegerLabelOfSymbolicSize(
@@ -85,100 +103,128 @@ class TlbIntegerLabelOfSymbolicSize(
     override val arity: Int,
     override val lengthUpperBound: Int = if (isSigned) 257 else 256,
     override val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort>,
-) : TlbIntegerLabel
+) : TlbIntegerLabel()
 
-data object TlbEmptyLabel : TlbCompositeLabel("", Empty)
+data object TlbEmptyLabel : TlbCompositeLabel("") {
+    init {
+        internalStructure = Empty
+    }
+}
 
 sealed interface TlbMsgAddrLabel : TlbResolvedBuiltinLabel
 
+// only for builders
+class TlbAddressByRef(
+    val sizeBits: UExpr<TvmSizeSort>,
+): TlbAtomicLabel(), TlbBuiltinLabel, TlbMsgAddrLabel {
+    override val arity: Int = 0
+}
+
 // TODO: other types of addresses (not just std)
-data object TlbFullMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel(
-    "MsgAddr",
-    SwitchPrefix(
-        id = TlbStructureIdProvider.provideId(),
-        switchSize = 3,
-        mapOf(
-            "100" to KnownTypePrefix(
-                id = TlbStructureIdProvider.provideId(),
-                TlbInternalStdMsgAddrLabel,
-                typeArgIds = emptyList(),
-                rest = Empty
-            )
-        )
-    )
-)
-
-data object TlbBasicMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel(
-    "MsgAddr",
-    SwitchPrefix(
-        id = TlbStructureIdProvider.provideId(),
-        switchSize = 11,
-        mapOf(
-            "10000000000" to KnownTypePrefix(
-                id = TlbStructureIdProvider.provideId(),
-                TlbInternalShortStdMsgAddrLabel,
-                typeArgIds = emptyList(),
-                rest = Empty
-            )
-        )
-    )
-)
-
-data class TlbMaybeRefLabel(
-    val refInfo: TvmParameterInfo.CellInfo,
-) : TlbResolvedBuiltinLabel, TlbCompositeLabel(
-    "Maybe",
-    SwitchPrefix(
-        id = TlbStructureIdProvider.provideId(),
-        switchSize = 1,
-        variants = mapOf(
-            "0" to Empty,
-            "1" to LoadRef(
-                id = TlbStructureIdProvider.provideId(),
-                ref = refInfo,
-                rest = Empty
-            ),
-        ),
-    )
-)
-
-// artificial label
-data object TlbInternalStdMsgAddrLabel : TlbAtomicLabel {
-    override val arity = 0
-}
-
-// artificial label
-data object TlbInternalShortStdMsgAddrLabel : TlbAtomicLabel {
-    override val arity = 0
-}
-
-private val coinPrefixId = TlbStructureIdProvider.provideId()
-
-data object TlbCoinsLabel : TlbResolvedBuiltinLabel, TlbCompositeLabel(
-    "Coins",
-    KnownTypePrefix(
-        id = coinPrefixId,
-        TlbIntegerLabelOfConcreteSize(
-            concreteSize = 4,
-            isSigned = false,
-            endian = Endian.BigEndian,
-        ),
-        typeArgIds = emptyList(),
-        rest = KnownTypePrefix(
+data object TlbFullMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel("MsgAddr") {
+    init {
+        internalStructure = SwitchPrefix(
             id = TlbStructureIdProvider.provideId(),
-            TlbIntegerLabelOfSymbolicSize(
+            switchSize = 3,
+            owner = this,
+            givenVariants = mapOf(
+                "100" to KnownTypePrefix(
+                    id = TlbStructureIdProvider.provideId(),
+                    TlbInternalStdMsgAddrLabel,
+                    typeArgIds = emptyList(),
+                    rest = Empty,
+                    owner = this,
+                )
+            )
+        )
+    }
+}
+
+data object TlbBasicMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel("MsgAddr") {
+    init {
+        internalStructure = SwitchPrefix(
+            id = TlbStructureIdProvider.provideId(),
+            switchSize = 11,
+            mapOf(
+                "10000000000" to KnownTypePrefix(
+                    id = TlbStructureIdProvider.provideId(),
+                    TlbInternalShortStdMsgAddrLabel,
+                    typeArgIds = emptyList(),
+                    rest = Empty,
+                    owner = this
+                )
+            ),
+            owner = this
+        )
+    }
+}
+
+class TlbMaybeRefLabel(
+    val refInfo: TvmParameterInfo.CellInfo,
+) : TlbResolvedBuiltinLabel, TlbCompositeLabel("Maybe") {
+    init {
+        internalStructure = SwitchPrefix(
+            id = TlbStructureIdProvider.provideId(),
+            switchSize = 1,
+            givenVariants = mapOf(
+                "0" to Empty,
+                "1" to LoadRef(
+                    id = TlbStructureIdProvider.provideId(),
+                    ref = refInfo,
+                    rest = Empty,
+                    owner = this,
+                ),
+            ),
+            owner = this
+        )
+    }
+}
+
+private const val internalStdMsgAddrSize = 8 + 256
+private const val internalShortStdMsgAddrSize = 256
+
+// artificial label
+data object TlbInternalStdMsgAddrLabel : TlbAtomicLabel(), FixedSizeDataLabel {
+    override val arity = 0
+    override val concreteSize: Int = internalStdMsgAddrSize
+}
+
+// artificial label
+data object TlbInternalShortStdMsgAddrLabel : TlbAtomicLabel(), FixedSizeDataLabel {
+    override val arity = 0
+    override val concreteSize: Int = internalShortStdMsgAddrSize
+}
+
+data object TlbCoinsLabel : TlbResolvedBuiltinLabel, TlbCompositeLabel("Coins") {
+    init {
+        val coinPrefixId = TlbStructureIdProvider.provideId()
+
+        internalStructure = KnownTypePrefix(
+            id = coinPrefixId,
+            TlbIntegerLabelOfConcreteSize(
+                concreteSize = 4,
                 isSigned = false,
                 endian = Endian.BigEndian,
-                lengthUpperBound = 120,
-                arity = 1,
-            ) { ctx, args ->
-                ctx.mkBvMulExpr(args.single(), ctx.mkSizeExpr(8))
-            },
-            typeArgIds = listOf(coinPrefixId),
-            rest = Empty
+            ),
+            typeArgIds = emptyList(),
+            rest = KnownTypePrefix(
+                id = TlbStructureIdProvider.provideId(),
+                TlbIntegerLabelOfSymbolicSize(
+                    isSigned = false,
+                    endian = Endian.BigEndian,
+                    lengthUpperBound = 120,
+                    arity = 1,
+                ) { ctx, args ->
+                    ctx.mkBvMulExpr(args.single(), ctx.mkSizeExpr(8))
+                },
+                typeArgIds = listOf(coinPrefixId),
+                rest = Empty,
+                owner = this,
+            ),
+            owner = this,
         )
-    )
-)
+    }
+}
 
 enum class Endian {
     LittleEndian,

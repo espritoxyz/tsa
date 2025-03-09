@@ -12,6 +12,6 @@ public class UModelBaseAccess {
     public static <T> Set<UMemoryRegionId<?, ?>> modelRegions(
         final UModelBase<T> model
     ) {
-        return model.getRegions$usvm_core().keySet();
+        return model.getRegions().keySet();
     }
 }

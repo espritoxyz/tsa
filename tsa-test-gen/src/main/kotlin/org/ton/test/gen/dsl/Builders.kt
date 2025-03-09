@@ -20,9 +20,10 @@ import org.ton.test.gen.dsl.models.TsTestBlock
 import org.ton.test.gen.dsl.models.TsTestCase
 import org.ton.test.gen.dsl.models.TsTestFile
 import org.ton.test.gen.dsl.models.TsType
-import org.ton.test.gen.dsl.models.TsReference
+import org.ton.test.gen.dsl.models.TsLValue
 import org.ton.test.gen.dsl.models.TsDeclaration
 import org.ton.test.gen.dsl.models.TsStatementExpression
+import org.ton.test.gen.dsl.models.TsVariable
 import org.ton.test.gen.dsl.wrapper.TsWrapperDescriptor
 
 interface TsBuilder<T : TsElement> {
@@ -34,10 +35,10 @@ interface TsBuilder<T : TsElement> {
 abstract class TsBlockBuilder<T : TsBlock> : TsBuilder<T> {
     protected val statements = mutableListOf<TsStatement>()
 
-    fun <T : TsType> newVar(name: String, init: TsExpression<T> ): TsReference<T> =
+    fun <T : TsType> newVar(name: String, init: TsExpression<T> ): TsVariable<T> =
         newVar(name, init.type, init)
 
-    fun <T : TsType> newVar(name: String, type: T, init: TsExpression<T>? = null): TsReference<T> {
+    fun <T : TsType> newVar(name: String, type: T, init: TsExpression<T>? = null): TsVariable<T> {
         val declaration = TsDeclaration(name, type, init)
         statements += declaration
 
@@ -52,8 +53,11 @@ abstract class TsBlockBuilder<T : TsBlock> : TsBuilder<T> {
         statements += TsEmptyLine
     }
 
-    infix fun <T : TsType> TsReference<T>.assign(value: TsExpression<T>) {
-        ctx.markAsMutable(this)
+    infix fun <T : TsType> TsLValue<T>.assign(value: TsExpression<T>) {
+        if (this is TsVariable) {
+            ctx.markAsMutable(this)
+        }
+
         statements += TsAssignment(this, value)
     }
 
@@ -70,9 +74,17 @@ abstract class TsBlockBuilder<T : TsBlock> : TsBuilder<T> {
     operator fun TsExpression<*>.unaryPlus() {
         statements += TsStatementExpression(this)
     }
+
+    fun beforeAll(block: TsBeforeAllBuilder.() -> Unit) {
+        statements += TsBeforeAllBuilder(ctx).apply(block).build()
+    }
+
+    fun beforeEach(block: TsBeforeEachBuilder.() -> Unit) {
+        statements += TsBeforeEachBuilder(ctx).apply(block).build()
+    }
 }
 
-data class TsTestFileBuilder(override val ctx: TsContext, val name: String) : TsBuilder<TsTestFile> {
+data class TsTestFileBuilder(override val ctx: TsContext, val name: String) : TsBlockBuilder<TsTestFile>() {
     private val wrappers = mutableListOf<TsWrapperDescriptor<*>>()
     private val testBlocks = mutableListOf<TsTestBlock>()
 
@@ -84,18 +96,10 @@ data class TsTestFileBuilder(override val ctx: TsContext, val name: String) : Ts
         wrappers += wrapper
     }
 
-    override fun build(): TsTestFile = TsTestFile(name, wrappers, testBlocks)
+    override fun build(): TsTestFile = TsTestFile(name, wrappers, statements, testBlocks)
 }
 
 class TsTestBlockBuilder(override val ctx: TsContext, private val name: String) : TsBlockBuilder<TsTestBlock>() {
-    fun beforeAll(block: TsBeforeAllBuilder.() -> Unit) {
-        statements += TsBeforeAllBuilder(ctx).apply(block).build()
-    }
-
-    fun beforeEach(block: TsBeforeEachBuilder.() -> Unit) {
-        statements += TsBeforeEachBuilder(ctx).apply(block).build()
-    }
-
     fun it(name: String, block: TsTestCaseBuilder.() -> Unit) {
         statements += TsTestCaseBuilder(ctx, name).apply(block).build()
     }

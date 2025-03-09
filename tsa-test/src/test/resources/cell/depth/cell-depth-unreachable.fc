@@ -1,0 +1,8 @@
+#include "stdlib.fc";
+#include "utils.fc";
+
+() main() impure method_id (0) {
+    int d = two_depth_cell().cell_depth();
+
+    throw_if(111, d <= 2);
+}

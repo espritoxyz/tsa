@@ -30,6 +30,16 @@ data class TvmReadingOutOfSwitchBounds<DataCellType>(
         "Reading of $readingType is out of switch bounds"
 }
 
+data class TvmReadingSwitchWithUnexpectedType<DataCellType>(
+    val readingType: DataCellType,
+) : TvmStructuralExit<DataCellType, Nothing> {
+    override val ruleId: String
+        get() = "unexpected-type-for-switch"
+
+    override fun toString() =
+        "Reading switch with $readingType is forbidden"
+}
+
 object TvmUnexpectedRefReading : TvmStructuralExit<Nothing, Nothing> {
     override val ruleId: String
         get() = "unexpected-ref-reading"

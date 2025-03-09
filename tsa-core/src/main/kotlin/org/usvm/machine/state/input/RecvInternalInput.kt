@@ -1,0 +1,189 @@
+package org.usvm.machine.state.input
+
+import org.ton.Endian
+import org.ton.bytecode.ADDRESS_PARAMETER_IDX
+import org.usvm.UBoolSort
+import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
+import org.usvm.api.makeSymbolicPrimitive
+import org.usvm.api.readField
+import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.TvmInt257Sort
+import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.asIntValue
+import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.allocEmptyBuilder
+import org.usvm.machine.state.allocSliceFromCell
+import org.usvm.machine.state.builderStoreGramsTlb
+import org.usvm.machine.state.builderStoreIntTlb
+import org.usvm.machine.state.builderStoreNextRef
+import org.usvm.machine.state.builderStoreSliceTlb
+import org.usvm.machine.state.builderToCell
+import org.usvm.machine.state.doWithCtx
+import org.usvm.machine.state.generateSymbolicSlice
+import org.usvm.machine.state.getBalance
+import org.usvm.machine.state.getContractInfoParam
+import org.usvm.machine.state.unsignedIntegerFitsBits
+import org.usvm.mkSizeExpr
+
+class RecvInternalInput(
+    initialState: TvmState
+) : TvmStateInput {
+    val msgBodySlice = initialState.generateSymbolicSlice()
+    val msgValue = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort)
+    val srcAddress = initialState.generateSymbolicSlice()
+    val bounce = initialState.makeSymbolicPrimitive(initialState.ctx.boolSort) // bounce:Bool
+    val bounced = initialState.makeSymbolicPrimitive(initialState.ctx.boolSort) // bounced:Bool
+    val ihrDisabled = initialState.makeSymbolicPrimitive(initialState.ctx.boolSort) // ihr_disabled:Bool
+    val ihrFee = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // ihr_fee:Grams
+    val fwdFee = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // fwd_fee:Grams
+    val createdLt = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // created_lt:uint64
+    val createdAt = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // created_at:uint32
+
+    val addrCell = initialState.getContractInfoParam(ADDRESS_PARAMETER_IDX).cellValue as? UConcreteHeapRef
+        ?: error("Cannot extract contract address")
+    val addrSlice = initialState.allocSliceFromCell(addrCell)
+
+    fun getSrcAddressCell(state: TvmState): UConcreteHeapRef {
+        val srcAddressCell =
+            state.memory.readField(srcAddress, TvmContext.sliceCellField, state.ctx.addressSort) as UConcreteHeapRef
+
+        return srcAddressCell
+    }
+
+    fun getAddressSlices(): List<UConcreteHeapRef> {
+        return listOf(srcAddress, addrSlice)
+    }
+
+    private fun assertArgConstraints(scope: TvmStepScopeManager): Unit? {
+        val constraint = scope.doWithCtx {
+            val msgValueConstraint = mkAnd(
+                mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, msgValue),
+                mkBvSignedLessOrEqualExpr(msgValue, maxMessageCurrencyValue)
+            )
+
+            val createdLtConstraint = unsignedIntegerFitsBits(createdLt, bits = 64u)
+            val createdAtConstraint = unsignedIntegerFitsBits(createdAt, bits = 32u)
+
+            val balanceConstraints = mkBalanceConstraints(scope)
+
+            // TODO any other constraints?
+
+            mkAnd(
+                msgValueConstraint,
+                createdLtConstraint,
+                createdAtConstraint,
+                balanceConstraints,
+            )
+        }
+
+        return scope.assert(
+            constraint,
+            unsatBlock = { error("Cannot assert recv_internal constraints") },
+            unknownBlock = { error("Unknown result while asserting recv_internal constraints") }
+        )
+    }
+
+    private fun TvmContext.mkBalanceConstraints(scope: TvmStepScopeManager): UExpr<UBoolSort> {
+        val balance = scope.calcOnState { getBalance() }
+            ?: error("Unexpected incorrect config balance value")
+
+        val initialBalance = mkBvSubExpr(balance, msgValue)
+        val balanceConstraints = mkAnd(
+            mkBvSignedLessOrEqualExpr(balance, maxMessageCurrencyValue),
+            mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, initialBalance),
+        )
+
+        return balanceConstraints
+    }
+
+    fun constructFullMessage(state: TvmState): UConcreteHeapRef = with(state.ctx) {
+        val resultBuilder = state.allocEmptyBuilder()
+
+        // hack for using builder operations
+        val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+        assertArgConstraints(scope)
+
+        val flags = generateFlags(this)
+
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, flags, sizeBits = fourSizeExpr, isSigned = false, endian = Endian.BigEndian)
+            ?: error("Cannot store flags")
+
+        // src:MsgAddressInt
+        builderStoreSliceTlb(scope, resultBuilder, resultBuilder, srcAddress)
+            ?: error("Cannot store src address")
+
+        // dest:MsgAddressInt
+        builderStoreSliceTlb(scope, resultBuilder, resultBuilder, addrSlice)
+            ?: error("Cannot store dest address")
+
+        // value:CurrencyCollection
+        // store message value
+        builderStoreGramsTlb(scope, resultBuilder, resultBuilder, msgValue)
+            ?: error("Cannot store message value")
+        // extra currency collection
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, zeroValue, sizeBits = oneSizeExpr, isSigned = false, endian = Endian.BigEndian)
+            ?: error("Cannot store extra currency collection")
+
+        // ihr_fee:Grams
+        builderStoreGramsTlb(scope, resultBuilder, resultBuilder, ihrFee)
+            ?: error("Cannot store ihr fee")
+
+        // fwd_fee:Gram
+        builderStoreGramsTlb(scope, resultBuilder, resultBuilder, fwdFee)
+            ?: error("Cannot store fwd fee")
+
+        // created_lt:uint64
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, createdLt, sizeBits = mkSizeExpr(64), isSigned = false, endian = Endian.BigEndian)
+            ?: error("Cannot store created_lt")
+
+        // created_at:uint32
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, createdAt, sizeBits = mkSizeExpr(32), isSigned = false, endian = Endian.BigEndian)
+            ?: error("Cannot store created_at")
+
+        // init:(Maybe (Either StateInit ^StateInit))
+        // TODO: support StateInit?
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, zeroValue, sizeBits = oneSizeExpr, isSigned = false, endian = Endian.BigEndian)
+            ?: error("Cannot store init")
+
+        // body:(Either X ^X)
+        // TODO: support both formats?
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, oneValue, sizeBits = oneSizeExpr, isSigned = false, endian = Endian.BigEndian)
+            ?: error("Cannot store body")
+
+        scope.doWithState {
+            val msgBodyCell = memory.readField(msgBodySlice, TvmContext.sliceCellField, addressSort)
+            builderStoreNextRef(resultBuilder, msgBodyCell)
+        }
+
+        val stepResult = scope.stepResult()
+        check(stepResult.originalStateAlive) {
+            "Original state died while building full message"
+        }
+        check(stepResult.forkedStates.none()) {
+            "Unexpected forks while building full message"
+        }
+
+        return state.builderToCell(resultBuilder)
+    }
+
+    private fun generateFlags(ctx: TvmContext): UExpr<TvmInt257Sort> = with(ctx) {
+        // int_msg_info$0
+        var flags: UExpr<TvmInt257Sort> = zeroValue
+
+        // ihr_disabled:Bool
+        flags = mkBvShiftLeftExpr(flags, oneValue)
+        flags = mkBvAddExpr(flags, ihrDisabled.asIntValue())
+
+        // bounce:Bool
+        flags = mkBvShiftLeftExpr(flags, oneValue)
+        flags = mkBvAddExpr(flags, bounce.asIntValue())
+
+        // bounced:Bool
+        flags = mkBvShiftLeftExpr(flags, oneValue)
+        flags = mkBvAddExpr(flags, bounced.asIntValue())
+
+        return flags
+    }
+}

@@ -11,7 +11,9 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.forEach
+import org.usvm.machine.types.memory.generateTlbFieldConstraints
 import org.usvm.test.resolver.TvmTestDataCellValue
+
 
 class CalculatedTlbLabelInfo(
     private val ctx: TvmContext,
@@ -43,7 +45,7 @@ class CalculatedTlbLabelInfo(
             "Cannot calculate dataCellSize for depth $maxDepth"
         }
         val abstractValue = dataLengths[maxDepth][label] ?: return null
-        return abstractValue.apply(AbstractionForUExpr(address, ctx.zeroSizeExpr, persistentListOf(), state))
+        return abstractValue.apply(SimpleAbstractionForUExpr(address, persistentListOf(), state))
     }
 
     fun getLabelChildStructure(
@@ -62,7 +64,7 @@ class CalculatedTlbLabelInfo(
         val childStructure = labelChildren[maxDepth][parentLabel]?.children?.get(childIdx)
             ?: return null
         return childStructure.variants.entries.associate { (struct, abstractGuard) ->
-            val guard = abstractGuard.apply(AbstractionForUExpr(address, ctx.zeroSizeExpr, persistentListOf(), state))
+            val guard = abstractGuard.apply(SimpleAbstractionForUExpr(address, persistentListOf(), state))
             struct to guard
         }
     }
@@ -78,7 +80,7 @@ class CalculatedTlbLabelInfo(
         }
         val childrenStructure = labelChildren[maxDepth][parentLabel]
             ?: return null
-        return childrenStructure.numberOfChildrenExceeded.apply(AbstractionForUExpr(address, ctx.zeroSizeExpr, persistentListOf(), state))
+        return childrenStructure.numberOfChildrenExceeded.apply(SimpleAbstractionForUExpr(address, persistentListOf(), state))
     }
 
     fun getDataConstraints(
@@ -92,7 +94,19 @@ class CalculatedTlbLabelInfo(
         }
         val abstract = dataConstraints[maxDepth][label]
             ?: return null
-        return abstract.apply(AbstractionForUExpr(address, ctx.zeroSizeExpr, persistentListOf(), state))
+        return abstract.apply(AbstractionForUExprWithCellDataPrefix(address, ctx.zeroSizeExpr, persistentListOf(), state))
+    }
+
+    fun getTlbFieldConstraints(
+        state: TvmState,
+        address: UConcreteHeapRef,
+        label: TlbCompositeLabel,
+        maxDepth: Int = maxTlbDepth,
+    ): UBoolExpr {
+        require(maxDepth in 0..maxTlbDepth) {
+            "Cannot calculate switch constraints for depth $maxDepth"
+        }
+        return generateTlbFieldConstraints(state, address, label, possibleSwitchVariants, maxDepth)
     }
 
     fun getIndividualTlbDepthBound(label: TlbCompositeLabel): Int? = individualMaxCellTlbDepth[label]
@@ -118,6 +132,7 @@ class CalculatedTlbLabelInfo(
             label.internalStructure,
             dataLengths[maxDepth - 1],
             labelChildren[maxDepth - 1],
+            possibleSwitchVariants[maxDepth],
         )
     }
 
@@ -139,7 +154,19 @@ class CalculatedTlbLabelInfo(
             label.internalStructure,
             dataLengths[maxDepth - 1],
             labelChildren[maxDepth - 1],
+            possibleSwitchVariants[maxDepth],
         )
+    }
+
+    fun getPossibleSwitchVariants(
+        switch: TlbStructure.SwitchPrefix,
+        maxDepth: Int,
+    ): List<TlbStructure.SwitchPrefix.SwitchVariant> {
+        require(maxDepth in 0..maxTlbDepth) {
+            "Cannot calculate possible switch variants for depth $maxDepth"
+        }
+        return possibleSwitchVariants[maxDepth][switch]
+            ?: error("Possible variants for switch $switch at depth $maxDepth not found.")
     }
 
     private val hasUnknownLeaves: Map<TlbCompositeLabel, Boolean> = compositeLabels.associateWith {
@@ -153,20 +180,25 @@ class CalculatedTlbLabelInfo(
     private val individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int> =
         calculateMaxCellTlbDepths(maxTlbDepth, compositeLabels)
 
+    private val allSwitches = extractAllSwitches(compositeLabels)
+
+    private val possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>> =
+        calculatePossibleSwitchVariants(maxTlbDepth, allSwitches, minTlbDepth)
+
     private val defaultCells: Map<TlbCompositeLabel, TvmTestDataCellValue> =
         calculateDefaultCells(ctx, compositeLabels, individualMaxCellTlbDepth)
 
     private val maxRefSizes: List<Map<TlbCompositeLabel, Int>> =
         calculateMaximumRefs(maxTlbDepth, compositeLabels, individualMaxCellTlbDepth)
 
-    private val dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr>> =
-        calculateDataLengths(ctx, labelsWithoutUnknownLeaves, individualMaxCellTlbDepth)
+    private val dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>> =
+        calculateDataLengths(ctx, labelsWithoutUnknownLeaves, individualMaxCellTlbDepth, possibleSwitchVariants)
 
-    private val labelChildren: List<Map<TlbCompositeLabel, ChildrenStructure>> =
-        calculateChildrenStructures(ctx, labelsWithoutUnknownLeaves, dataLengths, individualMaxCellTlbDepth)
+    private val labelChildren: List<Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>> =
+        calculateChildrenStructures(ctx, labelsWithoutUnknownLeaves, dataLengths, individualMaxCellTlbDepth, possibleSwitchVariants)
 
-    private val dataConstraints: List<Map<TlbCompositeLabel, AbstractGuard>> =
-        calculateDataConstraints(ctx, compositeLabels, dataLengths, individualMaxCellTlbDepth)
+    private val dataConstraints: List<Map<TlbCompositeLabel, AbstractGuard<AbstractionForUExprWithCellDataPrefix>>> =
+        calculateDataConstraints(ctx, compositeLabels, dataLengths, individualMaxCellTlbDepth, possibleSwitchVariants)
 
     init {
         // check correctness of declarations
@@ -204,7 +236,7 @@ private fun hasUnknownLeaves(struct: TlbStructure): Boolean =
         is TlbStructure.Empty -> false
         is TlbStructure.Unknown -> true
         is TlbStructure.KnownTypePrefix -> hasUnknownLeaves(struct.rest)
-        is TlbStructure.SwitchPrefix -> struct.variants.any { hasUnknownLeaves(it.value) }
+        is TlbStructure.SwitchPrefix -> struct.variants.any { hasUnknownLeaves(it.struct) }
         is TlbStructure.LoadRef -> hasUnknownLeaves(struct.rest)
     }
 

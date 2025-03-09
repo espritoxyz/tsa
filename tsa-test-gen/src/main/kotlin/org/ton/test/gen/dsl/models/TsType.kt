@@ -23,3 +23,10 @@ interface TsWrapper : TsType {
 data class TsSandboxContract<T : TsWrapper>(
     val wrapperType: T
 ) : TsType
+
+interface TsObject : TsType {
+    val properties: List<Pair<String, TsType>>
+}
+data object TsBlockchainOpts : TsObject {
+    override val properties: List<Pair<String, TsType>> = listOf("config" to TsCell)
+}

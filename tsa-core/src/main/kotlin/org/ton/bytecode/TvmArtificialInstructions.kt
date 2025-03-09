@@ -1,50 +1,84 @@
 package org.ton.bytecode
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.modules.SerializersModuleBuilder
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.modules.subclass
+import org.usvm.machine.state.TvmMethodResult
 
-@Serializable
-sealed interface TvmArtificialInst : TvmInst {
-    override val gasConsumption: TvmGas
-        get() = TvmFixedGas(value = 0)
-}
+sealed interface TsaArtificialInst : TvmArtificialInst
 
 /**
  * Instruction that marks the beginning of a loop iteration
  */
-data class TvmArtificialLoopEntranceInst(
+@Serializable
+data class TsaArtificialLoopEntranceInst(
     val id: UInt,
     override val location: TvmInstLocation,
-) : TvmArtificialInst, TvmContLoopsInst {
+) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_loop_entrance"
+
+    init {
+        checkLocationInitialized()
+    }
 }
 
 @Serializable
-data class TvmArtificialImplicitRetInst(
-    override val location: TvmInstLocation
-) : TvmInst, TvmArtificialInst, TvmContBasicInst {
+data class TsaArtificialImplicitRetInst(
+    override val location: TvmInstLocation,
+) : TsaArtificialInst {
     override val mnemonic: String get() = "implicit RET"
     override val gasConsumption get() = TvmFixedGas(value = 5)
+
+    init {
+        checkLocationInitialized()
+    }
 }
 
-sealed interface TvmArtificialContInst : TvmArtificialInst, TvmContBasicInst {
+@Serializable
+data class TsaArtificialActionPhaseInst(
+    val computePhaseResult: TvmMethodResult,
+    override val location: TvmInstLocation,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "artificial_action_phase"
+
+    init {
+        checkLocationInitialized()
+    }
+}
+
+@Serializable
+data class TsaArtificialExitInst(
+    val result: TvmMethodResult,
+    override val location: TvmInstLocation,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "artificial_exit"
+
+    init {
+        checkLocationInitialized()
+    }
+}
+
+sealed interface TsaArtificialContInst : TsaArtificialInst {
     val cont: TvmContinuation
 }
 
 @Serializable
-data class TvmArtificialJmpToContInst(
-    override val cont: TvmContinuation,
-    override val location: TvmInstLocation
-) : TvmArtificialContInst {
-    override val mnemonic: String get() = "artificial_jmp_to_$cont"
-}
-
-@Serializable
-data class TvmArtificialExecuteContInst(
+data class TsaArtificialJmpToContInst(
     override val cont: TvmContinuation,
     override val location: TvmInstLocation,
-) : TvmArtificialContInst {
+) : TsaArtificialContInst {
+    override val mnemonic: String get() = "artificial_jmp_to_$cont"
+
+    init {
+        checkLocationInitialized()
+    }
+}
+
+class TsaArtificialExecuteContInst(
+    override val cont: TvmContinuation,
+    override val location: TvmInstLocation
+) : TsaArtificialContInst {
     override val mnemonic: String get() = "artificial_execute_$cont"
+
+    init {
+        checkLocationInitialized()
+    }
 }

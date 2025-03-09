@@ -6,7 +6,10 @@ import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+import org.ton.bytecode.TsaArtificialActionPhaseInst
+import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TvmCodeBlock
+import org.ton.bytecode.TvmDisasmCodeBlock
 import org.ton.bytecode.TvmInst
 import org.ton.targets.TvmTarget
 import org.usvm.PathNode
@@ -17,10 +20,16 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.UState
+import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
+import org.usvm.machine.TvmCellDataFieldManager
 import org.usvm.machine.TvmContext
+import org.usvm.machine.interpreter.OutMessage
+import org.usvm.machine.state.TmvPhase.COMPUTE_PHASE
+import org.usvm.machine.state.TmvPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.state.input.TvmStateInput
 import org.usvm.machine.types.GlobalStructuralConstraintsHolder
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -35,9 +44,11 @@ typealias ContractId = Int
 
 class TvmState(
     ctx: TvmContext,
-    override val entrypoint: TvmCodeBlock,
+    ownership: MutabilityOwnership,
+    override val entrypoint: TvmDisasmCodeBlock,
 //    val registers: TvmRegisters, // TODO do we really need keep the registers this way?
     val emptyRefValue: TvmRefEmptyValue,
+    val analysisOfGetMethod: Boolean,
     private var symbolicRefs: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
     var gasUsage: PersistentList<UExpr<UBv32Sort>>,
     // TODO codepage
@@ -47,6 +58,7 @@ class TvmState(
     models: List<UModelBase<TvmType>> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<TvmInst>> = PathNode.root(),
+    var phase: TmvPhase = COMPUTE_PHASE,
     var methodResult: TvmMethodResult = TvmMethodResult.NoCall,
     targets: UTargetsSet<TvmTarget, TvmInst> = UTargetsSet.empty(),
     val typeSystem: TvmTypeSystem,
@@ -54,12 +66,23 @@ class TvmState(
     val dataCellLoadedTypeInfo: TvmDataCellLoadedTypeInfo = TvmDataCellLoadedTypeInfo.empty(),
     var stateInitialized: Boolean = false,
     val globalStructuralConstraintsHolder: GlobalStructuralConstraintsHolder = GlobalStructuralConstraintsHolder(),
+    val cellDataFieldManager: TvmCellDataFieldManager = TvmCellDataFieldManager(ctx),
     var allowFailures: Boolean = true,  // new value starts being active only from the next step
     var contractStack: PersistentList<TvmContractPosition> = persistentListOf(),
     var currentContract: ContractId,
+    var fetchedValues: PersistentMap<Int, TvmStack.TvmStackEntry> = persistentMapOf(),
+    var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
+    // inter-contract fields
+    var messageQueue: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
+    var lastMsgBody: UHeapRef? = null,
+    var intercontractPath: PersistentList<ContractId> = persistentListOf(),
+    // post-process fields
     var addressToHash: PersistentMap<UHeapRef, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
+    var addressToDepth: PersistentMap<UHeapRef, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
+    var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
     ctx,
+    ownership,
     callStack,
     pathConstraints,
     memory,
@@ -69,7 +92,13 @@ class TvmState(
     targets,
 ) {
     override val isExceptional: Boolean
-        get() = methodResult is TvmMethodResult.TvmFailure || methodResult is TvmMethodResult.TvmStructuralError
+        get() = stateInitialized && lastStmt.let {
+            it is TsaArtificialActionPhaseInst && it.computePhaseResult.isExceptional() ||
+            it is TsaArtificialExitInst && it.result.isExceptional()
+        }
+
+    val isTerminated: Boolean
+        get() = phase == TERMINATED
 
     lateinit var dataCellInfoStorage: TvmDataCellInfoStorage
     lateinit var registersOfCurrentContract: TvmRegisters
@@ -77,6 +106,7 @@ class TvmState(
     lateinit var contractIdToFirstElementOfC7: PersistentMap<ContractId, TvmStackTupleValueConcreteNew>
     lateinit var contractIdToInitialData: Map<ContractId, TvmInitialStateData>
     lateinit var stack: TvmStack
+    lateinit var input: TvmStateInput
 
     val rootStack: TvmStack
         get() = if (contractStack.isEmpty()) stack else contractStack.first().executionMemory.stack
@@ -120,17 +150,24 @@ class TvmState(
         }
 
     override fun clone(newConstraints: UPathConstraints<TvmType>?): TvmState {
-        val clonedConstraints = newConstraints ?: pathConstraints.clone()
+        val newThisOwnership = MutabilityOwnership()
+        val cloneOwnership = MutabilityOwnership()
+        val newPathConstraints = newConstraints?.also {
+            this.pathConstraints.changeOwnership(newThisOwnership)
+            it.changeOwnership(cloneOwnership)
+        } ?: pathConstraints.clone(newThisOwnership, cloneOwnership)
+        val newMemory = memory.clone(newPathConstraints.typeConstraints, newThisOwnership, cloneOwnership)
 
         return TvmState(
             ctx = ctx,
+            ownership = ownership,
             entrypoint = entrypoint,
             emptyRefValue = emptyRefValue,
             symbolicRefs = symbolicRefs,
             gasUsage = gasUsage,
             callStack = callStack.clone(),
-            pathConstraints = clonedConstraints,
-            memory = memory.clone(clonedConstraints.typeConstraints),
+            pathConstraints = newPathConstraints,
+            memory = newMemory,
             models = models,
             pathNode = pathNode,
             forkPoints = forkPoints,
@@ -144,7 +181,17 @@ class TvmState(
             allowFailures = allowFailures,
             contractStack = contractStack,
             currentContract = currentContract,
-            addressToHash = persistentMapOf(),
+            addressToHash = addressToHash,
+            addressToDepth = addressToDepth,
+            signatureChecks = signatureChecks,
+            fetchedValues = fetchedValues,
+            additionalFlags = additionalFlags,
+            cellDataFieldManager = cellDataFieldManager.clone(),
+            messageQueue = messageQueue,
+            lastMsgBody = lastMsgBody,
+            intercontractPath = intercontractPath,
+            phase = phase,
+            analysisOfGetMethod = analysisOfGetMethod,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -152,6 +199,7 @@ class TvmState(
             newState.registersOfCurrentContract = registersOfCurrentContract.clone()
             newState.contractIdToC4Register = contractIdToC4Register
             newState.stack = stack.clone()
+            newState.input = input
         }
     }
 
@@ -174,9 +222,17 @@ class TvmState(
         val refs = symbolicRefs.add(ref.address)
         if (refs === symbolicRefs) return
 
+        symbolicRefs = refs
         memory.types.allocate(ref.address, referenceType)
         initializer(ref)
     }
+}
+
+enum class TmvPhase {
+    COMPUTE_PHASE,
+    ACTION_PHASE,
+    EXIT_PHASE,
+    TERMINATED,
 }
 
 data class TvmCommitedState(
@@ -193,10 +249,5 @@ data class TvmContractPosition(
 
 data class TvmContractExecutionMemory(
     val stack: TvmStack,
-    val c0: C0Register,
-    val c1: C1Register,
-    val c2: C2Register,
-    val c3: C3Register,
-    val c5: C5Register,
-    val c7: C7Register,
+    val registers: TvmRegisters,
 )

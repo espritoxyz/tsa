@@ -1,0 +1,43 @@
+#include "../../imports/stdlib.fc";
+
+(int, int, int) load_data() {
+    slice ds = get_data().begin_parse();
+    return (
+        ds~load_coins(),
+        ds~load_int(250),
+        ds~load_uint(250)
+    );
+}
+
+() save_data(int i1, int i2, int i3) impure {
+    set_data(begin_cell()
+        .store_coins(i1)
+        .store_int(i2, 250)
+        .store_uint(i3, 250)
+        .end_cell()
+    );
+}
+
+() recv_internal(slice in_msg) {
+    int i = 0;
+    while (i < 2) {
+        (int c1, int c2, int c3) = load_data();
+        int add = in_msg~load_coins();
+
+        if ((c1 <= c2) & (c1 <= c3)) {
+            c1 += add;
+        } else {
+            if ((c2 <= c1) & (c2 <= c3)) {
+                c2 += add;
+            } else {
+                c3 += add;
+            }
+        }
+
+        save_data(c1, c2, c3);
+        i += 1;
+    }
+
+    (int i1, int i2, int i3) = load_data();
+    throw_unless(1000, i1 + i2 * i3 == 100500);
+}

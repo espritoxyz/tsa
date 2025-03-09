@@ -6,7 +6,7 @@ import io.github.detekt.sarif4k.ToolComponent
 import io.github.detekt.sarif4k.Version
 
 internal object TsaSarifSchema {
-    internal const val SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
+    internal const val SCHEMA = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
     internal val VERSION = Version.The210
 
     internal object TsaSarifTool {

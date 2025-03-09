@@ -12,6 +12,8 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.dataLength
+import org.usvm.machine.types.memory.generateGuardForSwitch
+import org.usvm.machine.types.memory.typeArgs
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.mkSizeGeExpr
@@ -24,8 +26,9 @@ fun calculateSizeInfoForLeaves(
     address: UConcreteHeapRef,
     state: TvmState,
     structure: TlbStructure,
-    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
-    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure>,
+    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
+    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
+    possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): List<Pair<TlbStructure.Leaf, VertexCalculatedSize>> = with(state.ctx) {
     val result = mutableListOf<Pair<TlbStructure.Leaf, VertexCalculatedSize>>()
 
@@ -61,7 +64,7 @@ fun calculateSizeInfoForLeaves(
                             ?: error("dataLengthsFromPreviousDepth for $label must be calculated")
                         val childrenStructure = childrenStructureFromPreviousDepth[label]
                             ?: error("childrenStructureFromPreviousDepth for $label must be calculated")
-                        val param = AbstractionForUExpr(address, curSize.dataLength, persistentListOf(curStruct.id), state)
+                        val param = SimpleAbstractionForUExpr(address, persistentListOf(curStruct.id), state)
                         val refsOffset = childrenStructure.numberOfChildren(this).apply(param)
                         dataOffset.apply(param) to refsOffset
                     }
@@ -76,11 +79,13 @@ fun calculateSizeInfoForLeaves(
 
             is TlbStructure.SwitchPrefix -> {
                 val newDataLength = mkSizeAddExpr(curSize.dataLength, mkSizeExpr(curStruct.switchSize))
-                curStruct.variants.forEach { (key, nextStruct) ->
-                    val switchGuard = generateSwitchGuard(curStruct.switchSize, key)
-                    val param = AbstractionForUExpr(address, curSize.dataLength, persistentListOf(), state)
+                val possibleVariants = possibleSwitchVariants[curStruct]
+                    ?: error("Switch variants not found for switch $curStruct")
+
+                possibleVariants.forEachIndexed { idx, (_, nextStruct) ->
+                    val switchGuard = generateGuardForSwitch(curStruct, idx, possibleVariants, state, address, persistentListOf())
                     val newSize = VertexCalculatedSize(
-                        curSize.guard and switchGuard.apply(param),
+                        curSize.guard and switchGuard,
                         dataLength = newDataLength,
                         refsLength = curSize.refsLength,
                     )
@@ -103,13 +108,22 @@ fun calculateGeneralSizeConstraints(
     address: UConcreteHeapRef,
     state: TvmState,
     structure: TlbStructure,
-    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
-    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure>,
+    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
+    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
+    possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): UBoolExpr = with(state.ctx) {
     val dataLengthField = state.memory.readField(address, TvmContext.cellDataLengthField, sizeSort)
     val refsLengthField = state.memory.readField(address, TvmContext.cellRefsLengthField, sizeSort)
 
-    val info = calculateSizeInfoForLeaves(address, state, structure, dataLengthsFromPreviousDepth, childrenStructureFromPreviousDepth)
+    val info = calculateSizeInfoForLeaves(
+        address,
+        state,
+        structure,
+        dataLengthsFromPreviousDepth,
+        childrenStructureFromPreviousDepth,
+        possibleSwitchVariants
+    )
+
     return info.fold(trueExpr as UBoolExpr) { acc, (leaf, sizeInfo) ->
         when (leaf) {
             is TlbStructure.Unknown -> {

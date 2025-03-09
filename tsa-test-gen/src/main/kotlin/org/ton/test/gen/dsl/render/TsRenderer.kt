@@ -20,33 +20,37 @@ import org.ton.test.gen.dsl.models.TsDeclaration
 import org.ton.test.gen.dsl.models.TsDictValue
 import org.ton.test.gen.dsl.models.TsElement
 import org.ton.test.gen.dsl.models.TsEmptyLine
+import org.ton.test.gen.dsl.models.TsEquals
 import org.ton.test.gen.dsl.models.TsExecutableCall
 import org.ton.test.gen.dsl.models.TsExpectToEqual
 import org.ton.test.gen.dsl.models.TsExpectToHaveTransaction
 import org.ton.test.gen.dsl.models.TsExpression
-import org.ton.test.gen.dsl.models.TsFieldRead
-import org.ton.test.gen.dsl.models.TsStatementExpression
+import org.ton.test.gen.dsl.models.TsFieldAccess
 import org.ton.test.gen.dsl.models.TsInt
 import org.ton.test.gen.dsl.models.TsIntValue
 import org.ton.test.gen.dsl.models.TsMethodCall
 import org.ton.test.gen.dsl.models.TsNum
 import org.ton.test.gen.dsl.models.TsNumAdd
+import org.ton.test.gen.dsl.models.TsNumDiv
 import org.ton.test.gen.dsl.models.TsNumSub
-import org.ton.test.gen.dsl.models.TsReference
+import org.ton.test.gen.dsl.models.TsObject
+import org.ton.test.gen.dsl.models.TsObjectInit
 import org.ton.test.gen.dsl.models.TsSandboxContract
 import org.ton.test.gen.dsl.models.TsSendMessageResult
 import org.ton.test.gen.dsl.models.TsSlice
 import org.ton.test.gen.dsl.models.TsSliceValue
+import org.ton.test.gen.dsl.models.TsStatementExpression
 import org.ton.test.gen.dsl.models.TsString
 import org.ton.test.gen.dsl.models.TsStringValue
 import org.ton.test.gen.dsl.models.TsTestBlock
 import org.ton.test.gen.dsl.models.TsTestCase
 import org.ton.test.gen.dsl.models.TsTestFile
 import org.ton.test.gen.dsl.models.TsType
+import org.ton.test.gen.dsl.models.TsVariable
 import org.ton.test.gen.dsl.models.TsVoid
 import org.ton.test.gen.dsl.models.TsWrapper
 import org.ton.test.gen.dsl.wrapper.TsWrapperDescriptor
-import org.usvm.machine.truncateSliceCell
+import org.usvm.test.resolver.truncateSliceCell
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestDictCellValue
 import org.usvm.test.resolver.TvmTestIntegerValue
@@ -54,8 +58,18 @@ import org.usvm.test.resolver.TvmTestNullValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestValue
 
-class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
+class TsRenderer(
+    private val ctx: TsContext,
+    private val contractType: ContractType,
+) : TsVisitor<Unit> {
+    enum class ContractType {
+        Boc,
+        Func,
+    }
+
     private val printer = TsPrinterImpl()
+
+    private val maxPrecedence = 18
 
     fun renderTests(test: TsTestFile): TsRenderedTest {
         printer.clear()
@@ -125,6 +139,18 @@ class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
         printer.print("bigint")
     }
 
+    override fun visit(element: TsObject) {
+        printer.print("{ ")
+
+        element.properties.forEach {
+            printer.print("${it.first}: ")
+            it.second.accept(this)
+            printer.print("; ")
+        }
+
+        printer.print("}")
+    }
+
     override fun visit(element: TsWrapper) {
         printer.print(element.name)
     }
@@ -138,15 +164,31 @@ class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
     override fun visit(element: TsTestFile) {
         val wrapperImports = element.wrappers.joinToString(
             separator = System.lineSeparator(),
-            postfix = System.lineSeparator(),
             transform = ::renderWrapperImport,
         )
 
         // TODO optimize imports
         printer.println(TEST_FILE_IMPORTS)
         printer.println(wrapperImports)
+
+        when (contractType) {
+            ContractType.Func -> {
+                printer.println(FUNC_COMPILER_IMPORT)
+                printer.println()
+                printer.println(COMPILE_FUNC_CONTRACT)
+            }
+            ContractType.Boc -> {
+                printer.println()
+                printer.println(COMPILE_BOC_CONTRACT)
+            }
+        }
+
+        printer.println()
         printer.println(TEST_FILE_UTILS)
 
+        element.statements.forEach { it.accept(this) }
+
+        printer.println()
         element.testBlocks.forEach { it.accept(this) }
     }
 
@@ -212,12 +254,12 @@ class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
         endStatement()
     }
 
-    override fun <T : TsType> visit(element: TsReference<T>) {
+    override fun <T : TsType> visit(element: TsVariable<T>) {
         printer.print(element.name)
     }
 
-    override fun <R : TsType, T : TsType> visit(element: TsFieldRead<R, T>) {
-        element.receiver.accept(this)
+    override fun <R : TsType, T : TsType> visit(element: TsFieldAccess<R, T>) {
+        precedencePrint(element.receiver, element)
         printer.print(".${element.fieldName}")
     }
 
@@ -255,6 +297,17 @@ class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
     }
 
     override fun <T : TsType> visit(element: TsExpectToEqual<T>) {
+        if (element.actual.type == TsBigint) {
+            // workaround, since jest cannot serialize BigInt with --json flag
+
+            printer.print("expect(")
+            TsEquals(element.actual, element.expected).accept(this)
+            printer.print(").toBe(true)")
+            endStatement()
+
+            return
+        }
+
         printer.print("expect(")
         element.actual.accept(this)
         printer.print(").toEqual(")
@@ -291,15 +344,21 @@ class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
     }
 
     override fun <T : TsNum> visit(element: TsNumAdd<T>) {
-        element.lhs.accept(this)
+        precedencePrint(element.lhs, element)
         printer.print(" + ")
-        element.rhs.accept(this)
+        precedencePrint(element.rhs, element)
     }
 
     override fun <T : TsNum> visit(element: TsNumSub<T>) {
-        element.lhs.accept(this)
+        precedencePrint(element.lhs, element)
         printer.print(" - ")
-        element.rhs.accept(this)
+        precedencePrint(element.rhs, element)
+    }
+
+    override fun <T : TsNum> visit(element: TsNumDiv<T>) {
+        precedencePrint(element.lhs, element)
+        printer.print(" / ")
+        precedencePrint(element.rhs, element)
     }
 
     override fun visit(element: TsBooleanValue) {
@@ -334,6 +393,59 @@ class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
     override fun visit(element: TsBuilderValue) {
         printer.print(renderTestValue(element.value))
     }
+
+    override fun <T : TsType> visit(element: TsEquals<T>) {
+        precedencePrint(element.lhs, element)
+        printer.print(" == ")
+        precedencePrint(element.rhs, element)
+    }
+
+    override fun <T : TsObject> visit(element: TsObjectInit<T>) {
+        printer.print("{ ")
+
+        element.type.properties.zip(element.args).forEach { (propertyDescription, arg) ->
+            printer.print("${propertyDescription.first}: ")
+            arg.accept(this)
+            printer.print(", ")
+        }
+
+        printer.print("}")
+    }
+
+    private fun precedencePrint(element: TsExpression<*>, parent: TsExpression<*>) {
+        // TODO support associativity
+
+        if (element.precedence() <= parent.precedence() && element.precedence() != maxPrecedence) {
+            printer.print("(")
+            element.accept(this)
+            printer.print(")")
+        } else {
+            element.accept(this)
+        }
+    }
+
+    private fun TsExpression<*>.precedence(): Int =
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_precedence#table
+        when (val element = this) {
+            is TsIntValue -> maxPrecedence
+            is TsBigintValue -> maxPrecedence
+            is TsBooleanValue -> maxPrecedence
+            is TsStringValue -> maxPrecedence
+            is TsBuilderValue -> maxPrecedence
+            is TsDataCellValue -> maxPrecedence
+            is TsSliceValue -> maxPrecedence
+            is TsDictValue -> maxPrecedence
+            is TsVariable -> maxPrecedence
+            is TsObjectInit<*> -> maxPrecedence
+
+            is TsFieldAccess<*, *> -> 17
+            is TsConstructorCall<*> -> if (element.arguments.isEmpty()) 16 else 17
+            is TsMethodCall<*> -> if (element.async) 14 else maxPrecedence
+            is TsNumDiv<*> -> 12
+            is TsNumAdd<*> -> 11
+            is TsNumSub<*> -> 11
+            is TsEquals<*> -> 8
+        }
 
     private fun renderTestValue(arg: TvmTestValue): String =
         when (arg) {
@@ -408,28 +520,29 @@ class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
         private const val STATEMENT_END: String = ""
 
         private val TEST_FILE_IMPORTS = """
-            import {Blockchain, SandboxContract, SendMessageResult} from '@ton/sandbox'
+            import {Blockchain, createShardAccount, SandboxContract, SendMessageResult} from '@ton/sandbox'
             import {Address, beginCell, Builder, Cell, Dictionary, DictionaryValue, Slice, toNano} from '@ton/core'
             import '@ton/test-utils'
-            import {compileFunc} from "@ton-community/func-js"
             import * as fs from "node:fs"
             import {randomAddress} from "@ton/test-utils"
         """.trimIndent()
 
         private val TEST_FILE_UTILS = """
-            async function compileContract(target: string): Promise<Cell> {
-                let compileResult = await compileFunc({
-                    targets: [target],
-                    sources: (x) => fs.readFileSync(x).toString("utf8"),
+            async function initializeContract(
+                blockchain: Blockchain, 
+                address: Address, 
+                code: Cell, 
+                data: Cell, 
+                balance: bigint = toNano(100)
+            ) {
+                const contr = await blockchain.getContract(address);
+                contr.account = createShardAccount({
+                    address: address,
+                    code: code,
+                    data: data,
+                    balance: balance,
+                    workchain: 0
                 })
-    
-                if (compileResult.status === "error") {
-                    console.error("Compilation Error!")
-                    console.error(`\n${'$'}{compileResult.message}`)
-                    process.exit(1)
-                }
-    
-                return Cell.fromBoc(Buffer.from(compileResult.codeBoc, "base64"))[0]
             }
             
             const sliceValue: DictionaryValue<Slice> = {
@@ -445,6 +558,32 @@ class TsRenderer(val ctx: TsContext) : TsVisitor<Unit> {
                 return Cell.fromBoc(Buffer.from(hex, 'hex'))[0];
             }
             
+            """.trimIndent()
+
+        private const val FUNC_COMPILER_IMPORT = "import {compileFunc} from \"@ton-community/func-js\""
+
+        private val COMPILE_FUNC_CONTRACT = """
+            async function compileContract(target: string): Promise<Cell> {
+                let compileResult = await compileFunc({
+                    targets: [target],
+                    sources: (x) => fs.readFileSync(x).toString("utf8"),
+                })
+    
+                if (compileResult.status === "error") {
+                    console.error("Compilation Error!")
+                    console.error(`\n${'$'}{compileResult.message}`)
+                    process.exit(1)
+                }
+    
+                return Cell.fromBoc(Buffer.from(compileResult.codeBoc, "base64"))[0]
+            }
+        """.trimIndent()
+
+        private val COMPILE_BOC_CONTRACT = """
+            async function compileContract(target: string): Promise<Cell> {
+                 const fileBuffer = fs.readFileSync(target);
+                 return Cell.fromBoc(fileBuffer)[0]
+            }
         """.trimIndent()
     }
 }

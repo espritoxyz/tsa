@@ -6,9 +6,9 @@ import org.ton.TlbStructure
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
 import org.usvm.UBoolExpr
+import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 import org.usvm.machine.TvmContext
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
 import org.usvm.mkSizeGeExpr
@@ -25,7 +25,7 @@ class TvmDataCellInfoStorage private constructor(
         val staticAddresses = extractAddresses(ref).map { it.second }
 
         staticAddresses.forEach {
-            if (state.methodResult is TvmMethodResult.NoCall) {
+            if (!state.isTerminated) {
                 mapper.initializeConstraintsForChildren(state, it)
             }
         }
@@ -127,17 +127,22 @@ class TvmDataCellInfoStorage private constructor(
 
     companion object {
         fun build(
-            excludeInputsThatDoNotMatchGivenScheme: Boolean,
             state: TvmState,
             info: TvmInputInfo,
+            additionalCellLabels: Map<UConcreteHeapRef, TvmParameterInfo.CellInfo> = emptyMap(),
+            additionalSliceToCell: Map<UConcreteHeapRef, UConcreteHeapRef> = emptyMap(),
         ): TvmDataCellInfoStorage {
             val inputAddresses = extractInputParametersAddresses(state, info)
-            val labels = inputAddresses.cellToInfo.values.mapNotNull {
+            val addressesWithCellInfo = InputParametersStructure(
+                cellToInfo = additionalCellLabels + inputAddresses.cellToInfo,
+                sliceToCell = additionalSliceToCell + inputAddresses.sliceToCell,
+            )
+            val labels = addressesWithCellInfo.cellToInfo.values.mapNotNull {
                 (it as? TvmParameterInfo.DataCellInfo)?.dataCellStructure as? TlbCompositeLabel
             }
             val calculatedTlbLabelInfo = CalculatedTlbLabelInfo(state.ctx, labels)
-            val mapper = TvmAddressToLabelMapper(state, inputAddresses, calculatedTlbLabelInfo, excludeInputsThatDoNotMatchGivenScheme)
-            val sliceMapper = TvmSliceToTlbStackMapper.constructInitialSliceMapper(state.ctx, inputAddresses)
+            val mapper = TvmAddressToLabelMapper(state, addressesWithCellInfo, calculatedTlbLabelInfo)
+            val sliceMapper = TvmSliceToTlbStackMapper.constructInitialSliceMapper(state.ctx, addressesWithCellInfo)
 
             return TvmDataCellInfoStorage(state.ctx, mapper, sliceMapper)
         }

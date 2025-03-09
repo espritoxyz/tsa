@@ -5,6 +5,10 @@
 build
 buildSrc/build
 buildSrc/.gradle
+.kotlin
 
 # Ignore Idea directory
 .idea
+
+*.libcache
+*.blkstate

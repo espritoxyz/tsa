@@ -1,0 +1,29 @@
+#include "stdlib.fc";
+
+int dict_length() impure method_id(-10) {
+    return 3;
+}
+
+cell gen_dict() impure method_id(-8) {
+    cell d = new_dict();
+    slice value = begin_cell().end_cell().begin_parse();
+
+    d~udict_set(dict_length(), 0, value);
+    ;; d~udict_set(dict_length(), 1, get_key(1));
+    d~udict_set(dict_length(), 2, value);
+    d~udict_set(dict_length(), 3, value);
+    ;; d~udict_set(dict_length(), 4, get_key(4));
+    ;; d~udict_set(dict_length(), 5, get_key(5));
+    d~udict_set(dict_length(), 6, value);
+    ;; d~udict_set(dict_length(), 7, get_key(7));
+
+    return d;
+}
+
+int unpack_key(int key, int f) impure method_id(-6) {
+    if (f) {
+        return key;
+    } else {
+        return -111;
+    }
+}

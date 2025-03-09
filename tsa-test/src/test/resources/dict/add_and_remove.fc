@@ -1,0 +1,33 @@
+#include "../imports/stdlib.fc";
+
+
+() main(int bound, slice in_msg) {
+    int key = in_msg~load_uint(64);
+
+    throw_if(30, key < bound);
+
+    var dict = in_msg~load_dict();
+
+    (_, var found?) = dict.udict_get?(64, key);
+
+    throw_if(30, found?);
+
+    dict~udict_set_builder(64, key, begin_cell());
+
+    do {
+        var (dict', i, _, f) = dict.udict_delete_get_min(64);
+        f~touch();
+        if (f) {
+            f = (i < bound);
+        }
+        if (f) {
+            dict = dict';
+        }
+    } until (~ f);
+
+    (_, var found1) = dict.udict_get?(64, key);
+
+    throw_if(31, found1);
+
+    ;; no successful executions should be possible
+}

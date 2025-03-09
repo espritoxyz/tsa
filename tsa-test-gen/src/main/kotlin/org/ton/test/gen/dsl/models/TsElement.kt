@@ -1,5 +1,6 @@
 package org.ton.test.gen.dsl.models
 
+import java.math.BigInteger
 import org.ton.test.gen.dsl.render.TsVisitor
 import org.ton.test.gen.dsl.wrapper.TsWrapperDescriptor
 import org.usvm.test.resolver.TvmTestBuilderValue
@@ -11,7 +12,6 @@ import org.usvm.test.resolver.TvmTestSliceValue
 sealed interface TsElement {
     fun <R> accept(visitor: TsVisitor<R>): R = visitor.run {
         when (val element = this@TsElement) {
-            is TsTestFile -> visit(element)
             is TsType -> visitType(element)
             is TsStatement -> visitStatement(element)
             is TsExpression<*> -> visitExpression(element)
@@ -32,11 +32,13 @@ sealed interface TsElement {
             is TsInt -> visit(element)
             is TsBigint -> visit(element)
             is TsWrapper -> visit(element)
+            is TsObject -> visit(element)
             is TsSandboxContract<*> -> visit(element)
         }
 
     fun <R> TsVisitor<R>.visitStatement(element: TsStatement): R =
         when (element) {
+            is TsTestFile -> visit(element)
             is TsTestBlock -> visit(element)
             is TsTestCase -> visit(element)
             is TsBeforeEachBlock -> visit(element)
@@ -59,20 +61,27 @@ sealed interface TsElement {
             is TsDictValue -> visit(element)
             is TsSliceValue -> visit(element)
             is TsBuilderValue -> visit(element)
-            is TsReference<*> -> visit(element)
+            is TsVariable<*> -> visit(element)
             is TsNumAdd<*> -> visit(element)
             is TsNumSub<*> -> visit(element)
+            is TsNumDiv<*> -> visit(element)
             is TsMethodCall<*> -> visit(element)
-            is TsFieldRead<*, *> -> visit(element)
+            is TsFieldAccess<*, *> -> visit(element)
             is TsConstructorCall<*> -> visit(element)
+            is TsEquals<*> -> visit(element)
+            is TsObjectInit<*> -> visit(element)
         }
 }
 
 data class TsTestFile(
     val name: String,
     val wrappers: List<TsWrapperDescriptor<*>>,
+    val globalStatements: List<TsStatement>,
     val testBlocks: List<TsTestBlock>
-) : TsElement
+) : TsBlock {
+    override val statements: List<TsStatement>
+        get() = globalStatements
+}
 
 /* statements */
 
@@ -81,7 +90,7 @@ sealed interface TsStatement : TsElement
 data object TsEmptyLine : TsStatement
 
 data class TsAssignment<T : TsType>(
-    val assigned: TsReference<T>,
+    val assigned: TsLValue<T>,
     val assignment: TsExpression<T>,
 ) : TsStatement
 
@@ -90,7 +99,7 @@ data class TsDeclaration<T : TsType>(
     val type: T,
     val initializer: TsExpression<T>? = null,
 ) : TsStatement {
-    val reference: TsReference<T> = TsReference(name, type)
+    val reference: TsVariable<T> = TsVariable(name, type)
 }
 
 data class TsStatementExpression<T : TsType>(val expr: TsExpression<T>) : TsStatement
@@ -101,22 +110,24 @@ sealed interface TsExpression<T : TsType> : TsElement {
     val type: T
 }
 
-data class TsReference<T : TsType> internal constructor(
+sealed interface TsLValue<T : TsType> : TsExpression<T>
+
+data class TsVariable<T : TsType> internal constructor(
     val name: String,
     override val type: T,
-) : TsExpression<T>
+) : TsLValue<T>
 
-data class TsFieldRead<R : TsType, T : TsType>(
+data class TsFieldAccess<R : TsType, T : TsType>(
     val receiver: TsExpression<R>,
     val fieldName: String,
     override val type: T,
-) : TsExpression<T>
+) : TsLValue<T>
 
 data class TsBooleanValue(val value: Boolean) : TsExpression<TsBoolean> {
     override val type: TsBoolean
         get() = TsBoolean
 }
-data class TsIntValue(val value: Int) : TsExpression<TsInt> {
+data class TsIntValue(val value: BigInteger) : TsExpression<TsInt> {
     override val type: TsInt
         get() = TsInt
 }
@@ -144,6 +155,26 @@ data class TsBuilderValue(val value: TvmTestBuilderValue) : TsExpression<TsBuild
     override val type: TsBuilder
         get() = TsBuilder
 }
+data class TsEquals<T : TsType>(val lhs: TsExpression<T>, val rhs: TsExpression<T>) : TsExpression<T> {
+    override val type: T
+        get() = lhs.type
+}
+data class TsObjectInit<T : TsObject>(
+    val args: List<TsExpression<*>>,
+    override val type: T
+) : TsExpression<T> {
+    init {
+        require(args.size == type.properties.size) {
+            "Less arguments provided than the type requires: ${args.size} out of ${type.properties.size}"
+        }
+
+        type.properties.zip(args).forEach { (propertyDescription, arg) ->
+            require(arg.type == propertyDescription.second) {
+                "Expected ${propertyDescription.second} type but got ${arg.type}"
+            }
+        }
+    }
+}
 
 /* arithmetic */
 
@@ -152,6 +183,10 @@ data class TsNumAdd<T : TsNum>(val lhs: TsExpression<T>, val rhs: TsExpression<T
         get() = lhs.type
 }
 data class TsNumSub<T : TsNum>(val lhs: TsExpression<T>, val rhs: TsExpression<T>) : TsExpression<T> {
+    override val type: T
+        get() = lhs.type
+}
+data class TsNumDiv<T : TsNum>(val lhs: TsExpression<T>, val rhs: TsExpression<T>) : TsExpression<T> {
     override val type: T
         get() = lhs.type
 }

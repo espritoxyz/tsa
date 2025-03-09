@@ -1,14 +1,16 @@
 package org.usvm.machine.types
 
+import org.ton.FixedSizeDataLabel
+import org.ton.TlbAddressByRef
 import org.ton.TlbAtomicLabel
+import org.ton.TlbBitArrayByRef
+import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCoinsLabel
-import org.ton.TlbInternalShortStdMsgAddrLabel
-import org.ton.TlbInternalStdMsgAddrLabel
-import org.ton.TvmInputInfo
 import org.ton.TlbIntegerLabel
 import org.ton.TlbMaybeRefLabel
 import org.ton.TlbMsgAddrLabel
+import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
@@ -44,19 +46,28 @@ fun TvmState.getPossibleTypes(ref: UConcreteHeapRef): Sequence<TvmType> {
     return typeSystem.findSubtypes(type)
 }
 
-fun TlbBuiltinLabel.accepts(
+fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.accepts(
     ctx: TvmContext,
     labelArgs: List<UExpr<TvmSizeSort>>,
-    symbolicTypeRead: TvmCellDataTypeRead
+    symbolicTypeRead: TvmCellDataTypeRead<ReadResult>,
 ): UBoolExpr = with(ctx) {
     when (this@accepts) {
         is TlbIntegerLabel -> {
-            if (symbolicTypeRead is TvmCellDataIntegerRead && isSigned == symbolicTypeRead.isSigned && endian == symbolicTypeRead.endian
-                || symbolicTypeRead is TvmCellDataBitArrayRead
+            if (symbolicTypeRead is SizedCellDataTypeRead &&
+                (symbolicTypeRead is TvmCellDataIntegerRead && isSigned == symbolicTypeRead.isSigned && endian == symbolicTypeRead.endian
+                || symbolicTypeRead is TvmCellDataBitArrayRead)
             ) {
                 symbolicTypeRead.sizeBits eq bitSize(this, labelArgs)
             } else {
                 falseExpr
+            }
+        }
+
+        is TlbAddressByRef -> {
+            if (symbolicTypeRead is TvmCellDataBitArrayRead) {
+                symbolicTypeRead.sizeBits eq sizeBits
+            } else {
+                (symbolicTypeRead is TvmCellDataMsgAddrRead).expr
             }
         }
 
@@ -69,10 +80,26 @@ fun TlbBuiltinLabel.accepts(
         }
 
         is TlbMaybeRefLabel -> {
+            // case of TvmCellDataIntegerRead should be processed by internal structure of TlbMaybeRefLabel
             when (symbolicTypeRead) {
                 is TvmCellMaybeConstructorBitRead -> trueExpr
-                is TvmCellDataIntegerRead -> symbolicTypeRead.sizeBits eq oneSizeExpr
                 else -> falseExpr
+            }
+        }
+
+        is TlbBitArrayOfConcreteSize -> {
+            if (symbolicTypeRead is TvmCellDataBitArrayRead) {
+                symbolicTypeRead.sizeBits eq mkSizeExpr(concreteSize)
+            } else {
+                falseExpr
+            }
+        }
+
+        is TlbBitArrayByRef -> {
+            if (symbolicTypeRead is TvmCellDataBitArrayRead) {
+                symbolicTypeRead.sizeBits eq sizeBits
+            } else {
+                falseExpr
             }
         }
     }
@@ -87,6 +114,13 @@ fun TlbBuiltinLabel.passBitArrayRead(
         is TlbIntegerLabel -> {
             val intLength = bitSize(this, labelArgs)
             PassBitArrayRead(mkSizeGtExpr(bitArrayLength, intLength), mkSizeSubExpr(bitArrayLength, intLength))
+        }
+        is TlbBitArrayOfConcreteSize -> {
+            val length = mkSizeExpr(concreteSize)
+            PassBitArrayRead(mkSizeGtExpr(bitArrayLength, length), mkSizeSubExpr(bitArrayLength, length))
+        }
+        is TlbBitArrayByRef -> {
+            PassBitArrayRead(mkSizeGtExpr(bitArrayLength, sizeBits), mkSizeSubExpr(bitArrayLength, sizeBits))
         }
         is TlbMsgAddrLabel, is TlbCoinsLabel, is TlbMaybeRefLabel  -> {
             null
@@ -116,6 +150,12 @@ fun TlbBuiltinLabel.isEmptyLabel(
         is TlbMaybeRefLabel -> {
             falseExpr
         }
+        is TlbBitArrayOfConcreteSize -> {
+            mkBool(concreteSize == 0)
+        }
+        is TlbBitArrayByRef -> {
+            sizeBits eq zeroSizeExpr
+        }
     }
 }
 
@@ -125,16 +165,11 @@ fun TlbAtomicLabel.dataLength(
 ): UExpr<TvmSizeSort> = with(state.ctx) {
     when (this@dataLength) {
         is TlbIntegerLabel -> bitSize(this, args)
-        is TlbInternalStdMsgAddrLabel -> mkSizeExpr(internalStdMsgAddrSize)
-        is TlbInternalShortStdMsgAddrLabel -> mkSizeExpr(internalShortStdMsgAddrSize)
+        is FixedSizeDataLabel -> mkSizeExpr(concreteSize)
+        is TlbBitArrayByRef -> sizeBits
+        is TlbAddressByRef -> sizeBits
     }
 }
-
-private const val internalStdMsgAddrSize = 8 + 256
-private const val internalShortStdMsgAddrSize = 256
-
-private val defaultInternalMsgAddr = "0".repeat(internalStdMsgAddrSize)
-private val defaultInternalShortMsgAddr = "0".repeat(internalShortStdMsgAddrSize)
 
 fun TlbAtomicLabel.defaultCellValue(ctx: TvmContext): String =
     when (this) {
@@ -142,19 +177,19 @@ fun TlbAtomicLabel.defaultCellValue(ctx: TvmContext): String =
             val defaultLength = bitSize(ctx, List(arity) { ctx.zeroSizeExpr }).intValue()
             "0".repeat(defaultLength)
         }
-        is TlbInternalStdMsgAddrLabel -> {
-            defaultInternalMsgAddr
+        is FixedSizeDataLabel -> {
+            "0".repeat(concreteSize)
         }
-        is TlbInternalShortStdMsgAddrLabel -> {
-            defaultInternalShortMsgAddr
+        is TlbBitArrayByRef, is TlbMsgAddrLabel -> {
+            error("Cannot calculate default cell value for $this")
         }
     }
 
 fun TlbAtomicLabel.lengthUpperBound(): Int =
     when (this) {
         is TlbIntegerLabel -> lengthUpperBound
-        is TlbInternalStdMsgAddrLabel -> internalStdMsgAddrSize
-        is TlbInternalShortStdMsgAddrLabel -> internalShortStdMsgAddrSize
+        is FixedSizeDataLabel -> concreteSize
+        is TlbBitArrayByRef, is TlbMsgAddrLabel -> error("Cannot calculate lengthUpperBound for $this")
     }
 
 data class InputParametersStructure(

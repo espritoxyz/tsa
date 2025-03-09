@@ -42,19 +42,14 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 'Build tvm disasm'
-        working-directory: ./tvm-disasm
-        run: |
-          npm i
-          npm run build
-
       - name: Build CLI
         run: |
           ./gradlew --no-daemon tsa-cli:shadowJar
 
-      - name: Build safety properties checker
-        run: |
-          ./gradlew --no-daemon tsa-safety-properties:shadowJar
+        # Don't build jettons checker as it is more an example than a real tool
+#      - name: Build jettons checker
+#        run: |
+#          ./gradlew --no-daemon tsa-safety-properties:shadowJar
 
       - name: Upload JAR executables
         uses: actions/upload-artifact@v4
@@ -62,7 +57,8 @@ jobs:
           name: tsa-jars
           path: |
             tsa-cli/build/libs/tsa-cli.jar
-            tsa-safety-properties/build/libs/tsa-safety-properties.jar
+          # Don't upload jettons checker as it is more an example than a real tool
+          # tsa-jetton/build/libs/tsa-jettons.jar
           if-no-files-found: error
 
       # Uses the `docker/login-action` action to log in to the Container registry registry using the account and password that will publish the packages. Once published, the packages are scoped to the account defined here.
@@ -92,7 +88,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: |
+            linux/amd64
+          # Only linux/amd64 can be used as we use x86_64 ton binaries
+#            linux/arm64
           push: true
           tags: ghcr.io/espritoxyz/tsa:latest
 #          tags: ${{ steps.meta.outputs.tags }}

@@ -5,7 +5,8 @@ const val ALLOW_FAILURES_METHOD_ID = 2
 const val ASSERT_METHOD_ID = 3
 const val ASSERT_NOT_METHOD_ID = 4
 const val FETCH_VALUE_ID = 5
-const val PROCESS_ACTIONS_ID = 6
+
+const val MK_SYMBOLIC_INT_METHOD_ID = 100
 
 fun extractStackOperationsFromMethodId(methodId: Int): StackOperations? {
     val firstDigit = methodId / 10000
