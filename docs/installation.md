@@ -16,7 +16,10 @@ To start using `TSA`, you can either use the prebuilt artifacts (depending on yo
 #### Using a Docker Container
 
 ```bash
-docker run --platform linux/amd64 -it --rm -v [SOURCES_DIR_ABSOLUTE_PATH]:/project ghcr.io/espritoxyz/tsa:latest [ANALYZER_OPTIONS]
+docker run --platform linux/amd64 -it --rm \
+-v [SOURCES_DIR_ABSOLUTE_PATH]:/project \
+ghcr.io/espritoxyz/tsa:latest \
+[ANALYZER_OPTIONS]
 ```
 
 Here:
@@ -29,7 +32,12 @@ Here:
 For example, to analyze inter-contract interactions between two FunC contracts located in `sender.fc` and `receiver.fc`, run the following command:
 
 ```bash
-docker run --platform linux/amd64 -it --rm -v [SOURCES_DIR_ABSOLUTE_PATH]:/project ghcr.io/espritoxyz/tsa:latest inter /project/[FIRST_CONTRACT_RELATIVE_PATH] /project/[SECOND_CONTRACT_RELATIVE_PATH] --func-std /project/[PATH_TO_FUNC_STDLIB] --fift-std /project/[PATH_TO_FIFT_STDLIB_DIR]
+docker run --platform linux/amd64 -it --rm \
+-v [SOURCES_DIR_ABSOLUTE_PATH]:/project \
+ghcr.io/espritoxyz/tsa:latest \
+inter /project/[FIRST_CONTRACT_RELATIVE_PATH] /project/[SECOND_CONTRACT_RELATIVE_PATH] \
+--func-std /project/[PATH_TO_FUNC_STDLIB] \
+--fift-std /project/[PATH_TO_FIFT_STDLIB_DIR]
 ```
 
 #### Using JAR Executables
@@ -70,4 +78,4 @@ Currently, `TSA` can only be run on Windows using the JAR executables. Refer to 
     ```
 4. Ensure `tact`, `func`, and `fift` are in your `$PATH`
 5. Run `./gradlew tsa-cli:shadowJar` from the root of the project to build [error-checking analysis tool](modes/error-detection-mode) (will be located in the [build dir](../tsa-cli/build/libs/tsa-cli.jar))
-   or `./gradlew tsa-safety-properties:shadowJar` to build [safety-properties checker](modes/safety-properties-mode) (will be located in the [build dir](../tsa-safety-properties/build/libs/tsa-safety-properties.jar))
+   or `./gradlew tsa-safety-properties:shadowJar` to build [safety-properties checker](modes/checking-mode) (will be located in the [build dir](../tsa-safety-properties/build/libs/tsa-safety-properties.jar))

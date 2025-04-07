@@ -7,12 +7,12 @@ nav_order: 1
 
 # Errors detection mode
 
-As a static analyzer, `TSA` can operate in two modes: runtime error detection for local smart contracts with report generation in [SARIF format](https://sarifweb.azurewebsites.net/) or test generation for [Blueprint](https://github.com/ton-org/blueprint) projects.
+As a static analyzer, `TSA` can operate in two modes: **runtime error detection** for local smart contracts with report generation in [SARIF format](https://sarifweb.azurewebsites.net/) or **test generation** for [Blueprint](https://github.com/ton-org/blueprint) projects.
 For operating in this mode, use `tsa-cli.jar` or corresponding options in the Docker Container.
 
 ## Runtime Error Detection
 
-In runtime error detection mode, `TSA` accepts as input a contract file in one of the following formats: Tact (experimental) or FunC source code, or Fift assembler code, or BoC (compiled code). Optionally, it also accepts a [TL-B scheme](https://docs.ton.org/v3/documentation/data-formats/tlb/tl-b-language) for the `recv_internal` method (about TL-B schemes importance check [the internal design-document](../design/tlb)). For detailed input format information, use the `--help` argument. 
+In runtime error detection mode, `TSA` accepts as input a contract file in one of the following formats: Tact or FunC source code, or Fift assembler code, or BoC (compiled code). Optionally, it also accepts a [TL-B scheme](https://docs.ton.org/v3/documentation/data-formats/tlb/tl-b-language) for the `recv_internal` method (about TL-B schemes importance check [the internal design-document](../design/tlb)). For detailed input format information, use the `--help` argument. 
 
 The output in this mode is a SARIF report containing the following information about methods that may encounter a [TVM error](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes) during execution:
 
@@ -58,10 +58,13 @@ Running the analyzer for this contract with the following command
 (macOS ARM, assuming the contract, FunC and Fift stdlibs are located in the current directory):
 
 ```bash
-docker run --platform linux/amd64 -it --rm -v $PWD:/project ghcr.io/espritoxyz/tsa:latest func -i /project/example.fc --func-std /project/stdlib.fc --fift-std /project/fiftstdlib
+docker run --platform linux/amd64 -it --rm -v $PWD:/project ghcr.io/espritoxyz/tsa:latest \ 
+func -i /project/example.fc \
+--func-std /project/stdlib.fc \
+--fift-std /project/fiftstdlib
 ```
 
-(please note that FunC stdlib is pointed using the specific option `func-stdlib`, not as a part of the input file) identifies the error in the SARIF:
+(please note that FunC stdlib is pointed using the specific option `func-std`, not as a part of the input file) identifies the error in the SARIF:
 
 ```json
 {

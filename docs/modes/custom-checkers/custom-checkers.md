@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Custom checkers
-parent: Safety properties mode
+parent: Checking mode
 nav_order: 1
 ---
 
