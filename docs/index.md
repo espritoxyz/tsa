@@ -9,23 +9,28 @@ nav_order: 1
 
 [![TSA: build](https://github.com/espritoxyz/tsa/actions/workflows/build-and-run-tests.yml/badge.svg)](https://github.com/espritoxyz/tsa/actions/workflows/build-and-run-tests.yml)
 
-TSA (TON Symbolic Analyzer) is a static analysis tool based on symbolic execution and designed for smart contracts on the [TON blockchain](https://ton.org/).
-
-## [Quick start](modes/getting-started)
-
-To start using TSA, follow the [Getting Started Guide](modes/getting-started).
-
-To know more about the core design, read the [core design tech documents](design/design).
-
-### Language Support
-TSA works on TVM bitcode level, so it is possible to analyze smart contracts written in any language, just need to compile it to BoC format.
-
-### Use Cases
-TSA is designed for a few purposes:
-
-- Detect possible TVM runtime errors: Find possible misbehavior while processing integers (overflow/underflow, division by zero) and slices/builders (reading or writing wrong number of bits, incorrect types, etc).
-- Generate regression tests: TSA is able to generate Blueprint-based tests based on discovered execution paths that allow to fix expected behavior and find errorneous executions.
-- Honeypots detection: TSA can detect and report malicious contracts that are created to fool users.
+<div style="display: flex; flex-direction: column; align-items: center;">
+  <div>
+    <img src="images/tsa-example.png" alt="TSA Example">
+  </div>
+  <div style="display: flex; justify-content: center; gap: 10px;">
+    <div>
+      <a href="installation">
+        <img src="images/installation-and-setup.png" alt="Installation and setup">
+      </a>
+    </div>
+    <div>
+      <a href="modes/getting-started">
+        <img src="images/use-cases.png" alt="Use cases">
+      </a>
+    </div>
+    <div>
+      <a href="error-types">
+        <img src="images/detectors.png" alt="Detectors">
+      </a>
+    </div>
+  </div>
+</div>
 
 ### Funding
 TSA has been funded by the [TON Foundation grant](https://github.com/ton-society/grants-and-bounties/issues/489) grant and has been developed under the [8-month roadmap](https://questbook.app/dashboard/?proposalId=667ee6b9b59d3e9ae042d6c9&chainId=10&role=builder&isRenderingProposalBody=true&grantId=65c7836df27e2e1702d2d279).
