@@ -11,22 +11,22 @@ nav_order: 1
 
 <div style="display: flex; flex-direction: column; align-items: center;">
   <div>
-    <img src="images/tsa-example.png" alt="TSA Example">
+    <img src="images/tsa-example.svg" alt="TSA Example">
   </div>
   <div style="display: flex; justify-content: center; gap: 10px;">
     <div>
       <a href="installation">
-        <img src="images/installation-and-setup.png" alt="Installation and setup">
+        <img src="images/installation-and-setup.svg" alt="Installation and setup">
       </a>
     </div>
     <div>
       <a href="modes/getting-started">
-        <img src="images/use-cases.png" alt="Use cases">
+        <img src="images/use-cases.svg" alt="Use cases">
       </a>
     </div>
     <div>
       <a href="error-types">
-        <img src="images/detectors.png" alt="Detectors">
+        <img src="images/detectors.svg" alt="Detectors">
       </a>
     </div>
   </div>
