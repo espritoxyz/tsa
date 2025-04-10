@@ -2,7 +2,7 @@ TSA(TON Symbolic Analyzer) is a static analysis tool based on symbolic execution
 
 ### Quick start
 
-To start using TSA, follow the [guide](docs/getting-started.md).
+To start using TSA, follow the [guide](docs/installation).
 
 To know more about the core design, read the [corresponding documents](docs/design).
 

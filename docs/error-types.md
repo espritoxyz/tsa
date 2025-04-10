@@ -4,6 +4,8 @@ title: Detectors
 nav_order: 4
 ---
 
+# Error detectors
+
 The primary types of [TVM runtime errors](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes) that occur in TON smart contracts can be divided into three categories:
 
 - Arithmetic Errors

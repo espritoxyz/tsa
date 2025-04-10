@@ -237,8 +237,8 @@ class BocAnalysis : CliktCommand(name = "boc", help = "Options for analyzing a s
 }
 
 class SafetyPropertiesAnalysis : CliktCommand(
-    name = "safety-properties",
-    help = "Options for checking safety properties",
+    name = "custom-checker",
+    help = "Options for using custom checkers",
 ) {
     private val fiftOptions by FiftOptions()
     private val funcOptions by FuncOptions()
@@ -247,7 +247,7 @@ class SafetyPropertiesAnalysis : CliktCommand(
 
     private val checkerContractPath by option("--checker")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
-        .help("The path to the safety properties checker contract.")
+        .help("The path to the checker contract.")
         .required()
 
     private val interContractSchemePath by option("-s", "--scheme")

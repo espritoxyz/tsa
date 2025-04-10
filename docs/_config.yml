@@ -6,6 +6,8 @@ domain: tonan.tech       # if you want to force HTTPS, specify the domain withou
 url: https://tonan.tech  # the base hostname and protocol for your site, e.g. http://example.com
 baseurl: /tsa     # place folder name if the site is served in a subfolder
 
+markdown: kramdown
+
 plugins:
   - jekyll-remote-theme
   - jekyll-seo-tag

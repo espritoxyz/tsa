@@ -65,7 +65,7 @@ fun main() {
             }
 
             val reportFile = File(reportPath)
-            reportFile.parentFile.mkdirs()
+            reportFile.parentFile?.mkdirs()
             reportFile.createNewFile() // Ensure that for each run we have a fresh report file even if all instructions are implemented
 
             if (result.isEmpty()) {

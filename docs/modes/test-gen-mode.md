@@ -21,7 +21,7 @@ Additionally, the test contract wrapper is generated.
 ## Required Flags
 
 #### Project Path
-- `-p` / `--project`: specifies the absolute path to the initialized sandbox project. [Project example](../../tsa-test/src/test/resources/sandbox).
+- `-p` / `--project`: specifies the absolute path to the initialized sandbox project. [Project example](https://github.com/espritoxyz/tsa/blob/b76343a20ce5c81e78d3e65873936ee26c148771/tsa-test/src/test/resources/sandbox).
 
 #### FunC Standard Library
 - `--func-std`: specifies the absolute path to the FunC standard library file (`stdlib.fc` or `stdlib.func`).
