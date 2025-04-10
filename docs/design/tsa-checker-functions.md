@@ -1,6 +1,6 @@
 ---
 layout: default
-title: TSA safety-properties checker functions 
+title: TSA checker functions 
 parent: Core mechanisms design
 nav_order: 3
 ---

@@ -7,12 +7,12 @@ nav_order: 1
 
 # Writing custom checkers
 
-The safety properties mode of `TSA` allows users to implement their own checkers to verify specific contract specifications.
+The checker mode of `TSA` allows users to implement their own checkers to verify specific contract specifications.
 
 ## Checker structure
 
 Any custom checker consists of a checker file, list of analyzed smart contracts and some options.
-It could be then run with a Docker or JAR with `safety-properties` argument provided. 
+It could be then run with a Docker or JAR with `custom-checker` argument provided. 
 
 ### Checker file
 

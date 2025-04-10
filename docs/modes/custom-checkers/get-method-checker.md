@@ -56,7 +56,7 @@ To run this checker, you need to have either the `tsa-cli.jar` JAR file download
 To make it more clear, let's use the JAR here – run this command from the root of the repository:
 
 ```bash
-java -jar tsa-cli.jar safety-properties \
+java -jar tsa-cli.jar custom-checker \
 --checker tsa-safety-properties-examples/src/test/resources/examples/step1/abs_checker.fc \
 --contract func tsa-safety-properties-examples/src/test/resources/examples/step1/abs.fc \
 --func-std tsa-safety-properties-examples/src/test/resources/imports/stdlib.fc \

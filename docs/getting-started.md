@@ -25,27 +25,20 @@ docker run --platform linux/amd64 -it --rm -v [SOURCES_DIR_ABSOLUTE_PATH]:/proje
 
 #### Using JAR Executables
 
-The [Releases page](https://github.com/espritoxyz/tsa/releases) provides two JAR executables:
+The [Releases page](https://github.com/espritoxyz/tsa/releases) provides a JAR executable:
 
 - `tsa-cli.jar`
-- `tsa-safety-properties.jar`
 
-Before using them, ensure you have the following installed:
+Before using it, ensure you have the following installed:
 
 - [JRE](https://www.java.com/en/download/manual.jsp)
 - [Tact compiler](https://github.com/tact-lang/tact)
 - [FunC and Fift compilers](https://github.com/ton-blockchain/ton/releases/latest)
 
-Then, you can run the analysis in the standard error-checking/tests generation mode:
+Then, you can run the analysis in the standard error-checking/tests generation mode or with checker mode:
 
 ```bash
 java -jar tsa-cli.jar
-```
-
-or in the safety-properties checker mode:
-
-```bash
-java -jar tsa-safety-properties.jar
 ```
 
 ### Windows
@@ -62,5 +55,4 @@ Currently, `TSA` can only be run on Windows using the JAR executables. Refer to 
    - [FunC and Fift compilers](https://github.com/ton-blockchain/ton/releases/latest)
 2. Clone this repository
 3. Ensure `tact`, `func`, and `fift` are in your `$PATH`
-4. Run `./gradlew tsa-cli:shadowJar` from the root of the project to build [error-checking analysis tool](./error-checking-tests-generation-mode.md) (will be located in [build dir](../tsa-cli/build/libs/tsa-cli.jar))
-   or `./gradlew tsa-safety-properties:shadowJar` to build [safety-properties checker](./safety-properties-mode.md) (will be located in [build dir](/tsa-safety-properties/build/libs/tsa-safety-properties.jar))
+4. Run `./gradlew tsa-cli:shadowJar` from the root of the project to build [error-checking analysis tool](modes/getting-started) (will be located in [build dir](../tsa-cli/build/libs/tsa-cli.jar))
