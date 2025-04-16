@@ -76,7 +76,7 @@ For example, in the following function, a cell underflow error is possible in th
 
 This type of error is represented by TVM error code 8 and occurs during improper writes to a builder, such as when the number of bits exceeds the 1023-bit limit or the number of references exceeds 4. Errors of this type can arise from any `store_bits`, `store_int`, `store_ref`, or similar operations.
 
-Since outgoing message generation often follows a contract's business logic, this type of error can also occur in nearly any smart contract. Unlike [cell underflow](#deserialization-errors-cell-underflow), reliability in this aspect depends more on the developer’s attentiveness. However, such errors can still originate from incoming messages when parameters are forwarded into outgoing messages.
+Since outgoing message generation often follows a contract's business logic, this type of error can also occur in nearly any smart contract. Unlike [cell underflow](#deserialization-errors-cell-underflow), reliability in this aspect depends more on the developer’s intention. However, such errors can still originate from incoming messages when parameters are forwarded into outgoing messages.
 
 A simple example of this type of error is the following function, where a reference overflow occurs if the `loop_count` parameter exceeds 4:
 
@@ -91,7 +91,6 @@ A simple example of this type of error is the following function, where a refere
     var i = 0;
     repeat(loop_count) {
         builder value = begin_cell().store_int(i, 32);
-
         b = b.store_ref(value.end_cell());
     }
 

@@ -236,7 +236,7 @@ class BocAnalysis : CliktCommand(name = "boc", help = "Options for analyzing a s
     }
 }
 
-class SafetyPropertiesAnalysis : CliktCommand(
+class CheckerAnalysis : CliktCommand(
     name = "custom-checker",
     help = "Options for using custom checkers",
 ) {
@@ -460,6 +460,6 @@ fun main(args: Array<String>) = TonAnalysis()
         FiftAnalysis(),
         BocAnalysis(),
         TestGeneration(),
-        SafetyPropertiesAnalysis(),
+        CheckerAnalysis(),
         InterContractAnalysis()
     ).main(args)

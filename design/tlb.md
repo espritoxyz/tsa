@@ -1,10 +1,3 @@
----
-layout: default
-title: TL-B schemes
-parent: Core mechanisms design
-nav_order: 2
----
-
 # TL-B schemes support
 
 We introduce support to TL-B schemes for 2 reasons:

@@ -7,16 +7,17 @@ nav_order: 3
 
 # Checking states of multiple contracts after inter-contract communication
 
-Many smart-contracts interact with each other and after processing these messages changing their states.
-So, it is important to verify that states are changed as expected after executing transactions.
+This guide will walk you through implementing and running a custom checker to verify that a `transfer` operation decreases the sender's balance and increases the receiver's balance by the same value.
 
-## Contracts
+---
 
-Let's consider a smart-contract that emulates a very simple wallet with two operations:
-- `transfer` – transfer money from one wallet to another, decreases the wallet's balance.
-- `receive` – receive money from another wallet, increases the target's balance.
+## Step 1: Write the Contract
 
-One could implement such a contract in the following way (sources are available [wallet.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet.fc)):
+The contract emulates a simple wallet with two operations:
+- `transfer` – decreases the sender's balance and sends a message to the receiver.
+- `receive` – increases the receiver's balance upon receiving a message.
+
+Copy the following code into your editor and save it as `wallet.fc`:
 
 ```c
 int load_balance() inline method_id(-42) {
@@ -108,14 +109,13 @@ builder store_msgbody_prefix_ref(builder b, cell ref) inline {
 }
 ```
 
-## Checker
+This contract ensures that the `transfer` operation decreases the sender's balance and the `receive` operation increases the receiver's balance.
 
-Now we want to ensure that triggering a `transfer` operation from one wallet to another wallet 
-will decrease the sender's balance and increase the receiver's balance with the same value.
-So, here we have two instances of the same wallet (emulating different accounts), 
-with `contract_id`s `1` and `2`, for `sender` and `target`, correspondingly.
+---
 
-One could implement such a contract in the following way (sources are available [balance_transfer_checker.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/balance_transfer_checker.fc)):
+## Step 2: Write the Checker
+
+To verify the behavior of the contract, we will use the following checker. Copy this code into your editor and save it as `balance_transfer_checker.fc`:
 
 ```c
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
@@ -184,7 +184,9 @@ This checker contains the following steps:
 11. Check that the balance of the first account has decreased by 100.
 12. Check that the balance of the second account has increased by 100.
 
-## Inter-contract communication scheme
+---
+
+## Step 3: Define the Inter-Contract Communication Scheme
 
 As we have two contracts that interact with each other, we need to provide an inter-contract communication scheme.
 This scheme is a JSON file that describes what contract may send a message to what contract by what operation code.
@@ -210,12 +212,13 @@ Here we have only 2 operations – `transfer` and `receive`, so the scheme is ve
 
 Here we describe only the first wallet as we do not expect that the second wallet will send any messages.
 
-## Running the checker
+---
 
-To run this checker, you need to have either the `tsa-cli.jar` JAR file downloaded/built or the Docker container pulled.
-To make it more clear, let's use the JAR here – run this command from the root of the repository:
+## Step 4: Run the Checker
 
-```bash
+To execute the checker, open your terminal and run the following command:
+
+{% highlight bash %}
 java -jar tsa-cli.jar custom-checker \
 --checker tsa-safety-properties-examples/src/test/resources/examples/step3/balance_transfer_checker.fc \
 --contract func tsa-safety-properties-examples/src/test/resources/examples/step3/wallet.fc \
@@ -223,12 +226,20 @@ java -jar tsa-cli.jar custom-checker \
 --scheme tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json \
 --func-std tsa-safety-properties-examples/src/test/resources/imports/stdlib.fc \
 --fift-std tsa-safety-properties-examples/src/test/resources/fiftstdlib
-```
+{% endhighlight %}
 
-Here we pass the inter-contract communication scheme of the two wallets and 
+
+This command will:
+- Run the checker on two instances of the `wallet.fc` contract.
+- Use the inter-contract communication scheme to simulate interactions.
+- Output the result in the SARIF format.
+
+Note that we pass the inter-contract communication scheme of the two wallets and
 provide the same contract twice to analyze the interaction between different accounts.
 
-## Result
+---
+
+## Step 5: Analyze the Result
 
 The result of the checker execution is a SARIF report that contains the following information:
 

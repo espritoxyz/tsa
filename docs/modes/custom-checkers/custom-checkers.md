@@ -33,8 +33,6 @@ some specific functions are provided in the [tsa_functions.fc](https://github.co
 - `tsa_mk_int(int bits, int signed)` - an instruction for the symbolic interpreter to create a new symbolic integer value 
     (accepting bits and a flag indicating is it signed) with no specific bounds.
 
-Some technical details can be found in the [design document](../../design/tsa-checker-functions).
-
 Usually, the checker file contains a set of assumptions for the input values that would be passed
 to a method of the first analyzed contract, call invocation of this method and then a set of assertions
 for the return values and/or the state of the contract after the method execution.
@@ -55,13 +53,11 @@ An example of the scheme could be found in the [test module](https://github.com/
 
 #### TL-B scheme
 A file with a TL-B scheme for the `recv_internal` method of the first analyzed contract could be optionally provided.
-Motivation for this is described in the [design document](../../design/tlb).
 **NOTE**: TL-B scheme is supported only when using Docker, not JAR.
 
 ## Examples
 
-Some examples of the checkers can be found in the [tsa-safety-properties-examples](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples) module
-with a detailed description:
+Some examples of the checkers can be found with a detailed description:
 - [Checking the get-method](get-method-checker)
 - [Checking a state of a single contract after accepting a message](single-contract-state-checker)
 - [Checking a state of multiple contracts after inter-contract communication](inter-contract-communication-checker)

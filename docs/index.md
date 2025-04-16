@@ -9,7 +9,7 @@ nav_order: 1
 
 [![TSA: build](https://github.com/espritoxyz/tsa/actions/workflows/build-and-run-tests.yml/badge.svg)](https://github.com/espritoxyz/tsa/actions/workflows/build-and-run-tests.yml)
 
-<div style="display: flex; flex-direction: column; align-items: center;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
   <div>
     <img src="images/tsa-example.svg" alt="TSA Example">
   </div>
@@ -20,7 +20,7 @@ nav_order: 1
       </a>
     </div>
     <div>
-      <a href="modes/getting-started">
+      <a href="modes/use-cases">
         <img src="images/use-cases.svg" alt="Use cases">
       </a>
     </div>
@@ -40,7 +40,4 @@ TSA has been funded by the [TON Foundation grant](https://github.com/ton-society
 TSA is inspired and is actively using the [Universal Symbolic Virtual Machine(USVM)](https://github.com/UnitTestBot/usvm) –
 a symbolic core engine for multiple programming languages.
 
-USVM and TSA itself also widely use the [KSMT](https://github.com/UnitTestBot/ksmt) library –
-a Kotlin/Java API for SMT solvers, with some optimizations for TON blockchain.
-
-You are very welcome to contribute to both of these projects.
+You are very welcome to contribute to this project.

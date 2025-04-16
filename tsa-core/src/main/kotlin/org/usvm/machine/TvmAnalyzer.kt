@@ -8,6 +8,7 @@ import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.setTSACheckerFunctions
 import org.ton.cell.Cell
+import org.usvm.machine.FiftAnalyzer.Companion.FIFT_INCLUDE_PREAMBLE
 import org.usvm.machine.FuncAnalyzer.Companion.FIFT_EXECUTABLE
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
@@ -151,8 +152,7 @@ class FuncAnalyzer(
         check(exitValue == 0) {
             "FunC compilation failed with an error, exit code $exitValue, errors: \n${errors.toText()}"
         }
-        val fiftIncludePreamble = """"Fift.fif" include"""
-        val fiftCode = "$fiftIncludePreamble\n${output.toText()}"
+        val fiftCode = "$FIFT_INCLUDE_PREAMBLE${output.toText()}"
 
         fiftFilePath.writeText(fiftCode)
     }
@@ -233,8 +233,7 @@ class FiftAnalyzer(
         check(fiftWorkDir.resolve("Fift.fif").exists()) { "No Fift.fif" }
 
         val fiftTextWithOutputCommand = """
-        "Fift.fif" include
-        "Asm.fif" include
+        $FIFT_INCLUDE_PREAMBLE
 
         ${codeBlock.trim()}s runvmcode $FINAL_STACK_STATE_MARKER .s
     """.trimIndent()
@@ -258,8 +257,7 @@ class FiftAnalyzer(
         val blocks = codeBlocks.mapIndexed { index, block -> "cb_$index PROC:$block" }
 
         val fiftCode = """
-        "Fift.fif" include
-        "Asm.fif" include
+        $FIFT_INCLUDE_PREAMBLE
         
         PROGRAM{
           ${methodIds.joinToString("\n")}
@@ -343,6 +341,11 @@ class FiftAnalyzer(
     companion object {
         private const val FINAL_STACK_STATE_MARKER = "\"FINAL STACK STATE\""
         private val TVM_EXECUTION_STATUS_PATTERN = Regex(""".*steps: (\d+) gas: used=(\d+).*""")
+
+        const val FIFT_INCLUDE_PREAMBLE = """
+            "Fift.fif" include
+            "Asm.fif" include
+        """
     }
 }
 

@@ -1,10 +1,3 @@
----
-layout: default
-title: Cell data
-parent: Core mechanisms design
-nav_order: 1
----
-
 # Cell data 
 
 Cell data can be stored in a bitvector in two ways:

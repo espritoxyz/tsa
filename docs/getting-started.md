@@ -6,9 +6,9 @@ To start using `TSA`, you can either use the prebuilt artifacts (depending on yo
 
 #### Using a Docker Container
 
-```bash
+{% highlight bash %}
 docker run --platform linux/amd64 -it --rm -v [SOURCES_DIR_ABSOLUTE_PATH]:/project ghcr.io/espritoxyz/tsa:latest [ANALYZER_OPTIONS]
-```
+{% endhighlight %}
 
 Here:
 
@@ -19,9 +19,9 @@ Here:
 
 For example, to analyze inter-contract interactions between two FunC contracts located in `sender.fc` and `receiver.fc`, run the following command:
 
-```bash
+{% highlight bash %}
 docker run --platform linux/amd64 -it --rm -v [SOURCES_DIR_ABSOLUTE_PATH]:/project ghcr.io/espritoxyz/tsa:latest inter /project/[FIRST_CONTRACT_RELATIVE_PATH] /project/[SECOND_CONTRACT_RELATIVE_PATH] --func-std /project/[PATH_TO_FUNC_STDLIB] --fift-std /project/[PATH_TO_FIFT_STDLIB_DIR]
-```
+{% endhighlight %}
 
 #### Using JAR Executables
 
@@ -37,9 +37,9 @@ Before using it, ensure you have the following installed:
 
 Then, you can run the analysis in the standard error-checking/tests generation mode or with checker mode:
 
-```bash
+{% highlight bash %}
 java -jar tsa-cli.jar
-```
+{% endhighlight %}
 
 ### Windows
 
@@ -55,4 +55,4 @@ Currently, `TSA` can only be run on Windows using the JAR executables. Refer to 
    - [FunC and Fift compilers](https://github.com/ton-blockchain/ton/releases/latest)
 2. Clone this repository
 3. Ensure `tact`, `func`, and `fift` are in your `$PATH`
-4. Run `./gradlew tsa-cli:shadowJar` from the root of the project to build [error-checking analysis tool](modes/getting-started) (will be located in [build dir](../tsa-cli/build/libs/tsa-cli.jar))
+4. Run `./gradlew tsa-cli:shadowJar` from the root of the project to build [error-checking analysis tool](modes/use-cases) (will be located in [build dir](../tsa-cli/build/libs/tsa-cli.jar))
