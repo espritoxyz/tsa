@@ -68,7 +68,7 @@ Currently, `TSA` can only be run on Windows using the JAR executables. Refer to 
    - [NodeJS](https://nodejs.org/en)
    - [Tact compiler](https://github.com/tact-lang/tact)
    - [FunC and Fift compilers](https://github.com/ton-blockchain/ton/releases/latest)
-2. Clone this repo with all submodules (using `IntelliJ Idea` or `git clone git clone --recurse-submodules https://github.com/espritoxyz/tsa/`).
+2. Clone this repo with all submodules (using `IntelliJ Idea` or `git clone --recurse-submodules https://github.com/espritoxyz/tsa/`).
 3. Build the submodule:
 
     ```bash
