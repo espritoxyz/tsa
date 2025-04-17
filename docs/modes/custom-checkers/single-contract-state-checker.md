@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Checking a state of a single contract
-parent: Custom checkers
+parent: Checking mode
 nav_order: 2
 ---
 
@@ -65,6 +65,7 @@ To verify the behavior of the contract, we will use the following checker. Copy 
     int op = body_copy~load_uint(32);
     tsa_assert_not(op == op::reduce_balance);
 
+    ;; Retrieve the initial balance – call the method `load_balance` with id -42 in the contract with its id 1 (id 0 is used for the checker)
     int initial_balance = tsa_call_1_0(1, -42);
 
     ;; send a message with not reduce_balance operation
@@ -74,7 +75,7 @@ To verify the behavior of the contract, we will use the following checker. Copy 
 
     tsa_allow_failures();
     ;; check that the balance can not be reduced using not a reduce_balance operation
-    throw_if(10, initial_balance != new_balance);
+    throw_if(256, initial_balance != new_balance);
 }
 ```
 
@@ -121,7 +122,7 @@ The result of the checker execution is a SARIF report. Here is an example of the
                 {
                     "level": "error",
                     "message": {
-                        "text": "TvmFailure(exit=TVM user defined error with exit code 10, type=UnknownError, phase=COMPUTE_PHASE)"
+                        "text": "TvmFailure(exit=TVM user defined error with exit code 256, type=UnknownError, phase=COMPUTE_PHASE)"
                     },
                     "properties": {
                         "gasUsage": 2303,
@@ -162,9 +163,9 @@ The result of the checker execution is a SARIF report. Here is an example of the
 }
 ```
 
-Key points to note:
-1. The error message: `TvmFailure(exit=TVM user defined error with exit code 10, type=UnknownError, phase=COMPUTE_PHASE)` indicates a logical error in the contract.
-2. The `msgBody` section contains the message body that was sent to the contract from the checker.
+We are interested in lines with the following indices:
+- `10` - the error message: `TvmFailure(exit=TVM user defined error with exit code 256, type=UnknownError, phase=COMPUTE_PHASE)` indicates a logical error in the contract.
+- `16` - the `msgBody` section contains the message body that was sent to the contract from the checker.
 
 This report confirms that the checker detected a logical error – the `balance` was changed by a non-`reduce_balance` operation.
 

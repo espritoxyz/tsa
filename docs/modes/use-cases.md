@@ -20,7 +20,7 @@ The automated mode of TSA focuses on detecting errors in TON smart contracts,
 related to code implementation and causing the TON Virtual Machine (TVM) to crash during contract execution.
 
 TVM runtime errors in TON smart contracts often arise from improper handling of data – 
-[primitives (numbers)](../error-types#Arithmetic-Errors) and [complex structures](../error-types#Deserialization-Errors-Cell-Underflow) (slices, builders, dictionaries). 
+[primitives (numbers)](../detectors#Arithmetic-Errors) and [complex structures](../detectors#Deserialization-Errors-Cell-Underflow) (slices, builders, dictionaries). 
 The occurrence of such errors makes it impossible to complete transactions, such as transferring funds, buying, or selling tokens, etc. 
 
 The main mode of operation of TSA is to detect and reproduce such errors – if you are interested in this functionality, 

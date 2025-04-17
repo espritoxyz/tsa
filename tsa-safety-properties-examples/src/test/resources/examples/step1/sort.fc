@@ -1,0 +1,11 @@
+(int, int) sort_pair(int x, int y) method_id(10) {
+    if (x < y) {
+         return (x, y);
+    } else {
+         return (x, y);
+    }
+}
+
+() recv_internal() impure {
+    ;; do nothing
+}

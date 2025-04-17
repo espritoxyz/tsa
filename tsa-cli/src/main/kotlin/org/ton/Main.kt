@@ -32,6 +32,7 @@ import org.usvm.machine.FuncAnalyzer
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TactAnalyzer
 import org.usvm.machine.TactSourcesDescription
+import org.usvm.machine.TvmAnalyzer
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
@@ -41,9 +42,16 @@ import org.usvm.machine.toMethodId
 import java.math.BigInteger
 import java.nio.file.Path
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 class ContractProperties : OptionGroup("Contract properties") {
     val contractData by option("-d", "--data").help("The serialized contract persistent data")
+}
+
+class SarifOptions : OptionGroup("SARIF options") {
+    val sarifPath by option("-o", "--output")
+        .path(mustExist = false, canBeFile = true, canBeDir = false)
+        .help("The path to the output SARIF report file")
 }
 
 class FiftOptions : OptionGroup("Fift options") {
@@ -153,7 +161,10 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
     }
 }
 
-class TactAnalysis : CliktCommand(name = "tact", help = "Options for analyzing Tact sources of smart contracts") {
+class TactAnalysis : ErrorsSarifDetector<TactSourcesDescription>(
+    name = "tact",
+    help = "Options for analyzing Tact sources of smart contracts"
+) {
     private val tactConfigPath by option("-c", "--config")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
@@ -167,72 +178,73 @@ class TactAnalysis : CliktCommand(name = "tact", help = "Options for analyzing T
         .required()
         .help("Name of the Tact smart contract to analyze")
 
-    private val contractProperties by ContractProperties()
-
     override fun run() {
         val sources = TactSourcesDescription(tactConfigPath, tactProjectName, tactContractName)
-        TactAnalyzer.analyzeAllMethods(sources, contractProperties.contractData).let {
-            echo(it.toSarifReport(methodsMapping = emptyMap()))
-        }
+
+        generateAndWriteSarifReport(
+            analyzer = TactAnalyzer,
+            sources = sources,
+        )
     }
 }
 
-class FuncAnalysis : CliktCommand(name = "func", help = "Options for analyzing FunC sources of smart contracts") {
+class FuncAnalysis : ErrorsSarifDetector<Path>(name = "func", help = "Options for analyzing FunC sources of smart contracts") {
     private val funcSourcesPath by option("-i", "--input")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
         .help("The path to the FunC source of the smart contract")
 
-    private val contractProperties by ContractProperties()
     private val fiftOptions by FiftOptions()
     private val funcOptions by FuncOptions()
     private val tlbOptions by TlbOptions()
 
     override fun run() {
-        FuncAnalyzer(
+        val analyzer = FuncAnalyzer(
             funcStdlibPath = funcOptions.funcStdlibPath,
             fiftStdlibPath = fiftOptions.fiftStdlibPath
-        ).analyzeAllMethods(
-            funcSourcesPath,
-            contractProperties.contractData,
+        )
+
+        generateAndWriteSarifReport(
+            analyzer = analyzer,
+            sources = funcSourcesPath,
             inputInfo = TlbOptions.extractInputInfo(tlbOptions.tlbJsonPath)
-        ).let {
-            // TODO parse FunC sources in CLI without TON plugin usage
-            echo(it.toSarifReport(methodsMapping = emptyMap()))
-        }
+        )
     }
 }
 
-class FiftAnalysis : CliktCommand(name = "fift", help = "Options for analyzing smart contracts in Fift assembler") {
+class FiftAnalysis : ErrorsSarifDetector<Path>(name = "fift", help = "Options for analyzing smart contracts in Fift assembler") {
     private val fiftSourcesPath by option("-i", "--input")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
         .help("The path to the Fift assembly of the smart contract")
 
-    private val contractProperties by ContractProperties()
     private val fiftOptions by FiftOptions()
 
     override fun run() {
-        FiftAnalyzer(
+        val analyzer = FiftAnalyzer(
             fiftStdlibPath = fiftOptions.fiftStdlibPath
-        ).analyzeAllMethods(fiftSourcesPath, contractProperties.contractData).let {
-            echo(it.toSarifReport(methodsMapping = emptyMap()))
-        }
+        )
+
+        generateAndWriteSarifReport(
+            analyzer = analyzer,
+            sources = fiftSourcesPath,
+        )
     }
 }
 
-class BocAnalysis : CliktCommand(name = "boc", help = "Options for analyzing a smart contract in the BoC format") {
+class BocAnalysis : ErrorsSarifDetector<Path>(name = "boc", help = "Options for analyzing a smart contract in the BoC format") {
     private val bocPath by option("-i", "--input")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
         .help("The path to the smart contract in the BoC format")
 
-    private val contractProperties by ContractProperties()
-
     override fun run() {
-        BocAnalyzer.analyzeAllMethods(bocPath, contractProperties.contractData).let {
-            echo(it.toSarifReport(methodsMapping = emptyMap()))
-        }
+        val analyzer = BocAnalyzer
+
+        generateAndWriteSarifReport(
+            analyzer = analyzer,
+            sources = bocPath,
+        )
     }
 }
 
@@ -452,6 +464,28 @@ private fun ParameterHolder.contractSourcesOption(
     }
 
 class TonAnalysis : NoOpCliktCommand()
+
+sealed class ErrorsSarifDetector<SourcesDescription>(name: String, help: String) : CliktCommand(name = name, help = help) {
+    private val contractProperties by ContractProperties()
+    private val sarifOptions by SarifOptions()
+
+    fun generateAndWriteSarifReport(
+        analyzer: TvmAnalyzer<SourcesDescription>,
+        sources: SourcesDescription,
+        inputInfo: Map<BigInteger, TvmInputInfo> = emptyMap()
+    ) {
+        val analysisResult = analyzer.analyzeAllMethods(
+            sources = sources,
+            contractDataHex = contractProperties.contractData,
+            inputInfo = inputInfo,
+        )
+        val sarifReport = analysisResult.toSarifReport(methodsMapping = emptyMap())
+
+        sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
+            echo(sarifReport)
+        }
+    }
+}
 
 fun main(args: Array<String>) = TonAnalysis()
     .subcommands(

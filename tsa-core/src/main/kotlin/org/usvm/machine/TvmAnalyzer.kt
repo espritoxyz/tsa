@@ -73,7 +73,7 @@ data object TactAnalyzer : TvmAnalyzer<TactSourcesDescription> {
         val project = config.projects.firstOrNull {
             it.name == sources.projectName
         } ?: error("Project with name ${sources.projectName} not found.")
-        val outputDir = File(sources.configPath.parent.toAbsolutePath().toString(), project.output)
+        val outputDir = File(sources.configPath.parent?.toAbsolutePath()?.toString(), project.output)
 
         compileTact(sources.configPath)
 
@@ -98,7 +98,7 @@ data object TactAnalyzer : TvmAnalyzer<TactSourcesDescription> {
         val (exitValue, completedInTime, output, errors) = executeCommandWithTimeout(
             executionCommand,
             COMPILER_TIMEOUT,
-            processWorkingDirectory = configFile.parent.toFile(),
+            processWorkingDirectory = configFile.parent?.toFile(),
         )
 
         check(completedInTime) {

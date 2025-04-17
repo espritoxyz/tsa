@@ -1,0 +1,18 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+() recv_internal() impure {
+    ;; Make two symbolic 257-bits signed integers
+    int x = tsa_mk_int(257, -1);
+    int y = tsa_mk_int(257, -1);
+
+    ;; Save these symbolic values by indices 0 and 1 to retrieve their concrete values in the result
+    tsa_fetch_value(x, 0);
+    tsa_fetch_value(y, 1);
+
+    ;; Call the sort_pair method – the method with id 10 in the contract with its id 1 (id 0 is used for the checker)
+    (int a, int b) = tsa_call_2_2(x, y, 1, 10);
+
+    ;; Throw if the first value is greater than the second one
+    throw_if(256, a > b);
+}

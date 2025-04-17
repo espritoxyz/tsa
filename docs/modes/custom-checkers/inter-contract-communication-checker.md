@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Checking states of multiple contracts after inter-contract communication
-parent: Custom checkers
+parent: Checking mode
 nav_order: 3
 ---
 
@@ -131,16 +131,19 @@ To verify the behavior of the contract, we will use the following checker. Copy 
     int op = body_copy~load_uint(32);
     tsa_assert(op == op::transfer);
 
-    ;; transfer the 100 value
+    ;; ensure the transferred value has reasonable limits
     int value = body_copy~load_uint(32);
+    ;; save this symbolic value by the index -1 to retrieve its concrete value in the result
     tsa_fetch_value(value, -1);
-    tsa_assert(value == 100);
+    ;; do not transfer zero money
+    tsa_assert(value >= 100); 
+    tsa_assert(value <= 1000000000);
 
     ;; ensure that the message body contains a target address
     slice target = body_copy~load_msg_addr();
     tsa_fetch_value(target, 0);
 
-    ;; get the initial balances of the two accounts
+    ;; get the initial balances of the two accounts – call the `load_balance` methods with id -42 for both contracts 1 and 2 (id 0 is used for the checker)
     int first_initial_balance = tsa_call_1_0(1, -42);
     tsa_fetch_value(first_initial_balance, 1);
     int second_initial_balance = tsa_call_1_0(2, -42);
@@ -162,11 +165,11 @@ To verify the behavior of the contract, we will use the following checker. Copy 
     tsa_fetch_value(second_new_balance, 22);
 
     tsa_allow_failures();
-    ;; check that the balance of the first account has decreased by 100
-    throw_if(-10, first_initial_balance - value != first_new_balance);
+    ;; check that the balance of the first account has decreased by value
+    throw_if(256, first_initial_balance - value != first_new_balance);
 
-    ;; check that the balance of the second account has increased by 100
-    throw_if(-20, second_initial_balance + value != second_new_balance);
+    ;; check that the balance of the second account has increased by value
+    throw_if(257, second_initial_balance + value != second_new_balance);
 }
 ```
 
@@ -174,7 +177,7 @@ This checker contains the following steps:
 1. Disable error detection using `tsa_forbid_failures` to make some assumptions about input.
 2. Ensure the initial message is not bounced.
 3. Ensure that the operation is `transfer` by loading the op-code and making an assumption with `tsa_assert`.
-4. Load the value of the transfer and make an assumption that it is equal to 100.
+4. Load the value of the transfer and make an assumption that it has reasonable limits.
 5. Ensure we have a target address in the message body.
 6. Get the initial balances of the two accounts using `tsa_call_1_0` and fetch them.
 7. Ensure we have correct balances and cannot get overflows.
@@ -190,7 +193,8 @@ This checker contains the following steps:
 
 As we have two contracts that interact with each other, we need to provide an inter-contract communication scheme.
 This scheme is a JSON file that describes what contract may send a message to what contract by what operation code.
-Here we have only 2 operations – `transfer` and `receive`, so the scheme is very simple (sources are available [wallet-intercontract-scheme.json](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json)):
+Here we have only 2 operations – `transfer` and `receive` – with opcodes `0x10000000` and `0x20000000`, respectively, 
+so the scheme is very simple (sources are available [wallet-intercontract-scheme.json](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json)):
 
 ```json
 [
@@ -253,7 +257,7 @@ The result of the checker execution is a SARIF report that contains the followin
                 {
                     "level": "error",
                     "message": {
-                        "text": "TvmFailure(exit=TVM user defined error with exit code -20, type=UnknownError, phase=COMPUTE_PHASE)"
+                        "text": "TvmFailure(exit=TVM user defined error with exit code 257, type=UnknownError, phase=COMPUTE_PHASE)"
                     },
                     "properties": {
                         "gasUsage": 7520,
@@ -336,20 +340,20 @@ The result of the checker execution is a SARIF report that contains the followin
 }
 ```
 
-We are interested in the following lines:
-- `TvmFailure(exit=TVM user defined error with exit code -20, type=UnknownError, phase=COMPUTE_PHASE)`.
-- `srcAddress` – the address of the sender with a value `100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
-- `fetchedValues` with index `0` that corresponds to the concrete value of the `target`.
+We are interested in lines with the following indices:
+- `10` – `TvmFailure(exit=TVM user defined error with exit code 257, type=UnknownError, phase=COMPUTE_PHASE)`.
+- `16` – `srcAddress` – the address of the sender with a value `100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
+- `63` – `fetchedValues` with index `0` that corresponds to the concrete value of the `target`.
 
-The found error means that the balance of the second account has not increased by 100 after the transfer operation.
+The found error means that the balance of the second account has not increased by the value after the transfer operation.
 It happens when an address of the sender equals to the address of the receiver – it can be checked that `srcAddress` and `target` are the same.
 
 After analyzing the source code of out contract, we could discover a logical error in the wallet code:
-```c
+{% highlight c %}
 if (equal_slice_bits(sender, my_address())) {
     ;; ignore receiving money from self
     return ();
 }
-```
+{% endhighlight %}
 
 This block of code leads to decreasing the balance of the sender but does not increase the balance of the receiver.

@@ -11,22 +11,20 @@ import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.TvmIntegerOverflowError
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
-import java.math.BigInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
-class AbsTest {
-    private val absContractResourcePath = "/examples/step1/abs.fc"
-    private val checkerResourcePath = "/examples/step1/abs_checker.fc"
-
-    private val tvmIntMinValue = BigInteger.TWO.pow(256).negate()
+class SortTest {
+    private val sortContractResourcePath = "/examples/step1/sort.fc"
+    private val checkerResourcePath = "/examples/step1/sort_checker.fc"
 
     @Test
-    fun testAbsChecker() {
-        val absContractPath = getResourcePath<AbsTest>(absContractResourcePath)
-        val absContractCode = getFuncContract(absContractPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE)
+    fun testSortChecker() {
+        val sortContractPath = getResourcePath<SortTest>(sortContractResourcePath)
+        val sortContractCode = getFuncContract(sortContractPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE)
 
-        val checkerPath = getResourcePath<AbsTest>(checkerResourcePath)
+        val checkerPath = getResourcePath<SortTest>(checkerResourcePath)
         val checkerCode = getFuncContract(checkerPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
 
         val options = TvmOptions(
@@ -34,7 +32,7 @@ class AbsTest {
             turnOnTLBParsingChecks = false,
         )
 
-        val contracts = listOf(checkerCode, absContractCode)
+        val contracts = listOf(checkerCode, sortContractCode)
         val result = analyzeInterContract(
             contracts,
             startContractId = 0, // Checker contract is the first to analyze
@@ -42,11 +40,15 @@ class AbsTest {
             options = options,
         )
 
-        val integerOverflowFailure = result.tests.single {
-            (it.result as? TvmMethodFailure)?.failure?.exit == TvmIntegerOverflowError
+        val failure = result.tests.single {
+            (it.result as? TvmMethodFailure)?.failure?.exit?.exitCode == 256
         }
-        val valueForAbs = integerOverflowFailure.fetchedValues[0]!!
+        val firstValue = failure.fetchedValues[0] as TvmTestIntegerValue
+        val secondValue = failure.fetchedValues[1] as TvmTestIntegerValue
 
-        assertEquals(tvmIntMinValue, (valueForAbs as TvmTestIntegerValue).value)
+        assertTrue(
+            firstValue.value > secondValue.value,
+            "First value ${firstValue.value} is expected to be greater than second value ${secondValue.value}"
+        )
     }
 }

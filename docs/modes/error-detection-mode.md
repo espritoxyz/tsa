@@ -9,9 +9,97 @@ nav_order: 1
 
 As a static analyzer, `TSA` can operate in two modes: 
 - **Runtime error detection** for local smart contracts with report generation in [SARIF format](https://sarifweb.azurewebsites.net/);
-- **Test generation** for [Blueprint](https://github.com/ton-org/blueprint) projects.
+- [**Test generation**](test-gen-mode) for [Blueprint](https://github.com/ton-org/blueprint) projects.
 
-In runtime error detection mode, `TSA` accepts as input a contract file in one of the following formats: Tact or FunC source code, or Fift assembler code, or BoC (compiled code). Optionally, it also accepts a [TL-B scheme](https://docs.ton.org/v3/documentation/data-formats/tlb/tl-b-language) for the `recv_internal` method. For detailed input format information, use the `--help` argument.
+In runtime error detection mode, `TSA` accepts as input a contract file in one of the following formats:
+
+<details>
+    <summary><b>Tact source code</b></summary>
+
+{% highlight bash %}
+$ java -jar tsa-cli.jar tact --help
+
+Usage: ton-analysis tact [<options>]
+
+Options for analyzing Tact sources of smart contracts
+
+Contract properties:
+  -d, --data=<text>  The serialized contract persistent data
+Options:
+  -c, --config=<path>   The path to the Tact config (tact.config.json)
+  -p, --project=<text>  Name of the Tact project to analyze
+  -i, --input=<text>    Name of the Tact smart contract to analyze
+  -h, --help            Show this message and exit
+{% endhighlight %}
+</details>
+
+<details>
+    <summary><b>FunC source code</b></summary>
+
+{% highlight bash %}
+$ java -jar tsa-cli.jar func --help
+Usage: ton-analysis func [<options>]
+
+Options for analyzing FunC sources of smart contracts
+
+Contract properties:
+-d, --data=<text>  The serialized contract persistent data
+
+Fift options:
+--fift-std=<path>  The path to the Fift standard library (dir containing Asm.fif, Fift.fif)
+
+FunC options:
+--func-std=<path>  The path to the FunC standard library file (stdlib.fc)
+
+TlB scheme options:
+-t, --tlb=<path>  The path to the parsed TL-B scheme.
+
+Options:
+-i, --input=<path>  The path to the FunC source of the smart contract
+-h, --help          Show this message and exit
+{% endhighlight %}
+</details>
+
+  <details>
+    <summary><b>Fift assembler code</b></summary>
+
+{% highlight bash %}
+$ java -jar tsa-cli.jar fift --help
+Usage: ton-analysis fift [<options>]
+
+Options for analyzing smart contracts in Fift assembler
+
+Contract properties:
+-d, --data=<text>  The serialized contract persistent data
+
+Fift options:
+--fift-std=<path>  The path to the Fift standard library (dir containing Asm.fif, Fift.fif)
+
+Options:
+-i, --input=<path>  The path to the Fift assembly of the smart contract
+-h, --help          Show this message and exit
+{% endhighlight %}
+</details>
+
+  <details>
+    <summary><b>BoC (compiled code)</b></summary>
+    
+{% highlight bash %}
+$ java -jar tsa-cli.jar boc --help 
+Usage: ton-analysis boc [<options>]
+
+Options for analyzing a smart contract in the BoC format
+
+Contract properties:
+-d, --data=<text>  The serialized contract persistent data
+
+Options:
+-i, --input=<path>  The path to the smart contract in the BoC format
+-h, --help          Show this message and exit
+{% endhighlight %}
+</details>
+
+Optionally, it also accepts a [TL-B scheme](https://docs.ton.org/v3/documentation/data-formats/tlb/tl-b-language) for the `recv_internal` method. For detailed input format information, use the `--help` argument.
 The output in this mode is a SARIF report containing the following information about methods that may encounter a [TVM error](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes) during execution:
 
 - `coverage` field in the report - instruction coverage percentage by the analyzer for the method
@@ -21,7 +109,7 @@ The output in this mode is a SARIF report containing the following information a
 - `usedParameters` - possible (but not necessarily unique) parameters set causing the error
 - `gasUsage` - approximate gas usage of the execution when the error occurred
 
-For more information about error types, see the [Detectors page](../error-types).
+For more information about error types, see the [Detectors page](../detectors).
 
 ---
 
@@ -38,10 +126,10 @@ The following examples will cover both cases: with source maps and with raw SARI
   <summary><b>Source-maps disclaimer</b></summary>
 
 <br>
-We use patched versions of the <a href="https://github.com/jefremof/tact/tree/tact-debug-info-bundled">Tact compiler</a>,  
-<a href="https://github.com/jefremof/ton/tree/func-0.4.6-debug-info">FunC compiler</a>,  
+We use patched versions of the <a href="https://github.com/espritoxyz/tact/tree/tact-debug-info-bundled">Tact compiler</a>,  
+<a href="https://github.com/espritoxyz/ton/tree/func-0.4.6-debug-info">FunC compiler</a>,  
 and the <a href="https://github.com/jefremof/tsa/tree/pysical-locations">TSA analyzer</a>,<br>
-to achieve full error mapping in the source code, as demonstrated in this pull request via <a href="https://github.com/jefremof/tsa-actions/pull/3">GitHub Actions</a>
+to achieve full error mapping in the source code, as demonstrated in this pull request via <a href="https://github.com/espritoxyz/tsa-actions/pull/2/files">GitHub Actions</a>
 </details>
 
 Consider a simple smart contract written in Tact that may encounter an arithmetic overflow error when the `divide` method receives a value of `subtrahend` close to the minimal integer value:
@@ -51,8 +139,9 @@ contract Divider {
   init() {}
   receive() {}
 
-  get fun divide(subtrahend: Int, dividend: Int, flag: Bool): Int {
+  get fun subtractAndDivide(subtrahend: Int, dividend: Int, flag: Bool): Int {
     let divider: Int = 42;
+
     if (flag) {
       divider -= subtrahend;
     } else {
@@ -68,7 +157,7 @@ contract Divider {
 }
 ```
 
-Running the patched analyzer for this contract with patched Tact compiler with the following command (according to the [PR](https://github.com/jefremof/tsa-actions/pull/3)):
+Running the patched analyzer for this contract with patched Tact compiler with the following command (according to the [PR](https://github.com/espritoxyz/tsa-actions/pull/2)):
 
 {% highlight bash %}
 java -jar tsa-cli.jar \
@@ -126,7 +215,8 @@ docker run --platform linux/amd64 -it --rm -v $PWD:/project ghcr.io/espritoxyz/t
 
 <details>
   <summary><b>Raw SARIF report</b></summary>
-  <pre><code class="language-json">
+
+{% highlight json %}
 {
     "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
     "version": "2.1.0",
@@ -356,7 +446,7 @@ docker run --platform linux/amd64 -it --rm -v $PWD:/project ghcr.io/espritoxyz/t
         }
     ]
 }
-  </code></pre>
+{% endhighlight %}
 </details>
 
 Here the analyzed method has the id `75819`, 

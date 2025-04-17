@@ -11,7 +11,7 @@ object Versions {
     const val junitParams = "5.9.3"
     const val logback = "1.4.8"
     const val usvm = "aee926e88f31af801192239d8997d213f9145424"
-    const val tvmDisasm = "b97117fd21c423179162bc9224e447ed50a66f62"
+    const val tvmDisasm = "64366dba2b9ea0a8994248ca6249545d075552e7"
     const val tonKotlin = "0.3.1"
 }
 

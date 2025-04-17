@@ -7,47 +7,52 @@ nav_order: 3
 
 # Checking mode
 
-A more advanced mode of `TSA` operation is the **checking mode**. `TSA` provides a [set of special functions in FunC](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/imports/tsa_functions.fc) with specific meanings for the analyzer. 
-These include contract method invocation functions `tsa_call_*_*`, functions to enable/disable error detection (`tsa_forbid_failures`/`tsa_allow_failures`), and symbolic condition assertion functions (`tsa_assert`/`tsa_assert_not`).
-These functions allow the configuration of the analyzer to validate specific contract specifications.
+A more advanced mode of `TSA` operation is the **checking mode** that allows users implementing their own checkers 
+to validate specific contract specifications.
+This mode has its own specific format of the input files and a set of functions that are used to implement the checkers.
 
-## [**Custom Checkers**](custom-checkers/custom-checkers)
+## Checker structure
 
-About implementing your own checkers for the checking mode (with some examples provided),
-see the [**Step-by-step guide**](custom-checkers/custom-checkers).
+Any custom checker consists of a checker file, list of analyzed smart contracts and some options.
+It could be then run with a Docker or JAR with `custom-checker` argument provided. 
 
-## Example - checking jetton wallets
- 
-Currently, a built-in checker is used to implement a [validation](https://github.com/espritoxyz/tsa/blob/master/tsa-safety-properties/src/main/resources/checkers/symbolic_transfer.fc) of the [jetton-master](https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard#jetton-master-contract) contract to ensure compliance with a [specification](https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard) of the corresponding `jetton-wallet`. 
-Violations of this specification can lead to either incorrect smart contract behavior or even intentional vulnerabilities designed to scam users. 
-This checker is represented as a [separate module](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-jettons) with its own CLI tha accepts the address of a `jetton-master` contract as input and outputs a list of addresses to which token transfers are impossible.
+### Checker file
 
-Let’s consider using this checker with an example – the token [EQAyQ-wYe8U5hhWFtjEWsgyTFQYv1NYQiuoNz6H3L8tcPG3g](https://tonviewer.com/EQAyQ-wYe8U5hhWFtjEWsgyTFQYv1NYQiuoNz6H3L8tcPG3g), a scam token that cannot be resold after purchase. 
+The checker itself is a FunC file with implemented `recv_internal` method as an entrypoint for the analysis.
+For verifying safety properties of analyzed contracts, 
+some specific functions are provided in the [tsa_functions.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/imports/tsa_functions.fc) file:
 
-Firstly, build the JAR-based CLI for the checker using the following command from the root of the repository:
+- `tsa_call_[x]_[y](args..., contract, method)` - an instruction for the symbolic interpreter to call the `method` of the specific `contract` 
+    that returns `x` values with `y` number of the provided arguments.
+- `tsa_forbid_failures` - an instruction for the symbolic interpreter to disable error detection – 
+    mostly used to make initial assumptions for input/persistent data.
+- `tsa_allow_failures` - an instruction for the symbolic interpreter to enable error detection -
+    mostly used to check absence of the errors in the called contract or to find violation of safety properties.
+- `tsa_assert(int condition)` - an instruction for the symbolic interpreter to assume the condition (making a path constraint of this condition) 
+- `tsa_assert_not(int condition)` - the similar to `tsa_assert`, but negates the provided condition.
+- `tsa_fetch(A value, int value_id)` - an instruction for the symbolic interpreter to fetch the specific variable by a provided index 
+    to be able to retrieve its concrete value in resolved executions (rendered in the `fetched_values` part of the SARIF report).
+- `tsa_mk_int(int bits, int signed)` - an instruction for the symbolic interpreter to create a new symbolic integer value 
+    (accepting bits and a flag indicating is it signed) with no specific bounds.
 
-{% highlight bash %}
-./gradlew :tsa-jettons:shadowJar
-{% endhighlight %}
+Usually, the checker file contains a set of assumptions for the input values that would be passed
+to a method of the first analyzed contract, call invocation of this method and then a set of assertions
+for the return values and/or the state of the contract after the method execution.
 
-Then this JAR is available in the `tsa-jettons/build/libs` directory.
-Run it on this contract with the following command (ensure you are in the correct directory):
+### List of analyzed smart contracts
 
-{% highlight bash %}
-java -jar tsa-jettons.jar -a EQAyQ-wYe8U5hhWFtjEWsgyTFQYv1NYQiuoNz6H3L8tcPG3g
-{% endhighlight %}
+Analyzed smart contracts could be passed in different supported formats (Tact, FunC, Fift, BoC) and their order is important –
+the first contract in the list receives the `contract_id` equals to `1`, the next – `2`, and so on.
+These ids are then used in the `tsa_call` functions to specify the contract to call the method of, and in a
+inter-contract communication scheme provided.
 
-returns the following output:
+### Options
 
-```json
-{
-    "analyzedAddress": "EQAyQ-wYe8U5hhWFtjEWsgyTFQYv1NYQiuoNz6H3L8tcPG3g",
-    "jettonWalletCodeHashBase64": "peaXBR8Ky/bgTbDDlWZHq9VS7ssYwHMFYXIRusEhmcc=",
-    "blacklistedAddresses": [
-        "0111011110011101110011001000000101010001001110001101100101010000000011100100010010011100010100101001000111100111111100010010011100111000110000100011110101010111010110110101001100010000000000000000111101101010001001010011101111010110000001110011100001001110",
-        "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    ]
-}
-```
+#### Inter-contract communication scheme
+Inter-contract communication scheme – is required when multiple contracts are provided for the analysis.
+It is a JSON file that describes what contract may send a message to what contract by what operation code.
+An example of the scheme could be found in the [test module](https://github.com/espritoxyz/tsa/blob/b76343a20ce5c81e78d3e65873936ee26c148771/tsa-test/src/test/resources/intercontract/sample-intercontract-scheme.json).
 
-The first address in this list corresponds to the [STON.fi exchange router](https://ston.fi/), where the token is hosted. This indicates that the token cannot be sold after purchase, confirming it as a scam token.
+#### TL-B scheme
+A file with a TL-B scheme for the `recv_internal` method of the first analyzed contract could be optionally provided.
+**NOTE**: TL-B scheme is supported only when using Docker, not JAR.

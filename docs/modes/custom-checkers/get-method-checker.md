@@ -1,62 +1,64 @@
 ---
 layout: default
 title: Checking the get method
-parent: Custom checkers
+parent: Checking mode
 nav_order: 1
 ---
 
 # Checking the get method
 
-This guide will walk you through implementing and running a custom checker to verify that a `naive_abs` method always returns a positive value.
+This guide will walk you through implementing and running a custom checker to verify that a `sort_pair` method correctly orders a pair of integers.
 
 ---
 
 ## Step 1: Write the Contract
 
-The `naive_abs` method is a simple implementation of an absolute value function. Copy the following code into your editor and save it as `abs.fc`:
+The `sort_pair` method is a simple implementation that sorts two integers. Copy the following code into your editor and save it as `sort.fc`:
 
 ```c
-int naive_abs(int x) method_id(10) {
-    if (x < 0) {
-        return - x;
+(int, int) sort_pair(int x, int y) method_id(10) {
+    if (x < y) {
+         return (x, y);
     } else {
-        return x;
+         return (x, y);
     }
 }
 ```
 
-This method is supposed to return the absolute value of the provided integer `x`.
+This method is supposed to return the two integers in ascending order.
 
 ---
 
 ## Step 2: Write the Checker
 
-To verify the behavior of the `naive_abs` method, we will use the following checker. Copy this code into your editor and save it as `abs_checker.fc`:
+To verify the behavior of the `sort_pair` method, we will use the following checker. Copy this code into your editor and save it as `sort_checker.fc`:
 
 ```c
 #include "../../imports/stdlib.fc";
 #include "../../imports/tsa_functions.fc";
 
 () recv_internal() impure {
-    ;; Make a symbolic 257-bits signed integer
+    ;; Make two symbolic 257-bits signed integers
     int x = tsa_mk_int(257, -1);
+    int y = tsa_mk_int(257, -1);
 
-    ;; Save this symbolic value to retrieve its concrete value in the result
+    ;; Save these symbolic values by indices 0 and 1 to retrieve their concrete values in the result
     tsa_fetch_value(x, 0);
+    tsa_fetch_value(y, 1);
 
-    ;; Call the naive_abs method
-    int abs_value = tsa_call_1_1(x, 1, 10);
+    ;; Call the sort_pair method – the method with id 10 in the contract with its id 1 (id 0 is used for the checker)
+    (int a, int b) = tsa_call_2_2(x, y, 1, 10);
 
-    ;; Actually, this exception is impossible to trigger as a negation triggers an integer overflow if x is INT_MIN
-    throw_if(10, abs_value < 0);
+    ;; Throw if the first value is greater than the second one
+    throw_if(256, a > b);
 }
 ```
 
 This checker performs the following steps:
-1. Creates a symbolic signed 257-bit integer value `x` using `tsa_mk_int`.
-2. Saves this value to retrieve its concrete value in the result using `tsa_fetch_value`.
-3. Calls the `naive_abs` method with the `x` value using `tsa_call_1_1`.
-4. Throws an exception if the result of the `naive_abs` method is negative.
+1. Creates two symbolic signed 257-bit integer values `x` and `y` using `tsa_mk_int`.
+2. Saves these values to retrieve their concrete values in the result using `tsa_fetch_value`.
+3. Calls the `sort_pair` method with the `x` and `y` values using `tsa_call_2_2`.
+4. Throws an exception if the first returned value is greater than the second one, which would indicate that the pair is not correctly sorted.
 
 ---
 
@@ -66,14 +68,14 @@ To execute the checker, open your terminal and run the following command:
 
 {% highlight bash %}
 java -jar tsa-cli.jar custom-checker \
---checker tsa-safety-properties-examples/src/test/resources/examples/step1/abs_checker.fc \
---contract func tsa-safety-properties-examples/src/test/resources/examples/step1/abs.fc \
+--checker tsa-safety-properties-examples/src/test/resources/examples/step1/sort_checker.fc \
+--contract func tsa-safety-properties-examples/src/test/resources/examples/step1/sort.fc \
 --func-std tsa-safety-properties-examples/src/test/resources/imports/stdlib.fc \
 --fift-std tsa-safety-properties-examples/src/test/resources/fiftstdlib
 {% endhighlight %}
 
 This command will:
-- Run the checker on the `abs.fc` contract.
+- Run the checker on the `sort.fc` contract.
 - Output the result in the SARIF format.
 
 ---
@@ -92,10 +94,10 @@ The result of the checker execution is a SARIF report. Here is an example of the
                 {
                     "level": "error",
                     "message": {
-                        "text": "TvmFailure(exit=TVM integer overflow, exit code: 4, type=UnknownError, phase=COMPUTE_PHASE)"
+                        "text": "TvmFailure(exit=TVM user defined error with exit code 256, type=UnknownError, phase=COMPUTE_PHASE)"
                     },
                     "properties": {
-                        "gasUsage": 522,
+                        "gasUsage": 675,
                         "usedParameters": {
                             "type": "recvInternalInput",
                             "srcAddress": {
@@ -113,23 +115,14 @@ The result of the checker execution is a SARIF report. Here is an example of the
                             "createdAt": "0"
                         },
                         "fetchedValues": {
-                            "0": "-115792089237316195423570985008687907853269984665640564039457584007913129639936"
+                            "0": "42",
+                            "1": "13"
                         },
                         "resultStack": [
-                            "92233720368547758080",
-                            "73786976294838206464",
-                            {
-                                "type": "org.usvm.test.resolver.TvmTestDataCellValue",
-                                "data": "0000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100100000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
-                                "refs": [
-                                    {
-                                        "type": "org.usvm.test.resolver.TvmTestDataCellValue"
-                                    }
-                                ]
-                            }
+                            "0"
                         ]
                     },
-                    "ruleId": "integer-overflow"
+                    "ruleId": "user-defined-error"
                 }
             ],
             "tool": {
@@ -143,10 +136,10 @@ The result of the checker execution is a SARIF report. Here is an example of the
 }
 ```
 
-Key points to note:
-1. The error message: `TvmFailure(exit=TVM integer overflow, exit code: 4, type=UnknownError, phase=COMPUTE_PHASE)` indicates an integer overflow.
-2. The `fetchedValues` section shows the concrete value of `x` that caused the overflow: `-115792089237316195423570985008687907853269984665640564039457584007913129639936`.
+We are interested in lines with the following indices:
+- `10` - the error message: `TvmFailure(exit=TVM user defined error with exit code 256, type=UnknownError, phase=COMPUTE_PHASE)` indicates that our checker's condition failed.
+- `31` - the `fetchedValues` section shows the concrete values of `x=42` and `y=13` that caused the failure.
 
-This matches the behavior described in the `NEGATE` TVM instruction, which triggers an integer overflow when `x = -2^256`.
+This result indicates that when `x=42` and `y=13`, the `sort_pair` method returned the values in the wrong order, with the larger value first, which triggered our checker's exception.
 
 ---
