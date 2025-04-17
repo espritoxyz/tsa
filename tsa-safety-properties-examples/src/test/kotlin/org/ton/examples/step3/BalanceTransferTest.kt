@@ -45,7 +45,7 @@ class BalanceTransferTest {
             options = options,
         )
         val failures = result.tests.filter { it.result is TvmMethodFailure }
-        val nonTransferredBalanceExecution = failures.single { (it.result as TvmMethodFailure).exitCode == -20 }
+        val nonTransferredBalanceExecution = failures.single { (it.result as TvmMethodFailure).exitCode == 257 }
 
         val transferredValue = nonTransferredBalanceExecution.fetchedValues[-1] as TvmTestIntegerValue
 

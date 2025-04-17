@@ -38,7 +38,7 @@ class BalanceReductionTest {
         )
         val failures = result.tests.filter { it.result is TvmMethodFailure }
 
-        val balanceReductionExecutions = failures.filter { (it.result as TvmMethodFailure).exitCode == -42 }
+        val balanceReductionExecutions = failures.filter { (it.result as TvmMethodFailure).exitCode == 256 }
 
         assertTrue(balanceReductionExecutions.isNotEmpty())
     }
