@@ -1,22 +1,23 @@
 ---
 layout: default
 title: Checking states of multiple contracts after inter-contract communication
-parent: Custom checkers
+parent: Checking mode
 nav_order: 3
 ---
 
 # Checking states of multiple contracts after inter-contract communication
 
-Many smart-contracts interact with each other and after processing these messages changing their states.
-So, it is important to verify that states are changed as expected after executing transactions.
+This guide will walk you through implementing and running a custom checker to verify that a `transfer` operation decreases the sender's balance and increases the receiver's balance by the same value.
 
-## Contracts
+---
 
-Let's consider a smart-contract that emulates a very simple wallet with two operations:
-- `transfer` – transfer money from one wallet to another, decreases the wallet's balance.
-- `receive` – receive money from another wallet, increases the target's balance.
+## Step 1: Write the Contract
 
-One could implement such a contract in the following way (sources are available [wallet.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet.fc)):
+The contract emulates a simple wallet with two operations:
+- `transfer` – decreases the sender's balance and sends a message to the receiver.
+- `receive` – increases the receiver's balance upon receiving a message.
+
+Copy the following code into your editor and save it as `wallet.fc`:
 
 ```c
 int load_balance() inline method_id(-42) {
@@ -108,14 +109,13 @@ builder store_msgbody_prefix_ref(builder b, cell ref) inline {
 }
 ```
 
-## Checker
+This contract ensures that the `transfer` operation decreases the sender's balance and the `receive` operation increases the receiver's balance.
 
-Now we want to ensure that triggering a `transfer` operation from one wallet to another wallet 
-will decrease the sender's balance and increase the receiver's balance with the same value.
-So, here we have two instances of the same wallet (emulating different accounts), 
-with `contract_id`s `1` and `2`, for `sender` and `target`, correspondingly.
+---
 
-One could implement such a contract in the following way (sources are available [balance_transfer_checker.fc](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/balance_transfer_checker.fc)):
+## Step 2: Write the Checker
+
+To verify the behavior of the contract, we will use the following checker. Copy this code into your editor and save it as `balance_transfer_checker.fc`:
 
 ```c
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
@@ -131,16 +131,19 @@ One could implement such a contract in the following way (sources are available 
     int op = body_copy~load_uint(32);
     tsa_assert(op == op::transfer);
 
-    ;; transfer the 100 value
+    ;; ensure the transferred value has reasonable limits
     int value = body_copy~load_uint(32);
+    ;; save this symbolic value by the index -1 to retrieve its concrete value in the result
     tsa_fetch_value(value, -1);
-    tsa_assert(value == 100);
+    ;; do not transfer zero money
+    tsa_assert(value >= 100); 
+    tsa_assert(value <= 1000000000);
 
     ;; ensure that the message body contains a target address
     slice target = body_copy~load_msg_addr();
     tsa_fetch_value(target, 0);
 
-    ;; get the initial balances of the two accounts
+    ;; get the initial balances of the two accounts – call the `load_balance` methods with id -42 for both contracts 1 and 2 (id 0 is used for the checker)
     int first_initial_balance = tsa_call_1_0(1, -42);
     tsa_fetch_value(first_initial_balance, 1);
     int second_initial_balance = tsa_call_1_0(2, -42);
@@ -162,11 +165,11 @@ One could implement such a contract in the following way (sources are available 
     tsa_fetch_value(second_new_balance, 22);
 
     tsa_allow_failures();
-    ;; check that the balance of the first account has decreased by 100
-    throw_if(-10, first_initial_balance - value != first_new_balance);
+    ;; check that the balance of the first account has decreased by value
+    throw_if(256, first_initial_balance - value != first_new_balance);
 
-    ;; check that the balance of the second account has increased by 100
-    throw_if(-20, second_initial_balance + value != second_new_balance);
+    ;; check that the balance of the second account has increased by value
+    throw_if(257, second_initial_balance + value != second_new_balance);
 }
 ```
 
@@ -174,7 +177,7 @@ This checker contains the following steps:
 1. Disable error detection using `tsa_forbid_failures` to make some assumptions about input.
 2. Ensure the initial message is not bounced.
 3. Ensure that the operation is `transfer` by loading the op-code and making an assumption with `tsa_assert`.
-4. Load the value of the transfer and make an assumption that it is equal to 100.
+4. Load the value of the transfer and make an assumption that it has reasonable limits.
 5. Ensure we have a target address in the message body.
 6. Get the initial balances of the two accounts using `tsa_call_1_0` and fetch them.
 7. Ensure we have correct balances and cannot get overflows.
@@ -184,11 +187,14 @@ This checker contains the following steps:
 11. Check that the balance of the first account has decreased by 100.
 12. Check that the balance of the second account has increased by 100.
 
-## Inter-contract communication scheme
+---
+
+## Step 3: Define the Inter-Contract Communication Scheme
 
 As we have two contracts that interact with each other, we need to provide an inter-contract communication scheme.
 This scheme is a JSON file that describes what contract may send a message to what contract by what operation code.
-Here we have only 2 operations – `transfer` and `receive`, so the scheme is very simple (sources are available [wallet-intercontract-scheme.json](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json)):
+Here we have only 2 operations – `transfer` and `receive` – with opcodes `0x10000000` and `0x20000000`, respectively, 
+so the scheme is very simple (sources are available [wallet-intercontract-scheme.json](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json)):
 
 ```json
 [
@@ -210,12 +216,13 @@ Here we have only 2 operations – `transfer` and `receive`, so the scheme is ve
 
 Here we describe only the first wallet as we do not expect that the second wallet will send any messages.
 
-## Running the checker
+---
 
-To run this checker, you need to have either the `tsa-cli.jar` JAR file downloaded/built or the Docker container pulled.
-To make it more clear, let's use the JAR here – run this command from the root of the repository:
+## Step 4: Run the Checker
 
-```bash
+To execute the checker, open your terminal and run the following command:
+
+{% highlight bash %}
 java -jar tsa-cli.jar custom-checker \
 --checker tsa-safety-properties-examples/src/test/resources/examples/step3/balance_transfer_checker.fc \
 --contract func tsa-safety-properties-examples/src/test/resources/examples/step3/wallet.fc \
@@ -223,12 +230,20 @@ java -jar tsa-cli.jar custom-checker \
 --scheme tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json \
 --func-std tsa-safety-properties-examples/src/test/resources/imports/stdlib.fc \
 --fift-std tsa-safety-properties-examples/src/test/resources/fiftstdlib
-```
+{% endhighlight %}
 
-Here we pass the inter-contract communication scheme of the two wallets and 
+
+This command will:
+- Run the checker on two instances of the `wallet.fc` contract.
+- Use the inter-contract communication scheme to simulate interactions.
+- Output the result in the SARIF format.
+
+Note that we pass the inter-contract communication scheme of the two wallets and
 provide the same contract twice to analyze the interaction between different accounts.
 
-## Result
+---
+
+## Step 5: Analyze the Result
 
 The result of the checker execution is a SARIF report that contains the following information:
 
@@ -242,7 +257,7 @@ The result of the checker execution is a SARIF report that contains the followin
                 {
                     "level": "error",
                     "message": {
-                        "text": "TvmFailure(exit=TVM user defined error with exit code -20, type=UnknownError, phase=COMPUTE_PHASE)"
+                        "text": "TvmFailure(exit=TVM user defined error with exit code 257, type=UnknownError, phase=COMPUTE_PHASE)"
                     },
                     "properties": {
                         "gasUsage": 7520,
@@ -325,20 +340,20 @@ The result of the checker execution is a SARIF report that contains the followin
 }
 ```
 
-We are interested in the following lines:
-- `TvmFailure(exit=TVM user defined error with exit code -20, type=UnknownError, phase=COMPUTE_PHASE)`.
-- `srcAddress` – the address of the sender with a value `100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
-- `fetchedValues` with index `0` that corresponds to the concrete value of the `target`.
+We are interested in lines with the following indices:
+- `10` – `TvmFailure(exit=TVM user defined error with exit code 257, type=UnknownError, phase=COMPUTE_PHASE)`.
+- `16` – `srcAddress` – the address of the sender with a value `100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
+- `63` – `fetchedValues` with index `0` that corresponds to the concrete value of the `target`.
 
-The found error means that the balance of the second account has not increased by 100 after the transfer operation.
+The found error means that the balance of the second account has not increased by the value after the transfer operation.
 It happens when an address of the sender equals to the address of the receiver – it can be checked that `srcAddress` and `target` are the same.
 
 After analyzing the source code of out contract, we could discover a logical error in the wallet code:
-```c
+{% highlight c %}
 if (equal_slice_bits(sender, my_address())) {
     ;; ignore receiving money from self
     return ();
 }
-```
+{% endhighlight %}
 
 This block of code leads to decreasing the balance of the sender but does not increase the balance of the receiver.

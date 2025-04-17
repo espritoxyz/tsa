@@ -1,73 +1,150 @@
 ---
 layout: default
 title: Errors detection mode
-parent: Getting started
+parent: Use cases
 nav_order: 1
 ---
 
-# Errors detection mode
+# Runtime errors detection mode
 
-As a static analyzer, `TSA` can operate in two modes: **runtime error detection** for local smart contracts with report generation in [SARIF format](https://sarifweb.azurewebsites.net/) or **test generation** for [Blueprint](https://github.com/ton-org/blueprint) projects.
-For operating in this mode, use `tsa-cli.jar` or corresponding options in the Docker Container.
+As a static analyzer, `TSA` can operate in two modes: 
+- **Runtime error detection** for local smart contracts with report generation in [SARIF format](https://sarifweb.azurewebsites.net/);
+- [**Test generation**](test-gen-mode) for [Blueprint](https://github.com/ton-org/blueprint) projects.
 
-## Runtime Error Detection
+In runtime error detection mode, `TSA` accepts as input a contract file in one of the following formats:
 
-In runtime error detection mode, `TSA` accepts as input a contract file in one of the following formats: Tact or FunC source code, or Fift assembler code, or BoC (compiled code). Optionally, it also accepts a [TL-B scheme](https://docs.ton.org/v3/documentation/data-formats/tlb/tl-b-language) for the `recv_internal` method (about TL-B schemes importance check [the internal design-document](../design/tlb)). For detailed input format information, use the `--help` argument. 
+<details>
+    <summary><b>Tact source code</b></summary>
 
+{% highlight bash %}
+$ java -jar tsa-cli.jar tact --help
+
+Usage: ton-analysis tact [<options>]
+
+Options for analyzing Tact sources of smart contracts
+
+Contract properties:
+  -d, --data=<text>  The serialized contract persistent data
+Options:
+  -c, --config=<path>   The path to the Tact config (tact.config.json)
+  -p, --project=<text>  Name of the Tact project to analyze
+  -i, --input=<text>    Name of the Tact smart contract to analyze
+  -h, --help            Show this message and exit
+{% endhighlight %}
+</details>
+
+<details>
+    <summary><b>FunC source code</b></summary>
+
+{% highlight bash %}
+$ java -jar tsa-cli.jar func --help
+Usage: ton-analysis func [<options>]
+
+Options for analyzing FunC sources of smart contracts
+
+Contract properties:
+-d, --data=<text>  The serialized contract persistent data
+
+Fift options:
+--fift-std=<path>  The path to the Fift standard library (dir containing Asm.fif, Fift.fif)
+
+FunC options:
+--func-std=<path>  The path to the FunC standard library file (stdlib.fc)
+
+TlB scheme options:
+-t, --tlb=<path>  The path to the parsed TL-B scheme.
+
+Options:
+-i, --input=<path>  The path to the FunC source of the smart contract
+-h, --help          Show this message and exit
+{% endhighlight %}
+</details>
+
+  <details>
+    <summary><b>Fift assembler code</b></summary>
+
+{% highlight bash %}
+$ java -jar tsa-cli.jar fift --help
+Usage: ton-analysis fift [<options>]
+
+Options for analyzing smart contracts in Fift assembler
+
+Contract properties:
+-d, --data=<text>  The serialized contract persistent data
+
+Fift options:
+--fift-std=<path>  The path to the Fift standard library (dir containing Asm.fif, Fift.fif)
+
+Options:
+-i, --input=<path>  The path to the Fift assembly of the smart contract
+-h, --help          Show this message and exit
+{% endhighlight %}
+</details>
+
+  <details>
+    <summary><b>BoC (compiled code)</b></summary>
+    
+{% highlight bash %}
+$ java -jar tsa-cli.jar boc --help 
+Usage: ton-analysis boc [<options>]
+
+Options for analyzing a smart contract in the BoC format
+
+Contract properties:
+-d, --data=<text>  The serialized contract persistent data
+
+Options:
+-i, --input=<path>  The path to the smart contract in the BoC format
+-h, --help          Show this message and exit
+{% endhighlight %}
+</details>
+
+Optionally, it also accepts a [TL-B scheme](https://docs.ton.org/v3/documentation/data-formats/tlb/tl-b-language) for the `recv_internal` method. For detailed input format information, use the `--help` argument.
 The output in this mode is a SARIF report containing the following information about methods that may encounter a [TVM error](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes) during execution:
 
-- Instruction coverage percentage by the analyzer for the method (`coverage` field in the report)
-- Method number (`decoratedName`) and TVM bytecode instruction(`stmt`) where the error may occur
-- Error code and type (`text` in a `message`)
-- Call stack `callFlows` (method id - instruction)
-- Possible (but not necessarily unique) parameters set `usedParameters` causing the error
-- Approximate gas usage `gasUsage` up to the error
+- `coverage` field in the report - instruction coverage percentage by the analyzer for the method
+- `decoratedName` and `stmt` - the method id and instruction number where the error may occur, correspondingly
+- `text` in a `message` - error code and its type
+- `callFlows` - call stack at the moment of the error occurrence in the form (method id - instruction)
+- `usedParameters` - possible (but not necessarily unique) parameters set causing the error
+- `gasUsage` - approximate gas usage of the execution when the error occurred
 
-For more information about error types, see the [relevant section](../error-types).
+For more information about error types, see the [Detectors page](../detectors).
+
+---
 
 ## Examples
+
+NOTE: the **original** Tact and FunC compilers do not preserve source code location information (source maps) in the resulting compiled code,
+and the SARIF report generated by the tool will not be able to pinpoint errors directly in the source code.
+
+The following examples will cover both cases: with source maps and with raw SARIF.
+
+### Example with patched compilers via source maps
 
 <details>
   <summary><b>Source-maps disclaimer</b></summary>
 
-The original Tact and FunC compilers do not preserve source code location information (source maps) in the resulting compiled code,
-and the SARIF report generated by the tool will not be able to pinpoint errors directly in the source code.<br>
 <br>
-However, by using patched versions of the <a href="https://github.com/jefremof/tact/tree/tact-debug-info-bundled">Tact compiler</a>,  
-<a href="https://github.com/jefremof/ton/tree/func-0.4.6-debug-info">FunC compiler</a>,  
+We use patched versions of the <a href="https://github.com/espritoxyz/tact/tree/tact-debug-info-bundled">Tact compiler</a>,  
+<a href="https://github.com/espritoxyz/ton/tree/func-0.4.6-debug-info">FunC compiler</a>,  
 and the <a href="https://github.com/jefremof/tsa/tree/pysical-locations">TSA analyzer</a>,<br>
-it is possible to achieve full error mapping in the source code, as demonstrated in this pull request via <a href="https://github.com/jefremof/tsa-actions/pull/3">GitHub Actions</a>
+to achieve full error mapping in the source code, as demonstrated in this pull request via <a href="https://github.com/espritoxyz/tsa-actions/pull/2/files">GitHub Actions</a>
 </details>
-
-The following examples will cover both cases: with source maps and with raw SARIF.
-
-### Example with patched compilers and source maps
 
 Consider a simple smart contract written in Tact that may encounter an arithmetic overflow error when the `divide` method receives a value of `subtrahend` close to the minimal integer value:
 
 ```javascript
 contract Divider {
-
   init() {}
+  receive() {}
 
-  receive() {
-    // Do nothing
-  }
-
-
-
-
-  get fun divide(subtrahend: Int, dividend: Int, flag: Bool): Int {
+  get fun subtractAndDivide(subtrahend: Int, dividend: Int, flag: Bool): Int {
     let divider: Int = 42;
 
     if (flag) {
-
-
-
       divider -= subtrahend;
     } else {
-
-
       divider = 2;
     }
 
@@ -80,18 +157,19 @@ contract Divider {
 }
 ```
 
-Running the patched analyzer for this contract with patched Tact compiler with the following command (according to the [PR](https://github.com/jefremof/tsa-actions/pull/3)):
+Running the patched analyzer for this contract with patched Tact compiler with the following command (according to the [PR](https://github.com/espritoxyz/tsa-actions/pull/2)):
 
-```bash
+{% highlight bash %}
 java -jar tsa-cli.jar \
 tact -c "tact.config.json" -p "sample" -i "Divider" \
 > Divider.sarif
-```
+{% endhighlight %}
 
 produces a SARIF report that could be rendered in GitHub highlighting a possible error:
 
 <img alt="img.png" src="../images/sarif-github-error.png"/>
 
+---
 
 ### Example with a raw SARIF
 
@@ -106,7 +184,9 @@ Consider a simple smart contract that may encounter a cell overflow error when t
     if (loop_count < 0) {
         return b;
     }
-
+    
+    ;; Ensure loop count is in range [-2^31;2^31] for the repeat loop
+    loop_count = loop_count & 0x111111;
     var i = 0;
     repeat(loop_count) {
         builder value = begin_cell().store_int(i, 32);
@@ -123,20 +203,20 @@ Consider a simple smart contract that may encounter a cell overflow error when t
 ```
 
 Running the analyzer for this contract with the following command 
-(macOS ARM, assuming the contract, FunC and Fift stdlibs are located in the current directory):
+(assuming the contract, FunC and Fift stdlibs are located in the current directory):
 
-```bash
-docker run --platform linux/amd64 -it --rm -v $PWD:/project ghcr.io/espritoxyz/tsa:latest \ 
-func -i /project/example.fc \
+{% highlight bash %}
+docker run --platform linux/amd64 -it --rm -v $PWD:/project ghcr.io/espritoxyz/tsa:latest func -i /project/example.fc \
 --func-std /project/stdlib.fc \
 --fift-std /project/fiftstdlib
-```
+{% endhighlight %}
 
 (please note that FunC stdlib is pointed using the specific option `func-std`, not as a part of the input file) identifies the error in the raw SARIF report:
 
 <details>
   <summary><b>Raw SARIF report</b></summary>
-  <pre><code class="language-json">
+
+{% highlight json %}
 {
     "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
     "version": "2.1.0",
@@ -159,9 +239,169 @@ func -i /project/example.fc \
                                             "location": {
                                                 "logicalLocations": [
                                                     {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "STREF#5"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "implicit RET#7"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "implicit RET#7"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "implicit RET#7"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "implicit RET#7"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
+                                                        "fullyQualifiedName": "Lambda",
+                                                        "properties": {
+                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "locations": [
+                                        {
+                                            "location": {
+                                                "logicalLocations": [
+                                                    {
                                                         "decoratedName": "75819",
                                                         "properties": {
-                                                            "stmt": "REPEAT#8"
+                                                            "stmt": "REPEAT#11"
                                                         }
                                                     }
                                                 ]
@@ -183,18 +423,18 @@ func -i /project/example.fc \
                         }
                     ],
                     "message": {
-                        "text": "TvmFailure(exit=TVM integer out of expected range, exit code: 5, type=UnknownError)"
+                        "text": "TvmFailure(exit=TVM cell overflow, exit code: 8, type=UnknownError)"
                     },
                     "properties": {
-                        "gasUsage": 220,
+                        "gasUsage": 3451,
                         "usedParameters": [
-                            "2147483648"
+                            "2097151"
                         ],
                         "resultStack": [
                             "0"
                         ]
                     },
-                    "ruleId": "integer-out-of-range"
+                    "ruleId": "cell-overflow"
                 }
             ],
             "tool": {
@@ -206,14 +446,13 @@ func -i /project/example.fc \
         }
     ]
 }
-  </code></pre>
+{% endhighlight %}
 </details>
 
 Here the analyzed method has the id `75819`, 
 the analyzer covered 100% instructions of this method,
-the `integer out of expected range` error with exit code `5` occurred in the stmt `8` in the `REPEAT` loop inside this method,
-`2147483648` value passed to this method causes this error,
-and gas usage before raising the error equals to `220`.
+and the `cell overflow` error with exit code `8` occurred in the stmt with the index `11` in the `REPEAT` loop inside this method,
+`2097151` value passed to this method causes this error,
+and gas usage equals to `3451`.
 
 For more examples containing erroneous places, take a look at the directory in [the repository with manually written contracts](https://github.com/espritoxyz/tsa/tree/master/tsa-test/src/test/resources).
-Feel free to run TSA by yourself for these contracts or consider [tests for them](https://github.com/espritoxyz/tsa/tree/master/tsa-test/src/test/kotlin/org/ton/examples).

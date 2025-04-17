@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Tests generation mode
-parent: Getting started
+parent: Use cases
 nav_order: 2
 ---
 
@@ -16,35 +16,17 @@ The tool generates tests that use the [Sandbox](https://github.com/ton-org/sandb
 
 Additionally, the test contract wrapper is generated.
 
-**Note:** Test generation is currently supported only for `recv_internal`.
-
-## Required Flags
-
-#### Project Path
-- `-p` / `--project`: specifies the absolute path to the initialized sandbox project. [Project example](https://github.com/espritoxyz/tsa/blob/b76343a20ce5c81e78d3e65873936ee26c148771/tsa-test/src/test/resources/sandbox).
-
-#### FunC Standard Library
-- `--func-std`: specifies the absolute path to the FunC standard library file (`stdlib.fc` or `stdlib.func`).
-
-#### Fift Standard Library
-- `--fift-std`: specifies the absolute path to the directory containing the Fift standard library files (`Asm.fif` and `Fift.fif`).
-
-#### Source Entry File
-You must provide one of the following:
-- `--func`: The relative path (from the project root) to the FunC source file.
-- `--boc`: The relative path (from the project root) to the BoC (Bag of Cells) file.
-
-**Note:** Only one source file can be provided. Any dependency files must already be included (e.g. via `#include` in FunC).
+**Note:** Test generation is currently supported only for `recv_internal` and `recv_external`.
 
 ## Command Example
 
-```bash
+{% highlight bash %}
 java -jar tsa-cli.jar test-gen \
   -p path/to/project \
   --func contracts/contract.func \
   --func-std path/to/project/contracts/stdlib.func \
   --fift-std path/to/fiftstdlib
-```
+{% endhighlight %}
 
 ## Output
 
@@ -57,13 +39,13 @@ For example, `jetton-minter.fc` will result in `JettonMinter.spec.ts`.
 
 You can run the generated tests using one of the following commands, depending on your project's configuration:
 
-```bash
+{% highlight bash %}
 yarn jest tests/TestFile.spec.fc
-```
+{% endhighlight %}
 
-```bash
+{% highlight bash %}
 npm test tests/TestFile.spec.fc
-```
+{% endhighlight %}
 
 ---
 
@@ -71,7 +53,7 @@ npm test tests/TestFile.spec.fc
 
 For the following sample contract:
 
-```
+```c
 #include "stdlib.func";
 
 (slice, int) safe_load(slice sl, int size) {
@@ -135,3 +117,7 @@ describe('tsa-tests-recv-internal', () => {
 
 // ...
 ```
+
+In this test, the contract is deployed via the sandbox with a contract data containing a number `255` and 
+the `recv_internal` function is called with a message body containing the op-code `0xffffffff` that triggers 
+the user-defined error with a code `333` in the contract.

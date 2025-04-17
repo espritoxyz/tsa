@@ -18,6 +18,15 @@ aux_links:
 
 aux_links_new_tab: true
 
+# https://just-the-docs.com/docs/ui-components/code/line-numbers/
+compress_html:
+  ignore:
+    envs: all
+kramdown:
+  syntax_highlighter_opts:
+    block:
+      line_numbers: true
+
 # Enable or disable the site search
 # Supports true (default) or false
 search_enabled: true
