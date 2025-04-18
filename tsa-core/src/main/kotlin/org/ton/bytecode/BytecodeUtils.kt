@@ -18,12 +18,12 @@ const val DUE_PAYMENT_IDX = 15
 
 fun List<TvmInst>.flattenStatements(): List<TvmInst> {
     val statements = mutableListOf<TvmInst>()
-    val stack = mutableListOf(TvmInstList(this))
+    val stack = mutableListOf(this)
 
     while (stack.isNotEmpty()) {
         val instList = stack.removeLast()
 
-        instList.list.forEach { stmt ->
+        instList.forEach { stmt ->
             if (stmt is TvmArtificialInst) {
                 return@forEach
             }
@@ -36,9 +36,9 @@ fun List<TvmInst>.flattenStatements(): List<TvmInst> {
     return statements
 }
 
-private fun extractInstLists(stmt: TvmInst): Sequence<TvmInstList> =
+private fun extractInstLists(stmt: TvmInst): Sequence<List<TvmInst>> =
     when (stmt) {
-        is TvmContOperand1Inst -> sequenceOf(stmt.c)
-        is TvmContOperand2Inst -> sequenceOf(stmt.c1, stmt.c2)
+        is TvmContOperand1Inst -> sequenceOf(stmt.c.list)
+        is TvmContOperand2Inst -> sequenceOf(stmt.c1.list, stmt.c2.list)
         else -> emptySequence()
     }

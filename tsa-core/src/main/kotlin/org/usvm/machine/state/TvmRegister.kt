@@ -1,5 +1,6 @@
 package org.usvm.machine.state
 
+import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCellValue
 import org.ton.bytecode.TvmContinuation
 import org.ton.bytecode.TvmExceptionContinuation
@@ -12,7 +13,7 @@ interface TvmRegister
 data class C0Register(val value: TvmContinuation) : TvmRegister
 data class C1Register(val value: TvmContinuation) : TvmRegister
 data class C2Register(val value: TvmContinuation) : TvmRegister
-data class C3Register(val value: TvmContinuation) : TvmRegister
+data class C3Register(val value: TvmContinuation, val code: TsaContractCode) : TvmRegister
 data class C4Register(val value: TvmCellValue) : TvmRegister
 data class C5Register(val value: TvmCellValue) : TvmRegister
 data class C7Register(val value: TvmStackTupleValueConcreteNew)

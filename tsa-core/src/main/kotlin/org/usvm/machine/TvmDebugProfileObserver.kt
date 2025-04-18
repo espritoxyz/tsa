@@ -58,10 +58,10 @@ private class TvmStatementOperations(
                     if (it is TvmArtificialInst) emptyList() else listOf(it)
                 }
                 is TvmContOperand1Inst -> {
-                    listOf(it) + getAllMethodStatements(it.c)
+                    listOf(it) + getAllMethodStatements(it.c.list)
                 }
                 is TvmContOperand2Inst -> {
-                    listOf(it) + getAllMethodStatements(it.c1) + getAllMethodStatements(it.c2)
+                    listOf(it) + getAllMethodStatements(it.c1.list) + getAllMethodStatements(it.c2.list)
                 }
             }
         }

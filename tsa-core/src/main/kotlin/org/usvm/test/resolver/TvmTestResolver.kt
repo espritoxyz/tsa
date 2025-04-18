@@ -105,7 +105,7 @@ data class TvmSymbolicTestSuite(
 data class TvmMethodCoverage(
     val coverage: Float?,
     val transitiveCoverage: Float?,
-    val coverageOfMainMethod: Float,
+    val coverageOfMainMethod: Float?,
 )
 
 data class TvmSymbolicTest(

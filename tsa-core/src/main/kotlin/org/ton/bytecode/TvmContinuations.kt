@@ -82,16 +82,18 @@ data object TvmExceptionContinuation : TvmContinuation {
 
 data class TvmOrdContinuation(
     val stmt: TvmInst,
+    val sourceCell: TvmCell?,
     override val savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
     override val stack: TvmStack? = null,
     override val nargs: UInt? = null,
 ) : TvmContinuation {
     constructor(
         codeBlock: TvmCodeBlock,
+        sourceCell: TvmCell?,
         savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
         stack: TvmStack? = null,
         nargs: UInt? = null,
-    ) : this(codeBlock.instList.first(), savelist, stack, nargs)
+    ) : this(codeBlock.instList.first(), sourceCell, savelist, stack, nargs)
 
     override fun update(
         newSavelist: TvmRegisterSavelist,

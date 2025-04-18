@@ -367,7 +367,7 @@ private fun runAnalysisInCatchingBlock(
     analysisRun: (TvmCoverageStatistics) -> List<TvmState>,
 ): Pair<List<TvmState>, TvmMethodCoverage> =
     runCatching {
-        val coverageStatistics = TvmCoverageStatistics(contractIdForCoverageStats, contractForCoverageStats)
+        val coverageStatistics = TvmCoverageStatistics(contractIdForCoverageStats, contractForCoverageStats.mainMethod)
 
         val states = analysisRun(coverageStatistics)
 

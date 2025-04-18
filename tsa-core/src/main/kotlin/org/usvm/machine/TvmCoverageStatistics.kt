@@ -16,21 +16,23 @@ import org.ton.bytecode.TvmContDictCalldictInst
 import org.ton.bytecode.TvmContDictCalldictLongInst
 import org.ton.bytecode.TvmContDictJmpdictInst
 import org.ton.bytecode.TvmContDictPreparedictInst
+import org.ton.bytecode.TvmMainMethod
 import org.ton.bytecode.flattenStatements
 
 // Tracks coverage of all visited statements for all visited methods from all states.
 // Note that one instance should be used only one per method.
 class TvmCoverageStatistics(
     private val observedContractId: ContractId,
-    private val contractCode: TsaContractCode
+    private val mainMethod: TvmMainMethod,
 ) : UMachineObserver<TvmState> {
     private val coveredStatements: MutableSet<TvmInst> = newSetFromMap(IdentityHashMap())
-    private val reachableMethods: MutableSet<MethodId> = hashSetOf()
+    private val reachableMethods: MutableSet<TvmMethod> = hashSetOf()
     private val traversedMethodStatements: MutableMap<MethodId, List<TvmInst>> = hashMapOf()
     private val coveredStatementsFromMain: MutableSet<TvmInst> = hashSetOf()
+    private var wasC3Changed: Boolean = false
 
     fun getMethodCoveragePercents(methodId: MethodId): Float? {
-        val method = contractCode.methods[methodId]
+        val method = reachableMethods.firstOrNull { it.id == methodId }
             ?: return null
 
         val methodStatements = getMethodStatements(method)
@@ -39,8 +41,12 @@ class TvmCoverageStatistics(
         return computeCoveragePercents(coveredMethodStatements, methodStatements.size)
     }
 
-    fun getMainMethodCoveragePercents(): Float {
-        val allStatements = contractCode.mainMethod.instList.flattenStatements()
+    fun getMainMethodCoveragePercents(): Float? {
+        // cannot calculate main method coverage in this case
+        if (wasC3Changed) {
+            return null
+        }
+        val allStatements = mainMethod.instList.flattenStatements()
         return computeCoveragePercents(coveredStatementsFromMain.size, allStatements.size)
     }
 
@@ -62,20 +68,13 @@ class TvmCoverageStatistics(
         return covered.toFloat() / (all.toFloat()) * 100f
     }
 
-    private fun getMethodStatements(methodId: MethodId): List<TvmInst> {
-        val method = contractCode.methods[methodId]
-            ?: error("Unknown method with id $methodId")
-
-        return getMethodStatements(method)
-    }
-
     private fun getMethodStatements(method: TvmMethod): List<TvmInst> =
         traversedMethodStatements.getOrPut(method.id) {
             method.instList.flattenStatements()
         }
 
-    private fun addReachableMethod(methodId: MethodId) {
-        if (methodId in reachableMethods) {
+    private fun addReachableMethod(methodId: MethodId, currentCode: TsaContractCode) {
+        if (reachableMethods.any { it.id == methodId }) {
             return
         }
 
@@ -83,12 +82,14 @@ class TvmCoverageStatistics(
 
         while (methodsToVisit.isNotEmpty()) {
             val curId = methodsToVisit.removeLast()
+            val method = currentCode.methods[curId]
+                ?: continue
 
-            if (!reachableMethods.add(curId)) {
+            if (!reachableMethods.add(method)) {
                 continue
             }
 
-            getMethodStatements(curId).forEach { stmt ->
+            getMethodStatements(method).forEach { stmt ->
                 when (stmt) {
                     is TvmContDictCalldictInst -> methodsToVisit.add(stmt.n.toMethodId())
                     is TvmContDictCalldictLongInst -> methodsToVisit.add(stmt.n.toMethodId())
@@ -106,6 +107,11 @@ class TvmCoverageStatistics(
             return
         }
 
+        val currentCode = state.registersOfCurrentContract.c3.code
+        if (currentCode.parentCode != null) {
+            wasC3Changed = true
+        }
+
         val rootLocation = stmt.getRootLocation()
         // instructions from main are counted separately
         if (rootLocation is TvmMainMethodLocation) {
@@ -117,7 +123,7 @@ class TvmCoverageStatistics(
 
         val location = stmt.location
         if (location is TvmInstMethodLocation) {
-            addReachableMethod(location.methodId)
+            addReachableMethod(location.methodId, currentCode)
         }
     }
 }

@@ -53,19 +53,20 @@ fun TvmState.extractCurrentContinuation(
         // registers.c2 = C2Register(TvmExceptionContinuation)
     }
 
-    TvmOrdContinuation(stmt.nextStmt(), TvmRegisterSavelist(c0, c1, c2))
+    TvmOrdContinuation(stmt.nextStmt(), sourceCell = null, TvmRegisterSavelist(c0, c1, c2))
 }
 
 fun TvmStepScopeManager.callMethod(
     stmt: TvmInst,
     methodToCall: TvmMethod,
 ) {
-    val nextContinuation = TvmOrdContinuation(methodToCall)
+    val nextContinuation = TvmOrdContinuation(methodToCall, sourceCell = null)
 
     doWithState {
         val retCont = TvmOrdContinuation(
             stmt = stmt.nextStmt(),
             savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
+            sourceCell = null,
         )
         val wrappedRet = TvmMethodReturnContinuation(methodToCall.id, retCont)
         registersOfCurrentContract.c0 = C0Register(wrappedRet)
@@ -134,6 +135,7 @@ fun TvmStepScopeManager.callContinuation(
     val retCont = TvmOrdContinuation(
         stmt = stmt.nextStmt(),
         savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
+        sourceCell = null,
     )
     registersOfCurrentContract.c0 = C0Register(retCont)
     jump(continuation)
@@ -202,6 +204,7 @@ fun TvmStepScopeManager.callContinuationComplex(
         savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
         stack = remainder,
         nargs = returnArgs,
+        sourceCell = null,
     )
     registersOfCurrentContract.c0 = C0Register(retCont)
     jump(continuation)
@@ -251,12 +254,12 @@ fun TvmContinuation.defineC2(cont: TvmContinuation): TvmContinuation {
     return update(newSavelist = savelist.copy(c2 = C2Register(cont)))
 }
 
-fun TvmContinuation.defineC3(cont: TvmContinuation): TvmContinuation {
+fun TvmContinuation.defineC3(c3: C3Register): TvmContinuation {
     if (savelist.c3 != null) {
         return this
     }
 
-    return update(newSavelist = savelist.copy(c3 = C3Register(cont)))
+    return update(newSavelist = savelist.copy(c3 = c3))
 }
 
 fun TvmContinuation.defineC4(cell: UHeapRef): TvmContinuation {

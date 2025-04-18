@@ -20,11 +20,14 @@ import org.ton.bytecode.TvmCellBuildStrefrInst
 import org.ton.bytecode.TvmCellBuildStrefrqInst
 import org.ton.bytecode.TvmCellBuildStsliceAltInst
 import org.ton.bytecode.TvmCellBuildStsliceInst
+import org.ton.bytecode.TvmCellBuildStsliceconstInst
 import org.ton.bytecode.TvmCellBuildStsliceqInst
 import org.ton.bytecode.TvmCellBuildStslicerInst
 import org.ton.bytecode.TvmCellBuildStslicerqInst
 import org.ton.bytecode.TvmCellBuildStuInst
+import org.ton.bytecode.TvmCellBuildSturInst
 import org.ton.bytecode.TvmCellBuildStuxInst
+import org.ton.bytecode.TvmCellBuildStzeroesInst
 import org.ton.bytecode.TvmCellParseCdepthInst
 import org.ton.bytecode.TvmCellParseCtosInst
 import org.ton.bytecode.TvmCellParseEndsInst
@@ -114,6 +117,7 @@ import org.usvm.machine.state.assertType
 import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.machine.state.builderStoreInt
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRef
 import org.usvm.machine.state.builderStoreSlice
@@ -465,40 +469,59 @@ class TvmCellInterpreter(
             is TvmCellBuildEndcInst -> visitEndCellInst(scope, stmt)
             is TvmCellBuildNewcInst -> visitNewCellInst(scope, stmt)
             is TvmCellBuildStuInst -> visitStoreIntInst(scope, stmt, stmt.c + 1, false)
+            is TvmCellBuildSturInst -> {
+                doSwap(scope)
+                visitStoreIntInst(scope, stmt, stmt.c + 1, false)
+            }
             is TvmCellBuildStiInst -> visitStoreIntInst(scope, stmt, stmt.c + 1, true)
             is TvmCellBuildStuxInst -> visitStoreIntXInst(scope, stmt, false)
             is TvmCellBuildStixInst -> visitStoreIntXInst(scope, stmt, true)
+            is TvmCellBuildStzeroesInst -> visitStoreZeroesInst(scope, stmt)
             is TvmCellBuildBbitsInst -> visitBuilderBitsInst(scope, stmt)
             is TvmCellBuildStsliceInst -> {
                 scope.consumeDefaultGas(stmt)
 
-                scope.doStoreSlice(stmt, quiet = false)
+                scope.doStoreSlice(stmt, sliceExtractor = StackSliceExtractor, quiet = false)
             }
 
             is TvmCellBuildStsliceAltInst -> {
                 scope.consumeDefaultGas(stmt)
 
-                scope.doStoreSlice(stmt, quiet = false)
+                scope.doStoreSlice(stmt, sliceExtractor = StackSliceExtractor, quiet = false)
             }
 
             is TvmCellBuildStslicerInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 doSwap(scope)
-                scope.doStoreSlice(stmt, quiet = false)
+                scope.doStoreSlice(stmt, sliceExtractor = StackSliceExtractor, quiet = false)
             }
 
             is TvmCellBuildStsliceqInst -> {
                 scope.consumeDefaultGas(stmt)
 
-                scope.doStoreSlice(stmt, quiet = true)
+                scope.doStoreSlice(stmt, sliceExtractor = StackSliceExtractor, quiet = true)
             }
 
             is TvmCellBuildStslicerqInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 doSwap(scope)
-                scope.doStoreSlice(stmt, quiet = true)
+                scope.doStoreSlice(stmt, sliceExtractor = StackSliceExtractor, quiet = true)
+            }
+
+            is TvmCellBuildStsliceconstInst -> {
+                scope.consumeDefaultGas(stmt)
+
+                val constSlice = stmt.s
+
+                // `sss` consists of `0 <= x <= 3` references and up to `8y+2` data bits, with `0 <= y <= 7`
+                check(constSlice.refs.size <= 3 && constSlice.data.bits.length <= 8 * 7 + 2) {
+                    "Unexpected const slice: $constSlice"
+                }
+
+                val slice = scope.calcOnState { allocSliceFromCell(stmt.s) }
+                scope.doStoreSlice(stmt, sliceExtractor = EmbeddedSliceExtractor(slice), quiet = false)
             }
 
             is TvmCellBuildStbInst -> {
@@ -1359,6 +1382,29 @@ class TvmCellInterpreter(
         }
     }
 
+    private fun visitStoreZeroesInst(scope: TvmStepScopeManager, stmt: TvmCellBuildStzeroesInst) = with(ctx) {
+        scope.consumeDefaultGas(stmt)
+
+        val zeroesToStore = scope.takeLastIntOrThrowTypeError()
+            ?: return@with
+
+        checkOutOfRange(zeroesToStore, scope, min = 0, max = MAX_DATA_LENGTH)
+            ?: return@with
+
+        val builder = scope.calcOnState { stack.takeLastBuilder() }
+            ?: return scope.doWithState(throwTypeCheckError)
+        val updatedBuilder = scope.calcOnState {
+            memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
+        }
+
+        scope.builderStoreInt(updatedBuilder, zeroValue, zeroesToStore, isSigned = false)
+
+        scope.doWithState {
+            addOnStack(updatedBuilder, TvmBuilderType)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
     private fun visitBuilderBitsInst(scope: TvmStepScopeManager, stmt: TvmCellBuildBbitsInst) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
@@ -1447,14 +1493,18 @@ class TvmCellInterpreter(
         }
     }
 
-    private fun TvmStepScopeManager.doStoreSlice(stmt: TvmCellBuildInst, quiet: Boolean) = with(ctx) {
+    private fun TvmStepScopeManager.doStoreSlice(
+        stmt: TvmCellBuildInst,
+        sliceExtractor: SliceExtractor,
+        quiet: Boolean
+    ) = with(ctx) {
         val builder = calcOnState { stack.takeLastBuilder() }
         if (builder == null) {
             doWithState(throwTypeCheckError)
             return
         }
 
-        val slice = calcOnState { stack.takeLastSlice() }
+        val slice = sliceExtractor.slice(this@doStoreSlice)
         if (slice == null) {
             doWithState(throwTypeCheckError)
             return
@@ -1513,5 +1563,17 @@ class TvmCellInterpreter(
 
             newStmt(stmt.nextStmt())
         }
+    }
+
+    private sealed interface SliceExtractor {
+        fun slice(scope: TvmStepScopeManager): UHeapRef?
+    }
+
+    private data class EmbeddedSliceExtractor(val ref: UHeapRef) : SliceExtractor {
+        override fun slice(scope: TvmStepScopeManager): UHeapRef = ref
+    }
+
+    private data object StackSliceExtractor : SliceExtractor {
+        override fun slice(scope: TvmStepScopeManager): UHeapRef? = scope.calcOnState { stack.takeLastSlice() }
     }
 }
