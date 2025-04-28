@@ -201,12 +201,15 @@ class TactAnalysis : ErrorsSarifDetector<TactSourcesDescription>(
         .required()
         .help("Name of the Tact smart contract to analyze")
 
+    private val tlbOptions by TlbOptions()
+
     override fun run() {
         val sources = TactSourcesDescription(tactConfigPath, tactProjectName, tactContractName)
 
         generateAndWriteSarifReport(
             analyzer = TactAnalyzer,
             sources = sources,
+            inputInfo = TlbOptions.extractInputInfo(tlbOptions.tlbJsonPath)
         )
     }
 }
