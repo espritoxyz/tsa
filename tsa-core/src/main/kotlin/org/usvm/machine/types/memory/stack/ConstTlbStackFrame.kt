@@ -8,8 +8,8 @@ import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
-import org.usvm.machine.state.TvmMethodResult.TvmStructuralError
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.SizedCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead

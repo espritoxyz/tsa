@@ -32,7 +32,7 @@ import org.usvm.machine.state.sliceLoadIntTransaction
 import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.state.sliceMoveDataPtr
 import org.usvm.machine.state.sliceMoveRefPtr
-import org.usvm.machine.state.slicePreloadAddrLength
+import org.usvm.machine.state.slicePreloadAddrLengthWithoutSetException
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.slicePreloadExternalAddrLength
 import org.usvm.machine.state.slicePreloadNextRef
@@ -253,7 +253,7 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
         scope.doWithState { sliceMoveDataPtr(ptr.slice, 2) }
 
         // src:MsgAddress
-        val srcAddrLength = scope.slicePreloadAddrLength(ptr.slice)
+        val srcAddrLength = scope.slicePreloadAddrLengthWithoutSetException(ptr.slice)
             ?: return null
         scope.doWithState { sliceMoveDataPtr(ptr.slice, srcAddrLength) }
 

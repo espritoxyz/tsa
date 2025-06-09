@@ -92,6 +92,7 @@ class TvmContext(
 
     val zeroSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(0)
     val oneSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(1)
+    val twoSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(2)
     val threeSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(3)
     val fourSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(4)
     val sixSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(6)

@@ -44,7 +44,7 @@ class TvmGasInterpreter(private val ctx: TvmContext) {
         scope.doWithStateCtx {
             val usedGas = calcConsumedGas()
 
-            stack.addInt(usedGas.extractToInt257Sort())
+            stack.addInt(usedGas.zeroExtendToSort(int257sort))
             newStmt(stmt.nextStmt())
         }
     }

@@ -14,8 +14,8 @@ import org.ton.TlbStructure
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.intValue
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmReadingOfUnexpectedType
@@ -68,7 +68,7 @@ data class KnownTypeTlbStackFrame(
             NextFrame(it)
         } ?: EndOfStackFrame
 
-        val error = TvmMethodResult.TvmStructuralError(
+        val error = TvmStructuralError(
             TvmReadingOfUnexpectedType(
                 struct.typeLabel,
                 args,

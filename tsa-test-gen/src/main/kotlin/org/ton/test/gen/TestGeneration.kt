@@ -26,7 +26,7 @@ import org.usvm.machine.TvmContext.Companion.ADDRESS_TAG_LENGTH
 import org.usvm.machine.TvmContext.Companion.RECEIVE_EXTERNAL_ID
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
-import org.usvm.machine.state.TvmUnknownFailure
+import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.resolver.truncateSliceCell
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmMethodFailure
@@ -380,7 +380,7 @@ private fun generateTestNames(tests: List<TvmSymbolicTest>): List<String> {
 
     return tests.map { test ->
         val exit = (test.result as? TvmMethodFailure)?.failure?.exit
-        val exitName = if (exit is TvmUnknownFailure) {
+        val exitName = if (exit is TvmUserDefinedFailure) {
             "${exit.ruleName}-${exit.exitCode}"
         } else {
             exit?.ruleName ?: "successful"
@@ -395,7 +395,7 @@ private fun generateTestNames(tests: List<TvmSymbolicTest>): List<String> {
 
 private fun extractContractName(sourceRelativePath: Path): String {
     val fileName = sourceRelativePath.fileName.nameWithoutExtension
-    val words = fileName.split('_', '-')
+    val words = fileName.split('_', '-', '.')
     val capitalizedWords = words.map { word ->
         word.replaceFirstChar { firstChar ->
             if (firstChar.isLowerCase()) {

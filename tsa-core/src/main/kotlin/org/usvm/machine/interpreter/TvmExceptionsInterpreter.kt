@@ -20,7 +20,7 @@ import org.usvm.machine.state.C0Register
 import org.usvm.machine.state.C2Register
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.TvmUnknownFailure
+import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.defineC0
@@ -125,7 +125,7 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
         code: Int,
         level: TvmFailureType = TvmFailureType.UnknownError,
         param: UExpr<TvmInt257Sort> = ctx.zeroValue,
-    ) = ctx.setFailure(TvmUnknownFailure(code), level, param, implicitThrow = false)(this)
+    ) = ctx.setFailure(TvmUserDefinedFailure(code), level, param, implicitThrow = false)(this)
 
     private fun doThrowIfInst(
         scope: TvmStepScopeManager,

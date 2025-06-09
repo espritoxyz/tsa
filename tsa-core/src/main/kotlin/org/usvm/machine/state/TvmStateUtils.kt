@@ -39,8 +39,8 @@ import org.ton.bytecode.TsaArtificialActionPhaseInst
 import org.ton.bytecode.TsaArtificialExitInst
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.maxUnsignedValue
-import org.usvm.machine.state.TmvPhase.ACTION_PHASE
-import org.usvm.machine.state.TmvPhase.COMPUTE_PHASE
+import org.usvm.machine.state.TvmPhase.ACTION_PHASE
+import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 
 val TvmState.lastStmt get() = pathNode.statement
@@ -70,7 +70,7 @@ fun TvmContext.setFailure(
     state.stack.clear()
     state.stack.addInt(param)
     with(state.ctx) {
-        state.stack.addInt(failure.exitCode.toInt().toBv257())
+        state.stack.addInt(failure.exitCode.toBv257())
     }
 
     val c2 = state.registersOfCurrentContract.c2.value

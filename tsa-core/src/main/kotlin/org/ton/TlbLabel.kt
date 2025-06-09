@@ -95,6 +95,8 @@ class TlbIntegerLabelOfConcreteSize(
     }
     override val lengthUpperBound: Int
         get() = concreteSize
+
+    override fun toString(): String = "TlbInteger(size=$concreteSize, isSigned=$isSigned, endian=$endian)"
 }
 
 class TlbIntegerLabelOfSymbolicSize(

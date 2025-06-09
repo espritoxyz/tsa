@@ -37,6 +37,17 @@ class TvmStepScopeManager(
 
     fun checkSat(condition: UBoolExpr) = scope.checkSat(condition)
 
+    fun killForkedState(state: TvmState) {
+        require(state != originalState) {
+            "For killing current state, use killCurrentState()"
+        }
+        require(state in forkedStates) {
+            "Unexpected state: it was not produced by current step scope."
+        }
+
+        forkedStates.remove(state)
+    }
+
     fun assert(
         constraint: UBoolExpr,
         satBlock: TvmState.() -> Unit = {},
@@ -143,6 +154,10 @@ class TvmStepScopeManager(
                     val newScopeResults = newScopeManager.stepResult()
                     forkedStates += newScopeResults.forkedStates
                     stateAlive = newScopeResults.originalStateAlive
+
+                    if (state == originalState) {
+                        scope.stepScopeState = newScopeManager.scope.stepScopeState
+                    }
                 }
 
                 if (state !== originalState && stateAlive) {
@@ -189,7 +204,7 @@ class TvmStepScopeManager(
          * Determines whether we interact this scope on the current step.
          * @see [StepScopeState].
          */
-        private var stepScopeState: StepScopeState = CAN_BE_PROCESSED
+        internal var stepScopeState: StepScopeState = CAN_BE_PROCESSED
 
         /**
          * @return forked states and the status of initial state.

@@ -11,7 +11,7 @@ jobs:
   run-tests:
     name: 'Run tests'
     runs-on: ubuntu-22.04
-    container: explyt/tsa-env:v1.1.1
+    container: explyt/tsa-env:v1.1.3
 
     steps:
       - name: 'Checkout repository'

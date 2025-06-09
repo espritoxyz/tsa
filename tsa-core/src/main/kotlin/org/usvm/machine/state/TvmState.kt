@@ -26,8 +26,8 @@ import org.usvm.isStaticHeapRef
 import org.usvm.machine.TvmCellDataFieldManager
 import org.usvm.machine.TvmContext
 import org.usvm.machine.interpreter.OutMessage
-import org.usvm.machine.state.TmvPhase.COMPUTE_PHASE
-import org.usvm.machine.state.TmvPhase.TERMINATED
+import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
+import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.TvmStateInput
 import org.usvm.machine.types.GlobalStructuralConstraintsHolder
@@ -58,7 +58,7 @@ class TvmState(
     models: List<UModelBase<TvmType>> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<TvmInst>> = PathNode.root(),
-    var phase: TmvPhase = COMPUTE_PHASE,
+    var phase: TvmPhase = COMPUTE_PHASE,
     var methodResult: TvmMethodResult = TvmMethodResult.NoCall,
     targets: UTargetsSet<TvmTarget, TvmInst> = UTargetsSet.empty(),
     val typeSystem: TvmTypeSystem,
@@ -228,7 +228,7 @@ class TvmState(
     }
 }
 
-enum class TmvPhase {
+enum class TvmPhase {
     COMPUTE_PHASE,
     ACTION_PHASE,
     EXIT_PHASE,

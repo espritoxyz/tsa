@@ -1,0 +1,8 @@
+#include "../imports/stdlib.fc";
+
+() main() impure {
+    var data = get_data();
+    var ds = data.begin_parse();
+    int int_from_data = ds~load_int(32);
+    throw_if(1000, int_from_data != 100);
+}

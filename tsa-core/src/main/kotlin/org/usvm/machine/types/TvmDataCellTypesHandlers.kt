@@ -27,6 +27,7 @@ import org.usvm.machine.TvmStepScopeManager.ActionOnCondition
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.setExit
@@ -45,7 +46,7 @@ sealed interface MakeSliceTypeLoadOutcome
 
 private data class NewTlbStack(val stack: TlbStack) : MakeSliceTypeLoadOutcome
 
-private data class Error(val error: TvmMethodResult.TvmStructuralError) : MakeSliceTypeLoadOutcome
+private data class Error(val error: TvmStructuralError) : MakeSliceTypeLoadOutcome
 
 private data object NoTlbStack : MakeSliceTypeLoadOutcome
 
@@ -185,7 +186,7 @@ fun TvmStepScopeManager.assertEndOfCell(
                 noConflictCond,
                 falseStateIsExceptional = true,
                 blockOnFalseState = {
-                    setExit(TvmMethodResult.TvmStructuralError(TvmUnexpectedEndOfReading, phase))
+                    setExit(TvmStructuralError(TvmUnexpectedEndOfReading, phase))
                 }
             ) ?: return@calcOnStateCtx null
         }
@@ -214,7 +215,7 @@ fun TvmStepScopeManager.makeSliceRefLoad(
                     noConflictCond,
                     falseStateIsExceptional = true,
                     blockOnFalseState = {
-                        setExit(TvmMethodResult.TvmStructuralError(TvmUnexpectedRefReading, phase))
+                        setExit(TvmStructuralError(TvmUnexpectedRefReading, phase))
                     }
                 ) ?: return@calcOnStateCtx null
             }

@@ -35,15 +35,23 @@ fun transformTestDataCellIntoCell(value: TvmTestDataCellValue): Cell {
     return Cell(binaryData, *refs.toTypedArray())
 }
 
-fun transformTestDictCellIntoHashMapE(value: TvmTestDictCellValue): HashMapE<Cell> {
-    val patchedContent = value.entries.map { (key, entryValue) ->
-        val normalizedKey = key.value.toUnsignedDictKey(value.keyLength)
-        val keyPadded = normalizedKey.toString(2).padStart(length = value.keyLength, padChar = '0')
+fun transformMapIntoHashMapE(keyLength: Int, map: Map<BigInteger, Cell>): HashMapE<Cell> {
+    val patchedContent = map.entries.associate { (key, entryValue) ->
+        val normalizedKey = key.toUnsignedDictKey(keyLength)
+        val keyPadded = normalizedKey.toString(2).padStart(length = keyLength, padChar = '0')
         val bitArray = keyPadded.map { it == '1' }
 
-        BitString(bitArray) to transformTestDataCellIntoCell(truncateSliceCell(entryValue))
-    }.toMap()
+        BitString(bitArray) to entryValue
+    }
     return HashMapE.fromMap(patchedContent)
+}
+
+fun transformTestDictCellIntoHashMapE(value: TvmTestDictCellValue): HashMapE<Cell> {
+    val patchedMap = value.entries.entries.associate { (key, slice) ->
+        key.value to transformTestDataCellIntoCell(truncateSliceCell(slice))
+    }
+
+    return transformMapIntoHashMapE(value.keyLength, patchedMap)
 }
 
 fun transformTestDictCellIntoCell(value: TvmTestDictCellValue): Cell {

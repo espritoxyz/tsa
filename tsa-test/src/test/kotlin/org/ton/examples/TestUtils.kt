@@ -32,6 +32,7 @@ import org.usvm.test.resolver.TvmTestValue
 import java.math.BigInteger
 import java.nio.file.Path
 import org.usvm.machine.toMethodId
+import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import kotlin.io.path.Path
 import kotlin.io.path.deleteIfExists
 import kotlin.test.assertEquals
@@ -184,8 +185,8 @@ internal fun TvmStack.loadIntegers(n: Int) = List(n) {
 
 internal fun TvmSymbolicTest.executionCode(): Int? =
     when (val casted = result) {
-        is TvmTerminalMethodSymbolicResult -> casted.exitCode.toInt()
-        is TvmExecutionWithStructuralError -> null  // execution interrupted
+        is TvmTerminalMethodSymbolicResult -> casted.exitCode
+        is TvmExecutionWithStructuralError, is TvmExecutionWithSoftFailure -> null  // execution interrupted
     }
 
 internal fun compareSymbolicAndConcreteResults(

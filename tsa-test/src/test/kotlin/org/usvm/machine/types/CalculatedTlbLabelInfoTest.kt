@@ -19,7 +19,6 @@ import org.ton.examples.types.structureY
 import org.ton.examples.types.wrappedMsgStructure
 import org.usvm.UExpr
 import org.usvm.machine.BocAnalyzer
-import org.usvm.machine.DEFAULT_CONTRACT_DATA_HEX
 import org.usvm.machine.TvmComponents
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmMachine
@@ -52,8 +51,11 @@ class CalculatedTlbLabelInfoTest {
         dummyComponents.typeSystem,
         TvmInputInfo(),
     )
-    private val dummyContractData = Cell.Companion.of(DEFAULT_CONTRACT_DATA_HEX)
-    private val dummyState = dummyInterpreter.getInitialState(startContractId = 0, dummyContractData, BigInteger.ZERO)
+    private val dummyState = dummyInterpreter.getInitialState(
+        startContractId = 0,
+        contractData = listOf(null),
+        methodId = BigInteger.ZERO
+    )
     val cellDataFieldManager = dummyState.cellDataFieldManager
 
     val info = CalculatedTlbLabelInfo(

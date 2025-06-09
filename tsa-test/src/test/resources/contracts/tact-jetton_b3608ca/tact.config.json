@@ -1,0 +1,60 @@
+{
+    "projects": [
+        {
+            "name": "Jetton",
+            "path": "./src/contracts/base/jetton-minter.tact",
+            "output": "./src/output",
+            "mode": "full",
+            "options": {
+                "external": false,
+                "debug": false,
+                "ipfsAbiGetter": false,
+                "interfacesGetter": false,
+                "optimizations": {
+                    "internalExternalReceiversOutsideMethodsMap": false
+                },
+                "experimental": {
+                    "inline": true
+                }
+            }
+        },
+        {
+            "name": "Governance",
+            "path": "./src/contracts/governance/jetton-minter.tact",
+            "output": "./src/output",
+            "mode": "full",
+            "options": {
+                "external": false,
+                "debug": false,
+                "ipfsAbiGetter": false,
+                "interfacesGetter": false,
+                "experimental": {
+                    "inline": true
+                },
+                "optimizations": {
+                    "alwaysSaveContractData": false,
+                    "internalExternalReceiversOutsideMethodsMap": false
+                }
+            }
+        },
+        {
+            "name": "FeatureRich",
+            "path": "./src/contracts/feature-rich/jetton-minter.tact",
+            "output": "./src/output",
+            "mode": "full",
+            "options": {
+                "external": false,
+                "debug": false,
+                "ipfsAbiGetter": false,
+                "interfacesGetter": false,
+                "experimental": {
+                    "inline": true
+                },
+                "optimizations": {
+                    "alwaysSaveContractData": false,
+                    "internalExternalReceiversOutsideMethodsMap": false
+                }
+            }
+        }
+    ]
+}

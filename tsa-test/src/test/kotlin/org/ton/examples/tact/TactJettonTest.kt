@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 class TactJettonTest {
-    private val tactConfigPath = getResourcePath<TactJettonTest>("/contracts/tact-jetton_70f6c9c/tact.config.json")
+    private val tactConfigPath = getResourcePath<TactJettonTest>("/contracts/tact-jetton_b3608ca/tact.config.json")
 
     @Test
     fun testMinter() {

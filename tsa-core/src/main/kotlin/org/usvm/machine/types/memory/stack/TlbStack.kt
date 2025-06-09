@@ -9,8 +9,8 @@ import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.isFalse
 import org.usvm.machine.TvmContext
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.isEmptyRead
@@ -18,7 +18,7 @@ import org.usvm.test.resolver.TvmTestStateResolver
 
 data class TlbStack(
     private val frames: List<TlbStackFrame>,
-    private val deepestError: TvmMethodResult.TvmStructuralError? = null,
+    private val deepestError: TvmStructuralError? = null,
 ) {
     val isEmpty: Boolean
         get() = frames.isEmpty()
@@ -39,7 +39,7 @@ data class TlbStack(
                 GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
                 GuardedResult(
                     emptyRead.not(),
-                    Error(TvmMethodResult.TvmStructuralError(TvmUnexpectedDataReading(loadData.type), state.phase)),
+                    Error(TvmStructuralError(TvmUnexpectedDataReading(loadData.type), state.phase)),
                     value = null
                 )
             )
@@ -171,7 +171,7 @@ data class TlbStack(
 
     sealed interface StepResult
 
-    data class Error(val error: TvmMethodResult.TvmStructuralError) : StepResult
+    data class Error(val error: TvmStructuralError) : StepResult
 
     data class NewStack(val stack: TlbStack) : StepResult
 

@@ -1,5 +1,8 @@
 package org.usvm.machine.interpreter
 
+import io.ksmt.expr.KBitVecValue
+import io.ksmt.utils.BvUtils.toBigIntegerSigned
+import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bytecode.TvmComplexGas
@@ -42,6 +45,7 @@ import org.ton.bytecode.TvmTupleUntupleInst
 import org.ton.bytecode.TvmTupleUntuplevarInst
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.intValue
 import org.usvm.machine.state.SIMPLE_GAS_USAGE
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
@@ -56,6 +60,7 @@ import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastTuple
+import java.math.BigInteger
 
 class TvmTupleInterpreter(private val ctx: TvmContext) {
     fun visitTvmTupleInst(scope: TvmStepScopeManager, stmt: TvmTupleInst) {
@@ -97,9 +102,21 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
             is TvmTupleNullswapifnot2Inst -> doPushNullIf(scope, stmt, swapIfZero = true, nullsCount = 2, skipOneEntryUnderTop = false)
             is TvmTupleNullrotrifnotInst -> doPushNullIf(scope, stmt, swapIfZero = true, nullsCount = 1, skipOneEntryUnderTop = true)
             is TvmTupleNullrotrifnot2Inst -> doPushNullIf(scope, stmt, swapIfZero = true, nullsCount = 2, skipOneEntryUnderTop = true)
+            is TvmTupleIndexvarInst -> {
+                val index = scope.takeLastIntOrThrowTypeError()
+                    ?: return
+                if (index !is KBitVecValue<*>) {
+                    TODO("Non-concrete at TvmTupleIndexvarInst: $index")
+                }
+                val concreteValue = index.toBigIntegerSigned()
+                if (concreteValue < BigInteger.ZERO || concreteValue >= 255.toBigInteger()) {
+                    TODO("wrong index")
+                }
+                doConcreteGet(scope, stmt, index.intValue(), quiet = false) ?: return
+                scope.doWithState { newStmt(stmt.nextStmt()) }
+            }
             is TvmTupleExplodeInst -> TODO()
             is TvmTupleExplodevarInst -> TODO()
-            is TvmTupleIndexvarInst -> TODO()
             is TvmTupleIndexvarqInst -> TODO()
             is TvmTupleLastInst -> TODO()
             is TvmTupleSetindexvarInst -> TODO()

@@ -1122,7 +1122,7 @@ class TvmDictOperationInterpreter(
         originalDictContainsKeyEmptyResult: TvmState.() -> Unit,
         originalDictContainsKeyNonEmptyResult: TvmState.(UHeapRef) -> Unit,
     ) {
-        val resultDict = scope.calcOnState { memory.allocConcrete(TvmCellType) }
+        val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
 
         scope.doWithStateCtx {
             copyDict(dictCellRef, resultDict, dictId, key.sort)

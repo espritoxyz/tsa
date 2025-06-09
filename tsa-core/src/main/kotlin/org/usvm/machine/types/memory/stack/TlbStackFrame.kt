@@ -5,8 +5,8 @@ import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.machine.TvmContext
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -78,7 +78,7 @@ sealed interface TlbStackFrame {
 
 sealed interface StackFrameStepResult<out ReadResult>
 
-data class StepError(val error: TvmMethodResult.TvmStructuralError?) : StackFrameStepResult<Nothing>
+data class StepError(val error: TvmStructuralError?) : StackFrameStepResult<Nothing>
 
 data class NextFrame(val frame: TlbStackFrame) : StackFrameStepResult<Nothing>
 

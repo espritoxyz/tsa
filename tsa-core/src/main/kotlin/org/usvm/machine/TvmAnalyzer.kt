@@ -4,11 +4,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import mu.KLogging
 import org.ton.TvmInputInfo
+import org.ton.boc.BagOfCells
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.setTSACheckerFunctions
-import org.ton.cell.Cell
-import org.usvm.machine.FiftAnalyzer.Companion.FIFT_INCLUDE_PREAMBLE
 import org.usvm.machine.FuncAnalyzer.Companion.FIFT_EXECUTABLE
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
@@ -20,13 +19,13 @@ import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestResolver
 import org.usvm.utils.executeCommandWithTimeout
 import org.usvm.utils.toText
-import java.io.File
 import java.math.BigInteger
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createTempFile
 import kotlin.io.path.deleteIfExists
+import kotlin.io.path.div
 import kotlin.io.path.exists
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
@@ -69,19 +68,20 @@ data class TactSourcesDescription(
 
 data object TactAnalyzer : TvmAnalyzer<TactSourcesDescription> {
     override fun convertToTvmContractCode(sources: TactSourcesDescription): TsaContractCode {
+        compileTact(sources.configPath)
+
+        return TsaContractCode.construct(getBocAbsolutePath(sources))
+    }
+
+    fun getBocAbsolutePath(sources: TactSourcesDescription): Path {
         val config = readTactConfig(sources.configPath)
         val project = config.projects.firstOrNull {
             it.name == sources.projectName
         } ?: error("Project with name ${sources.projectName} not found.")
-        val outputDir = File(sources.configPath.parent?.toAbsolutePath()?.toString(), project.output)
-
-        compileTact(sources.configPath)
-
+        val outputDir = sources.configPath.parent.toAbsolutePath() / project.output
         val bocFileName = "${sources.projectName}_${sources.contractName}.code.boc"
-        val bocFile = outputDir.walk().singleOrNull { it.name == bocFileName }
-            ?: error("Cannot find file $bocFileName after compiling the Tact source")
 
-        return TsaContractCode.construct(bocFile.toPath())
+        return outputDir.resolve(bocFileName).normalize()
     }
 
     private fun readTactConfig(configPath: Path): TactConfig {
@@ -98,7 +98,7 @@ data object TactAnalyzer : TvmAnalyzer<TactSourcesDescription> {
         val (exitValue, completedInTime, output, errors) = executeCommandWithTimeout(
             executionCommand,
             COMPILER_TIMEOUT,
-            processWorkingDirectory = configFile.parent?.toFile(),
+            processWorkingDirectory = configFile.parent.toFile(),
         )
 
         check(completedInTime) {
@@ -152,7 +152,8 @@ class FuncAnalyzer(
         check(exitValue == 0) {
             "FunC compilation failed with an error, exit code $exitValue, errors: \n${errors.toText()}"
         }
-        val fiftCode = "$FIFT_INCLUDE_PREAMBLE${output.toText()}"
+        val fiftIncludePreamble = """"Fift.fif" include"""
+        val fiftCode = "$fiftIncludePreamble\n${output.toText()}"
 
         fiftFilePath.writeText(fiftCode)
     }
@@ -169,8 +170,23 @@ class FuncAnalyzer(
             "FunC compilation to BoC has not finished in $COMPILER_TIMEOUT seconds"
         }
 
-        check(exitValue == 0 && errors.isEmpty()) {
-            "FunC compilation to BoC failed with an error, exit code $exitValue, errors: \n${errors.toText()}"
+        // Ensure the BoC file is not empty after compilation
+        val isBocEmptyOrMissing = bocFilePath.toFile().length() == 0L
+
+        // we don't check that [errors] is empty, because there is a case, when it reports something strange,
+        // but compilation is still successful.
+        // Example of such message (not present in older version of Fift):
+        // [ 1][t 0][2025-03-21 09:37:26.441386890][Fift.cpp:66]   top: <continuation 0x55871d44a300>
+        // level 1: <continuation 0x55871d44a340>
+        // level 2: <text interpreter continuation>
+        // [ 1][t 0][2025-03-21 09:37:26.441586888][Fift.cpp:69]   Error::-?
+        check(exitValue == 0 && bocFilePath.exists() && !isBocEmptyOrMissing) {
+            """
+                FunC compilation to BoC failed with an error, exit code $exitValue, errors: 
+                ${errors.toText()}
+                Command:
+                $command
+            """.trimIndent()
         }
     }
 
@@ -233,7 +249,8 @@ class FiftAnalyzer(
         check(fiftWorkDir.resolve("Fift.fif").exists()) { "No Fift.fif" }
 
         val fiftTextWithOutputCommand = """
-        $FIFT_INCLUDE_PREAMBLE
+        "Fift.fif" include
+        "Asm.fif" include
 
         ${codeBlock.trim()}s runvmcode $FINAL_STACK_STATE_MARKER .s
     """.trimIndent()
@@ -257,7 +274,8 @@ class FiftAnalyzer(
         val blocks = codeBlocks.mapIndexed { index, block -> "cb_$index PROC:$block" }
 
         val fiftCode = """
-        $FIFT_INCLUDE_PREAMBLE
+        "Fift.fif" include
+        "Asm.fif" include
         
         PROGRAM{
           ${methodIds.joinToString("\n")}
@@ -341,11 +359,6 @@ class FiftAnalyzer(
     companion object {
         private const val FINAL_STACK_STATE_MARKER = "\"FINAL STACK STATE\""
         private val TVM_EXECUTION_STATUS_PATTERN = Regex(""".*steps: (\d+) gas: used=(\d+).*""")
-
-        const val FIFT_INCLUDE_PREAMBLE = """
-            "Fift.fif" include
-            "Asm.fif" include
-        """
     }
 }
 
@@ -364,6 +377,7 @@ private fun runAnalysisInCatchingBlock(
     contractForCoverageStats: TsaContractCode,
     methodId: MethodId,
     logInfoAboutAnalysis: Boolean = true,
+    throwNotImplementedError: Boolean = false,
     analysisRun: (TvmCoverageStatistics) -> List<TvmState>,
 ): Pair<List<TvmState>, TvmMethodCoverage> =
     runCatching {
@@ -388,6 +402,10 @@ private fun runAnalysisInCatchingBlock(
 
         states to coverage
     }.getOrElse {
+        if (it is NotImplementedError && throwNotImplementedError) {
+            throw it
+        }
+
         logger.error(it) {
             "Failed analyzing method with id $methodId"
         }
@@ -403,6 +421,7 @@ fun analyzeInterContract(
     additionalStopStrategy: StopStrategy = StopStrategy { false },
     additionalObserver: UMachineObserver<TvmState>? = null,
     options: TvmOptions = TvmOptions(),
+    throwNotImplementedError: Boolean = false,
     manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
@@ -412,11 +431,13 @@ fun analyzeInterContract(
         contractForCoverageStats = startContractCode,
         methodId = methodId,
         logInfoAboutAnalysis = false,
+        throwNotImplementedError = throwNotImplementedError,
     ) { coverageStatistics ->
         machine.analyze(
             contracts,
             startContractId,
-            Cell.of(DEFAULT_CONTRACT_DATA_HEX),
+            // TODO support contract data for inter contract
+            contractData = contracts.map { null },
             coverageStatistics,
             methodId,
             inputInfo = inputInfo,
@@ -439,6 +460,10 @@ fun analyzeAllMethods(
     tvmOptions: TvmOptions = TvmOptions(),
     takeEmptyTests: Boolean = false,
 ): TvmContractSymbolicTestResult {
+    if (contract.methods.isEmpty()) {
+        throw NoSelectedMethodsToAnalyze()
+    }
+
     val methodsExceptDictPushConst = contract.methods.filterKeys { it !in methodsBlackList }
     val methodTests = methodsExceptDictPushConst.values.mapNotNull { method ->
         if (methodWhitelist?.let { method.id in it } == false) {
@@ -456,6 +481,7 @@ fun analyzeAllMethods(
     return TvmTestResolver.groupTestSuites(methodTests, takeEmptyTests)
 }
 
+@OptIn(ExperimentalStdlibApi::class)
 fun analyzeSpecificMethod(
     contract: TsaContractCode,
     methodId: MethodId,
@@ -463,13 +489,11 @@ fun analyzeSpecificMethod(
     inputInfo: TvmInputInfo = TvmInputInfo(),
     tvmOptions: TvmOptions = TvmOptions(),
 ): TvmSymbolicTestSuite {
-    val contractData = Cell.Companion.of(contractDataHex ?: DEFAULT_CONTRACT_DATA_HEX)
-    val machineOptions = TvmMachine.defaultOptions.copy(
-        timeout = tvmOptions.timeout,
-        loopIterationLimit = tvmOptions.loopIterationLimit,
-    )
+    val contractData = contractDataHex?.let {
+        BagOfCells(it.hexToByteArray()).roots.single()
+    }
 
-    val machine = TvmMachine(tvmOptions = tvmOptions, options = machineOptions)
+    val machine = TvmMachine(tvmOptions = tvmOptions)
     val (states, coverage) = machine.use {
         runAnalysisInCatchingBlock(
             contractIdForCoverageStats = 0,
@@ -502,6 +526,10 @@ fun getFuncContract(
 
 private fun String.toExecutionCommand(): List<String> = listOf("/bin/sh", "-c", this)
 
+class NoSelectedMethodsToAnalyze : RuntimeException() {
+    override val message: String = "No selected methods can be extracted from this contract. Please specify a method to analyze."
+}
+
 data class FiftInterpreterResult(
     val exitCode: Int,
     val gasUsage: Int,
@@ -509,7 +537,6 @@ data class FiftInterpreterResult(
     val stack: List<String>
 )
 
-const val DEFAULT_CONTRACT_DATA_HEX = "b5ee9c7241010101000a00001000000185d258f59ccfc59500"
 private const val COMPILER_TIMEOUT = 5.toLong() // seconds
 
 @Suppress("NOTHING_TO_INLINE")

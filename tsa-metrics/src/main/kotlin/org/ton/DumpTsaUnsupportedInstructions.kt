@@ -3,17 +3,16 @@ package org.ton
 import mu.KLogging
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.TvmCell
+import org.ton.bytecode.TvmCellData
 import org.ton.bytecode.TvmMainMethod
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.tvmDefaultInstructions
-import org.ton.cell.Cell
-import org.usvm.machine.DEFAULT_CONTRACT_DATA_HEX
 import org.usvm.machine.TvmComponents
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmMachine
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.interpreter.TvmInterpreter
-import org.usvm.machine.toTvmCell
 import java.io.File
 import java.math.BigInteger
 
@@ -28,8 +27,7 @@ fun main() {
 
     TvmComponents(TvmMachine.defaultOptions).use { dummyComponents ->
         TvmContext(TvmOptions(), dummyComponents).use { ctx ->
-            val dummyContractData = Cell.Companion.of(DEFAULT_CONTRACT_DATA_HEX)
-            val dummyCodeCell = dummyContractData.toTvmCell()
+            val dummyCodeCell = TvmCell(TvmCellData(""), emptyList())
 
             // Group instructions by category in alphabetical order
             val result = sortedMapOf<String, MutableList<String>>()
@@ -51,7 +49,7 @@ fun main() {
                         TvmInputInfo(),
                     )
                     val dummyState =
-                        dummyInterpreter.getInitialState(startContractId = 0, dummyContractData, BigInteger.ZERO)
+                        dummyInterpreter.getInitialState(startContractId = 0, listOf(null), BigInteger.ZERO)
 
                     runCatching {
                         try {

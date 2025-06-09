@@ -12,14 +12,13 @@ import org.ton.bytecode.TvmArtificialInst
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.state.TmvPhase.ACTION_PHASE
-import org.usvm.machine.state.TmvPhase.COMPUTE_PHASE
-import org.usvm.machine.state.TmvPhase.EXIT_PHASE
-import org.usvm.machine.state.TmvPhase.TERMINATED
+import org.usvm.machine.state.TvmPhase.ACTION_PHASE
+import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
+import org.usvm.machine.state.TvmPhase.EXIT_PHASE
+import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
-import org.usvm.machine.state.TvmMethodResult.TvmStructuralError
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.callContinuation
@@ -121,7 +120,7 @@ class TvmArtificialInstInterpreter(
             if (analysisOfGetMethod ||
                 commitedState == null ||
                 result is TvmFailure && result.phase == ACTION_PHASE ||
-                result is TvmStructuralError && result.phase == ACTION_PHASE
+                result is TvmMethodResult.TvmAbstractSoftFailure && result.phase == ACTION_PHASE
             ) {
                 phase = TERMINATED
                 methodResult = result

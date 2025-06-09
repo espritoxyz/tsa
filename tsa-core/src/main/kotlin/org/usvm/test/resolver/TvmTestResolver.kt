@@ -8,6 +8,7 @@ import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.tryCatchIf
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.TvmState
@@ -153,4 +154,10 @@ data class TvmExecutionWithStructuralError(
     val lastStmt: TvmInst,
     override val stack: List<TvmTestValue>,
     val exit: TvmStructuralExit<TvmTestCellDataTypeRead, TlbResolvedBuiltinLabel>,
+) : TvmMethodSymbolicResult
+
+data class TvmExecutionWithSoftFailure(
+    val lastStmt: TvmInst,
+    override val stack: List<TvmTestValue>,
+    val failure: TvmMethodResult.TvmSoftFailure,
 ) : TvmMethodSymbolicResult

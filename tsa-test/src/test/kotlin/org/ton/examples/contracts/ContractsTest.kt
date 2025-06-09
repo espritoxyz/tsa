@@ -1,6 +1,5 @@
 package org.ton.examples.contracts
 
-import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.ton.bytecode.MethodId
 import org.ton.examples.FIFT_STDLIB_RESOURCE
@@ -217,7 +216,7 @@ class ContractsTest {
     }
 
     @Ignore("Dict slice values overflow https://github.com/explyt/tsa/issues/155")
-    @RepeatedTest(100)
+    @Test
     fun highloadWallet() {
         analyzeFuncContract(highloadWalletPath, methodsNumber = 4, enableTestGeneration = true)
     }

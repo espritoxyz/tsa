@@ -17,21 +17,25 @@ import org.ton.bytecode.TvmContractCode
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
+import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
+import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmSymbolicTestSuite
-import org.usvm.test.resolver.TvmTestInput
 
-fun TvmContractSymbolicTestResult.toSarifReport(methodsMapping: Map<MethodId, String>): String = SarifSchema210(
+fun TvmContractSymbolicTestResult.toSarifReport(
+    methodsMapping: Map<MethodId, String>,
+    excludeUserDefinedErrors: Boolean = false,
+): String = SarifSchema210(
     schema = TsaSarifSchema.SCHEMA,
     version = TsaSarifSchema.VERSION,
     runs = listOf(
         Run(
             tool = TsaSarifSchema.TsaSarifTool.TOOL,
-            results = testSuites.flatMap { it.toSarifResult(methodsMapping) },
+            results = testSuites.flatMap { it.toSarifResult(methodsMapping, excludeUserDefinedErrors) },
             properties = PropertyBag(
                 mapOf(
                     "coverage" to testSuites.associate { it.methodId.toString() to it.methodCoverage.transitiveCoverage }
@@ -41,13 +45,17 @@ fun TvmContractSymbolicTestResult.toSarifReport(methodsMapping: Map<MethodId, St
     )
 ).let { TvmContractCode.json.encodeToString(it) }
 
-private fun TvmSymbolicTestSuite.toSarifResult(methodsMapping: Map<MethodId, String>): List<Result> {
-    return tests.toSarifResult(methodsMapping)
+private fun TvmSymbolicTestSuite.toSarifResult(
+    methodsMapping: Map<MethodId, String>,
+    excludeUserDefinedErrors: Boolean,
+): List<Result> {
+    return tests.toSarifResult(methodsMapping, excludeUserDefinedErrors = excludeUserDefinedErrors)
 }
 
 fun List<TvmSymbolicTest>.toSarifReport(
     methodsMapping: Map<MethodId, String>,
-    useShortenedOutput: Boolean
+    useShortenedOutput: Boolean,
+    excludeUserDefinedErrors: Boolean,
 ): String =
     SarifSchema210(
         schema = TsaSarifSchema.SCHEMA,
@@ -55,23 +63,31 @@ fun List<TvmSymbolicTest>.toSarifReport(
         runs = listOf(
             Run(
                 tool = TsaSarifSchema.TsaSarifTool.TOOL,
-                results = toSarifResult(methodsMapping, useShortenedOutput),
+                results = toSarifResult(methodsMapping, excludeUserDefinedErrors, useShortenedOutput),
             )
         )
     ).let { TvmContractCode.json.encodeToString(it) }
 
 private fun List<TvmSymbolicTest>.toSarifResult(
     methodsMapping: Map<MethodId, String>,
+    excludeUserDefinedErrors: Boolean,
     useShortenedOutput: Boolean = false,
 ) = mapNotNull {
     val (ruleId, message) = when (it.result) {
         is TvmMethodFailure -> {
             val methodFailure = it.result as TvmMethodFailure
+            if (methodFailure.failure.exit is TvmUserDefinedFailure && excludeUserDefinedErrors) {
+                return@mapNotNull null
+            }
             resolveRuleId(methodFailure.failure) to methodFailure.failure.toString()
         }
         is TvmExecutionWithStructuralError -> {
             val exit = (it.result as TvmExecutionWithStructuralError).exit
             exit.ruleId to exit.toString()
+        }
+        is TvmExecutionWithSoftFailure -> {
+            val exit = (it.result as TvmExecutionWithSoftFailure).failure
+            exit.exit.ruleId to exit.toString()
         }
         is TvmSuccessfulExecution -> {
             return@mapNotNull null
@@ -88,6 +104,7 @@ private fun List<TvmSymbolicTest>.toSarifResult(
             it.fetchedValues.takeIf { it.isNotEmpty() }?.let {
                 "fetchedValues" to TvmContractCode.json.encodeToJsonElement(it)
             },
+            "rootContractInitialC4" to TvmContractCode.json.encodeToJsonElement(it.rootInitialData),
             "resultStack" to TvmContractCode.json.encodeToJsonElement(it.result.stack),
         ).toMap()
     )

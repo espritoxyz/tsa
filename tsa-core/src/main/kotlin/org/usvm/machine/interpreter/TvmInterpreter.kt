@@ -303,6 +303,7 @@ import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.state.takeLastTuple
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.machine.toMethodId
+import org.usvm.machine.toTvmCell
 import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
@@ -353,7 +354,7 @@ class TvmInterpreter(
 
     fun getInitialState(
         startContractId: ContractId,
-        contractData: Cell,
+        contractData: List<Cell?>,
         methodId: MethodId,
         targets: List<TvmTarget> = emptyList()
     ): TvmState {
@@ -383,7 +384,14 @@ class TvmInterpreter(
         )
 
         state.contractIdToC4Register = contractsCode.indices.associateWith {
-            C4Register(TvmCellValue(state.generateSymbolicCell()))
+            // If no concrete contract data is provided for the contract, consider it as symbolic
+            val givenData = contractData.getOrNull(it)
+            val ref = if (givenData != null) {
+                state.allocateCell(givenData.toTvmCell())
+            } else {
+                state.generateSymbolicCell()
+            }
+            C4Register(TvmCellValue(ref))
         }.toPersistentMap()
         state.contractIdToFirstElementOfC7 = contractsCode.mapIndexed { index, code ->
             index to state.initContractInfo(code)
@@ -1732,7 +1740,7 @@ class TvmInterpreter(
                 val cont = stack.takeLastContinuation()
                     ?: return@doWithStateCtx throwTypeCheckError(this)
                 if (
-                    cont !is TvmOrdContinuation ||  // support only orfinary continuations
+                    cont !is TvmOrdContinuation ||  // support only ordinary continuations
                     cont.isPartiallyExecuted() ||
                     cont.sourceCell == null  // we can extract TsaContractCode only if continuation has raw cell representation
                 ) {
@@ -2213,6 +2221,7 @@ class TvmInterpreter(
 
                 val method = contractCode.methods[methodId] ?: run {
                     scope.addOnStack(methodIdSymbolic, TvmIntegerType)
+                    scope.doWithState { newStmt(stmt.nextStmt()) }
                     return
                 }
 

@@ -7,7 +7,6 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBvSort
 import org.ton.Endian
 import org.ton.bytecode.TvmCell
-import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
@@ -19,6 +18,7 @@ import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.isFalse
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.ADDRESS_TAG_BITS
@@ -227,7 +227,7 @@ fun checkCellOverflow(
     }
 )
 
-fun TvmStepScopeManager.assertDataLengthConstraint(
+fun TvmStepScopeManager.assertDataLengthConstraintWithoutError(
     cellDataLength: UExpr<TvmSizeSort>,
     unsatBlock: TvmState.() -> Unit,
 ): Unit? = calcOnStateCtx {
@@ -238,7 +238,7 @@ fun TvmStepScopeManager.assertDataLengthConstraint(
     assert(correctnessConstraint, unsatBlock = unsatBlock)
 }
 
-fun TvmStepScopeManager.assertRefsLengthConstraint(
+fun TvmStepScopeManager.assertRefsLengthConstraintWithoutError(
     cellRefsLength: UExpr<TvmSizeSort>,
     unsatBlock: TvmState.() -> Unit,
 ): Unit? = calcOnStateCtx {
@@ -298,7 +298,7 @@ fun TvmStepScopeManager.slicePreloadDataBits(
     val cell = memory.readField(slice, sliceCellField, addressSort)
     val cellDataLength = memory.readField(cell, cellDataLengthField, sizeSort)
 
-    assertDataLengthConstraint(
+    assertDataLengthConstraintWithoutError(
         cellDataLength,
         unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
     ) ?: return@calcOnStateCtx  null
@@ -357,7 +357,7 @@ fun TvmStepScopeManager.slicePreloadInt(
 }
 
 private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
-    slice: UHeapRef
+    slice: UHeapRef,
 ): Pair<UBoolExpr, UExpr<TvmSizeSort>>? = doWithCtx {
     // addr_var$11 anycast:(Maybe Anycast) addr_len:(## 9) workchain_id:int32
     // addr_std$10 anycast:(Maybe Anycast) workchain_id:int8 ...
@@ -370,6 +370,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
     val tag = mkBvExtractExpr(high = prefixLen - 1, low = prefixLen - 2, data)
 
     // anycast:(Maybe Anycast)
+    // since TVM 10, must be 0. We set TvmUsageOfAnycastAddress if it is 1
     val anycastBit = mkBvExtractExpr(high = prefixLen - 3, low = prefixLen - 3, data)
     val noAnycastConstraint = anycastBit eq zeroBit
 
@@ -381,46 +382,59 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
     val stdLength = mkSizeExpr(ADDRESS_TAG_LENGTH + 1 + STD_WORKCHAIN_BITS + ADDRESS_BITS)
 
     // addr_var$11
+    // since TVM 10, forbidden. We set TvmUsageOfVarAddress if it is used
     val varConstraint = tag eq mkBv(VAR_ADDRESS_TAG, ADDRESS_TAG_BITS)
-    // addr_len:(## 9)
-    val varAddrLength = mkBvExtractExpr(high = prefixLen - 4, low = prefixLen - 12, data).zeroExtendToSort(sizeSort)
-    // workchain_id:int32
-    val varWorkchain = mkBvExtractExpr(high = prefixLen - 13, low = prefixLen - 44, data).signedExtendToInteger()
-    val varWorkchainConstraint = (varWorkchain eq baseChain) or (varWorkchain eq masterchain)
-    val varLength = mkSizeAddExpr(mkSizeExpr(ADDRESS_TAG_LENGTH + 1 + 9 + 32), varAddrLength)
 
-    val (constraint, addrLength) = if (tvmOptions.enableVarAddress) {
-        Pair(
-            stdConstraint or varConstraint,
-            mkIte(
-                stdConstraint,
-                stdLength,
-                varLength
-            )
-        )
-    } else {
-        stdConstraint to stdLength
+    val noAnycastIfInternal = stdConstraint implies noAnycastConstraint
+
+    val constraintAndFailureList = listOf(
+        noAnycastIfInternal to TvmUsageOfAnycastAddress,
+        varConstraint.not() to TvmUsageOfVarAddress,
+    )
+
+    for ((assumeConstraint, failure) in constraintAndFailureList) {
+        if (calcOnState { models.all { it.eval(assumeConstraint).isFalse } }) {
+            var falseState: TvmState? = null
+            fork(
+                assumeConstraint,
+                falseStateIsExceptional = true,
+                blockOnFalseState = {
+                    falseState = this
+                    setExit(TvmMethodResult.TvmSoftFailure(failure, phase))
+                }
+            ) ?: return@doWithCtx null
+
+            // if reached this, then we found state with [assumeConstraint], and we can get rid of [falseState]
+            // TODO: maybe keep false state only if true state is unsat?
+            falseState?.let { killForkedState(it) }
+
+        } else {
+            assert(
+                assumeConstraint,
+                unsatBlock = {
+                    error("Must not be reachable")
+                },
+                unknownBlock = {
+                    error("Must not be reachable")
+                }
+            ) ?: return@doWithCtx null
+        }
     }
 
-    // TODO assume that there is no `anycast`, since we don't support it
     assert(
         mkAnd(
-            constraint implies noAnycastConstraint,
-            stdConstraint implies stdWorkchainConstraint,
-            varConstraint implies varWorkchainConstraint
-        ),
-        unsatBlock = {
-            error("Cannot assume no anycast")
-        }
+            stdConstraint implies stdWorkchainConstraint
+        )
     ) ?: return@doWithCtx null
 
-    constraint to addrLength
+    stdConstraint to stdLength
 }
 
 private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
-    slice: UHeapRef
+    slice: UHeapRef,
+    mustProcessAllAddressFormats: Boolean,
 ): Pair<UBoolExpr, UExpr<TvmSizeSort>>? = doWithCtx {
-    if (!tvmOptions.enableExternalAddress) {
+    if (!tvmOptions.enableExternalAddress && !mustProcessAllAddressFormats) {
         return@doWithCtx falseExpr to zeroSizeExpr
     }
     // addr_extern$01 len:(## 9)
@@ -450,8 +464,11 @@ private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
     (noneConstraint or externConstraint) to addrLength
 }
 
-fun TvmStepScopeManager.slicePreloadInternalAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? {
-    val (constraint, length) = slicePreloadInternalAddrLengthConstraint(slice) ?: return null
+fun TvmStepScopeManager.slicePreloadInternalAddrLength(
+    slice: UHeapRef
+): UExpr<TvmSizeSort>? {
+    val (constraint, length) = slicePreloadInternalAddrLengthConstraint(slice)
+        ?: return null
 
     fork(
         constraint,
@@ -466,8 +483,12 @@ fun TvmStepScopeManager.slicePreloadInternalAddrLength(slice: UHeapRef): UExpr<T
 }
 
 
-fun TvmStepScopeManager.slicePreloadExternalAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? {
-    val (constraint, length) = slicePreloadExternalAddrLengthConstraint(slice) ?: return null
+fun TvmStepScopeManager.slicePreloadExternalAddrLength(
+    slice: UHeapRef,
+    mustProcessAllAddressFormats: Boolean = false,
+): UExpr<TvmSizeSort>? {
+    val (constraint, length) = slicePreloadExternalAddrLengthConstraint(slice, mustProcessAllAddressFormats)
+        ?: return null
 
     fork(
         constraint,
@@ -481,9 +502,14 @@ fun TvmStepScopeManager.slicePreloadExternalAddrLength(slice: UHeapRef): UExpr<T
     return length
 }
 
-fun TvmStepScopeManager.slicePreloadAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? = calcOnStateCtx {
-    val (intConstraint, intLength) = slicePreloadInternalAddrLengthConstraint(slice) ?: return@calcOnStateCtx null
-    val (extConstraint, extLength) = slicePreloadExternalAddrLengthConstraint(slice) ?: return@calcOnStateCtx null
+fun TvmStepScopeManager.slicePreloadAddrLengthWithoutSetException(
+    slice: UHeapRef,
+    mustProcessAllAddressFormats: Boolean = false,
+): UExpr<TvmSizeSort>? = calcOnStateCtx {
+    val (intConstraint, intLength) = slicePreloadInternalAddrLengthConstraint(slice)
+        ?: return@calcOnStateCtx null
+    val (extConstraint, extLength) = slicePreloadExternalAddrLengthConstraint(slice, mustProcessAllAddressFormats)
+        ?: return@calcOnStateCtx null
 
     assert(intConstraint or extConstraint)
         ?: return@calcOnStateCtx null
@@ -555,7 +581,7 @@ fun TvmStepScopeManager.slicePreloadRef(
     val cell = memory.readField(slice, sliceCellField, addressSort)
     val refsLength = memory.readField(cell, cellRefsLengthField, sizeSort)
 
-    assertRefsLengthConstraint(
+    assertRefsLengthConstraintWithoutError(
         refsLength,
         unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") }
     ) ?: return@calcOnStateCtx null
@@ -827,7 +853,7 @@ fun TvmStepScopeManager.builderStoreSlice(
     val cell = calcOnState { memory.readField(slice, sliceCellField, addressSort) }
     val cellDataLength = calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
 
-    assertDataLengthConstraint(
+    assertDataLengthConstraintWithoutError(
         cellDataLength,
         unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
     ) ?: return null
@@ -936,7 +962,7 @@ fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef = with(ctx) {
 }
 
 fun TvmState.allocEmptyCell() = with(ctx) {
-    memory.allocConcrete(TvmCellType).also { cell ->
+    memory.allocConcrete(TvmDataCellType).also { cell ->
         cellDataFieldManager.writeCellData(memory, cell, mkBv(0, cellDataSort))
         memory.writeField(cell, cellDataLengthField, sizeSort, zeroSizeExpr, trueExpr)
         memory.writeField(cell, cellRefsLengthField, sizeSort, zeroSizeExpr, trueExpr)
@@ -1074,21 +1100,36 @@ fun sliceLoadAddrTlb(
                 tlbValue.second
             } else {
 
-                val addrLength = slicePreloadAddrLength(slice)
+                val originalCell = memory.readField(slice, sliceCellField, addressSort)
+                val dataPos = memory.readField(slice, sliceDataPosField, sizeSort)
+
+                checkCellDataUnderflow(
+                    this@makeSliceTypeLoad,
+                    originalCell,
+                    minSize = mkBvAddExpr(dataPos, twoSizeExpr),
+                    maxSize = null,
+                ) ?: return@calcOnStateCtx
+
+                val tag = slicePreloadDataBitsWithoutChecks(slice, sizeBits = 2)
                     ?: return@calcOnStateCtx
+
+                // Special case: when tag is concrete, we don't want to assert that this is StdAddress
+                // (even if our options for that are set)
+                val addrLength = slicePreloadAddrLengthWithoutSetException(
+                    slice,
+                    mustProcessAllAddressFormats = tag is KInterpretedValue
+                ) ?: return@calcOnStateCtx
                 sliceMoveDataPtr(updatedSlice, addrLength)
 
                 val addrSlice = calcOnState {
                     memory.allocConcrete(TvmSliceType)
                 }.also { sliceDeepCopy(slice, it) }
 
-                val addrDataPos = memory.readField(addrSlice, sliceDataPosField, sizeSort)
-                val addrRefPos = memory.readField(addrSlice, TvmContext.sliceRefPosField, sizeSort)
+                val addrRefPos = memory.readField(addrSlice, sliceRefPosField, sizeSort)
                 val addrCell = memory.readField(addrSlice, sliceCellField, addressSort)
                 // new data length to ensure that the remaining slice bits count is equal to [addrLength]
-                val addrDataLength = mkBvAddExpr(addrDataPos, addrLength)
+                val addrDataLength = mkBvAddExpr(dataPos, addrLength)
 
-                val originalCell = memory.readField(slice, sliceCellField, addressSort)
                 checkCellDataUnderflow(this@makeSliceTypeLoad, originalCell, addrDataLength)
                     ?: return@calcOnStateCtx
 

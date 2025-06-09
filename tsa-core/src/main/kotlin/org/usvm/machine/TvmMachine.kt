@@ -30,25 +30,29 @@ import kotlin.time.Duration.Companion.INFINITE
 import kotlin.time.Duration.Companion.seconds
 
 class TvmMachine(
-    private val options: UMachineOptions = defaultOptions,
     private val tvmOptions: TvmOptions = TvmOptions(),
 ) : UMachine<TvmState>() {
+    private val options: UMachineOptions = defaultOptions.copy(
+        timeout = tvmOptions.timeout,
+        loopIterationLimit = tvmOptions.loopIterationLimit,
+    )
+
     private val components = TvmComponents(options)
     private val ctx = TvmContext(tvmOptions, components)
 
     fun analyze(
         contractCode: TsaContractCode,
-        contractData: Cell,
+        contractData: Cell?,
         coverageStatistics: TvmCoverageStatistics,
         methodId: BigInteger,
         inputInfo: TvmInputInfo = TvmInputInfo()
     ): List<TvmState> =
-        analyze(listOf(contractCode), startContractId = 0, contractData, coverageStatistics, methodId, inputInfo)
+        analyze(listOf(contractCode), startContractId = 0, listOf(contractData), coverageStatistics, methodId, inputInfo)
 
     fun analyze(
         contractsCode: List<TsaContractCode>,
         startContractId: ContractId,
-        contractData: Cell,
+        contractData: List<Cell?>,
         coverageStatistics: TvmCoverageStatistics,  // TODO: adapt for several contracts
         methodId: BigInteger,
         inputInfo: TvmInputInfo = TvmInputInfo(),
@@ -139,9 +143,8 @@ class TvmMachine(
             stopStrategy = integrativeStopStrategy,
         )
 
-        return interpreter.postProcessStates(statesCollector.collectedStates).flatMap {
-            manualStatePostProcess(it)
-        }
+        val states = statesCollector.collectedStates.flatMap { manualStatePostProcess(it) }
+        return interpreter.postProcessStates(states)
     }
 
     private fun isStateTerminated(state: TvmState): Boolean = state.isTerminated

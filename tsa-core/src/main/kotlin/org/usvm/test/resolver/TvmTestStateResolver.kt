@@ -9,12 +9,18 @@ import org.ton.TlbBuiltinLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
-import org.ton.TvmParameterInfo
 import org.ton.TlbResolvedBuiltinLabel
+import org.ton.TvmParameterInfo
+import org.ton.bytecode.ADDRESS_PARAMETER_IDX
+import org.ton.bytecode.BALANCE_PARAMETER_IDX
+import org.ton.bytecode.CONFIG_PARAMETER_IDX
+import org.ton.bytecode.TIME_PARAMETER_IDX
+import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmInst
 import org.usvm.NULL_ADDRESS
 import org.usvm.UAddressSort
+import org.usvm.UBoolExpr
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
@@ -27,6 +33,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
+import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.TvmCellRefsRegionValueInfo
 import org.usvm.machine.state.TvmMethodResult
@@ -34,7 +41,9 @@ import org.usvm.machine.state.TvmRefsMemoryRegion
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmStack.TvmStackTupleValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcConsumedGas
 import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
@@ -42,23 +51,25 @@ import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.ensureSymbolicBuilderInitialized
 import org.usvm.machine.state.ensureSymbolicCellInitialized
 import org.usvm.machine.state.ensureSymbolicSliceInitialized
+import org.usvm.machine.state.input.RecvInternalInput
+import org.usvm.machine.state.input.TvmStateStackInput
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.tvmCellRefsRegion
 import org.usvm.machine.types.TvmBuilderType
-import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
-import org.usvm.machine.types.TvmDataCellType
-import org.usvm.machine.types.TvmDictCellType
-import org.usvm.machine.types.TvmFinalReferenceType
-import org.usvm.machine.types.TvmReadingOfUnexpectedType
-import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
-import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead
 import org.usvm.machine.types.TvmCellDataIntegerRead
 import org.usvm.machine.types.TvmCellDataMsgAddrRead
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmCellMaybeConstructorBitRead
+import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
+import org.usvm.machine.types.TvmDataCellType
+import org.usvm.machine.types.TvmDictCellType
+import org.usvm.machine.types.TvmFinalReferenceType
+import org.usvm.machine.types.TvmReadingOfUnexpectedType
+import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
 import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
+import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.TvmUnexpectedEndOfReading
@@ -71,16 +82,6 @@ import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.sizeSort
 import java.math.BigInteger
-import org.ton.bytecode.ADDRESS_PARAMETER_IDX
-import org.ton.bytecode.BALANCE_PARAMETER_IDX
-import org.ton.bytecode.CONFIG_PARAMETER_IDX
-import org.ton.bytecode.TIME_PARAMETER_IDX
-import org.ton.bytecode.TvmArtificialInst
-import org.usvm.UBoolExpr
-import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.TvmStack.TvmStackValue
-import org.usvm.machine.state.input.RecvInternalInput
-import org.usvm.machine.state.input.TvmStateStackInput
 
 class TvmTestStateResolver(
     private val ctx: TvmContext,
@@ -192,14 +193,15 @@ class TvmTestStateResolver(
                 TvmMethodFailure(it, node.statement, it.exit.exitCode, resolvedResults)
             }
             is TvmMethodResult.TvmSuccess -> TvmSuccessfulExecution(it.exit.exitCode, resolvedResults)
-            is TvmMethodResult.TvmStructuralError -> resolveTvmStructuralError(state.lastStmt, resolvedResults, it)
+            is TvmStructuralError -> resolveTvmStructuralError(state.lastStmt, resolvedResults, it)
+            is TvmMethodResult.TvmSoftFailure -> TvmExecutionWithSoftFailure(state.lastStmt, resolvedResults, it)
         }
     }
 
     private fun resolveTvmStructuralError(
         lastStmt: TvmInst,
         stack: List<TvmTestValue>,
-        exit: TvmMethodResult.TvmStructuralError,
+        exit: TvmStructuralError,
     ): TvmExecutionWithStructuralError {
         val resolvedExit = when (val structuralExit = exit.exit) {
             is TvmUnexpectedDataReading -> TvmUnexpectedDataReading(

@@ -111,8 +111,8 @@ import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
-import org.usvm.machine.state.assertDataLengthConstraint
-import org.usvm.machine.state.assertRefsLengthConstraint
+import org.usvm.machine.state.assertDataLengthConstraintWithoutError
+import org.usvm.machine.state.assertRefsLengthConstraintWithoutError
 import org.usvm.machine.state.assertType
 import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
@@ -935,13 +935,13 @@ class TvmCellInterpreter(
         val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
 
         val cellDataLength = scope.calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
-        scope.assertDataLengthConstraint(
+        scope.assertDataLengthConstraintWithoutError(
             cellDataLength,
             unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
         ) ?: return
 
         val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
-        scope.assertRefsLengthConstraint(
+        scope.assertRefsLengthConstraintWithoutError(
             cellRefsLength,
             unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") }
         ) ?: return
@@ -998,13 +998,13 @@ class TvmCellInterpreter(
             val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
 
             val cellDataLength = scope.calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
-            scope.assertDataLengthConstraint(
+            scope.assertDataLengthConstraintWithoutError(
                 cellDataLength,
                 unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
             ) ?: return
 
             val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
-            scope.assertRefsLengthConstraint(
+            scope.assertRefsLengthConstraintWithoutError(
                 cellRefsLength,
                 unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") }
             ) ?: return
@@ -1023,7 +1023,7 @@ class TvmCellInterpreter(
             }
 
             val cutCell = scope.calcOnState {
-                memory.allocConcrete(TvmCellType)
+                memory.allocConcrete(TvmDataCellType)
             }.also {
                 scope.builderCopy(cell, it)
             }
@@ -1103,7 +1103,7 @@ class TvmCellInterpreter(
 
         val dataCell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
         val cellDataLength = scope.calcOnState { memory.readField(dataCell, cellDataLengthField, sizeSort) }
-        scope.assertDataLengthConstraint(
+        scope.assertDataLengthConstraintWithoutError(
             cellDataLength,
             unsatBlock = { error("Cannot ensure correctness for data length in cell $dataCell") }
         ) ?: return
