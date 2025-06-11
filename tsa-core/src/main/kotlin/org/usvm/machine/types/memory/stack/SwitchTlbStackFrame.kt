@@ -8,6 +8,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.SizedCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
+import org.usvm.machine.types.TvmCellMaybeConstructorBitRead
 import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
 import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
 import org.usvm.machine.types.memory.generateGuardForSwitch
@@ -36,7 +37,11 @@ data class SwitchTlbStackFrame(
         val possibleVariants =
             state.dataCellInfoStorage.mapper.calculatedTlbLabelInfo.getPossibleSwitchVariants(struct, leftTlbDepth)
 
-        if (loadData.type !is SizedCellDataTypeRead) {
+        // reading long tag with `load_maybe_ref` or `load_dict` (which is actually the same instruction)
+        // means that something probably went wrong --- so we report it as an error
+        val isBadMaybeRead = struct.switchSize > 1 && loadData.type is TvmCellMaybeConstructorBitRead
+
+        if (loadData.type !is SizedCellDataTypeRead || isBadMaybeRead) {
             return@with listOf(
                 GuardedResult(
                     trueExpr,

@@ -3,6 +3,7 @@ package org.ton.examples.args
 import org.ton.examples.TvmTestExecutor
 import org.ton.examples.funcCompileAndAnalyzeAllMethods
 import org.ton.test.gen.dsl.render.TsRenderer
+import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import kotlin.test.Test
 
@@ -24,7 +25,7 @@ class ArgsConstraintsTest {
     @Test
     fun testConsistentFlags() {
         val path = getResourcePath<ArgsConstraintsTest>(consistentFlagsPath)
-        val result = funcCompileAndAnalyzeAllMethods(path)
+        val result = funcCompileAndAnalyzeAllMethods(path, tvmOptions = TvmOptions(analyzeBouncedMessaged = true))
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
     }
 

@@ -18,6 +18,7 @@ import org.usvm.machine.TlbOptions
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.types.TvmReadingOfUnexpectedType
+import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.TvmUnexpectedEndOfReading
 import org.usvm.machine.types.TvmUnexpectedRefReading
@@ -90,7 +91,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(maybeStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -112,7 +113,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(int64Structure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -136,7 +137,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(TlbEmptyLabel))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -159,7 +160,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(TlbCoinsLabel))))
-        val options = TvmOptions(turnOnTLBParsingChecks = false, performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(turnOnTLBParsingChecks = false, performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             inputInfo = mapOf(BigInteger.ZERO to inputInfo),
@@ -179,7 +180,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(TlbEmptyLabel))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -194,7 +195,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(int64Structure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -216,7 +217,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(someRefStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -238,7 +239,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(someRefStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -253,7 +254,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(prefixInt64Structure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -268,7 +269,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(int64Structure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -289,7 +290,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(coinsStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -313,7 +314,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(coinsStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -335,7 +336,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(wrappedMsgStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -366,7 +367,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(wrappedMsgStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -388,7 +389,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(dict256Structure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -410,7 +411,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(dict256Structure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -434,7 +435,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(intSwitchStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -461,7 +462,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(intSwitchStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -482,7 +483,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(intSwitchStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -512,7 +513,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -546,7 +547,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -577,7 +578,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -601,7 +602,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
 
@@ -646,7 +647,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
 
@@ -682,7 +683,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(TlbIntegerLabelOfConcreteSize(100, true, Endian.BigEndian)))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -713,7 +714,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -744,7 +745,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -775,7 +776,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -799,7 +800,7 @@ class InputParameterInfoTests {
                 )
             )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -828,7 +829,7 @@ class InputParameterInfoTests {
             )
         )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -850,7 +851,7 @@ class InputParameterInfoTests {
             )
         )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -872,7 +873,7 @@ class InputParameterInfoTests {
             )
         )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -894,7 +895,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(coinsStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -915,7 +916,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(coinsStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -943,7 +944,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(coinsStructure))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -972,7 +973,7 @@ class InputParameterInfoTests {
             )
         )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -1020,7 +1021,7 @@ class InputParameterInfoTests {
             )
         )
 
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -1056,7 +1057,7 @@ class InputParameterInfoTests {
         val resourcePath = getResourcePath<InputParameterInfoTests>(skipAndLoadPath)
 
         val inputInfo = TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(intAndInt))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -1076,7 +1077,7 @@ class InputParameterInfoTests {
         val resourcePath = getResourcePath<InputParameterInfoTests>(skipAndLoadPath)
 
         val inputInfo = TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(intAndCoins))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -1120,7 +1121,7 @@ class InputParameterInfoTests {
         val resourcePath = getResourcePath<InputParameterInfoTests>(skipAndLoadPath)
 
         val inputInfo = TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(doubleIntAndCoins))))
-        val options = TvmOptions(performAdditionalChecksWhileResolving = true)
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
         val results = funcCompileAndAnalyzeAllMethods(resourcePath, inputInfo = mapOf(BigInteger.ZERO to inputInfo), tvmOptions = options)
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -1251,7 +1252,7 @@ class InputParameterInfoTests {
 
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
-            tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true),
+            tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false),
             inputInfo = mapOf(MethodId.ZERO to inputInfo)
         )
         assertEquals(1, results.testSuites.size)
@@ -1281,7 +1282,7 @@ class InputParameterInfoTests {
         val resourcePath = getResourcePath<InputParameterInfoTests>(severalCoinsInC4Path)
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
-            tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true),
+            tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false),
         )
 
         val tests = results.first { it.methodId == MethodId.ZERO }
@@ -1300,7 +1301,7 @@ class InputParameterInfoTests {
         val resourcePath = getResourcePath<InputParameterInfoTests>(severalCoinsInRefOfC4Path)
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
-            tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true),
+            tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false),
         )
 
         val tests = results.first { it.methodId == MethodId.ZERO }
@@ -1320,6 +1321,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
+                analyzeBouncedMessaged = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(
                     performTlbChecksOnAllocatedCells = true,
@@ -1347,6 +1349,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
+                analyzeBouncedMessaged = false,
                 performAdditionalChecksWhileResolving = true,
                 loopIterationLimit = 4,
                 tlbOptions = TlbOptions(
@@ -1374,6 +1377,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
+                analyzeBouncedMessaged = false,
                 performAdditionalChecksWhileResolving = true,
                 loopIterationLimit = 4,
                 tlbOptions = TlbOptions(
@@ -1401,6 +1405,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
+                analyzeBouncedMessaged = false,
                 performAdditionalChecksWhileResolving = true,
                 loopIterationLimit = 3,
                 tlbOptions = TlbOptions(
@@ -1432,6 +1437,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
+                analyzeBouncedMessaged = false,
                 performAdditionalChecksWhileResolving = true,
                 loopIterationLimit = 4,
             ),
@@ -1456,6 +1462,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
+                analyzeBouncedMessaged = false,
                 performAdditionalChecksWhileResolving = true,
                 loopIterationLimit = 4,
             ),
@@ -1479,7 +1486,7 @@ class InputParameterInfoTests {
         val resourcePath = getResourcePath<InputParameterInfoTests>(intAfterCoinsPath)
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
-            tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true),
+            tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false),
         )
 
         val tests = results.first { it.methodId == MethodId.ZERO }
@@ -1499,6 +1506,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
+                analyzeBouncedMessaged = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(
                     performTlbChecksOnAllocatedCells = true
@@ -1522,6 +1530,72 @@ class InputParameterInfoTests {
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             )
+        )
+    }
+
+    @Test
+    fun maybeInLongTagTest() {
+        // loading dict == load_maybe_ref
+        val resourcePath = getResourcePath<InputParameterInfoTests>(dictPath)
+        val inputInfo = TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(intSwitchStructure))))
+        val results = funcCompileAndAnalyzeAllMethods(
+            resourcePath,
+            inputInfo = mapOf(MethodId.ZERO to inputInfo),
+            tvmOptions = TvmOptions(
+                performAdditionalChecksWhileResolving = true,
+                tlbOptions = TlbOptions(
+                    performTlbChecksOnAllocatedCells = true,
+                ),
+            ),
+        )
+
+        val tests = results.first { it.methodId == MethodId.ZERO }
+
+        checkInvariants(
+            tests,
+            listOf(
+                { test -> test.result !is TvmSuccessfulExecution},
+                { test -> test.result !is TvmMethodFailure},
+            )
+        )
+
+        propertiesFound(
+            tests,
+            listOf {
+                test -> (test.result as? TvmExecutionWithStructuralError)?.exit is TvmReadingSwitchWithUnexpectedType
+            }
+        )
+    }
+
+
+    @Test
+    fun loadMaybeRefWhenNoRefsExpectedTest() {
+        // loading dict == load_maybe_ref
+        val resourcePath = getResourcePath<InputParameterInfoTests>(dictPath)
+        val inputInfo = TvmInputInfo(mapOf(0 to SliceInfo(DataCellInfo(recursiveStructure))))
+        val results = funcCompileAndAnalyzeAllMethods(
+            resourcePath,
+            inputInfo = mapOf(MethodId.ZERO to inputInfo),
+            tvmOptions = TvmOptions(
+                performAdditionalChecksWhileResolving = true,
+                tlbOptions = TlbOptions(
+                    performTlbChecksOnAllocatedCells = true,
+                ),
+            ),
+        )
+
+        val tests = results.first { it.methodId == MethodId.ZERO }
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.result !is TvmSuccessfulExecution }
+        )
+
+        propertiesFound(
+            tests,
+            listOf {
+                test -> (test.result as? TvmExecutionWithStructuralError)?.exit is TvmUnexpectedRefReading
+            }
         )
     }
 }

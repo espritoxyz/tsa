@@ -116,6 +116,10 @@ val dict256Structure = TlbCompositeLabel("LABEL").also {
     )
 }
 
+/**
+ * long$00 x:int64 = LABEL;
+ * short$01 y:int32 = LABEL;
+ * */
 val intSwitchStructure = TlbCompositeLabel("LABEL").also {
     it.internalStructure = SwitchPrefix(
         id = TlbStructureIdProvider.provideId(),

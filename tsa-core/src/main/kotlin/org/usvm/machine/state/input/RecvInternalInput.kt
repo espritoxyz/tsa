@@ -5,8 +5,10 @@ import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.usvm.UBoolSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
+import org.usvm.api.writeField
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
@@ -26,15 +28,70 @@ import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getContractInfoParam
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.mkSizeExpr
+import org.usvm.sizeSort
 
 class RecvInternalInput(
     initialState: TvmState
 ) : TvmStateInput {
-    val msgBodySlice = initialState.generateSymbolicSlice()
+    val msgBodySliceNonBounced = initialState.generateSymbolicSlice()  // used only in non-bounced messages
     val msgValue = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort)
     val srcAddress = initialState.generateSymbolicSlice()
-    val bounce = initialState.makeSymbolicPrimitive(initialState.ctx.boolSort) // bounce:Bool
-    val bounced = initialState.makeSymbolicPrimitive(initialState.ctx.boolSort) // bounced:Bool
+
+    // bounced:Bool
+    val bounced = if (initialState.ctx.tvmOptions.analyzeBouncedMessaged) {
+        initialState.makeSymbolicPrimitive(initialState.ctx.boolSort)
+    } else {
+        initialState.ctx.falseExpr
+    }
+
+    val msgBodyCellBounced: UConcreteHeapRef by lazy {
+        with(initialState.ctx) {
+            // hack for using builder operations
+            val scope = TvmStepScopeManager(initialState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+
+            val builder = initialState.allocEmptyBuilder()
+            builderStoreIntTlb(scope, builder, builder, bouncedMessageTagLong.toBv257(), sizeBits = sizeExpr32, isSigned = false, endian = Endian.BigEndian)
+                ?: error("Cannot store bounced message prefix")
+
+            // tail's length is up to 256 bits
+            val tailSize = initialState.makeSymbolicPrimitive(mkBvSort(8u)).zeroExtendToSort(sizeSort)
+            val tail = initialState.generateSymbolicSlice()
+            val tailCell = initialState.memory.readField(tail, TvmContext.sliceCellField, addressSort)
+            initialState.memory.writeField(tailCell, TvmContext.cellDataLengthField, sizeSort, tailSize, guard = trueExpr)
+            initialState.memory.writeField(tailCell, TvmContext.cellRefsLengthField, sizeSort, zeroSizeExpr, guard = trueExpr)
+            builderStoreSliceTlb(scope, builder, builder, tail)
+                ?: error("Cannot store bounced message tail")
+
+            val stepResult = scope.stepResult()
+            check(stepResult.originalStateAlive) {
+                "Original state died while building bounced message"
+            }
+            check(stepResult.forkedStates.none()) {
+                "Unexpected forks while building bounced message"
+            }
+
+            initialState.builderToCell(builder)
+        }
+    }
+
+    val msgBodySliceBounced: UHeapRef by lazy {
+        initialState.allocSliceFromCell(msgBodyCellBounced)
+    }
+
+    val msgBodySliceMaybeBounced: UHeapRef by lazy {
+        initialState.ctx.mkIte(
+            condition = bounced,
+            trueBranch = { msgBodySliceBounced },
+            falseBranch = { msgBodySliceNonBounced },
+        )
+    }
+
+    // bounce:Bool
+    // If bounced=true, then bounce must be false
+    val bounce = with(initialState.ctx) {
+        bounced.not() and initialState.makeSymbolicPrimitive(initialState.ctx.boolSort)
+    }
+
     val ihrDisabled = initialState.makeSymbolicPrimitive(initialState.ctx.boolSort) // ihr_disabled:Bool
     val ihrFee = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // ihr_fee:Grams
     val fwdFee = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // fwd_fee:Grams
@@ -153,7 +210,7 @@ class RecvInternalInput(
             ?: error("Cannot store body")
 
         scope.doWithState {
-            val msgBodyCell = memory.readField(msgBodySlice, TvmContext.sliceCellField, addressSort)
+            val msgBodyCell = memory.readField(msgBodySliceMaybeBounced, TvmContext.sliceCellField, addressSort)
             builderStoreNextRef(resultBuilder, msgBodyCell)
         }
 

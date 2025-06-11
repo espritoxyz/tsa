@@ -67,7 +67,7 @@ TSA might report the following errors about TL-B parsing:
 - `unexpected-end-of-cell`: calling `end_parse` when TL-B scheme suggests that the slice is not empty yet.
 - `unexpected-cell-type`: reading unexpected data from slice. For example, calling `load_coins` on a slice when TL-B scheme suggests that it contains an address.
 - `out-of-switch-bounds`. This error occurs when TL-B scheme suggests that the slice has a tag of the length `x`, but reading of a length greater than `x` is performed.
-- `unexpected-type-for-switch`. This error occurs when TL-B scheme suggests that the reading of a tag is expected, but reading of coins or an address is performed.
+- `unexpected-type-for-switch`. This error occurs when TL-B scheme suggests that the reading of a tag is expected, but reading of unexpected type (for example, coins or address) is performed.
 
 These checks can be turned off with the option `--no-tlb-checks`.
 

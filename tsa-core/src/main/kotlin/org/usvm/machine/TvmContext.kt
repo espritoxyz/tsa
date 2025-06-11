@@ -96,6 +96,7 @@ class TvmContext(
     val threeSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(3)
     val fourSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(4)
     val sixSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(6)
+    val sizeExpr32: UExpr<TvmSizeSort> = mkSizeExpr(32)
     val maxDataLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_DATA_LENGTH)
     val maxRefsLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_REFS_NUMBER)
     val stdMsgAddrSizeExpr = mkSizeExpr(stdMsgAddrSize)
@@ -130,6 +131,7 @@ class TvmContext(
 
     val sendMsgActionTag = mkBvHex("0ec3c86d", 32u)
     val reserveActionTag = mkBvHex("36e6b809", 32u)
+    val bouncedMessageTagLong = 0xffffffff
 
     val sendMsgFeeEstimationFlag = powerOfTwo(10u).toBv257()
 

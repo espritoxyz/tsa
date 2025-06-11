@@ -1,0 +1,13 @@
+#include "../imports/stdlib.fc";
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    slice cs = in_msg_cell.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) {
+        ;; bounced message
+        int bouncedOpcode = in_msg~load_uint(32);
+        throw_unless(1000, bouncedOpcode == ((1 << 32) - 1)); ;; mustn't throw error
+        int bits_left = in_msg.slice_bits();
+        throw_unless(1001, bits_left <= 256); ;; mustn't throw error
+    }
+}

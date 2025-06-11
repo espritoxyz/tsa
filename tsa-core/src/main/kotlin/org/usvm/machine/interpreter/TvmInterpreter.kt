@@ -147,7 +147,6 @@ import org.ton.bytecode.TvmDictSpecialInst
 import org.ton.bytecode.TvmExceptionsInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmInstList
-import org.ton.bytecode.TvmInstMethodLocation
 import org.ton.bytecode.TvmLambda
 import org.ton.bytecode.TvmMainMethodLocation
 import org.ton.bytecode.TvmMethod
@@ -447,12 +446,12 @@ class TvmInterpreter(
                 (it as? SliceInfo)
                     ?: error("Incorrect input info for message body")
             }
-            val msgBodyCell = state.memory.readField(input.msgBodySlice, sliceCellField, ctx.addressSort) as UConcreteHeapRef
+            val msgBodyCellNonBounced = state.memory.readField(input.msgBodySliceNonBounced, sliceCellField, ctx.addressSort) as UConcreteHeapRef
 
             if (lastInputInfo != null) {
-                newInputInfo[msgBodyCell] = lastInputInfo.cellInfo
+                newInputInfo[msgBodyCellNonBounced] = lastInputInfo.cellInfo
             } else {
-                newInputInfo[msgBodyCell] = UnknownCellInfo
+                newInputInfo[msgBodyCellNonBounced] = UnknownCellInfo
             }
 
             val srcAddressCell = input.getSrcAddressCell(state)
@@ -462,7 +461,7 @@ class TvmInterpreter(
                 state = state,
                 info = TvmInputInfo(),
                 additionalCellLabels = newInputInfo,
-                additionalSliceToCell = mapOf(input.msgBodySlice to msgBodyCell),
+                additionalSliceToCell = mapOf(input.msgBodySliceNonBounced to msgBodyCellNonBounced),
             )
             setDataCellInfoStorageAndSetModel(state, dataCellInfoStorage)
 
@@ -474,11 +473,11 @@ class TvmInterpreter(
             executionMemory.stack.addInt(configBalance)
             executionMemory.stack.addInt(input.msgValue)
             executionMemory.stack.addStackEntry(TvmConcreteStackEntry(TvmStackCellValue(input.constructFullMessage(state))))
-            executionMemory.stack.addStackEntry(TvmConcreteStackEntry(TvmStackSliceValue(input.msgBodySlice)))
+            executionMemory.stack.addStackEntry(TvmConcreteStackEntry(TvmStackSliceValue(input.msgBodySliceMaybeBounced)))
 
             // Save msgBody for inter-contract
             if (ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-                state.lastMsgBody = input.msgBodySlice
+                state.lastMsgBody = input.msgBodySliceMaybeBounced
             }
         } else {
             state.input = TvmStateStackInput

@@ -101,14 +101,24 @@ class TlbCLIOptions : OptionGroup("TlB scheme options") {
     }
 }
 
+class AnalysisOptions : OptionGroup("Symbolic analysis options") {
+    val analyzeBouncedMessages by option("--analyze-bounced-messages")
+        .flag()
+        .help("Consider inputs when the message is bounced.")
+}
+
 private fun <SourcesDescription> performAnalysis(
     analyzer: TvmAnalyzer<SourcesDescription>,
     sources: SourcesDescription,
     contractData: String?,
     methodId: Int?,
     tlbOptions: TlbCLIOptions,
+    analysisOptions: AnalysisOptions,
 ): TvmContractSymbolicTestResult {
-    val options = TvmOptions(turnOnTLBParsingChecks = !tlbOptions.doNotPerformTlbChecks)
+    val options = TvmOptions(
+        turnOnTLBParsingChecks = !tlbOptions.doNotPerformTlbChecks,
+        analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
+    )
     val inputInfo = TlbCLIOptions.extractInputInfo(tlbOptions.tlbJsonPath)
     return if (methodId == null) {
         analyzer.analyzeAllMethods(
@@ -160,6 +170,8 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
 
     private val tlbOptions by TlbCLIOptions()
 
+    private val analysisOptions by AnalysisOptions()
+
     private fun toAbsolutePath(relativePath: Path) = projectPath.resolve(relativePath).normalize()
 
     override fun run() {
@@ -188,7 +200,8 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
             sourcesAbsolutePath,
             contractProperties.contractData,
             contractProperties.methodId,
-            tlbOptions
+            tlbOptions,
+            analysisOptions,
         )
 
         val testGenContractType = when (contractType) {
@@ -534,6 +547,7 @@ sealed class ErrorsSarifDetector<SourcesDescription>(name: String, help: String)
     private val sarifOptions by SarifOptions()
 
     private val tlbOptions by TlbCLIOptions()
+    private val analysisOptions by AnalysisOptions()
 
     fun generateAndWriteSarifReport(
         analyzer: TvmAnalyzer<SourcesDescription>,
@@ -545,6 +559,7 @@ sealed class ErrorsSarifDetector<SourcesDescription>(name: String, help: String)
             contractData = contractProperties.contractData,
             methodId = contractProperties.methodId,
             tlbOptions = tlbOptions,
+            analysisOptions,
         )
         val sarifReport = analysisResult.toSarifReport(
             methodsMapping = emptyMap(),

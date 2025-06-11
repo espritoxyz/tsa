@@ -167,9 +167,11 @@ import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictRemoveKey
 import org.usvm.machine.state.doWithStateCtx
+import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.sliceCopy
+import org.usvm.machine.state.sliceLoadRefTlb
 import org.usvm.machine.state.sliceMoveDataPtr
 import org.usvm.machine.state.sliceMoveRefPtr
 import org.usvm.machine.state.slicePreloadDataBits
@@ -411,20 +413,23 @@ class TvmDictOperationInterpreter(
                 },
             ) ?: return@makeSliceTypeLoad
 
-            doWithStateCtx {
-                val dictCellRef = slicePreloadNextRef(slice) ?: return@doWithStateCtx
-                if (putDictOnStack) {
-                    addOnStack(dictCellRef, TvmCellType)
-                }
+            // Hack: here newSlice is just to copy tlb stack from the old one.
+            // We mustn't copy it in this specific case, so we just pass a dummy new slice instead.
+            sliceLoadRefTlb(this, slice, calcOnState { generateSymbolicSlice() }) { dictCellRef ->
+                doWithStateCtx {
+                    if (putDictOnStack) {
+                        addOnStack(dictCellRef, TvmCellType)
+                    }
 
-                if (returnUpdatedSlice) {
-                    updatedSlice.also { sliceCopy(slice, it) }
-                    sliceMoveDataPtr(updatedSlice, bits = 1)
-                    sliceMoveRefPtr(updatedSlice)
-                    addOnStack(updatedSlice, TvmSliceType)
-                }
+                    if (returnUpdatedSlice) {
+                        updatedSlice.also { sliceCopy(slice, it) }
+                        sliceMoveDataPtr(updatedSlice, bits = 1)
+                        sliceMoveRefPtr(updatedSlice)
+                        addOnStack(updatedSlice, TvmSliceType)
+                    }
 
-                newStmt(inst.nextStmt())
+                    newStmt(inst.nextStmt())
+                }
             }
         }
     }

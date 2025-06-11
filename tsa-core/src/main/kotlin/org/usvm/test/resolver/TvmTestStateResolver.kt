@@ -108,7 +108,7 @@ class TvmTestStateResolver(
             TvmTestInput.RecvInternalInput(
                 srcAddress = resolveSlice(input.srcAddress),
                 msgValue = resolveInt257(input.msgValue),
-                msgBody = resolveSlice(input.msgBodySlice),
+                msgBody = resolveSlice(input.msgBodySliceMaybeBounced),
                 bounce = resolveBool(input.bounce),
                 bounced = resolveBool(input.bounced),
                 ihrDisabled = resolveBool(input.ihrDisabled),
