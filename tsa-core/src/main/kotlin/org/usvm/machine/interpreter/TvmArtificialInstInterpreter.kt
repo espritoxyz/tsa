@@ -82,10 +82,7 @@ class TvmArtificialInstInterpreter(
         scope.doWithState {
             val commitedState = lastCommitedStateOfContracts[currentContract]
 
-            if (!analysisOfGetMethod &&
-                commitedState != null &&
-                ctx.tvmOptions.intercontractOptions.isIntercontractEnabled
-            ) {
+            if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis) {
                 phase = ACTION_PHASE
 
                 processNewMessages(scope, commitedState)
@@ -164,10 +161,12 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
     ): Unit? = scope.calcOnState {
-        val messageDestinations = transactionInterpreter.parseActionsToDestinations(scope, commitedState)
-            ?: return@calcOnState null
+        val (newUnprocessedMessages, messageDestinations) =
+            transactionInterpreter.parseActionsToDestinations(scope, commitedState)
+                ?: return@calcOnState null
 
         messageQueue = messageQueue.addAll(messageDestinations)
+        unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
     }
 
     private fun processCheckerExit(scope: TvmStepScopeManager, result: TvmMethodResult) {

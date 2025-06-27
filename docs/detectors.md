@@ -81,3 +81,11 @@ Errors:
 
 - `anycast-address-usage`: reading of an anycast address.
 - `var-address-usage`: reading of `addr_var`.
+
+### Dict operation errors
+
+These errors occur when dictionary operations are performed on ordinary data cells and vice versa.
+
+Errors:
+- `dict-operation-on-data-cell`
+- `data-cell-operation-on-dict`

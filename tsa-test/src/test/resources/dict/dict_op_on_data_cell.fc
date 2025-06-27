@@ -1,0 +1,7 @@
+#include "stdlib.fc";
+
+() main(int x) impure {
+    cell c = begin_cell().store_int(x, 16).end_cell();
+    (int key0, _, int f0) = c.idict_get_min?(5);
+    key0~impure_touch();
+}

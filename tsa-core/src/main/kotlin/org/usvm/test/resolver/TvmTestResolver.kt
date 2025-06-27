@@ -6,6 +6,7 @@ import org.ton.bytecode.TvmAppGasAcceptInst
 import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
+import org.ton.bytecode.TvmRealInst
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmMethodResult
@@ -33,6 +34,7 @@ data object TvmTestResolver {
         val rootInitialData = stateResolver.resolveRootData()
         val result = stateResolver.resolveResultStack()
         val gasUsage = stateResolver.resolveGasUsage()
+        val outMessages = stateResolver.resolveOutMessages()
         val externalMessageWasAccepted = state.pathNode.allStatements.any { it is TvmAppGasAcceptInst }
 
         return TvmSymbolicTest(
@@ -46,13 +48,14 @@ data object TvmTestResolver {
             input = input,
             fetchedValues = fetchedValues,
             result = result,
-            stackTrace = state.continuationStack,
+            lastStmt = state.lastRealStmt,
             gasUsage = gasUsage,
             additionalFlags = state.additionalFlags,
             numberOfAddressesWithAssertedDataConstraints = state.cellDataFieldManager.getCellsWithAssertedCellData().size,
             intercontractPath = state.intercontractPath,
             coveredInstructions = collectVisitedInstructions(state),
             externalMessageWasAccepted = externalMessageWasAccepted,
+            outMessages = outMessages,
         )
     }
 
@@ -121,13 +124,20 @@ data class TvmSymbolicTest(
     val fetchedValues: Map<Int, TvmTestValue>,
     val result: TvmMethodSymbolicResult,
     val externalMessageWasAccepted: Boolean,
-    val stackTrace: List<TvmInst>,
+    val lastStmt: TvmRealInst,
     val gasUsage: Int,
     val additionalFlags: Set<String>,
     val intercontractPath: List<ContractId>,
+    val outMessages: List<Pair<ContractId, TvmTestOutMessage>>,
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
     val numberOfAddressesWithAssertedDataConstraints: Int,  // for testing
+)
+
+data class TvmTestOutMessage(
+    val value: TvmTestIntegerValue,
+    val fullMessage: TvmTestCellValue,
+    val bodySlice: TvmTestSliceValue,
 )
 
 sealed interface TvmMethodSymbolicResult {

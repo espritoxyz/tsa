@@ -2,8 +2,8 @@ package org.usvm.machine
 
 import mu.KLogging
 import org.ton.TvmInputInfo
-import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmInst
 import org.ton.cell.Cell
 import org.usvm.PathSelectionStrategy
@@ -12,7 +12,6 @@ import org.usvm.UMachine
 import org.usvm.UMachineOptions
 import org.usvm.machine.interpreter.TvmInterpreter
 import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
 import org.usvm.ps.createPathSelector
 import org.usvm.statistics.ApplicationGraph
@@ -45,9 +44,18 @@ class TvmMachine(
         contractData: Cell?,
         coverageStatistics: TvmCoverageStatistics,
         methodId: BigInteger,
-        inputInfo: TvmInputInfo = TvmInputInfo()
+        inputInfo: TvmInputInfo = TvmInputInfo(),
+        manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
     ): List<TvmState> =
-        analyze(listOf(contractCode), startContractId = 0, listOf(contractData), coverageStatistics, methodId, inputInfo)
+        analyze(
+            listOf(contractCode),
+            startContractId = 0,
+            listOf(contractData),
+            coverageStatistics,
+            methodId,
+            inputInfo,
+            manualStatePostProcess = manualStatePostProcess
+        )
 
     fun analyze(
         contractsCode: List<TsaContractCode>,
@@ -119,7 +127,8 @@ class TvmMachine(
         }
         val timeoutStopStrategy = TimeoutStopStrategy(options.timeout, timeStatistics)
 
-        val integrativeStopStrategy = GroupedStopStrategy(listOf(stopStrategy, additionalStopStrategy, timeoutStopStrategy))
+        val integrativeStopStrategy =
+            GroupedStopStrategy(listOf(stopStrategy, additionalStopStrategy, timeoutStopStrategy))
 
         val statesCollector = when (options.stateCollectionStrategy) {
             StateCollectionStrategy.COVERED_NEW, StateCollectionStrategy.REACHED_TARGET -> TODO("Unsupported strategy ${options.stateCollectionStrategy}")

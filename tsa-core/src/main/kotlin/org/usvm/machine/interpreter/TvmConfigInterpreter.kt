@@ -9,6 +9,7 @@ import org.ton.bytecode.CONFIG_PARAMETER_IDX
 import org.ton.bytecode.DUE_PAYMENT_IDX
 import org.ton.bytecode.MSGS_SENT_PARAMETER_IDX
 import org.ton.bytecode.SEED_PARAMETER_IDX
+import org.ton.bytecode.STORAGE_FEES_PARAMETER_IDX
 import org.ton.bytecode.TAG_PARAMETER_IDX
 import org.ton.bytecode.TIME_PARAMETER_IDX
 import org.ton.bytecode.TRANSACTION_TIME_PARAMETER_IDX
@@ -82,9 +83,7 @@ class TvmConfigInterpreter(private val ctx: TvmContext) {
 
     private fun visitGetParamInst(scope: TvmStepScopeManager, stmt: TvmAppConfigGetparamInst) {
         scope.doWithStateCtx {
-            val i = stmt.i
-
-            when (i) {
+            when (val i = stmt.i) {
                 TAG_PARAMETER_IDX -> { // TAG
                     val tag = scope.getIntContractInfoParam(i)
                         ?: return@doWithStateCtx
@@ -157,6 +156,12 @@ class TvmConfigInterpreter(private val ctx: TvmContext) {
                         ?: return@doWithStateCtx
 
                     stack.addInt(duePayment)
+                }
+                STORAGE_FEES_PARAMETER_IDX -> {
+                    val storageFee = scope.getIntContractInfoParam(i)
+                        ?: return@doWithStateCtx
+
+                    stack.addInt(storageFee)
                 }
                 else -> TODO("$i GETPARAM")
             }

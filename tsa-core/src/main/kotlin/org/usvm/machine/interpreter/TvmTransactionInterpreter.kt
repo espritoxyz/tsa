@@ -41,19 +41,28 @@ import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
 class TvmTransactionInterpreter(val ctx: TvmContext) {
+    data class ActionDestinationParsingResult(
+        val unprocessedMessages: List<OutMessage>,
+        val messagesForQueue: List<Pair<ContractId, OutMessage>>
+    )
+
     fun parseActionsToDestinations(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState
-    ): List<Pair<ContractId, OutMessage>>? = with(ctx) {
-        val scheme = ctx.tvmOptions.intercontractOptions.communicationScheme
-            ?: error("Communication scheme is not found")
-
+    ): ActionDestinationParsingResult? = with(ctx) {
         val actions = parseActions(scope, commitedState)
             ?: return null
 
         if (actions.isEmpty()) {
-            return emptyList()
+            return ActionDestinationParsingResult(emptyList(), emptyList())
         }
+
+        if (!ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
+            return ActionDestinationParsingResult(actions, emptyList())
+        }
+
+        val scheme = ctx.tvmOptions.intercontractOptions.communicationScheme
+            ?: error("Communication scheme is not found")
 
         val contractId = scope.calcOnState { currentContract }
         val handlers = scheme[contractId]
@@ -79,7 +88,11 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
                     "${actions.size} ${handler.destinations.size}"
         }
 
-        handler.destinations.zip(actions)
+        val messagesForQueue = handler.destinations.zip(actions)
+        ActionDestinationParsingResult(
+            unprocessedMessages = emptyList(),
+            messagesForQueue = messagesForQueue,
+        )
     }
 
     fun parseActions(scope: TvmStepScopeManager, commitedState: TvmCommitedState): List<OutMessage>? = with(ctx) {
@@ -196,11 +209,10 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
                 ?: return null
 
             // value:CurrencyCollection
-            sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
+            // TODO: consider different modes
+            val symbolicMsgValue = sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
                 ?: return@with null
 
-            // TODO send correct msg_value
-            val symbolicMsgValue = scope.calcOnState { makeSymbolicPrimitive(int257sort) }
             builderStoreGramsTransaction(scope, msgFull, symbolicMsgValue)
                 ?: return null
 

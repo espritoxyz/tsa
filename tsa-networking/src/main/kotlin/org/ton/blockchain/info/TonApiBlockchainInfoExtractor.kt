@@ -39,8 +39,11 @@ class TonApiBlockchainInfoExtractor(
 
         return runCatching {
             val body = Json.parseToJsonElement(response)
-            val data = body.jsonObject["data"]!!.jsonPrimitive.content
-            val code = body.jsonObject["code"]!!.jsonPrimitive.content
+            // data and code are null for uninit addresses
+            val data = body.jsonObject["data"]?.jsonPrimitive?.content
+                ?: return null
+            val code = body.jsonObject["code"]?.jsonPrimitive?.content
+                ?: return null
             val balance = body.jsonObject["balance"]!!.jsonPrimitive.long
 
             ContractState(data, code, balance)

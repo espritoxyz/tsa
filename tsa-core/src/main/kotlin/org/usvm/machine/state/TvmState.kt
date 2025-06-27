@@ -11,6 +11,7 @@ import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmDisasmCodeBlock
 import org.ton.bytecode.TvmInst
+import org.ton.bytecode.TvmRealInst
 import org.ton.targets.TvmTarget
 import org.usvm.PathNode
 import org.usvm.UBv32Sort
@@ -72,6 +73,7 @@ class TvmState(
     var currentContract: ContractId,
     var fetchedValues: PersistentMap<Int, TvmStack.TvmStackEntry> = persistentMapOf(),
     var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
+    var unprocessedMessages: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
     // inter-contract fields
     var messageQueue: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
     var lastMsgBody: UHeapRef? = null,
@@ -118,35 +120,13 @@ class TvmState(
                 ?: error("Initial data of contract $contractId not found")
         }
 
-    /**
-     * All visited last instructions in all visited continuations in the LIFO order.
-     */
-    val continuationStack: List<TvmInst>
+    val lastRealStmt: TvmRealInst
         get() {
-            val instructions = mutableListOf<TvmInst>()
-            val allInstructions = pathNode.allStatements.reversed()
-
-            var prevInst: TvmInst? = null
-            for (inst in allInstructions) {
-                val curBlock = inst.location.codeBlock
-                if (prevInst == null) {
-                    prevInst = inst
-                    continue
-                }
-
-                val prevBlock = prevInst.location.codeBlock
-                if (prevBlock == curBlock) {
-                    prevInst = inst
-                    continue
-                }
-
-                instructions += prevInst
-                prevInst = inst
+            var node: PathNode<*>? = pathNode
+            while (node?.statement !is TvmRealInst?) {
+                node = node?.parent
             }
-
-            instructions += allInstructions.last()
-
-            return instructions.asReversed()
+            return (node?.statement as? TvmRealInst) ?: error("No real TVM instructions was executed")
         }
 
     override fun clone(newConstraints: UPathConstraints<TvmType>?): TvmState {
@@ -192,6 +172,7 @@ class TvmState(
             intercontractPath = intercontractPath,
             phase = phase,
             analysisOfGetMethod = analysisOfGetMethod,
+            unprocessedMessages = unprocessedMessages,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -206,7 +187,6 @@ class TvmState(
     override fun toString(): String = buildString {
         appendLine("Instruction: $lastStmt")
         if (isExceptional) appendLine("Exception: $methodResult")
-        appendLine(continuationStack)
     }
 
     fun generateSymbolicRef(referenceType: TvmRealReferenceType): UConcreteHeapRef =

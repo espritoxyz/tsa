@@ -569,7 +569,7 @@ class TvmInterpreter(
         )
 
         return scope.stepResult().apply {
-            if (state.gasUsage === initialGasUsage || forkedStates.any { it.gasUsage === initialGasUsage }) {
+            if (originalStateAlive && state.gasUsage === initialGasUsage || forkedStates.any { it.gasUsage === initialGasUsage }) {
                 TODO("Gas usage was not updated after: $stmt")
             }
         }
@@ -905,7 +905,7 @@ class TvmInterpreter(
 
     private fun visitPushContShortInst(scope: TvmStepScopeManager, stmt: TvmConstDataPushcontShortInst) {
         scope.doWithState {
-            val lambda = TvmLambda(stmt.c.list.toMutableList())
+            val lambda = TvmLambda(stmt.c.list.toMutableList(), stmt)
             val continuationValue = TvmOrdContinuation(lambda, stmt.c.raw)
 
             stack.addContinuation(continuationValue)

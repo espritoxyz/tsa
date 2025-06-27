@@ -1,6 +1,10 @@
 package org.usvm.test.resolver
 
+import io.ksmt.expr.KArrayConst
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KExpr
+import io.ksmt.sort.KArraySortBase
+import io.ksmt.sort.KSort
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbAtomicLabel
@@ -28,6 +32,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.api.readField
+import org.usvm.isStatic
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
@@ -81,6 +86,7 @@ import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.sizeSort
+import org.usvm.solver.UExprTranslator
 import java.math.BigInteger
 
 class TvmTestStateResolver(
@@ -99,6 +105,13 @@ class TvmTestStateResolver(
 
     private val labelMapper
         get() = state.dataCellInfoStorage.mapper
+
+    private val constraintVisitor = ConstraintsVisitor(ctx)
+
+    init {
+        // collect info about all constraints in state
+        state.pathConstraints.constraints(constraintVisitor).toList()
+    }
 
     fun resolveInput(): TvmTestInput = when (val input = state.input) {
         is TvmStateStackInput -> {
@@ -197,6 +210,15 @@ class TvmTestStateResolver(
             is TvmMethodResult.TvmSoftFailure -> TvmExecutionWithSoftFailure(state.lastStmt, resolvedResults, it)
         }
     }
+
+    fun resolveOutMessages(): List<Pair<ContractId, TvmTestOutMessage>> =
+        state.unprocessedMessages.map { (contractId, message) ->
+            contractId to TvmTestOutMessage(
+                value = resolveInt257(message.msgValue),
+                fullMessage = resolveCell(message.fullMsgCell),
+                bodySlice = resolveSlice(message.msgBodySlice),
+            )
+        }
 
     private fun resolveTvmStructuralError(
         lastStmt: TvmInst,
@@ -306,6 +328,11 @@ class TvmTestStateResolver(
 
     private fun resolveDataCell(modelRef: UConcreteHeapRef, cell: UHeapRef): TvmTestDataCellValue = with(ctx) {
         if (modelRef.address == NULL_ADDRESS) {
+            return@with TvmTestDataCellValue()
+        }
+
+        // cell is not in path constraints => just return empty cell
+        if (cell is UConcreteHeapRef && cell.isStatic && cell !in constraintVisitor.refs) {
             return@with TvmTestDataCellValue()
         }
 
@@ -538,4 +565,13 @@ class TvmTestStateResolver(
 
     private fun extractInt257(expr: UExpr<out USort>): BigInteger =
         (expr as? KBitVecValue)?.toBigIntegerSigned() ?: error("Unexpected expr $expr")
+}
+
+private class ConstraintsVisitor(ctx: TvmContext) : UExprTranslator<TvmType, TvmSizeSort>(ctx) {
+    val refs = mutableSetOf<UConcreteHeapRef>()
+
+    override fun transform(expr: UConcreteHeapRef): UHeapRef {
+        refs.add(expr)
+        return super.transform(expr)
+    }
 }

@@ -1,7 +1,10 @@
 package org.usvm.machine.state
 
+import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.powerOfTwo
+import org.ton.bitstring.BitString
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TvmCellValue
@@ -37,11 +40,19 @@ import org.usvm.types.USingleTypeStream
 import java.math.BigInteger
 import org.ton.bytecode.TsaArtificialActionPhaseInst
 import org.ton.bytecode.TsaArtificialExitInst
-import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
+import org.ton.cell.Cell
+import org.ton.hashmap.HashMapE
+import org.usvm.isAllocated
+import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
+import org.usvm.machine.intValue
 import org.usvm.machine.maxUnsignedValue
 import org.usvm.machine.state.TvmPhase.ACTION_PHASE
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.toTvmCell
+import org.usvm.machine.types.TvmDictCellType
+import org.usvm.machine.types.TvmFinalReferenceType
+import org.usvm.test.resolver.HashMapESerializer
 
 val TvmState.lastStmt get() = pathNode.statement
 fun TvmState.newStmt(stmt: TvmInst) {
@@ -134,7 +145,7 @@ fun TvmState.initializeSymbolicSlice(ref: UConcreteHeapRef) = with(ctx) {
     // Cell in input slices must be represented with static refs to be correctly processed in TvmCellRefsRegion
     val cell = generateSymbolicCell()
     memory.writeField(ref, TvmContext.sliceCellField, addressSort, cell, guard = trueExpr)
-    assertType(cell, TvmDataCellType)
+    memory.types.allocate(cell.address, TvmDataCellType)
 }
 
 fun TvmState.generateSymbolicBuilder(): UConcreteHeapRef =
@@ -240,18 +251,20 @@ fun TvmState.calcConsumedGas(): UExpr<TvmSizeSort> =
     gasUsage.fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value) }
 
 
-fun TvmState.assertType(value: UHeapRef, type: TvmType) {
-    if (value is UConcreteHeapRef && value.address == NULL_ADDRESS) {
-        require(type is TvmNullType)
-        return
-    }
-    val refHandler = { acc: MutableList<Pair<TvmType, UConcreteHeapRef>>, ref: GuardedExpr<UConcreteHeapRef> ->
+private data class RefInfo(
+    val type: TvmType,
+    val ref: UConcreteHeapRef,
+    val guard: UBoolExpr
+)
+
+private fun TvmState.getRefLeaves(value: UHeapRef): List<RefInfo> {
+    val refHandler = { acc: MutableList<RefInfo>, ref: GuardedExpr<UConcreteHeapRef> ->
         val cur = memory.types.getTypeStream(ref.expr)
         require(cur is USingleTypeStream)
-        acc += (cur.commonSuperType to ref.expr)
+        acc += RefInfo(cur.commonSuperType, ref.expr, ref.guard)
         acc
     }
-    val refOldTypes = foldHeapRef(
+    return foldHeapRef(
         ref = value,
         initial = mutableListOf(),
         initialGuard = ctx.trueExpr,
@@ -260,17 +273,139 @@ fun TvmState.assertType(value: UHeapRef, type: TvmType) {
         blockOnConcrete = refHandler,
         blockOnSymbolic =  { _, ref -> error("Unexpected symbolic ref ${ref.expr}") }
     )
+}
+
+fun TvmState.assertType(value: UHeapRef, type: TvmType) {
+    check(type !is TvmDictCellType && type !is TvmDataCellType) {
+        "For asserting TvmDictCellType or TvmDataCellType, use special methods"
+    }
+
+    if (value is UConcreteHeapRef && value.address == NULL_ADDRESS) {
+        require(type is TvmNullType)
+        return
+    }
+    val refOldTypes = getRefLeaves(value)
     refOldTypes.forEach { (oldType, ref) ->
         if (typeSystem.isSupertype(oldType, type)) {
             memory.types.allocate(ref.address, type)
         } else if (!typeSystem.isSupertype(type, oldType)) {
-            // TODO implement guard types
-            logger.debug {
-                "Type mismatch of $value ($ref) ref. Old type: $oldType, new type: $type"
-            }
-//            throw TypeCastException(oldType, type)
+            throw TypeCastException(oldType, type)
         }
     }
+}
+
+private fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell? = with(ctx) {
+    if (!ref.isAllocated) {
+        return null
+    }
+
+    val data = cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@extractFullCellIfItIsConcrete, ref)
+    val dataLength = memory.readField(ref, TvmContext.cellDataLengthField, sizeSort)
+    val refsLength = memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort)
+
+    if (data !is KInterpretedValue || dataLength !is KInterpretedValue || refsLength !is KInterpretedValue) {
+        return null
+    }
+
+    val children = List(refsLength.intValue()) { i ->
+        val child = readCellRef(ref, i.toBv()) as UConcreteHeapRef
+        extractFullCellIfItIsConcrete(child)
+            ?: return@with null
+    }
+
+    val dataStr = (data as KBitVecValue).stringValue.take(dataLength.intValue()).map { it == '1' }
+
+    return Cell(BitString.of(dataStr), *children.toTypedArray())
+}
+
+
+/**
+ * Return true if transformed.
+ * */
+private fun TvmState.transformToConcreteDictIfPossible(ref: UConcreteHeapRef, keyLength: Int): Boolean = with(ctx) {
+    val oldType = getRefLeaves(ref).single().type
+    check(oldType is TvmDataCellType) {
+        "Unexpected type in transformToConcreteDictIfPossible: $oldType"
+    }
+
+    val cell = extractFullCellIfItIsConcrete(ref)
+        ?: return false
+
+    val codec = HashMapE.tlbCodec(keyLength, HashMapESerializer)
+    val parsedDict = kotlin.runCatching {
+        codec.loadTlb(Cell(BitString(true), cell))
+    }.getOrElse {
+        return false
+    }
+
+    memory.types.allocate(ref.address, TvmDictCellType)
+    memory.writeField(ref, dictKeyLengthField, int257sort, keyLength.toBv257(), guard = trueExpr)
+
+    parsedDict.forEach { (keyBitString, valueCell) ->
+        val cellRef = allocateCell(valueCell.toTvmCell())
+        val sliceValue = allocSliceFromCell(cellRef)
+        dictAddKeyValue(
+            ref,
+            DictId(keyLength),
+            key = mkBv(keyBitString.toBinary(), keyLength.toUInt()),
+            value = sliceValue,
+        )
+    }
+
+    return true
+}
+
+private fun TvmStepScopeManager.assertConcreteCellType(
+    value: UHeapRef,
+    newType: TvmType,
+    badType: TvmFinalReferenceType,
+    exit: TvmMethodResult.TvmSoftFailureExit,
+): Unit? {
+    val refOldTypes = calcOnState { getRefLeaves(value) }
+    val badCellTypeGuard = doWithCtx {
+        refOldTypes.fold(falseExpr as UBoolExpr) { acc, info ->
+            if (info.type != badType) {
+                acc
+            } else {
+                acc or info.guard
+            }
+        }
+    }
+    fork(
+        ctx.mkNot(badCellTypeGuard),
+        falseStateIsExceptional = true,
+        blockOnFalseState = {
+            setExit(TvmMethodResult.TvmSoftFailure(exit, calcOnState { phase }))
+        }
+    ) ?: return null
+
+    doWithState {
+        refOldTypes.forEach { (oldType, ref) ->
+            if (oldType == badType) {
+                // do nothing
+            } else if (typeSystem.isSupertype(oldType, newType)) {
+                memory.types.allocate(ref.address, newType)
+            } else if (!typeSystem.isSupertype(newType, oldType)) {
+                throw TypeCastException(oldType, newType)
+            }
+        }
+    }
+
+    return Unit
+}
+
+fun TvmStepScopeManager.assertDictType(value: UHeapRef, keyLength: Int): Unit? {
+    val refs = calcOnState { getRefLeaves(value) }
+    refs.forEach { info ->
+        if (info.type == TvmDataCellType) {
+            calcOnState { transformToConcreteDictIfPossible(info.ref, keyLength) }
+        }
+    }
+    return assertConcreteCellType(value, newType = TvmDictCellType, badType = TvmDataCellType, TvmDictOperationOnDataCell)
+}
+
+fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? {
+    return assertConcreteCellType(value, newType = TvmDataCellType, badType = TvmDictCellType, TvmDataCellOperationOnDict)
 }
 
 fun TvmStepScopeManager.killCurrentState() = doWithCtx {

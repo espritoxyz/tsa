@@ -60,7 +60,7 @@ fun tactCompileAndAnalyzeAllMethods(
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
     tvmOptions: TvmOptions = TvmOptions(),
     takeEmptyTests: Boolean = false,
-): TvmContractSymbolicTestResult = TactAnalyzer.analyzeAllMethods(
+): TvmContractSymbolicTestResult = TactAnalyzer().analyzeAllMethods(
     tactSources,
     contractDataHex,
     methodsBlackList,

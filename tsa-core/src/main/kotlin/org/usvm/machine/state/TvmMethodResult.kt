@@ -83,6 +83,14 @@ data object TvmUsageOfVarAddress : TvmMethodResult.TvmSoftFailureExit {
     override val ruleId = "var-address-usage"
 }
 
+data object TvmDictOperationOnDataCell : TvmMethodResult.TvmSoftFailureExit {
+    override val ruleId = "dict-operation-on-data-cell"
+}
+
+data object TvmDataCellOperationOnDict : TvmMethodResult.TvmSoftFailureExit {
+    override val ruleId = "data-cell-operation-on-dict"
+}
+
 object TvmNormalExit : TvmSuccessfulExit {
     override val exitCode: Int
         get() = 0

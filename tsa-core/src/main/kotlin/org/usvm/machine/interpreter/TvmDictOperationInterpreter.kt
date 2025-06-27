@@ -153,8 +153,8 @@ import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocSliceFromData
+import org.usvm.machine.state.assertDictType
 import org.usvm.machine.state.assertIfSat
-import org.usvm.machine.state.assertType
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderStoreNextRef
@@ -181,13 +181,13 @@ import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.types.TvmBuilderType
+import org.usvm.machine.types.TvmCellMaybeConstructorBitRead
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
-import org.usvm.machine.types.TvmCellMaybeConstructorBitRead
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.utils.intValueOrNull
 
@@ -442,7 +442,8 @@ class TvmDictOperationInterpreter(
         }
 
         // this instruction can be used to store data cells, not just dict cells
-        val dictCellRef = loadDict(scope, assertType = false)
+        val (dictCellRef, status) = loadDict(scope, keyLengthForAssertingDictType = null)
+        status ?: return
 
         val resultBuilder = scope.calcOnStateCtx { memory.allocConcrete(TvmBuilderType) }
         scope.doWithStateCtx { builderCopyFromBuilder(builder, resultBuilder) }
@@ -472,7 +473,8 @@ class TvmDictOperationInterpreter(
     ) {
         val keyLength = loadKeyLength(scope)
             ?: return
-        val dictCellRef = loadDict(scope)
+        val (dictCellRef, status) = loadDict(scope, keyLength)
+        status ?: return
         val key = loadKey(scope, keyType, keyLength) ?: return
         val value = loadValue(scope, valueType)
 
@@ -578,7 +580,8 @@ class TvmDictOperationInterpreter(
     ) = with(ctx) {
         val keyLength = loadKeyLength(scope)
             ?: return
-        val dictCellRef = loadDict(scope)
+        val (dictCellRef, status) = loadDict(scope, keyLength)
+        status ?: return
         val key = loadKey(scope, keyType, keyLength) ?: return
 
         if (dictCellRef == null) {
@@ -636,7 +639,8 @@ class TvmDictOperationInterpreter(
     ) {
         val keyLength = loadKeyLength(scope)
             ?: return
-        val dictCellRef = loadDict(scope)
+        val (dictCellRef, status) = loadDict(scope, keyLength)
+        status ?: return
         val key = loadKey(scope, keyType, keyLength) ?: return
 
         if (dictCellRef == null) {
@@ -705,7 +709,8 @@ class TvmDictOperationInterpreter(
     ) = with(ctx) {
         val keyLength = loadKeyLength(scope, rangeOpMaxKeyLength(keyType))
             ?: return
-        val dictCellRef = loadDict(scope)
+        val (dictCellRef, status) = loadDict(scope, keyLength)
+        status ?: return
 
         if (dictCellRef == null) {
             scope.doWithState {
@@ -809,7 +814,8 @@ class TvmDictOperationInterpreter(
     ) = with(ctx) {
         val keyLength = loadKeyLength(scope, rangeOpMaxKeyLength(keyType))
             ?: return
-        val dictCellRef = loadDict(scope)
+        val (dictCellRef, status) = loadDict(scope, keyLength)
+        status ?: return
 
         val key = when (keyType) {
             DictKeyType.SIGNED_INT,
@@ -1013,21 +1019,32 @@ class TvmDictOperationInterpreter(
         return keyLength
     }
 
-    // todo: dict is slice?
     // todo: verify key length
-    private fun loadDict(scope: TvmStepScopeManager, assertType: Boolean = true): UHeapRef? =
-        scope.calcOnState {
+    private fun loadDict(
+        scope: TvmStepScopeManager,
+        keyLengthForAssertingDictType: Int?,
+    ): Pair<UHeapRef?, Unit?> {
+        return scope.calcOnState {
             if (stack.lastIsNull()) {
                 stack.pop(0)
-                null
+                null to Unit
             } else {
-                takeLastCell()?.also {
-                    if (assertType) {
-                        assertType(it, TvmDictCellType)
+                takeLastCell()?.let {
+                    val status = if (keyLengthForAssertingDictType != null) {
+                        scope.assertDictType(it, keyLengthForAssertingDictType)
+                    } else {
+                        Unit
                     }
+                    it to status
+                } ?: run {
+                    scope.doWithState {
+                        ctx.throwTypeCheckError(this)
+                    }
+                    null to null
                 }
             }
         }
+    }
 
     private fun assertDictIsNotEmpty(scope: TvmStepScopeManager, dict: UHeapRef, dictId: DictId): Unit? {
         val constraint = scope.calcOnStateCtx {

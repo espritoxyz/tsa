@@ -31,21 +31,32 @@ fun TvmMainMethod.addReturnStmt(): TvmMainMethod {
 
 // An artificial entity representing instructions in continuation
 data class TvmLambda(
-    private val instListRaw: MutableList<TvmInst>
+    private val instListRaw: MutableList<TvmInst>,
+    private val givenParent: TvmInst? = null  // must be given if lambda is empty
 ) : TvmCodeBlock() {
     override val instList: List<TvmInst>
         get() = instListRaw
 
     init {
+        check(instListRaw.isNotEmpty() || givenParent != null) {
+            "If instList is empty, parent must be given"
+        }
+
         initLocationsCodeBlock()
         instListRaw += returnStmt()
     }
 
     private fun returnStmt(): TsaArtificialImplicitRetInst {
-        check(instList.isNotEmpty()) {
-            "TvmLambda must not be empty"
+        if (instList.isNotEmpty()) {
+            val lastStmt = instList.last()
+            return TsaArtificialImplicitRetInst(lastStmt.location.increment())
+        } else {
+            val loc = TvmInstLambdaLocation(0).also {
+                it.parent = givenParent?.location
+                    ?: error("Parent must be given if TvmLambda is empty")
+                it.codeBlock = this
+            }
+            return TsaArtificialImplicitRetInst(loc)
         }
-        val lastStmt = instList.last()
-        return TsaArtificialImplicitRetInst(lastStmt.location.increment())
     }
 }

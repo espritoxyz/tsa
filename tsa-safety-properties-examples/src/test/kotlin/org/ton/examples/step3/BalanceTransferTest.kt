@@ -34,6 +34,7 @@ class BalanceTransferTest {
         val options = TvmOptions(
             intercontractOptions = IntercontractOptions(communicationScheme),
             turnOnTLBParsingChecks = false,
+            enableOutMessageAnalysis = true,
         )
 
         // Count wallet contract twice to distinguish between different accounts

@@ -10,7 +10,6 @@ import kotlin.time.Duration
 
 data class TvmOptions(
     val quietMode: Boolean = false,
-    val enableVarAddress: Boolean = false,
     val enableExternalAddress: Boolean = false,
     val useRecvInternalInput: Boolean = true,
     val enableInputValues: Boolean = true,
@@ -24,7 +23,14 @@ data class TvmOptions(
     val intercontractOptions: IntercontractOptions = IntercontractOptions(),
     val useMainMethodForInitialMethodJump: Boolean = true,
     val analyzeBouncedMessaged: Boolean = false,
-)
+    val enableOutMessageAnalysis: Boolean = false,
+) {
+    init {
+        check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
+            "Cannot perform inter-contract analysis without enabling out messages analysis"
+        }
+    }
+}
 
 data class TlbOptions(
     val performTlbChecksOnAllocatedCells: Boolean = false,

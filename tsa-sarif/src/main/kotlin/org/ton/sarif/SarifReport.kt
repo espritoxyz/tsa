@@ -124,50 +124,22 @@ private fun List<TvmSymbolicTest>.toSarifResult(
             locations = listOf(
                 Location(
                     logicalLocations = listOf(
-                        LogicalLocation(decoratedName = methodId.toString(), fullyQualifiedName = methodName)
+                        LogicalLocation(
+                            decoratedName = methodId.toString(),
+                            fullyQualifiedName = methodName,
+                            properties = PropertyBag(
+                                mapOf(
+                                    "position" to TvmContractCode.json.encodeToJsonElement(it.lastStmt.physicalLocation),
+                                    "inst" to it.lastStmt.mnemonic,
+                                )
+                            )
+                        )
                     ),
                 )
             ),
-            codeFlows = resolveCodeFlows(it.stackTrace, methodsMapping),
-            properties = properties
+            properties = properties,
         )
     }
 }
 
 private fun resolveRuleId(methodResult: TvmFailure): String = methodResult.exit.ruleName
-
-private fun resolveCodeFlows(stackTrace: List<TvmInst>, methodsMapping: Map<MethodId, String>): List<CodeFlow> {
-    val threadFlows = mutableListOf<ThreadFlow>()
-
-    for (stmt in stackTrace) {
-        val method = stmt.location.codeBlock
-
-        val methodId = (method as? TvmMethod)?.id
-        val methodName = if (method is TvmMethod) {
-            methodsMapping[method.id]
-        } else {
-            "Lambda"
-        }
-
-        val location = Location(
-            logicalLocations = listOf(
-                LogicalLocation(
-                    decoratedName = methodId?.toString(),
-                    fullyQualifiedName = methodName,
-                    properties = PropertyBag(
-                        mapOf(
-                            "stmt" to "${stmt.mnemonic}#${stmt.location.index}",
-                        )
-                    )
-                )
-            ),
-        )
-        val threadFlowLocation = ThreadFlowLocation(location = location)
-
-        threadFlows += ThreadFlow(locations = listOf(threadFlowLocation))
-    }
-
-    val codeFlow = CodeFlow(threadFlows = threadFlows)
-
-    return listOf(codeFlow)
-}

@@ -10,8 +10,8 @@ object Versions {
     const val mockk = "1.13.4"
     const val junitParams = "5.9.3"
     const val logback = "1.4.8"
-    const val usvm = "aee926e88f31af801192239d8997d213f9145424"
-    const val tvmDisasm = "0df511e93b43a21f679bb95845016c74190ed1b9"
+    const val usvm = "54633bdde942f2c882eb02f5804888e798f5d30c"
+    const val tvmDisasm = "27727c541203de02bdca1246d51d73e5ea73be62"
     const val tonKotlin = "0.3.1"
 }
 

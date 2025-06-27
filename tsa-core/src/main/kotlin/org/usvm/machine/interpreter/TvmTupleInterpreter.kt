@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import kotlinx.collections.immutable.persistentListOf
@@ -45,6 +46,7 @@ import org.ton.bytecode.TvmTupleUntupleInst
 import org.ton.bytecode.TvmTupleUntuplevarInst
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.bigIntValue
 import org.usvm.machine.intValue
 import org.usvm.machine.state.SIMPLE_GAS_USAGE
 import org.usvm.machine.state.TvmStack
@@ -115,18 +117,92 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
                 doConcreteGet(scope, stmt, index.intValue(), quiet = false) ?: return
                 scope.doWithState { newStmt(stmt.nextStmt()) }
             }
+            is TvmTupleSetindexvarInst -> {
+                val index = scope.takeLastIntOrThrowTypeError()
+                    ?: return
+                if (index !is KInterpretedValue || index.bigIntValue() > Int.MAX_VALUE.toBigInteger()) {
+                    TODO("Non-concrete or big index in TvmTupleSetindexvarInst: $index")
+                }
+                doConcreteSet(scope, stmt, index.intValue(), quiet = false)
+            }
+            is TvmTupleSetindexvarqInst -> {
+                val index = scope.takeLastIntOrThrowTypeError()
+                    ?: return
+                if (index !is KInterpretedValue || index.bigIntValue() > Int.MAX_VALUE.toBigInteger()) {
+                    TODO("Non-concrete or big index in TvmTupleSetindexvarqInst: $index")
+                }
+                doConcreteSet(scope, stmt, index.intValue(), quiet = true)
+            }
+            is TvmTupleTpopInst -> visitTPopInst(scope, stmt)
+            is TvmTupleTpushInst -> visitTPushInst(scope, stmt)
             is TvmTupleExplodeInst -> TODO()
             is TvmTupleExplodevarInst -> TODO()
             is TvmTupleIndexvarqInst -> TODO()
             is TvmTupleLastInst -> TODO()
-            is TvmTupleSetindexvarInst -> TODO()
-            is TvmTupleSetindexvarqInst -> TODO()
-            is TvmTupleTpopInst -> TODO()
-            is TvmTupleTpushInst -> TODO()
             is TvmTupleTuplevarInst -> TODO()
             is TvmTupleUnpackfirstInst -> TODO()
             is TvmTupleUnpackfirstvarInst -> TODO()
             is TvmTupleUntuplevarInst -> TODO()
+        }
+    }
+
+    private fun visitTPushInst(scope: TvmStepScopeManager, stmt: TvmTupleTpushInst) {
+
+        val value = scope.calcOnState { stack.takeLastEntry() }
+
+        val tuple = scope.takeLastTuple()
+        if (tuple == null) {
+            scope.doWithState(ctx.throwTypeCheckError)
+            return
+        }
+
+        if (tuple !is TvmStackTupleValueConcreteNew) {
+            TODO("Tuple with non-concrete size in TvmTupleTpushInst")
+        }
+
+        if (tuple.concreteSize >= 255) {
+            scope.doWithState(ctx.throwTypeCheckError)
+            return
+        }
+
+        scope.doWithState {
+            consumeGas(SIMPLE_GAS_USAGE + tuple.concreteSize + 1)
+
+            val newTuple = TvmStackTupleValueConcreteNew(ctx, tuple.entries.add(value))
+
+            stack.addTuple(newTuple)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun visitTPopInst(scope: TvmStepScopeManager, stmt: TvmTupleTpopInst) {
+        val tuple = scope.takeLastTuple()
+        if (tuple == null) {
+            scope.doWithState(ctx.throwTypeCheckError)
+            return
+        }
+
+        if (tuple !is TvmStackTupleValueConcreteNew) {
+            TODO("Tuple with non-concrete size in TvmTupleTpushInst")
+        }
+
+        if (tuple.concreteSize == 0) {
+            scope.doWithState(ctx.throwTypeCheckError)
+            return
+        }
+
+        scope.doWithState {
+            consumeGas(SIMPLE_GAS_USAGE + tuple.concreteSize - 1)
+
+            val newTuple = TvmStackTupleValueConcreteNew(ctx, tuple.entries.removeAt(tuple.entries.size - 1))
+
+            stack.addTuple(newTuple)
+
+            val value = tuple.entries.last()
+
+            stack.addStackEntry(value)
+
+            newStmt(stmt.nextStmt())
         }
     }
 

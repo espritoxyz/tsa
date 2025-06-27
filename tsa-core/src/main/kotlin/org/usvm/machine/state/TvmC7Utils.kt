@@ -216,7 +216,7 @@ fun TvmState.initContractInfo(
 
     // Right now, this parameter can only be set to zero in emulator
     // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/smc-envelope/SmartContract.cpp#L166
-    val storagePhaseFees = TvmStackIntValue(makeSymbolicPrimitive(int257sort))
+    val storagePhaseFees = TvmStackIntValue(zeroValue)
 
     // TODO support `prevBlocksInfo` param
     val prevBlocksInfo = TvmStackNullValue

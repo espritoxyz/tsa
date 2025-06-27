@@ -4,6 +4,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.usvm.machine.state.ContractId
 
+// TODO: refactor communication scheme, so that it is more usable
+
 @Serializable
 data class TvmContractHandlers(
     val id: ContractId,
