@@ -14,6 +14,7 @@ PROGRAM{
   9  DECLMETHOD sd_skip_last
   10  DECLMETHOD s_skip_last
   11  DECLMETHOD sd_beginsx
+  12  DECLMETHOD s_cut_last_ldrefrtos
   load_int PROC:<{
     192 PUSHINT
     65472 PUSHINT
@@ -343,5 +344,52 @@ PROGRAM{
     DUMPSTK
 
     SDEQ
+  }>
+  s_cut_last_ldrefrtos PROC:<{
+    117 PUSHINT // 1110101
+    NEWC
+    7 STU
+
+    NEWC
+    ENDC
+    SWAP
+    STREF
+
+    42 PUSHINT
+    NEWC
+    7 STU
+    ENDC
+    SWAP
+    STREF
+
+    ENDC // Now we have a cell with 7 bits equal to 1110101 and two refs - empty and containing number 42
+
+    CTOS
+    6 PUSHINT
+    1 PUSHINT
+    SCUTLAST // Expect slice with 6 bits equal to 110101 and one ref containing 42
+
+    DUP // [s s]
+
+    53 PUSHINT
+    NEWC
+    6 STU
+    ENDC
+    CTOS
+
+    SDEQ
+    SWAP
+
+    LDREFRTOS
+    SWAP
+    SREMPTY // [-1 {42} -1]
+    SWAP // [-1 -1 {42}]
+
+    7 LDU // [-1 -1 42 {}]
+    SWAP  // [-1 -1 {} 42]
+    42 PUSHINT // [-1 -1 {} 42 42]
+    EQUAL // [-1 -1 {} -1]
+    SWAP // [-1 -1 -1 {}]
+    SEMPTY // [-1 -1 -1 -1]
   }>
 }END>c
