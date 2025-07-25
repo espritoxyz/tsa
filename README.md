@@ -2,9 +2,11 @@ TSA(TON Symbolic Analyzer) is a static analysis tool based on symbolic execution
 
 ### Quick start
 
-To start using TSA, follow the [guide](docs/use-cases.md).
+To install TSA, follow the [guide](docs/getting-started.md).
 
-To know more about the core design, read the [corresponding documents](design).
+To know more about TSA use cases, read the [following document](docs/modes/use-cases.md).
+
+The easiest way to use TSA is to generate tests. For examples, [see the following](docs/modes/test-gen-mode.md).
 
 ### Language Support
 TSA works on TVM bitcode level, so it is possible to analyze smart contracts written in any language, just need to compile it to BoC format.
