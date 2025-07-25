@@ -614,6 +614,7 @@ class TvmCellInterpreter(
     private fun visitLoadRefRtosInst(scope: TvmStepScopeManager, stmt: TvmCellParseLdrefrtosInst) {
         scope.doWithState {
             consumeGas(118) // assume the first time we load cell
+            // TODO implement proper Complex gas semantics
         }
         val slice = scope.calcOnState { stack.takeLastSlice() }
         if (slice == null) {
