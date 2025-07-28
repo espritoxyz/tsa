@@ -21,10 +21,7 @@ fun TvmStepScopeManager.consumeDefaultGas(stmt: TvmInst) = doWithState {
 }
 
 
-/**
- * TODO: all call sites of this should properly handle gas consumption in the end
- */
-fun TvmStepScopeManager.consumeConstantGasForComplexExpressions(value: Int) = doWithState {
+fun TvmStepScopeManager.consumeConstantGas(value: Int) = doWithState {
     consumeGas(value)
 }
 

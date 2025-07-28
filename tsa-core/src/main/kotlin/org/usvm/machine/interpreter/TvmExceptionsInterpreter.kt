@@ -26,7 +26,7 @@ import org.usvm.machine.state.C2Register
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmUserDefinedFailure
-import org.usvm.machine.state.consumeConstantGasForComplexExpressions
+import org.usvm.machine.state.consumeConstantGas
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.defineC0
@@ -58,37 +58,37 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
             }
 
             is TvmExceptionsThrowifInst -> {
-                scope.consumeConstantGasForComplexExpressions(34)
+                scope.consumeConstantGas(34)
 
                 doThrowIfInst(scope, stmt, EmbeddedCodeExtractor(stmt.n), invertCondition = false)
             }
 
             is TvmExceptionsThrowifShortInst -> {
-                scope.consumeConstantGasForComplexExpressions(26)
+                scope.consumeConstantGas(26)
 
                 doThrowIfInst(scope, stmt, EmbeddedCodeExtractor(stmt.n), invertCondition = false)
             }
 
             is TvmExceptionsThrowifnotInst -> {
-                scope.consumeConstantGasForComplexExpressions(34)
+                scope.consumeConstantGas(34)
 
                 doThrowIfInst(scope, stmt, EmbeddedCodeExtractor(stmt.n), invertCondition = true)
             }
 
             is TvmExceptionsThrowifnotShortInst -> {
-                scope.consumeConstantGasForComplexExpressions(26)
+                scope.consumeConstantGas(26)
 
                 doThrowIfInst(scope, stmt, EmbeddedCodeExtractor(stmt.n), invertCondition = true)
             }
 
             is TvmExceptionsThrowanyifInst -> {
-                scope.consumeConstantGasForComplexExpressions(26)
+                scope.consumeConstantGas(26)
 
                 doThrowIfInst(scope, stmt, StackCodeExtractor, invertCondition = false)
             }
 
             is TvmExceptionsThrowanyifnotInst -> {
-                scope.consumeConstantGasForComplexExpressions(26)
+                scope.consumeConstantGas(26)
 
                 doThrowIfInst(scope, stmt, StackCodeExtractor, invertCondition = true)
             }
@@ -146,7 +146,7 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
             }
 
             is TvmExceptionsThrowargifnotInst -> {
-                scope.consumeConstantGasForComplexExpressions(34)
+                scope.consumeConstantGas(34)
                 doThrowIfInst(
                     scope,
                     stmt,
@@ -157,7 +157,7 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
             }
 
             is TvmExceptionsThrowarganyifInst -> {
-                scope.consumeConstantGasForComplexExpressions(26)
+                scope.consumeConstantGas(26)
                 doThrowIfInst(scope, stmt, StackCodeExtractor, invertCondition = false, takeParameterFromStack = true)
             }
 
@@ -167,7 +167,7 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
             }
 
             is TvmExceptionsThrowargifInst -> {
-                scope.consumeConstantGasForComplexExpressions(34)
+                scope.consumeConstantGas(34)
                 doThrowIfInst(
                     scope,
                     stmt,
