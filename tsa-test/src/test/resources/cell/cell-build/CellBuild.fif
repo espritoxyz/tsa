@@ -9,6 +9,8 @@ PROGRAM{
   4  DECLMETHOD sdsubstr_bad_offset
   5  DECLMETHOD sdsubstr_bad_size
   6  DECLMETHOD sdsubstr_bad_last_bit
+  7  DECLMETHOD stones_small
+  8  DECLMETHOD stones
 
   stsliceconst PROC:<{
     192 PUSHINT
@@ -20,6 +22,24 @@ PROGRAM{
   }>
 
   stzeroes PROC:<{
+    192 PUSHINT
+    NEWC
+    8 STU
+    6 PUSHINT
+    STZEROES
+    ENDC
+    HASHCU
+  }>
+
+  stones_small PROC:<{
+    NEWC
+    3 PUSHINT
+    STONES
+    ENDC
+    HASHCU
+  }>
+
+  stones PROC:<{
     192 PUSHINT
     NEWC
     8 STU

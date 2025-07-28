@@ -8,6 +8,6 @@ class CellBuildTest {
 
     @Test
     fun cellBuildTest() {
-        compareSymbolicAndConcreteFromResource(testPath = storeSliceConstFif, lastMethodIndex = 6)
+        compareSymbolicAndConcreteFromResource(testPath = storeSliceConstFif, lastMethodIndex = 8)
     }
 }
