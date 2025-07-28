@@ -1,0 +1,120 @@
+"Fift.fif" include
+"Asm.fif" include
+
+
+// always the exception number is 117,
+// parameter is 13 if nonzero
+
+PROGRAM{
+  0 DECLMETHOD throw
+  1 DECLMETHOD throwany
+  2 DECLMETHOD throwargany
+  3 DECLMETHOD throwargifnot_true
+  4 DECLMETHOD throwargifnot_false
+  5 DECLMETHOD throwargif_true
+  6 DECLMETHOD throwargif_false
+  7 DECLMETHOD throwarganyif_true
+  8 DECLMETHOD throwarganyif_false
+  9 DECLMETHOD throwarganyifnot_true
+  10 DECLMETHOD throwarganyifnot_false
+  11 DECLMETHOD throwarg
+  12 DECLMETHOD throwif
+  13 DECLMETHOD throwifnot
+
+  throw PROC:<{
+    4 PUSHINT
+    117 THROW
+    // 0 117
+  }>
+
+  throwany PROC:<{
+    117 PUSHINT
+    THROWANY
+    // 0 117
+  }>
+
+  throwargany PROC:<{
+    13 PUSHINT
+    117 PUSHINT
+    THROWARGANY
+    // 13 117
+  }>
+
+  throwargifnot_true PROC:<{
+    13 PUSHINT
+    -1 PUSHINT // true
+    117 THROWARGIFNOT
+    // nothrow
+  }>
+
+  throwargifnot_false PROC:<{
+    13 PUSHINT
+    0 PUSHINT // false
+    117 THROWARGIFNOT
+    // 13 117
+  }>
+
+  throwargif_true PROC:<{
+    13 PUSHINT
+    -1 PUSHINT // true
+    117 THROWARGIF
+    // 13 117
+  }>
+
+  throwargif_false PROC:<{
+    13 PUSHINT
+    0 PUSHINT // false
+    117 THROWARGIF
+    // nothrow
+  }>
+
+  throwarganyif_true PROC:<{
+    13 PUSHINT
+    117 PUSHINT
+    -1 PUSHINT // true
+    THROWARGANYIF
+    // nothrow
+  }>
+
+  throwarganyif_false PROC:<{
+    13 PUSHINT
+    117 PUSHINT
+    0 PUSHINT // false
+    THROWARGANYIF
+    // 13 117
+  }>
+
+  throwarganyifnot_true PROC:<{
+    13 PUSHINT
+    117 PUSHINT
+    -1 PUSHINT // true
+    THROWARGANYIF
+    // 13 117
+  }>
+
+  throwarganyifnot_false PROC:<{
+    13 PUSHINT
+    117 PUSHINT
+    0 PUSHINT // false
+    THROWARGANYIF
+    // nothrow
+  }>
+
+  throwarg PROC:<{
+    13 PUSHINT
+    117 THROWARG
+    // 13 117
+  }>
+
+  throwif PROC:<{
+    -1 PUSHINT
+    117 THROWIF
+    // 0 117
+  }>
+
+  throwifnot PROC:<{
+    0 PUSHINT
+    117 THROWIF
+    // nothrow
+  }>
+}END>c

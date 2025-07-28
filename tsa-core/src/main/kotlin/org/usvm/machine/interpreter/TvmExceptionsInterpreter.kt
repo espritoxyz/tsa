@@ -7,6 +7,11 @@ import org.ton.bytecode.TvmExceptionsThrowanyInst
 import org.ton.bytecode.TvmExceptionsThrowanyifInst
 import org.ton.bytecode.TvmExceptionsThrowanyifnotInst
 import org.ton.bytecode.TvmExceptionsThrowargInst
+import org.ton.bytecode.TvmExceptionsThrowarganyInst
+import org.ton.bytecode.TvmExceptionsThrowarganyifInst
+import org.ton.bytecode.TvmExceptionsThrowarganyifnotInst
+import org.ton.bytecode.TvmExceptionsThrowargifInst
+import org.ton.bytecode.TvmExceptionsThrowargifnotInst
 import org.ton.bytecode.TvmExceptionsThrowifInst
 import org.ton.bytecode.TvmExceptionsThrowifShortInst
 import org.ton.bytecode.TvmExceptionsThrowifnotInst
@@ -21,6 +26,7 @@ import org.usvm.machine.state.C2Register
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmUserDefinedFailure
+import org.usvm.machine.state.consumeConstantGasForComplexExpressions
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.defineC0
@@ -44,41 +50,49 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
                 val param = takeLastIntOrNull() ?: return@doWithState
                 throwException(code = stmt.n, param = param)
             }
+
             is TvmExceptionsThrowShortInst -> scope.doWithState {
                 scope.consumeDefaultGas(stmt)
 
                 throwException(code = stmt.n)
             }
+
             is TvmExceptionsThrowifInst -> {
-                scope.doWithState { consumeGas(34) }
+                scope.consumeConstantGasForComplexExpressions(34)
 
                 doThrowIfInst(scope, stmt, EmbeddedCodeExtractor(stmt.n), invertCondition = false)
             }
+
             is TvmExceptionsThrowifShortInst -> {
-                scope.doWithState { consumeGas(26) }
+                scope.consumeConstantGasForComplexExpressions(26)
 
                 doThrowIfInst(scope, stmt, EmbeddedCodeExtractor(stmt.n), invertCondition = false)
             }
+
             is TvmExceptionsThrowifnotInst -> {
-                scope.doWithState { consumeGas(34) }
+                scope.consumeConstantGasForComplexExpressions(34)
 
                 doThrowIfInst(scope, stmt, EmbeddedCodeExtractor(stmt.n), invertCondition = true)
             }
+
             is TvmExceptionsThrowifnotShortInst -> {
-                scope.doWithState { consumeGas(26) }
+                scope.consumeConstantGasForComplexExpressions(26)
 
                 doThrowIfInst(scope, stmt, EmbeddedCodeExtractor(stmt.n), invertCondition = true)
             }
+
             is TvmExceptionsThrowanyifInst -> {
-                scope.doWithState { consumeGas(26) }
+                scope.consumeConstantGasForComplexExpressions(26)
 
                 doThrowIfInst(scope, stmt, StackCodeExtractor, invertCondition = false)
             }
+
             is TvmExceptionsThrowanyifnotInst -> {
-                scope.doWithState { consumeGas(26) }
+                scope.consumeConstantGasForComplexExpressions(26)
 
                 doThrowIfInst(scope, stmt, StackCodeExtractor, invertCondition = true)
             }
+
             is TvmExceptionsThrowInst -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -86,6 +100,7 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
                     throwException(stmt.n)
                 }
             }
+
             is TvmExceptionsThrowanyInst -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -96,6 +111,7 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
                     throwException(code)
                 }
             }
+
             is TvmExceptionsTryInst -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -117,6 +133,50 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
 
                 scope.jumpToContinuation(body)
             }
+
+            is TvmExceptionsThrowarganyInst -> {
+                scope.consumeDefaultGas(stmt)
+                scope.doWithState {
+                    val code = takeLastIntOrNull()?.intValueOrNull
+                        ?: error("Cannot extract concrete code exception from the stack")
+
+                    val param = takeLastIntOrNull() ?: error("Cannot extract parameter from the stack")
+                    throwException(code, param = param)
+                }
+            }
+
+            is TvmExceptionsThrowargifnotInst -> {
+                scope.consumeConstantGasForComplexExpressions(34)
+                doThrowIfInst(
+                    scope,
+                    stmt,
+                    EmbeddedCodeExtractor(stmt.n),
+                    invertCondition = true,
+                    takeParameterFromStack = true
+                )
+            }
+
+            is TvmExceptionsThrowarganyifInst -> {
+                scope.consumeConstantGasForComplexExpressions(26)
+                doThrowIfInst(scope, stmt, StackCodeExtractor, invertCondition = false, takeParameterFromStack = true)
+            }
+
+            is TvmExceptionsThrowarganyifnotInst -> {
+                scope.consumeDefaultGas(stmt)
+                doThrowIfInst(scope, stmt, StackCodeExtractor, invertCondition = true)
+            }
+
+            is TvmExceptionsThrowargifInst -> {
+                scope.consumeConstantGasForComplexExpressions(34)
+                doThrowIfInst(
+                    scope,
+                    stmt,
+                    EmbeddedCodeExtractor(stmt.n),
+                    invertCondition = false,
+                    takeParameterFromStack = true
+                )
+            }
+
             else -> TODO("Unknown stmt: $stmt")
         }
     }
@@ -131,7 +191,8 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
         scope: TvmStepScopeManager,
         stmt: TvmExceptionsInst,
         exceptionCodeExtractor: ExceptionCodeExtractor,
-        invertCondition: Boolean
+        invertCondition: Boolean,
+        takeParameterFromStack: Boolean = false
     ) {
         with(ctx) {
             val flag = scope.takeLastIntOrThrowTypeError() ?: return
@@ -139,12 +200,14 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
                 if (invertCondition) it.not() else it
             }
             val exceptionCode = scope.calcOnState { exceptionCodeExtractor.code(this) }
-
+            val param = if (takeParameterFromStack) {
+                scope.calcOnState { takeLastIntOrThrowTypeError() } // what to do on null&
+            } else null
             scope.fork(
                 throwCondition,
                 falseStateIsExceptional = true,
                 blockOnFalseState = {
-                    throwException(exceptionCode)
+                    throwException(exceptionCode, param = param ?: ctx.zeroValue)
                     consumeGas(50)
                 }
             ) ?: return
@@ -160,6 +223,7 @@ class TvmExceptionsInterpreter(private val ctx: TvmContext) {
     private data class EmbeddedCodeExtractor(val code: Int) : ExceptionCodeExtractor {
         override fun code(state: TvmState): Int = code
     }
+
     private data object StackCodeExtractor : ExceptionCodeExtractor {
         override fun code(state: TvmState): Int = state.takeLastIntOrNull()?.intValueOrNull
             ?: error("Cannot extract concrete code exception from the stack")
