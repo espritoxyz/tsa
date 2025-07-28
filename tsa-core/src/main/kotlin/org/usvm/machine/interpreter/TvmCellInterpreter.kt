@@ -635,9 +635,9 @@ class TvmCellInterpreter(
                 addOnStack(value, TvmCellType)
                 addOnStack(updatedSlice, TvmSliceType)
             }
+            doSwap(this)
+            doCellToSlice(this, stmt)
         }
-        doSwap(scope)
-        doCellToSlice(scope, stmt)
     }
 
     private fun doPreloadRef(scope: TvmStepScopeManager, stmt: TvmCellParseInst, refIdx: UExpr<TvmSizeSort>) =
