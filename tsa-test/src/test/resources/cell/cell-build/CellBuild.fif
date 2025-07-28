@@ -4,6 +4,8 @@
 PROGRAM{
   0  DECLMETHOD stsliceconst
   1  DECLMETHOD stzeroes
+  2  DECLMETHOD stones_small
+  3  DECLMETHOD stones
   stsliceconst PROC:<{
     192 PUSHINT
     NEWC
@@ -13,6 +15,24 @@ PROGRAM{
     HASHCU
   }>
   stzeroes PROC:<{
+    192 PUSHINT
+    NEWC
+    8 STU
+    6 PUSHINT
+    STZEROES
+    ENDC
+    HASHCU
+  }>
+
+  stones_small PROC:<{
+    NEWC
+    3 PUSHINT
+    STONES
+    ENDC
+    HASHCU
+  }>
+
+  stones PROC:<{
     192 PUSHINT
     NEWC
     8 STU
