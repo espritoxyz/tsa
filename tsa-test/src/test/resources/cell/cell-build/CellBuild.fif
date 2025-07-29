@@ -45,7 +45,7 @@ PROGRAM{
     CTOS
     3 PUSHINT
     4 PUSHINT
-    SDSUBSTR // 0b1011
+    SDSUBSTR // 0b0110
     4 LDU
     DROP
   }>

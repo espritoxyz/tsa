@@ -167,7 +167,6 @@ import org.usvm.machine.types.makeCellToSlice
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
-import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeLtExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
@@ -468,46 +467,58 @@ class TvmCellInterpreter(
         }
     }
 
-    fun visitSdsubstrInst(scope: TvmStepScopeManager, stmt: TvmCellParseSdsubstrInst) {
-        with(ctx) {
-            scope.consumeDefaultGas(stmt)
+    fun visitSdsubstrInst(scope: TvmStepScopeManager, stmt: TvmCellParseSdsubstrInst) = with(ctx) {
+        scope.consumeDefaultGas(stmt)
 
-            val resultingLength = scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
-                ?: return
-            val newStartOfCell = scope.takeLastIntOrThrowTypeError()?.extractToSizeSort() ?: return
+        val sizeBits = scope.takeLastIntOrThrowTypeError() ?: return
+        val offsetBits = scope.takeLastIntOrThrowTypeError() ?: return
 
-            val slice = scope.calcOnState { stack.takeLastSlice() }
-            if (slice == null) {
-                scope.doWithState(throwTypeCheckError)
-                return
-            }
+        val slice = scope.calcOnState { stack.takeLastSlice() }
+        if (slice == null) {
+            scope.doWithState(throwTypeCheckError)
+            return
+        }
+        val intermediateSliceAddress =
+            scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
+        scope.makeSliceTypeLoad(
+            slice,
+            TvmCellDataBitArrayRead(offsetBits.extractToSizeSort()),
+            intermediateSliceAddress
+        ) { _ ->
+            // hide the original [scope] from this closure
+            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
+            val scope = Unit
 
-            val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
+            val updatedSliceAddress =
+                this.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(intermediateSliceAddress, it) } }
 
-            scope.assert(mkSizeLeExpr(mkBvAddExpr(newStartOfCell, resultingLength), maxDataLengthSizeExpr)) {}
-            scope.assertDataLengthConstraintWithoutError(
-                resultingLength,
-                unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
-            ) ?: return
+            this.calcOnState { sliceMoveDataPtr(updatedSliceAddress, offsetBits.extractToSizeSort()) }
+            this.makeSliceTypeLoad(
+                intermediateSliceAddress,
+                TvmCellDataBitArrayRead(sizeBits.extractToSizeSort()),
+                updatedSliceAddress,
+            ) { finalFromTlb ->
+                val result = finalFromTlb?.expr ?: let {
+                    val notOutOfRangeExpr = unsignedIntegerFitsBits(sizeBits, bits = 10u)
+                    checkOutOfRange(notOutOfRangeExpr, this)
+                        ?: return@makeSliceTypeLoad
+                    val bits = slicePreloadDataBits(
+                        updatedSliceAddress,
+                        sizeBits.extractToSizeSort(),
+                    ) ?: return@makeSliceTypeLoad
 
-            val cutCell = scope.calcOnState {
-                memory.allocConcrete(TvmDataCellType)
-            }.also {
-                scope.builderCopy(cell, it)
-            }
+                    val cell = calcOnState { allocEmptyCell() }
+                    builderStoreDataBits(cell, bits, sizeBits.extractToSizeSort())
+                        ?: error("Cannot write $sizeBits bits to the empty builder")
 
-            scope.doWithState {
-                val cutCellDataLength = mkBvAddExpr(resultingLength, newStartOfCell)
-                memory.writeField(cutCell, cellDataLengthField, sizeSort, cutCellDataLength, guard = trueExpr)
-                val cutSlice = allocSliceFromCell(cutCell)
-
-                sliceMoveDataPtr(cutSlice, newStartOfCell)
-                addOnStack(cutSlice, TvmSliceType)
-                newStmt(stmt.nextStmt())
+                    calcOnState { allocSliceFromCell(cell) }
+                }
+                doWithState {
+                    addOnStack(result, TvmSliceType)
+                    newStmt(stmt.nextStmt())
+                }
             }
         }
-
-
     }
 
     fun visitCellBuildInst(
