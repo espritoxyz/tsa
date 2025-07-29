@@ -11,6 +11,7 @@ PROGRAM{
   6  DECLMETHOD sdsubstr_bad_last_bit
   7  DECLMETHOD stones_small
   8  DECLMETHOD stones
+  9  DECLMETHOD stones_large
 
   stsliceconst PROC:<{
     192 PUSHINT
@@ -45,6 +46,16 @@ PROGRAM{
     8 STU
     6 PUSHINT
     STZEROES
+    ENDC
+    HASHCU
+  }>
+
+  stones_large PROC:<{
+    192 PUSHINT
+    NEWC
+    8 STU
+    300 PUSHINT
+    STONES
     ENDC
     HASHCU
   }>
@@ -111,4 +122,5 @@ PROGRAM{
     4 LDU
     DROP
   }>
+
 }END>c

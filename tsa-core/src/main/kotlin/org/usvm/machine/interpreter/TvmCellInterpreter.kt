@@ -109,7 +109,6 @@ import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.Companion.sliceDataPosField
 import org.usvm.machine.TvmContext.Companion.sliceRefPosField
-import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
@@ -123,11 +122,11 @@ import org.usvm.machine.state.assertRefsLengthConstraintWithoutError
 import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
-import org.usvm.machine.state.builderStoreInt
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRef
 import org.usvm.machine.state.builderStoreSlice
 import org.usvm.machine.state.builderStoreSliceTlb
+import org.usvm.machine.state.builderStoreValueTlb
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.checkCellDataUnderflow
 import org.usvm.machine.state.checkCellOverflow
@@ -1464,10 +1463,10 @@ class TvmCellInterpreter(
     }
 
     private fun visitStoreOnesInst(scope: TvmStepScopeManager, stmt: TvmCellBuildStonesInst) =
-        visitStoreSamesInst(scope, stmt, ctx.minusOneValue)
+        visitStoreSamesInst(scope, stmt, ctx.minusOneCellValue)
 
     private fun visitStoreZeroesInst(scope: TvmStepScopeManager, stmt: TvmCellBuildStzeroesInst) =
-        visitStoreSamesInst(scope, stmt, ctx.zeroValue)
+        visitStoreSamesInst(scope, stmt, ctx.zeroCellValue)
 
 
     /**
@@ -1476,7 +1475,7 @@ class TvmCellInterpreter(
     private fun visitStoreSamesInst(
         scope: TvmStepScopeManager,
         stmt: TvmCellBuildInst,
-        valueToCutFrom: KBitVecValue<TvmInt257Sort>
+        valueToCutFrom: KBitVecValue<TvmContext.TvmCellDataSort>
     ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
@@ -1484,16 +1483,23 @@ class TvmCellInterpreter(
             ?: return@with
         checkOutOfRange(lengthToCut, scope, min = 0, max = MAX_DATA_LENGTH)
             ?: return@with
-        val mask = mkBvSubExpr(mkBvShiftLeftExpr(oneValue, lengthToCut), oneValue)
+        val mask = mkBvSubExpr(
+            mkBvShiftLeftExpr(oneCellValue, lengthToCut.signExtendToSort(TvmContext.TvmCellDataSort(ctx))),
+            oneCellValue
+        )
         val trueValueToCutFrom = mkBvAndExpr(valueToCutFrom, mask)
         val builder = scope.calcOnState { takeLastBuilder() }
             ?: return scope.doWithState(throwTypeCheckError)
         val updatedBuilder = scope.calcOnState {
             memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
         }
-
-        scope.builderStoreInt(updatedBuilder, trueValueToCutFrom, lengthToCut, isSigned = false)
-
+        builderStoreValueTlb(
+            scope,
+            builder,
+            updatedBuilder,
+            trueValueToCutFrom,
+            lengthToCut.extractToSizeSort()
+        )
         scope.doWithState {
             addOnStack(updatedBuilder, TvmBuilderType)
             newStmt(stmt.nextStmt())

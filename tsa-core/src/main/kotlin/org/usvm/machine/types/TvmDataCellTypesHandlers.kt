@@ -319,11 +319,11 @@ private fun TvmState.addTlbConstantToBuilder(
     dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, newTlbBuilder)
 }
 
-fun TvmState.storeIntTlbLabelToBuilder(
+fun <T : KBvSort> TvmState.storeIntTlbLabelToBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
     sizeBits: UExpr<TvmSizeSort>,
-    value: UExpr<TvmContext.TvmInt257Sort>,
+    value: UExpr<T>,
     isSigned: Boolean,
     endian: Endian,
 ) = with(ctx) {
