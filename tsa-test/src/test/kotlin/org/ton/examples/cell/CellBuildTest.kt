@@ -18,7 +18,7 @@ class CellBuildTest {
             fiftResourcePath,
             tvmOptions = testConcreteOptions,
         )
-        val methodIds = (0..3).toSet()
+        val methodIds = (0..4).toSet()
 
         compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
             runFiftMethod(fiftResourcePath, methodId)

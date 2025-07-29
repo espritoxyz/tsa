@@ -63,6 +63,10 @@ class TvmContext(
     val int257Ext1Sort = TvmInt257Ext1Sort(this)
     val int257Ext256Sort = TvmInt257Ext256Sort(this)
 
+    val oneCellValue: KBitVecValue<TvmCellDataSort> = 1.toCellSort()
+    val minusOneCellValue: KBitVecValue<TvmCellDataSort> = (-1).toCellSort()
+    val zeroCellValue: KBitVecValue<TvmCellDataSort> = 0.toCellSort()
+
     val trueValue: KBitVecValue<TvmInt257Sort> = TRUE_CONCRETE_VALUE.toBv257()
     val falseValue: KBitVecValue<TvmInt257Sort> = FALSE_CONCRETE_VALUE.toBv257()
     val oneValue: KBitVecValue<TvmInt257Sort> = 1.toBv257()
@@ -121,7 +125,8 @@ class TvmContext(
     val throwIntegerOverflowError: (TvmState) -> Unit = setFailure(TvmIntegerOverflowError)
     val throwIntegerOutOfRangeError: (TvmState) -> Unit = setFailure(TvmIntegerOutOfRangeError)
     val throwCellOverflowError: (TvmState) -> Unit = setFailure(TvmCellOverflowError)
-    val throwUnknownCellUnderflowError: (TvmState) -> Unit = setFailure(TvmCellUnderflowError, TvmFailureType.UnknownError)
+    val throwUnknownCellUnderflowError: (TvmState) -> Unit =
+        setFailure(TvmCellUnderflowError, TvmFailureType.UnknownError)
     val throwStructuralCellUnderflowError: (TvmState) -> Unit =
         setFailure(TvmCellUnderflowError, TvmFailureType.FixedStructuralError)
     val throwSymbolicStructuralCellUnderflowError: (TvmState) -> Unit =
@@ -144,6 +149,7 @@ class TvmContext(
     }
 
     fun Number.toBv257(): KBitVecValue<TvmInt257Sort> = mkBv(toBigInteger(), int257sort)
+    fun Number.toCellSort(): KBitVecValue<TvmCellDataSort> = mkBv(toBigInteger(), cellDataSort)
 
     fun <Sort : UBvSort> UExpr<Sort>.signedExtendToInteger(): UExpr<TvmInt257Sort> =
         signExtendToSort(int257sort)
@@ -151,13 +157,13 @@ class TvmContext(
     fun <Sort : UBvSort> UExpr<Sort>.unsignedExtendToInteger(): UExpr<TvmInt257Sort> =
         zeroExtendToSort(int257sort)
 
-    fun <InSort : UBvSort, OutSort: UBvSort> UExpr<InSort>.zeroExtendToSort(sort: OutSort): UExpr<OutSort> {
+    fun <InSort : UBvSort, OutSort : UBvSort> UExpr<InSort>.zeroExtendToSort(sort: OutSort): UExpr<OutSort> {
         require(this.sort.sizeBits <= sort.sizeBits)
         val extensionSize = sort.sizeBits - this.sort.sizeBits
         return mkBvZeroExtensionExpr(extensionSize.toInt(), this).asExpr(sort)
     }
 
-    fun <InSort : UBvSort, OutSort: UBvSort> UExpr<InSort>.signExtendToSort(sort: OutSort): UExpr<OutSort> {
+    fun <InSort : UBvSort, OutSort : UBvSort> UExpr<InSort>.signExtendToSort(sort: OutSort): UExpr<OutSort> {
         require(this.sort.sizeBits <= sort.sizeBits)
         val extensionSize = sort.sizeBits - this.sort.sizeBits
         return mkBvSignExtensionExpr(extensionSize.toInt(), this).asExpr(sort)
@@ -169,7 +175,7 @@ class TvmContext(
     fun <Sort : UBvSort> UExpr<Sort>.extractToInt257Sort(): UExpr<TvmInt257Sort> =
         extractToSort(int257sort)
 
-    fun <InSort : UBvSort, OutSort: UBvSort> UExpr<InSort>.extractToSort(sort: OutSort): UExpr<OutSort> {
+    fun <InSort : UBvSort, OutSort : UBvSort> UExpr<InSort>.extractToSort(sort: OutSort): UExpr<OutSort> {
         require(this.sort.sizeBits >= sort.sizeBits)
 
         return mkBvExtractExpr(sort.sizeBits.toInt() - 1, 0, this).asExpr(sort)
@@ -210,6 +216,7 @@ class TvmContext(
 
         // Apr 05 2024 12:08:29 GMT+0000
         const val UNIX_TIME_MIN: Long = 1712318909
+
         // Jan 01 2100 00:00:00 GMT+0000
         const val UNIX_TIME_MAX: Long = 4102444800
 
@@ -240,6 +247,7 @@ class TvmContext(
 
         // Minimum incoming message value/balance in nanotons
         const val MIN_MESSAGE_CURRENCY: Long = 100_000_000
+
         // Maximum incoming message value/balance in nanotons
         val MAX_MESSAGE_CURRENCY: BigInteger = BigInteger.TEN.pow(20)
 
