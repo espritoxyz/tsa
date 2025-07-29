@@ -89,6 +89,7 @@ import org.ton.bytecode.TvmCellParseSdcutlastInst
 import org.ton.bytecode.TvmCellParseSdepthInst
 import org.ton.bytecode.TvmCellParseSdskipfirstInst
 import org.ton.bytecode.TvmCellParseSdskiplastInst
+import org.ton.bytecode.TvmCellParseSdsubstrInst
 import org.ton.bytecode.TvmCellParseSrefsInst
 import org.ton.bytecode.TvmCellParseSskiplastInst
 import org.ton.bytecode.TvmCellParseXctosInst
@@ -166,6 +167,7 @@ import org.usvm.machine.types.makeCellToSlice
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
+import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeLtExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
@@ -460,9 +462,52 @@ class TvmCellInterpreter(
             is TvmCellParseCdepthInst -> visitDepthInst(scope, stmt, operandType = TvmCellType)
             is TvmCellParseSdepthInst -> visitDepthInst(scope, stmt, operandType = TvmSliceType)
             is TvmCellParseLdrefrtosInst -> visitLoadRefRtosInst(scope, stmt)
+            is TvmCellParseSdsubstrInst -> visitSdsubstrInst(scope, stmt)
 
             else -> TODO("Unknown stmt: $stmt")
         }
+    }
+
+    fun visitSdsubstrInst(scope: TvmStepScopeManager, stmt: TvmCellParseSdsubstrInst) {
+        with(ctx) {
+            scope.consumeDefaultGas(stmt)
+
+            val resultingLength = scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
+                ?: return
+            val newStartOfCell = scope.takeLastIntOrThrowTypeError()?.extractToSizeSort() ?: return
+
+            val slice = scope.calcOnState { stack.takeLastSlice() }
+            if (slice == null) {
+                scope.doWithState(throwTypeCheckError)
+                return
+            }
+
+            val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
+
+            scope.assert(mkSizeLeExpr(mkBvAddExpr(newStartOfCell, resultingLength), maxDataLengthSizeExpr)) {}
+            scope.assertDataLengthConstraintWithoutError(
+                resultingLength,
+                unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
+            ) ?: return
+
+            val cutCell = scope.calcOnState {
+                memory.allocConcrete(TvmDataCellType)
+            }.also {
+                scope.builderCopy(cell, it)
+            }
+
+            scope.doWithState {
+                val cutCellDataLength = mkBvAddExpr(resultingLength, newStartOfCell)
+                memory.writeField(cutCell, cellDataLengthField, sizeSort, cutCellDataLength, guard = trueExpr)
+                val cutSlice = allocSliceFromCell(cutCell)
+
+                sliceMoveDataPtr(cutSlice, newStartOfCell)
+                addOnStack(cutSlice, TvmSliceType)
+                newStmt(stmt.nextStmt())
+            }
+        }
+
+
     }
 
     fun visitCellBuildInst(

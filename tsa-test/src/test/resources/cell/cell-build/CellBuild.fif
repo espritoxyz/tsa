@@ -4,6 +4,9 @@
 PROGRAM{
   0  DECLMETHOD stsliceconst
   1  DECLMETHOD stzeroes
+  2  DECLMETHOD stskipfirst
+  3  DECLMETHOD stsubstr
+
   stsliceconst PROC:<{
     192 PUSHINT
     NEWC
@@ -12,6 +15,7 @@ PROGRAM{
     ENDC
     HASHCU
   }>
+
   stzeroes PROC:<{
     192 PUSHINT
     NEWC
@@ -20,5 +24,29 @@ PROGRAM{
     STZEROES
     ENDC
     HASHCU
+  }>
+
+  stskipfirst PROC:<{
+    5565 PUSHINT // 0b1010110111101, 13 chars
+    NEWC
+    13 STU
+    ENDC
+    CTOS
+    3 PUSHINT
+    SDSKIPFIRST
+    HASHSU
+  }>
+
+  stsubstr PROC:<{
+    5565 PUSHINT // 0b1010110110101, 13 chars
+    NEWC
+    13 STU
+    ENDC
+    CTOS
+    3 PUSHINT
+    4 PUSHINT
+    SDSUBSTR // 0b1011
+    4 LDU
+    DROP
   }>
 }END>c

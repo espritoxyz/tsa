@@ -1,10 +1,6 @@
 package org.ton.examples.exceptions
 
-import org.ton.examples.compareSymbolicAndConcreteResults
-import org.ton.examples.compileAndAnalyzeFift
-import org.ton.examples.testConcreteOptions
-import org.ton.examples.runFiftMethod
-import kotlin.io.path.Path
+import org.ton.examples.compareSymbolicAndConcreteFromResource
 import kotlin.test.Test
 
 class ExceptionsTest {
@@ -24,15 +20,4 @@ class ExceptionsTest {
         )
     }
 
-    private fun compareSymbolicAndConcreteFromResource(testPath: String, lastMethodIndex: Int) {
-        val fiftResourcePath = this::class.java.getResource(testPath)?.path?.let { Path(it) }
-            ?: error("Cannot find resource fift $testPath")
-
-        val symbolicResult = compileAndAnalyzeFift(fiftResourcePath, tvmOptions = testConcreteOptions)
-
-        val methodIds = (0..lastMethodIndex).toSet()
-        compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
-            runFiftMethod(fiftResourcePath, methodId)
-        }
-    }
 }
