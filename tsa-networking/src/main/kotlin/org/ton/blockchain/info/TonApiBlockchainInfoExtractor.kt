@@ -1,6 +1,7 @@
 package org.ton.blockchain.info
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -13,7 +14,6 @@ import org.ton.blockchain.JettonWalletInfo
 import org.ton.blockchain.toUrlAddress
 import org.ton.boc.BagOfCells
 import java.math.BigInteger
-
 
 class TonApiBlockchainInfoExtractor(
     private val tonApiProvider: String,
@@ -128,7 +128,7 @@ class TonApiBlockchainInfoExtractor(
     }
 
     override fun getJettonBalanceAndAddress(holderAddress: String, tokenAddress: String): Pair<String, BigInteger>? {
-        val query = "$tonApiProvider/v2/accounts/$holderAddress/jettons/$tokenAddress"
+        val query = "$tonApiProvider/v2/accounts/${holderAddress.toUrlAddress()}/jettons/${tokenAddress.toUrlAddress()}"
         val (code, resp) =
             makeTonApiRequest(query, failOnRequestError = false)
         if (code == 404) {
@@ -148,6 +148,42 @@ class TonApiBlockchainInfoExtractor(
             address to balance
         }.getOrElse {
             val msg = "Could not parse output of getJettonBalance: $resp"
+            throw TonApiException(msg, isParsingError = true)
+        }
+    }
+
+    override fun getLastTransactions(
+        address: String,
+        limit: Int,
+    ): List<TonBlockchainExtendedInfoExtractor.TransactionInfo> {
+        val query = "$tonApiProvider/v2/blockchain/accounts/${address.toUrlAddress()}/transactions?limit=$limit&sort_order=desc"
+        val (_, resp) = makeTonApiRequest(query)
+        return runCatching {
+            val parsed = Json.parseToJsonElement(resp).jsonObject["transactions"]!!
+            parsed.jsonArray.mapNotNull { transactionInfo ->
+                val isSuccess = transactionInfo.jsonObject["success"]!!.jsonPrimitive.boolean
+                val inMsgInfo = transactionInfo.jsonObject["in_msg"]
+                    ?: return@mapNotNull null
+                val opcode = inMsgInfo.jsonObject["op_code"]?.jsonPrimitive?.content
+                    ?.removePrefix("0x")
+                    ?.toUInt(radix = 16)
+                val sender = inMsgInfo.jsonObject["source"]?.jsonObject?.get("address")?.jsonPrimitive?.content
+                TonBlockchainExtendedInfoExtractor.TransactionInfo(isSuccess, opcode, sender)
+            }
+        }.getOrElse {
+            val msg = "Could not parse output of getLastTransactions: $resp. Exception: $it"
+            throw TonApiException(msg, isParsingError = true)
+        }
+    }
+
+    override fun convertAddressToRawForm(address: String): String {
+        val query = "$tonApiProvider/v2/address/${address.toUrlAddress()}/parse"
+        val (_, resp) = makeTonApiRequest(query)
+        return runCatching {
+            val parsed = Json.parseToJsonElement(resp)
+            parsed.jsonObject["raw_form"]!!.jsonPrimitive.content.lowercase()
+        }.getOrElse {
+            val msg = "Could not parse output of convertAddressToRawForm: $resp"
             throw TonApiException(msg, isParsingError = true)
         }
     }

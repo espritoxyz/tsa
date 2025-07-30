@@ -1,11 +1,10 @@
 package org.ton.blockchain.info
 
-import org.ton.bitstring.toBitString
 import org.ton.blockchain.ContractState
 import org.ton.blockchain.base64ToHex
+import org.ton.blockchain.extractHashFromLibraryCell
 import org.ton.blockchain.toBase64
 import org.ton.boc.BagOfCells
-import org.ton.cell.CellType
 import org.ton.java.tonlib.Tonlib
 import org.ton.java.tonlib.types.AccountAddressOnly
 import org.ton.java.tonlib.types.VerbosityLevel
@@ -20,7 +19,7 @@ class LiteServerBlockchainInfoExtractor(
         .pathToTonlibSharedLib(pathToTonLibJson)
         .pathToGlobalConfig(pathToConfig)
         .verbosityLevel(VerbosityLevel.FATAL)
-        .receiveRetryTimes(2)
+        .receiveRetryTimes(6)
         .receiveTimeout(2.0)
         .build()
 
@@ -45,14 +44,8 @@ class LiteServerBlockchainInfoExtractor(
         )
     }
 
-    fun extractOrdinaryCellIfLibraryCellGiven(cellBytes: ByteArray): String? {
-        val cell = BagOfCells(cellBytes).roots.first()
-        if (cell.type != CellType.LIBRARY_REFERENCE) {
-            return null
-        }
-        val cellHashBase64 = cell.bits.drop(cell.bits.size - 256).toBitString().toByteArray().toBase64()
-
-        val serverResult = tonlib.getLibraries(listOf(cellHashBase64))
+    fun getLibraryCellValueByHash(hash: ByteArray): String? {
+        val serverResult = tonlib.getLibraries(listOf(hash.toBase64()))
         val result = serverResult.result
         check(result.size == 1) {
             "Unexpected server result: $result"
@@ -60,5 +53,12 @@ class LiteServerBlockchainInfoExtractor(
 
         val entry = result.single()
         return entry.data
+    }
+
+    fun extractOrdinaryCellIfLibraryCellGiven(cellBytes: ByteArray): String? {
+        val cell = BagOfCells(cellBytes).roots.first()
+        val cellHash = extractHashFromLibraryCell(cell)?.toByteArray()
+            ?: return null
+        return getLibraryCellValueByHash(cellHash)
     }
 }
