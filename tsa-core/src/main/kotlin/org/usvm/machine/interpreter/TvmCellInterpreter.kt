@@ -89,6 +89,7 @@ import org.ton.bytecode.TvmCellParseSdcutlastInst
 import org.ton.bytecode.TvmCellParseSdepthInst
 import org.ton.bytecode.TvmCellParseSdskipfirstInst
 import org.ton.bytecode.TvmCellParseSdskiplastInst
+import org.ton.bytecode.TvmCellParseSdsubstrInst
 import org.ton.bytecode.TvmCellParseSrefsInst
 import org.ton.bytecode.TvmCellParseSskiplastInst
 import org.ton.bytecode.TvmCellParseXctosInst
@@ -460,8 +461,63 @@ class TvmCellInterpreter(
             is TvmCellParseCdepthInst -> visitDepthInst(scope, stmt, operandType = TvmCellType)
             is TvmCellParseSdepthInst -> visitDepthInst(scope, stmt, operandType = TvmSliceType)
             is TvmCellParseLdrefrtosInst -> visitLoadRefRtosInst(scope, stmt)
+            is TvmCellParseSdsubstrInst -> visitSdsubstrInst(scope, stmt)
 
             else -> TODO("Unknown stmt: $stmt")
+        }
+    }
+
+    fun visitSdsubstrInst(scope: TvmStepScopeManager, stmt: TvmCellParseSdsubstrInst) = with(ctx) {
+        scope.consumeDefaultGas(stmt)
+
+        val sizeBits = scope.takeLastIntOrThrowTypeError() ?: return
+        val offsetBits = scope.takeLastIntOrThrowTypeError() ?: return
+
+        val slice = scope.calcOnState { stack.takeLastSlice() }
+        if (slice == null) {
+            scope.doWithState(throwTypeCheckError)
+            return
+        }
+        val intermediateSliceAddress =
+            scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
+        scope.makeSliceTypeLoad(
+            slice,
+            TvmCellDataBitArrayRead(offsetBits.extractToSizeSort()),
+            intermediateSliceAddress
+        ) { _ ->
+            // hide the original [scope] from this closure
+            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
+            val scope = Unit
+
+            val updatedSliceAddress =
+                this.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(intermediateSliceAddress, it) } }
+
+            this.calcOnState { sliceMoveDataPtr(updatedSliceAddress, offsetBits.extractToSizeSort()) }
+            this.makeSliceTypeLoad(
+                intermediateSliceAddress,
+                TvmCellDataBitArrayRead(sizeBits.extractToSizeSort()),
+                updatedSliceAddress,
+            ) { finalFromTlb ->
+                val result = finalFromTlb?.expr ?: let {
+                    val notOutOfRangeExpr = unsignedIntegerFitsBits(sizeBits, bits = 10u)
+                    checkOutOfRange(notOutOfRangeExpr, this)
+                        ?: return@makeSliceTypeLoad
+                    val bits = slicePreloadDataBits(
+                        updatedSliceAddress,
+                        sizeBits.extractToSizeSort(),
+                    ) ?: return@makeSliceTypeLoad
+
+                    val cell = calcOnState { allocEmptyCell() }
+                    builderStoreDataBits(cell, bits, sizeBits.extractToSizeSort())
+                        ?: error("Cannot write $sizeBits bits to the empty builder")
+
+                    calcOnState { allocSliceFromCell(cell) }
+                }
+                doWithState {
+                    addOnStack(result, TvmSliceType)
+                    newStmt(stmt.nextStmt())
+                }
+            }
         }
     }
 
