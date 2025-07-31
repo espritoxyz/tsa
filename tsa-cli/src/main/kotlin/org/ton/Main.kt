@@ -472,6 +472,8 @@ class CheckerAnalysis : CliktCommand(
             val bytes = path.path.toFile().readBytes()
             val dataCell = BagOfCells(bytes).roots.single()
             TvmConcreteContractData(contractC4 = dataCell)
+        }.ifEmpty {
+            contractsToAnalyze.map { TvmConcreteContractData() }
         }
 
         val contracts = listOf(checkerContract) + contractsToAnalyze
