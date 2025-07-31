@@ -429,6 +429,7 @@ fun analyzeInterContract(
     options: TvmOptions = TvmOptions(),
     throwNotImplementedError: Boolean = false,
     manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
+    concreteContractData: List<TvmConcreteContractData> = contracts.map { TvmConcreteContractData() },
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
     val startContractCode = contracts[startContractId]
@@ -442,9 +443,8 @@ fun analyzeInterContract(
         machine.analyze(
             contracts,
             startContractId,
-            // TODO support concrete data for inter contract
             concreteGeneralData = TvmConcreteGeneralData(),
-            concreteContractData = contracts.map { TvmConcreteContractData() },
+            concreteContractData = concreteContractData,
             coverageStatistics,
             methodId,
             inputInfo = inputInfo,
