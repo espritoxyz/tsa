@@ -118,6 +118,23 @@ class TvmStepScopeManager(
         )
     }
 
+    fun forkWithCheckerStatusKnowledgeOnFalseState(
+        condition: UBoolExpr,
+        blockOnUnknownFalseState: TvmState.() -> Unit = {},
+        blockOnUnsatFalseState: TvmState.() -> Unit = {},
+        blockOnFalseState: TvmState.() -> Unit = {},
+    ): Unit? {
+        check(allowFailuresOnCurrentStep) {
+            "[forkWithCheckerStatusKnowledgeOnFalseState] should be called only with allowFailuresOnCurrentStep=true, but now it is false."
+        }
+        return scope.forkWithCheckerStatusKnowledge(
+            condition,
+            blockOnUnsatFalseState = blockOnUnsatFalseState,
+            blockOnUnknownFalseState = blockOnUnknownFalseState,
+            blockOnFalseState = blockOnFalseState
+        )
+    }
+
     // TODO what to return?
     // TODO docs
     fun <T> doWithConditions(

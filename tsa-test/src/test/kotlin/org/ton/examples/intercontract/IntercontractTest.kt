@@ -1,8 +1,8 @@
 package org.ton.examples.intercontract
 
 import org.ton.communicationSchemeFromJson
-import org.ton.examples.analyzeFuncIntercontract
-import org.ton.examples.extractResource
+import org.ton.test.utils.analyzeFuncIntercontract
+import org.ton.test.utils.extractResource
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmOptions
 import org.usvm.test.resolver.TvmMethodFailure

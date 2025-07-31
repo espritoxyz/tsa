@@ -1,10 +1,10 @@
 package org.ton.examples.cell
 
-import org.ton.examples.compareSymbolicAndConcreteResults
-import org.ton.examples.compileAndAnalyzeFift
-import org.ton.examples.extractResource
-import org.ton.examples.runFiftMethod
-import org.ton.examples.testConcreteOptions
+import org.ton.test.utils.compareSymbolicAndConcreteResults
+import org.ton.test.utils.compileAndAnalyzeFift
+import org.ton.test.utils.extractResource
+import org.ton.test.utils.runFiftMethod
+import org.ton.test.utils.testConcreteOptions
 import kotlin.test.Test
 
 class CellBuildTest {

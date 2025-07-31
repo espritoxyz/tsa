@@ -2,10 +2,10 @@ package org.ton.examples.gas
 
 import java.nio.file.FileVisitResult
 import java.nio.file.Path
-import org.ton.examples.compileFiftCodeBlocksContract
-import org.ton.examples.executionCode
-import org.ton.examples.runFiftCodeBlock
-import org.ton.examples.testConcreteOptions
+import org.ton.test.utils.compileFiftCodeBlocksContract
+import org.ton.test.utils.executionCode
+import org.ton.test.utils.runFiftCodeBlock
+import org.ton.test.utils.testConcreteOptions
 import org.usvm.machine.analyzeAllMethods
 import kotlin.io.path.Path
 import kotlin.io.path.exists

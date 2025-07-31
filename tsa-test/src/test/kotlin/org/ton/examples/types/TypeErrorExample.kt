@@ -1,6 +1,6 @@
 package org.ton.examples.types
 
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import kotlin.io.path.Path

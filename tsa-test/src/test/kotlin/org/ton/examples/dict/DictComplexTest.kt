@@ -1,6 +1,6 @@
 package org.ton.examples.dict
 
-import org.ton.examples.compareSymbolicAndConcreteResultsFunc
+import org.ton.test.utils.compareSymbolicAndConcreteResultsFunc
 import kotlin.test.Test
 
 class DictComplexTest {

@@ -1,6 +1,6 @@
 package org.ton.examples.division
 
-import org.ton.examples.analyzeAllMethods
+import org.ton.test.utils.analyzeAllMethods
 import org.usvm.machine.state.TvmIntegerOverflowError
 import org.usvm.test.resolver.TvmMethodFailure
 import kotlin.test.Test

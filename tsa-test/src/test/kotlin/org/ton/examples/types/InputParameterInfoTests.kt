@@ -11,9 +11,9 @@ import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo.DataCellInfo
 import org.ton.TvmParameterInfo.SliceInfo
 import org.ton.bytecode.MethodId
-import org.ton.examples.checkInvariants
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
-import org.ton.examples.propertiesFound
+import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.propertiesFound
 import org.usvm.machine.TlbOptions
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath

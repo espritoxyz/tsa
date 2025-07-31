@@ -1,9 +1,9 @@
 package org.ton.examples.exceptions
 
-import org.ton.examples.checkInvariants
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
-import org.ton.examples.propertiesFound
-import org.ton.examples.testOptionsToAnalyzeSpecificMethod
+import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.propertiesFound
+import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
