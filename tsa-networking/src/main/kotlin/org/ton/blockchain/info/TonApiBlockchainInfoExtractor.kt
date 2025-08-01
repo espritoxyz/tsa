@@ -188,6 +188,18 @@ class TonApiBlockchainInfoExtractor(
         }
     }
 
+    override fun runGetWalletAddressOnJettonMaster(masterAddress: String, holderAddress: String): String {
+        val query = "$tonApiProvider/v2/blockchain/accounts/${masterAddress.toUrlAddress()}/methods/get_wallet_address?args=${holderAddress.toUrlAddress()}"
+        val (_, resp) = makeTonApiRequest(query)
+        return runCatching {
+            val parsed = Json.parseToJsonElement(resp)
+            parsed.jsonObject["decoded"]!!.jsonObject["jetton_wallet_address"]!!.jsonPrimitive.content.lowercase()
+        }.getOrElse {
+            val msg = "Could not parse output of convertAddressToRawForm: $resp"
+            throw TonApiException(msg, isParsingError = true)
+        }
+    }
+
     @OptIn(ExperimentalStdlibApi::class)
     private fun parseOwner(ownerBocHex: String): String {
         val boc = BagOfCells(ownerBocHex.hexToByteArray())
