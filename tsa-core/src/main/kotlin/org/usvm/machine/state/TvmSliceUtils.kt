@@ -18,7 +18,6 @@ import org.usvm.USort
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.api.writeField
-import org.usvm.isAllocated
 import org.usvm.isFalse
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
@@ -88,18 +87,22 @@ private fun splitSizeExpr(
             trueValue == null && falseValue == null -> {
                 null
             }
+
             trueValue == null && falseValue != null -> {
                 GuardedExpr(falseValue.expr, falseValue.guard and cond.not())
             }
+
             trueValue != null && falseValue == null -> {
                 GuardedExpr(trueValue.expr, trueValue.guard and cond)
             }
+
             trueValue != null && falseValue != null -> {
                 GuardedExpr(
                     mkIte(cond, trueValue.expr, falseValue.expr),
                     (cond and trueValue.guard) or (cond.not() and falseValue.guard)
                 )
             }
+
             else -> {
                 error("not reachable")
             }
@@ -110,6 +113,7 @@ private fun splitSizeExpr(
         when (sizeExpr) {
             is KInterpretedValue ->
                 GuardedExpr(sizeExpr, ctx.trueExpr) to null
+
             is UIteExpr<TvmSizeSort> -> {
                 val cond = sizeExpr.condition
                 val (trueConcrete, trueSymbolic) = splitSizeExpr(sizeExpr.trueBranch)
@@ -118,6 +122,7 @@ private fun splitSizeExpr(
                 val symbolic = mergeCellExprsIntoIte(cond, trueSymbolic, falseSymbolic)
                 concrete to symbolic
             }
+
             else -> {
                 // Any complex expressions containing symbolic values are considered fully symbolic
                 null to GuardedExpr(sizeExpr, ctx.trueExpr)
@@ -164,7 +169,7 @@ private fun TvmContext.processCellUnderflowCheck(
 
     // Case of concrete size: cellUnderflow is always a real error.
     scope.fork(
-        with(ctx) { concreteGuard implies noUnderflowExpr},
+        with(ctx) { concreteGuard implies noUnderflowExpr },
         falseStateIsExceptional = true,
         blockOnFalseState = {
             throwRealCellUnderflowError(this)
@@ -184,7 +189,7 @@ private fun TvmContext.processCellUnderflowCheck(
     // It is real error if state without cellUnderflow is UNSTAT.
     // If solver returned UNKNOWN, the type of cellUnderflow is unknown.
     return scope.forkWithCheckerStatusKnowledge(
-        with(ctx) { symbolicGuard implies noUnderflowExpr},
+        with(ctx) { symbolicGuard implies noUnderflowExpr },
         blockOnUnknownTrueState = { symbolicThrow = throwUnknownCellUnderflowError },
         blockOnUnsatTrueState = { symbolicThrow = throwRealCellUnderflowError },
         blockOnFalseState = {
@@ -285,7 +290,7 @@ fun TvmStepScopeManager.slicePreloadDataBitsWithoutChecks(
     val dataPosition = calcOnStateCtx {
         memory.readField(slice, sliceDataPosField, sizeSort)
     }
-   return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
+    return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
 }
 
 /**
@@ -302,7 +307,7 @@ fun TvmStepScopeManager.slicePreloadDataBits(
     assertDataLengthConstraintWithoutError(
         cellDataLength,
         unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
-    ) ?: return@calcOnStateCtx  null
+    ) ?: return@calcOnStateCtx null
 
     val dataPosition = memory.readField(slice, sliceDataPosField, sizeSort)
     val readingEnd = mkBvAddExpr(dataPosition, sizeBits)
@@ -757,6 +762,38 @@ fun TvmStepScopeManager.builderStoreInt(
     }
 }
 
+
+context(TvmContext)
+fun TvmStepScopeManager.builderStoreValue(
+    builder: UConcreteHeapRef,
+    value: UExpr<TvmCellDataSort>,
+    sizeBits: UExpr<TvmInt257Sort>,
+    quietBlock: (TvmState.() -> Unit)? = null
+): Unit? {
+    val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
+    val builderDataLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
+    val updatedLength = mkSizeAddExpr(builderDataLength, sizeBits.extractToSizeSort())
+
+    val canWriteConstraint = mkSizeLeExpr(updatedLength, mkSizeExpr(MAX_DATA_LENGTH))
+    checkCellOverflow(canWriteConstraint, this, quietBlock)
+        ?: return null
+
+    val updatedData = updateBuilderData(builderData, value.zeroExtendToSort(builderData.sort), updatedLength)
+
+    return doWithState {
+        cellDataFieldManager.writeCellData(this, builder, updatedData)
+        memory.writeField(builder, cellDataLengthField, sizeSort, updatedLength, guard = trueExpr)
+    }
+}
+
+/**
+ *  Bitwise `and` of the lines:
+ *  ```
+ *   <- updBuilderLen ->
+ *  |---------------bits0000000000|
+ *  |builderData------------------|
+ *  ```
+ */
 private fun TvmContext.updateBuilderData(
     builderData: UExpr<TvmCellDataSort>,
     bits: UExpr<TvmCellDataSort>,
@@ -1166,6 +1203,21 @@ fun builderStoreIntTlb(
     }
 
     scope.builderStoreInt(updatedBuilder, value, sizeBits.signedExtendToInteger(), isSigned)
+}
+
+
+fun builderStoreValueTlb(
+    scope: TvmStepScopeManager,
+    builder: UConcreteHeapRef,
+    updatedBuilder: UConcreteHeapRef,
+    value: UExpr<TvmCellDataSort>,
+    sizeBits: UExpr<TvmSizeSort>,
+): Unit? = scope.doWithCtx {
+    scope.doWithState {
+        storeIntTlbLabelToBuilder(builder, updatedBuilder, sizeBits, value, isSigned = true, endian = Endian.BigEndian)
+    }
+
+    scope.builderStoreValue(updatedBuilder, value, sizeBits.signedExtendToInteger())
 }
 
 fun builderStoreGramsTlb(

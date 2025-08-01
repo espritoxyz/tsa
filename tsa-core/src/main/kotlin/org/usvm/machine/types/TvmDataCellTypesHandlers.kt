@@ -324,11 +324,11 @@ private fun TvmState.addTlbConstantToBuilder(
     dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, newTlbBuilder)
 }
 
-fun TvmState.storeIntTlbLabelToBuilder(
+fun <T : KBvSort> TvmState.storeIntTlbLabelToBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
     sizeBits: UExpr<TvmSizeSort>,
-    value: UExpr<TvmContext.TvmInt257Sort>,
+    value: UExpr<T>,
     isSigned: Boolean,
     endian: Endian,
 ) = with(ctx) {
@@ -377,11 +377,19 @@ fun TvmState.storeCoinTlbLabelToBuilder(
         val valueStructure = lengthStructure.rest as TlbStructure.KnownTypePrefix
         check(valueStructure.typeLabel is TlbIntegerLabelOfSymbolicSize)
 
-        val lengthField = ConcreteSizeBlockField(lengthStructure.typeLabel.concreteSize, lengthStructure.id, persistentListOf(structId))
+        val lengthField = ConcreteSizeBlockField(
+            lengthStructure.typeLabel.concreteSize,
+            lengthStructure.id,
+            persistentListOf(structId)
+        )
         val lengthSort = lengthField.getSort()
         check(lengthSort.sizeBits == length.sort.sizeBits)
 
-        val valueField = SymbolicSizeBlockField(valueStructure.typeLabel.lengthUpperBound, valueStructure.id, persistentListOf(structId))
+        val valueField = SymbolicSizeBlockField(
+            valueStructure.typeLabel.lengthUpperBound,
+            valueStructure.id,
+            persistentListOf(structId)
+        )
         val valueSort = valueField.getSort()
 
         val valueShrinked = mkBvExtractExpr(high = valueSort.sizeBits.toInt() - 1, low = 0, value)
