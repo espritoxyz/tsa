@@ -6,6 +6,9 @@ PROGRAM{
   1  DECLMETHOD stzeroes
   2  DECLMETHOD stskipfirst
   3  DECLMETHOD stsubstr
+  4  DECLMETHOD stsubstr_bad_offset
+  5  DECLMETHOD stsubstr_bad_size
+  6  DECLMETHOD stsubstr_bad_last_bit
 
   stsliceconst PROC:<{
     192 PUSHINT
@@ -48,5 +51,44 @@ PROGRAM{
     SDSUBSTR // 0b0110
     4 LDU
     DROP
+
+  stsubstr_bad_offset PROC:<{
+    5565 PUSHINT // 0b1010110110101, 13 chars
+    NEWC
+    13 STU
+    ENDC
+    CTOS
+    1025 PUSHINT // big offset
+    4 PUSHINT
+    SDSUBSTR // 0b0110
+    4 LDU
+    DROP
+  }>
+
+  stsubstr_bad_size PROC:<{
+    5565 PUSHINT // 0b1010110110101, 13 chars
+    NEWC
+    13 STU
+    ENDC
+    CTOS
+    4 PUSHINT
+    1025 PUSHINT // big substring length
+    SDSUBSTR // 0b0110
+    4 LDU
+    DROP
+  }>
+
+  stsubstr_bad_last_bit PROC:<{
+    5565 PUSHINT // 0b1010110110101, 13 chars
+    NEWC
+    13 STU
+    ENDC
+    CTOS
+    800 PUSHINT
+    800 PUSHINT // big sum, but both within range
+    SDSUBSTR // 0b0110
+    4 LDU
+    DROP
+  }>
   }>
 }END>c

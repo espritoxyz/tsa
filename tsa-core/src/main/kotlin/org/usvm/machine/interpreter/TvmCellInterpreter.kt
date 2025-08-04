@@ -478,6 +478,11 @@ class TvmCellInterpreter(
             scope.doWithState(throwTypeCheckError)
             return
         }
+        val isSizeWithinBounds = unsignedIntegerFitsBits(sizeBits, bits = 10u)
+        checkOutOfRange(isSizeWithinBounds, scope) ?: return
+        val isOffsetWithinBounds = unsignedIntegerFitsBits(offsetBits, bits = 10u)
+        checkOutOfRange(isOffsetWithinBounds, scope) ?: return
+
         val intermediateSliceAddress =
             scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
         scope.makeSliceTypeLoad(
@@ -499,9 +504,6 @@ class TvmCellInterpreter(
                 updatedSliceAddress,
             ) { finalFromTlb ->
                 val result = finalFromTlb?.expr ?: let {
-                    val notOutOfRangeExpr = unsignedIntegerFitsBits(sizeBits, bits = 10u)
-                    checkOutOfRange(notOutOfRangeExpr, this)
-                        ?: return@makeSliceTypeLoad
                     val bits = slicePreloadDataBits(
                         updatedSliceAddress,
                         sizeBits.extractToSizeSort(),
@@ -514,6 +516,7 @@ class TvmCellInterpreter(
                     calcOnState { allocSliceFromCell(cell) }
                 }
                 doWithState {
+                    checkCellDataUnderflow(this@makeSliceTypeLoad, result)
                     addOnStack(result, TvmSliceType)
                     newStmt(stmt.nextStmt())
                 }
