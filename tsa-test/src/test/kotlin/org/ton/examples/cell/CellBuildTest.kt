@@ -1,6 +1,6 @@
 package org.ton.examples.cell
 
-import org.ton.examples.compareSymbolicAndConcreteFromResource
+import org.ton.test.utils.compareSymbolicAndConcreteFromResource
 import kotlin.test.Test
 
 class CellBuildTest {

@@ -1,4 +1,4 @@
-package org.ton.examples
+package org.ton.test.utils
 
 import java.nio.file.Path
 import kotlin.io.path.Path

@@ -8,6 +8,7 @@ import org.ton.Endian
 import org.ton.TlbAddressByRef
 import org.ton.TlbBitArrayByRef
 import org.ton.TlbCoinsLabel
+import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbLabel
@@ -258,7 +259,7 @@ fun TvmStepScopeManager.makeCellToSlice(
     // One cell on a concrete address might both have and not have TL-B scheme for different constraints.
     // This is why absence of TL-B stack is a separate situation on which we have to fork.
     // This is why type of the key is [TlbStack?]
-    val possibleLabels = mutableMapOf<TlbLabel?, UBoolExpr>()
+    val possibleLabels = mutableMapOf<TlbCompositeLabel?, UBoolExpr>()
 
     calcOnStateCtx {
         val infoVariants = dataCellInfoStorage.getLabelForFreshSlice(cellAddress)

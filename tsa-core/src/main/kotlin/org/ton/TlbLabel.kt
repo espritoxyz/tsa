@@ -45,17 +45,6 @@ open class TlbCompositeLabel(
     override val arity: Int = 0
 }
 
-fun createWrapperStructure(label: TlbAtomicLabel): TlbStructure {
-    require(label.arity == 0)
-    return KnownTypePrefix(
-        id = label.wrapperStructureId,
-        typeLabel = label,
-        typeArgIds = emptyList(),
-        rest = Empty,
-        owner = null,
-    )
-}
-
 sealed class TlbIntegerLabel : TlbBuiltinLabel, TlbAtomicLabel() {
     abstract val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort>
     abstract val isSigned: Boolean

@@ -1,10 +1,10 @@
-package org.ton.examples
+package org.ton.test.utils
 
 import mu.KLogging
 import org.ton.test.gen.TestStatus
 import org.ton.test.gen.dsl.render.TsRenderer
-import org.ton.test.gen.generateTests
 import org.ton.test.gen.executeTests
+import org.ton.test.gen.generateTests
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.utils.executeCommandWithTimeout
@@ -36,9 +36,10 @@ object TvmTestExecutor {
         logger.info("Generated tests executed")
     }
 
-    private fun executeGeneratedTests(generateTestsBlock: (Path) -> String?) {
-        val project = extractResource(SANDBOX_PROJECT_PATH)
+    val project: Path
+        get() = extractResource(SANDBOX_PROJECT_PATH)
 
+    private fun executeGeneratedTests(generateTestsBlock: (Path) -> String?) {
         val generatedTests = generateTestsBlock(project)
             ?: return
         executeTests(project, generatedTests)

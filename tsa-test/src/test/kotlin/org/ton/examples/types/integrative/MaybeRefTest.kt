@@ -1,9 +1,9 @@
 package org.ton.examples.types.integrative
 
-import org.ton.examples.checkInvariants
-import org.ton.examples.extractTlbInfo
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
-import org.ton.examples.propertiesFound
+import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.extractTlbInfo
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.propertiesFound
 import org.usvm.machine.types.TvmUnexpectedEndOfReading
 import org.usvm.machine.types.TvmUnexpectedRefReading
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
@@ -25,7 +25,7 @@ class MaybeRefTest {
     fun testCorrect1() {
         val path = this::class.java.getResource(correct1Path)?.path?.let { Path(it) }
             ?: error("Cannot find resource bytecode $correct1Path")
-        val inputInfo = extractTlbInfo(typesPath)
+        val inputInfo = extractTlbInfo(typesPath, this::class)
 
         val results = funcCompileAndAnalyzeAllMethods(path, inputInfo = inputInfo)
         assertEquals(1, results.testSuites.size)
@@ -45,7 +45,7 @@ class MaybeRefTest {
     fun testCorrect2() {
         val path = this::class.java.getResource(correct2Path)?.path?.let { Path(it) }
             ?: error("Cannot find resource bytecode $correct2Path")
-        val inputInfo = extractTlbInfo(typesPath)
+        val inputInfo = extractTlbInfo(typesPath, this::class)
 
         val results = funcCompileAndAnalyzeAllMethods(path, inputInfo = inputInfo)
         assertEquals(1, results.testSuites.size)
@@ -65,7 +65,7 @@ class MaybeRefTest {
     fun testLoadWithoutMaybe() {
         val path = this::class.java.getResource(loadWithoutMaybePath)?.path?.let { Path(it) }
             ?: error("Cannot find resource bytecode $loadWithoutMaybePath")
-        val inputInfo = extractTlbInfo(typesPath)
+        val inputInfo = extractTlbInfo(typesPath, this::class)
 
         val results = funcCompileAndAnalyzeAllMethods(path, inputInfo = inputInfo)
         assertEquals(1, results.testSuites.size)
@@ -87,7 +87,7 @@ class MaybeRefTest {
     fun testPrematureEndParse() {
         val path = this::class.java.getResource(prematureEndParse)?.path?.let { Path(it) }
             ?: error("Cannot find resource bytecode $prematureEndParse")
-        val inputInfo = extractTlbInfo(typesPath)
+        val inputInfo = extractTlbInfo(typesPath, this::class)
 
         val results = funcCompileAndAnalyzeAllMethods(path, inputInfo = inputInfo)
         assertEquals(1, results.testSuites.size)

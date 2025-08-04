@@ -199,7 +199,7 @@ class TvmTlbTransformer(
 
     private fun transformSequenceOfExprs(
         sequence: List<TvmTlbTypeExpr>,
-        owner: TlbCompositeLabel?
+        owner: TlbCompositeLabel,
     ): Pair<TlbStructure, Boolean> {
         var last: TlbStructure = Empty
         var foundAny = false
@@ -212,7 +212,8 @@ class TvmTlbTransformer(
                     }
 
                     val dataInfo = transformTypeDefinition(getTypeDef(ref.id), ref.args)?.let {
-                        DataCellInfo(it)
+                        (it as? TlbCompositeLabel)?.let { casted -> DataCellInfo(casted) }
+                            ?: error("Unexpected atomic label in ref: $it")
                     } ?: TvmParameterInfo.UnknownCellInfo
 
                     LoadRef(TlbStructureIdProvider.provideId(), dataInfo, last, owner)

@@ -1,7 +1,7 @@
 package org.ton.examples.data
 
 import org.ton.cell.CellBuilder
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmMethodFailure

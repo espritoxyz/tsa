@@ -1,10 +1,10 @@
-package org.ton.examples
+package org.ton.test.utils
 
+import org.ton.TlbCompositeLabel
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
-import org.ton.examples.types.InputParameterInfoTests
 import org.ton.tlb.readFromJson
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.FiftAnalyzer
@@ -38,6 +38,7 @@ import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import kotlin.io.path.Path
 import kotlin.io.path.deleteIfExists
 import kotlin.jvm.java
+import kotlin.reflect.KClass
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -347,10 +348,10 @@ internal fun checkInvariants(
     assertTrue(failedInvariants.isEmpty(), "Invariants $failedInvariants were violated")
 }
 
-internal fun extractTlbInfo(typesPath: String): Map<MethodId, TvmInputInfo> {
-    val path = InputParameterInfoTests::class.java.getResource(typesPath)?.path
+internal fun extractTlbInfo(typesPath: String, callerClass: KClass<*>): Map<MethodId, TvmInputInfo> {
+    val path = callerClass.java.getResource(typesPath)?.path
         ?: error("Cannot find resource bytecode $typesPath")
-    val struct = readFromJson(Path(path), "InternalMsgBody")
+    val struct = readFromJson(Path(path), "InternalMsgBody") as? TlbCompositeLabel
         ?: error("Couldn't parse TL-B structure")
     val info = TvmParameterInfo.SliceInfo(
         TvmParameterInfo.DataCellInfo(

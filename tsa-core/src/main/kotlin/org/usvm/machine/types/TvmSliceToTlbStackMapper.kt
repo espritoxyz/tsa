@@ -2,6 +2,7 @@ package org.usvm.machine.types
 
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
+import org.ton.TlbCompositeLabel
 import org.ton.TlbLabel
 import org.ton.TvmParameterInfo
 import org.usvm.UConcreteHeapRef
@@ -14,7 +15,7 @@ class TvmSliceToTlbStackMapper(
 
     fun clone() = TvmSliceToTlbStackMapper(sliceToTlbStack)
 
-    fun allocateInitialSlice(ctx: TvmContext, address: UConcreteHeapRef, label: TlbLabel) {
+    fun allocateInitialSlice(ctx: TvmContext, address: UConcreteHeapRef, label: TlbCompositeLabel) {
         sliceToTlbStack = sliceToTlbStack.put(address, TlbStack.new(ctx, label))
     }
 

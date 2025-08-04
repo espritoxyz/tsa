@@ -6,7 +6,6 @@ import org.ton.TlbLabel
 import org.ton.TlbStructure
 import org.ton.TlbStructureIdProvider
 import org.usvm.UConcreteHeapRef
-import org.usvm.UHeapRef
 import org.usvm.api.writeField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.state.TvmState
@@ -14,9 +13,9 @@ import org.usvm.machine.types.memory.SwitchField
 
 @JvmInline
 value class TlbStructureBuilder(
-    val build: (TlbStructure, TlbCompositeLabel?, TvmState, UConcreteHeapRef) -> TlbStructure
+    val build: (TlbStructure, TlbCompositeLabel, TvmState, UConcreteHeapRef) -> TlbStructure
 ) {
-    fun end(owner: TlbCompositeLabel?, state: TvmState, address: UConcreteHeapRef): TlbStructure =
+    fun end(owner: TlbCompositeLabel, state: TvmState, address: UConcreteHeapRef): TlbStructure =
         build(TlbStructure.Empty, owner, state, address)
 
     fun addTlbLabel(label: TlbLabel, initializeTlbField: (TvmState, UConcreteHeapRef, Int) -> Unit): TlbStructureBuilder {

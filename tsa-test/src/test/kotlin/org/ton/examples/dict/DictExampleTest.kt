@@ -1,7 +1,7 @@
 package org.ton.examples.dict
 
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
-import org.ton.examples.testOptionsToAnalyzeSpecificMethod
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import kotlin.test.Test

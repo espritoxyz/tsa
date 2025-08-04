@@ -1,7 +1,7 @@
 package org.ton.examples.tact
 
 import org.ton.bytecode.MethodId
-import org.ton.examples.tactCompileAndAnalyzeAllMethods
+import org.ton.test.utils.tactCompileAndAnalyzeAllMethods
 import org.usvm.machine.TactSourcesDescription
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.TvmIntegerOverflowError

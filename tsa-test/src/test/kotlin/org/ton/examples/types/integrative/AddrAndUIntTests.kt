@@ -1,9 +1,9 @@
 package org.ton.examples.types.integrative
 
-import org.ton.examples.checkInvariants
-import org.ton.examples.extractTlbInfo
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
-import org.ton.examples.propertiesFound
+import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.extractTlbInfo
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.propertiesFound
 import org.usvm.machine.types.TvmReadingOfUnexpectedType
 import org.usvm.machine.types.TvmUnexpectedEndOfReading
 import org.usvm.machine.types.TvmUnexpectedRefReading
@@ -26,7 +26,7 @@ class AddrAndUIntTests {
     fun testCorrect() {
         val path = this::class.java.getResource(correctPath)?.path?.let { Path(it) }
             ?: error("Cannot find resource bytecode $correctPath")
-        val inputInfo = extractTlbInfo(typesPath)
+        val inputInfo = extractTlbInfo(typesPath, this::class)
 
         val results = funcCompileAndAnalyzeAllMethods(path, inputInfo = inputInfo)
         assertEquals(1, results.testSuites.size)
@@ -46,7 +46,7 @@ class AddrAndUIntTests {
     fun testIntInsteadOfUInt() {
         val path = this::class.java.getResource(intInsteadOfUIntPath)?.path?.let { Path(it) }
             ?: error("Cannot find resource bytecode $intInsteadOfUIntPath")
-        val inputInfo = extractTlbInfo(typesPath)
+        val inputInfo = extractTlbInfo(typesPath, this::class)
 
         val results = funcCompileAndAnalyzeAllMethods(path, inputInfo = inputInfo)
         assertEquals(1, results.testSuites.size)
@@ -68,7 +68,7 @@ class AddrAndUIntTests {
     fun testPrematureEndParse() {
         val path = this::class.java.getResource(prematureEndParsePath)?.path?.let { Path(it) }
             ?: error("Cannot find resource bytecode $prematureEndParsePath")
-        val inputInfo = extractTlbInfo(typesPath)
+        val inputInfo = extractTlbInfo(typesPath, this::class)
 
         val results = funcCompileAndAnalyzeAllMethods(path, inputInfo = inputInfo)
         assertEquals(1, results.testSuites.size)
@@ -90,7 +90,7 @@ class AddrAndUIntTests {
     fun testUnexpectedLoadRef() {
         val path = this::class.java.getResource(unexpectedLoadRefPath)?.path?.let { Path(it) }
             ?: error("Cannot find resource bytecode $unexpectedLoadRefPath")
-        val inputInfo = extractTlbInfo(typesPath)
+        val inputInfo = extractTlbInfo(typesPath, this::class)
 
         val results = funcCompileAndAnalyzeAllMethods(path, inputInfo = inputInfo)
         assertEquals(1, results.testSuites.size)

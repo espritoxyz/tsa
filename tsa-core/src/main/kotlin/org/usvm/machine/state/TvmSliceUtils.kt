@@ -535,10 +535,6 @@ fun sliceLoadGramsTlb(
     val read = TvmCellDataCoinsRead(ctx)
     scope.makeSliceTypeLoad(oldSlice, read, newSlice) { valueFromTlb ->
 
-        // hide the original [scope] from this closure
-        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-        val scope = Unit
-
         val (length, grams) = valueFromTlb?.let {
             doWithState {
                 sliceMoveDataPtr(newSlice, bits = 4)
@@ -1055,10 +1051,6 @@ fun sliceLoadIntTlb(
         TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.BigEndian),
         updatedSlice
     ) { tlbValue ->
-        // hide the original [scope] from this closure
-        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-        val scope = Unit
-
         val result = tlbValue?.expr ?: let {
             val value = slicePreloadDataBits(slice, sizeBits)
                 ?: return@makeSliceTypeLoad
@@ -1086,10 +1078,6 @@ fun sliceLoadAddrTlb(
 ) {
     val ctx = scope.calcOnState { ctx }
     scope.makeSliceTypeLoad(slice, TvmCellDataMsgAddrRead(ctx), updatedSlice) { tlbValue ->
-        // hide the original [scope] from this closure
-        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-        val scope = Unit
-
         calcOnStateCtx {
             val addrSlice = if (tlbValue != null) {
 
@@ -1155,10 +1143,6 @@ fun sliceLoadRefTlb(
     action: TvmStepScopeManager.(UHeapRef) -> Unit,
 ) {
     scope.makeSliceRefLoad(slice, updatedSlice) {
-        // hide the original [scope] from this closure
-        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-        val scope = Unit
-
         val ref = slicePreloadNextRef(slice)
             ?: return@makeSliceRefLoad
 

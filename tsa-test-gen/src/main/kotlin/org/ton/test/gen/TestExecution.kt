@@ -39,7 +39,8 @@ fun executeTests(
         "Tests execution finished with an error, exit code $exitValue, errors:\n${errors.toText()}"
     }
 
-    val jsonOutput = output.first { it.first() == '{' && it.last() == '}' }
+    val jsonOutput = output.firstOrNull { it.first() == '{' && it.last() == '}' }
+        ?: error("No json in the output of yarn jest")
     val json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
@@ -74,6 +75,7 @@ data class TestResult(
     val fullName: String,
     val status: TestStatus,
     val failureDetails: List<FailureDetails>?,
+    val failureMessages: List<String>?,
 )
 
 @Serializable

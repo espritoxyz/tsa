@@ -1,9 +1,9 @@
 package org.ton.examples.args
 
-import org.ton.examples.TvmTestExecutor
-import org.ton.examples.checkInvariants
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
-import org.ton.examples.propertiesFound
+import org.ton.test.utils.TvmTestExecutor
+import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.propertiesFound
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData

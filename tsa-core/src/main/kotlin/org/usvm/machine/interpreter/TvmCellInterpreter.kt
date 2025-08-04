@@ -516,7 +516,6 @@ class TvmCellInterpreter(
                     calcOnState { allocSliceFromCell(cell) }
                 }
                 doWithState {
-                    checkCellDataUnderflow(this@makeSliceTypeLoad, result)
                     addOnStack(result, TvmSliceType)
                     newStmt(stmt.nextStmt())
                 }
@@ -656,10 +655,6 @@ class TvmCellInterpreter(
         }
 
         sliceLoadRefTlb(scope, slice, updatedSlice) { value ->
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             doWithState {
                 addOnStack(value, TvmCellType)
                 addOnStack(updatedSlice, TvmSliceType)
@@ -784,10 +779,6 @@ class TvmCellInterpreter(
         val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
 
         sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned) { value ->
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             doWithState {
                 addOnStack(value, TvmIntegerType)
                 visitLoadDataInstEnd(stmt, preload, quiet, updatedSliceAddress)
@@ -824,11 +815,6 @@ class TvmCellInterpreter(
             TvmCellDataIntegerRead(sizeBits.extractToSizeSort(), isSigned, Endian.BigEndian),
             updatedSliceAddress
         ) { valueFromTlb ->
-
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             val result = valueFromTlb?.expr ?: let {
                 slicePreloadInt(slice, sizeBits, isSigned)
                     ?: return@makeSliceTypeLoad
@@ -869,10 +855,6 @@ class TvmCellInterpreter(
         ) {
 
             // TODO: process value from TL-B (or not?). For now, we didn't encounter TL-B for little-endian
-
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
 
             val value = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
 
@@ -924,11 +906,6 @@ class TvmCellInterpreter(
             TvmCellDataBitArrayRead(mkBv(sizeBits)),
             updatedSliceAddress,
         ) { valueFromTlb ->
-
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             val result = valueFromTlb?.expr ?: let {
                 val bits = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
                 val cell = calcOnState { allocEmptyCell() }
@@ -972,11 +949,6 @@ class TvmCellInterpreter(
             TvmCellDataBitArrayRead(sizeBits.extractToSizeSort()),
             updatedSliceAddress
         ) { valueFromTlb ->
-
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             if (pushResultOnStack) {
                 val result = valueFromTlb?.expr ?: let {
                     val notOutOfRangeExpr = unsignedIntegerFitsBits(sizeBits, bits = 10u)
@@ -1272,10 +1244,6 @@ class TvmCellInterpreter(
         val slice = scope.calcOnState { allocSliceFromCell(cell) }
 
         scope.makeCellToSlice(cell, slice) {
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             doWithState {
                 addOnStack(slice, TvmSliceType)
                 newStmt(stmt.nextStmt())

@@ -384,11 +384,6 @@ class TvmDictOperationInterpreter(
 
         val updatedSlice = scope.calcOnState { memory.allocConcrete(TvmSliceType) }
         scope.makeSliceTypeLoad(slice, TvmCellMaybeConstructorBitRead(ctx), updatedSlice) { isNotEmptyValueFromTlb ->
-
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             val isNotEmpty = isNotEmptyValueFromTlb?.expr ?: let {
                 val maybeConstructorTypeBit = slicePreloadDataBits(slice, bits = 1)
                     ?: return@makeSliceTypeLoad

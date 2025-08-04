@@ -25,6 +25,7 @@ import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import io.ksmt.utils.uncheckedCast
+import org.ton.boc.BagOfCells
 import java.math.BigInteger
 import java.nio.file.Path
 import org.ton.bytecode.TsaContractCode
@@ -116,7 +117,7 @@ class TlbCLIOptions : OptionGroup("TlB scheme options") {
             return if (path == null) {
                 emptyMap()
             } else {
-                val struct = readFromJson(path, "InternalMsgBody")
+                val struct = readFromJson(path, "InternalMsgBody") as? TlbCompositeLabel
                     ?: error("Couldn't parse `InternalMsgBody` structure from $path")
                 val info = TvmParameterInfo.SliceInfo(
                     TvmParameterInfo.DataCellInfo(
@@ -389,6 +390,35 @@ class CheckerAnalysis : CliktCommand(
             }
         }
 
+    private val concreteData: List<NullablePath> by option("-d", "--data")
+        .help {
+            """
+                Paths to .boc files with contract data.
+                
+                The order corresponds to the order of contracts with -c option.
+                
+                If data for a contract should be skipped, type "-".
+                
+                Example:
+                
+                -d data1.boc -d - -c Boc contract1.boc -c Func contract2.fc
+                
+            """.trimIndent()
+        }
+        .convert { value ->
+            if (value == "-") {
+                NullablePath(null)
+            } else {
+                NullablePath(pathOptionDescriptor.transformValue(this, value))
+            }
+        }
+        .multiple()
+        .validate {
+            require(it.isEmpty() || it.size == contractSources.size) {
+                "If data specified, number of data paths should be equal to the number of contracts (excluding checker contract)"
+            }
+        }
+
     private val fiftAnalyzer by lazy {
         FiftAnalyzer(
             fiftStdlibPath = fiftOptions.fiftStdlibPath
@@ -427,11 +457,24 @@ class CheckerAnalysis : CliktCommand(
             .getOrElse { TvmInputInfo() } // In case TL-B scheme is incorrect (not json format, for example), use empty scheme
             ?: TvmInputInfo() // In case TL-B scheme is not provided, use empty scheme
 
-        val options = TvmOptions(
-            intercontractOptions = IntercontractOptions(communicationScheme = interContractSchemePath?.extractIntercontractScheme()),
-            turnOnTLBParsingChecks = false,
-            enableOutMessageAnalysis = true,
-        )
+        val options = if (interContractSchemePath != null) {
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = interContractSchemePath?.extractIntercontractScheme()),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+            )
+        } else {
+            TvmOptions(turnOnTLBParsingChecks = false)
+        }
+
+        val concreteContractData = listOf(TvmConcreteContractData()) + concreteData.map { path ->
+            path.path ?: return@map TvmConcreteContractData()
+            val bytes = path.path.toFile().readBytes()
+            val dataCell = BagOfCells(bytes).roots.single()
+            TvmConcreteContractData(contractC4 = dataCell)
+        }.ifEmpty {
+            contractsToAnalyze.map { TvmConcreteContractData() }
+        }
 
         val contracts = listOf(checkerContract) + contractsToAnalyze
         val result = analyzeInterContract(
@@ -440,6 +483,7 @@ class CheckerAnalysis : CliktCommand(
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
             options = options,
             inputInfo = inputInfo,
+            concreteContractData = concreteContractData,
         )
 
         val sarifReport = result.toSarifReport(
@@ -453,6 +497,11 @@ class CheckerAnalysis : CliktCommand(
         }
     }
 }
+
+@JvmInline
+private value class NullablePath(
+    val path: Path?
+)
 
 class InterContractAnalysis : CliktCommand(
     name = "inter-contract",

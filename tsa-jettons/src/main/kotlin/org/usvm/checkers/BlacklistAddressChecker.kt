@@ -1,5 +1,6 @@
 package org.usvm.checkers
 
+import org.ton.TlbCompositeLabel
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
 import org.ton.bytecode.TsaContractCode
@@ -22,7 +23,7 @@ data class BlacklistAddressChecker(private val resourcesDir: Path?) : TvmChecker
     private val funcStdlibPath = resourcesDir.resolveResourcePath(FUNC_STDLIB_PATH)
     private val fiftStdlibPath = resourcesDir.resolveResourcePath(FIFT_STDLIB_PATH)
 
-    private val tlbFormat = readFromJson(tlbResourcePath, "InternalMsgBody", onlyBasicAddresses = true)
+    private val tlbFormat = readFromJson(tlbResourcePath, "InternalMsgBody", onlyBasicAddresses = true) as? TlbCompositeLabel
         ?: error("Couldn't parse TL-B structure")
     private val inputInfo = TvmParameterInfo.SliceInfo(
         TvmParameterInfo.DataCellInfo(

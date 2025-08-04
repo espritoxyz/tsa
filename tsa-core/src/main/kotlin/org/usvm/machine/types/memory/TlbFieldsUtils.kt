@@ -152,7 +152,7 @@ fun generateGuardForSwitch(
 fun readInModelFromTlbFields(
     address: UHeapRef,
     resolver: TvmTestStateResolver,
-    label: TlbLabel,
+    label: TlbCompositeLabel,
 ): String {
     val state = resolver.state
     val model = resolver.model
