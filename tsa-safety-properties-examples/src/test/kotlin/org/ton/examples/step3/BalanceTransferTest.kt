@@ -1,7 +1,6 @@
 package org.ton.examples.step3
 
 import FIFT_STDLIB_RESOURCE
-import FUNC_STDLIB_RESOURCE
 import org.ton.communicationSchemeFromJson
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmContext
@@ -24,10 +23,10 @@ class BalanceTransferTest {
     @Test
     fun testBalanceTransfer() {
         val walletContractPath = getResourcePath<BalanceTransferTest>(walletContractResourcePath)
-        val walletContractCode = getFuncContract(walletContractPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE)
+        val walletContractCode = getFuncContract(walletContractPath, FIFT_STDLIB_RESOURCE)
 
         val checkerPath = getResourcePath<BalanceTransferTest>(checkerResourcePath)
-        val checkerCode = getFuncContract(checkerPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
+        val checkerCode = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
 
         val communicationSchemePath = getResourcePath<BalanceTransferTest>(intercontractSchemePath)
         val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())

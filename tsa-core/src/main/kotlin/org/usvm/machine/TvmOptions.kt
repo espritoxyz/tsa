@@ -7,6 +7,7 @@ import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_RECURSION_DEPTH
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_TLB_DEPTH
 import org.usvm.machine.state.ContractId
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 data class TvmOptions(
     val quietMode: Boolean = false,
@@ -18,6 +19,7 @@ data class TvmOptions(
     val tlbOptions: TlbOptions = TlbOptions(),
     val maxRecursionDepth: Int = DEFAULT_MAX_RECURSION_DEPTH,
     val timeout: Duration = Duration.INFINITE,
+    val solverTimeout: Duration = 1.seconds,
     val excludeExecutionsWithFailures: Boolean = false,
     val loopIterationLimit: Int = DEFAULT_LOOP_ITERATIONS_LIMIT,
     val intercontractOptions: IntercontractOptions = IntercontractOptions(),

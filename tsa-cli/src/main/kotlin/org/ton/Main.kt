@@ -90,13 +90,6 @@ class FiftOptions : OptionGroup("Fift options") {
         .help("The path to the Fift standard library (dir containing Asm.fif, Fift.fif)")
 }
 
-class FuncOptions : OptionGroup("FunC options") {
-    val funcStdlibPath by option("--func-std")
-        .path(mustExist = true, canBeFile = true, canBeDir = false)
-        .required()
-        .help("The path to the FunC standard library file (stdlib.fc)")
-}
-
 class TactOptions : OptionGroup("Tact options") {
     val tactExecutable by option("--tact")
         .default(TactAnalyzer.DEFAULT_TACT_EXECUTABLE)
@@ -212,7 +205,6 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
 
     // TODO: make these optional (only for FunC)
     private val fiftOptions by FiftOptions()
-    private val funcOptions by FuncOptions()
     private val tactOptions by TactOptions()
 
     private val tlbOptions by TlbCLIOptions()
@@ -239,7 +231,7 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
             }
         }
         val analyzer = when (contractType) {
-            ContractType.Func -> FuncAnalyzer(funcOptions.funcStdlibPath, fiftOptions.fiftStdlibPath)
+            ContractType.Func -> FuncAnalyzer(fiftOptions.fiftStdlibPath)
             ContractType.Boc -> BocAnalyzer
             ContractType.Tact -> tactAnalyzer
 
@@ -306,11 +298,9 @@ class FuncAnalysis : ErrorsSarifDetector<Path>(name = "func", help = "Options fo
         .help("The path to the FunC source of the smart contract")
 
     private val fiftOptions by FiftOptions()
-    private val funcOptions by FuncOptions()
 
     override fun run() {
         val analyzer = FuncAnalyzer(
-            funcStdlibPath = funcOptions.funcStdlibPath,
             fiftStdlibPath = fiftOptions.fiftStdlibPath
         )
 
@@ -362,7 +352,6 @@ class CheckerAnalysis : CliktCommand(
     help = "Options for using custom checkers",
 ) {
     private val fiftOptions by FiftOptions()
-    private val funcOptions by FuncOptions()
     private val tactOptions by TactOptions()
 
     private val sarifOptions by SarifOptions()
@@ -427,7 +416,6 @@ class CheckerAnalysis : CliktCommand(
 
     private val funcAnalyzer by lazy {
         FuncAnalyzer(
-            funcStdlibPath = funcOptions.funcStdlibPath,
             fiftStdlibPath = fiftOptions.fiftStdlibPath
         )
     }
@@ -441,7 +429,6 @@ class CheckerAnalysis : CliktCommand(
     override fun run() {
         val checkerContract = getFuncContract(
             checkerContractPath,
-            funcOptions.funcStdlibPath,
             fiftOptions.fiftStdlibPath,
             isTSAChecker = true
         )
@@ -508,7 +495,6 @@ class InterContractAnalysis : CliktCommand(
     help = "Options for analyzing inter-contract communication of smart contracts",
 ) {
     private val fiftOptions by FiftOptions()
-    private val funcOptions by FuncOptions()
     private val tactOptions by TactOptions()
 
     private val sarifOptions by SarifOptions()
@@ -526,7 +512,6 @@ class InterContractAnalysis : CliktCommand(
 
     private val funcAnalyzer by lazy {
         FuncAnalyzer(
-            funcStdlibPath = funcOptions.funcStdlibPath,
             fiftStdlibPath = fiftOptions.fiftStdlibPath
         )
     }

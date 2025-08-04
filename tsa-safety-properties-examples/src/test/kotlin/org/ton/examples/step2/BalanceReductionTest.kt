@@ -1,7 +1,6 @@
 package org.ton.examples.step2
 
 import FIFT_STDLIB_RESOURCE
-import FUNC_STDLIB_RESOURCE
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
@@ -19,10 +18,10 @@ class BalanceReductionTest {
     @Test
     fun testBalanceReduction() {
         val storageContractPath = getResourcePath<BalanceReductionTest>(storageContractResourcePath)
-        val storageContractCode = getFuncContract(storageContractPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE)
+        val storageContractCode = getFuncContract(storageContractPath, FIFT_STDLIB_RESOURCE)
 
         val checkerPath = getResourcePath<BalanceReductionTest>(checkerResourcePath)
-        val checkerCode = getFuncContract(checkerPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
+        val checkerCode = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
 
         val options = TvmOptions(
             intercontractOptions = IntercontractOptions(communicationScheme = null),

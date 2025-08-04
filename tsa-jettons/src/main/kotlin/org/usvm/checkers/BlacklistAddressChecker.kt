@@ -6,7 +6,6 @@ import org.ton.TvmParameterInfo
 import org.ton.bytecode.TsaContractCode
 import org.ton.tlb.readFromJson
 import org.usvm.FIFT_STDLIB_PATH
-import org.usvm.FUNC_STDLIB_PATH
 import org.usvm.machine.TvmContext.Companion.stdMsgAddrSize
 import org.usvm.machine.getFuncContract
 import org.usvm.resolveResourcePath
@@ -20,7 +19,6 @@ import java.nio.file.Path
 data class BlacklistAddressChecker(private val resourcesDir: Path?) : TvmChecker {
     private val checkerResourcePath = resourcesDir.resolveResourcePath(CHECKER_PATH)
     private val tlbResourcePath = resourcesDir.resolveResourcePath(TLB_PATH)
-    private val funcStdlibPath = resourcesDir.resolveResourcePath(FUNC_STDLIB_PATH)
     private val fiftStdlibPath = resourcesDir.resolveResourcePath(FIFT_STDLIB_PATH)
 
     private val tlbFormat = readFromJson(tlbResourcePath, "InternalMsgBody", onlyBasicAddresses = true) as? TlbCompositeLabel
@@ -35,7 +33,7 @@ data class BlacklistAddressChecker(private val resourcesDir: Path?) : TvmChecker
         contractUnderTest: TsaContractCode,
         stopWhenFoundOneConflictingExecution: Boolean
     ): List<TvmSymbolicTest> {
-        val checkerContract = getFuncContract(checkerResourcePath, funcStdlibPath, fiftStdlibPath, isTSAChecker = true)
+        val checkerContract = getFuncContract(checkerResourcePath, fiftStdlibPath, isTSAChecker = true)
         return runAnalysisAndExtractFailingExecutions(
             listOf(checkerContract, contractUnderTest),
             stopWhenFoundOneConflictingExecution,

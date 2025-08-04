@@ -32,6 +32,7 @@ class TvmMachine(
 ) : UMachine<TvmState>() {
     private val options: UMachineOptions = defaultOptions.copy(
         timeout = tvmOptions.timeout,
+        solverTimeout = tvmOptions.solverTimeout,
         loopIterationLimit = tvmOptions.loopIterationLimit,
     )
 
@@ -177,7 +178,6 @@ class TvmMachine(
             loopIterativeDeepening = true,
             loopIterationLimit = DEFAULT_LOOP_ITERATIONS_LIMIT,
             stepLimit = null,
-            solverTimeout = 1.seconds
         )
     }
 

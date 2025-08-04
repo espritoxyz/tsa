@@ -130,7 +130,6 @@ class TactAnalyzer(
 }
 
 class FuncAnalyzer(
-    private val funcStdlibPath: Path,
     private val fiftStdlibPath: Path,
 ) : TvmAnalyzer<Path> {
     private val funcExecutablePath: Path = Paths.get(FUNC_EXECUTABLE)
@@ -147,7 +146,7 @@ class FuncAnalyzer(
     }
 
     fun compileFuncSourceToFift(funcSourcesPath: Path, fiftFilePath: Path) {
-        val funcCommand = "$funcExecutablePath -AP $funcStdlibPath ${funcSourcesPath.absolutePathString()}"
+        val funcCommand = "$funcExecutablePath -AP ${funcSourcesPath.absolutePathString()}"
         val executionCommand = funcCommand.toExecutionCommand()
         val (exitValue, completedInTime, output, errors) = executeCommandWithTimeout(executionCommand, COMPILER_TIMEOUT)
 
@@ -166,7 +165,7 @@ class FuncAnalyzer(
 
     fun compileFuncSourceToBoc(funcSourcesPath: Path, bocFilePath: Path) {
         val funcCommand =
-            "$funcExecutablePath -W ${bocFilePath.absolutePathString()} $funcStdlibPath ${funcSourcesPath.absolutePathString()}"
+            "$funcExecutablePath -W ${bocFilePath.absolutePathString()} ${funcSourcesPath.absolutePathString()}"
         val fiftCommand = "$fiftExecutablePath -I $fiftStdlibPath"
         val command = "$funcCommand | $fiftCommand"
         val executionCommand = command.toExecutionCommand()
@@ -523,10 +522,9 @@ fun analyzeSpecificMethod(
 
 fun getFuncContract(
     path: Path,
-    funcStdlibPath: Path,
     fiftStdlibPath: Path,
     isTSAChecker: Boolean = false
-): TsaContractCode = FuncAnalyzer(funcStdlibPath, fiftStdlibPath).convertToTvmContractCode(path).also {
+): TsaContractCode = FuncAnalyzer(fiftStdlibPath).convertToTvmContractCode(path).also {
     if (isTSAChecker) {
         setTSACheckerFunctions(it)
     }

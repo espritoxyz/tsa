@@ -1,18 +1,15 @@
 package org.ton.examples.step1
 
 import FIFT_STDLIB_RESOURCE
-import FUNC_STDLIB_RESOURCE
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getResourcePath
-import org.usvm.machine.state.TvmIntegerOverflowError
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SortTest {
@@ -22,10 +19,10 @@ class SortTest {
     @Test
     fun testSortChecker() {
         val sortContractPath = getResourcePath<SortTest>(sortContractResourcePath)
-        val sortContractCode = getFuncContract(sortContractPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE)
+        val sortContractCode = getFuncContract(sortContractPath, FIFT_STDLIB_RESOURCE)
 
         val checkerPath = getResourcePath<SortTest>(checkerResourcePath)
-        val checkerCode = getFuncContract(checkerPath, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
+        val checkerCode = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
 
         val options = TvmOptions(
             intercontractOptions = IntercontractOptions(communicationScheme = null),
