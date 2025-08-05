@@ -18,13 +18,38 @@ In runtime error detection mode, `TSA` accepts as input a contract file in one o
 
 {% highlight bash %}
 $ java -jar tsa-cli.jar tact --help
-
 Usage: ton-analysis tact [<options>]
 
-Options for analyzing Tact sources of smart contracts
+  Options for analyzing Tact sources of smart contracts
 
 Contract properties:
   -d, --data=<text>  The serialized contract persistent data
+
+SARIF options:
+  -o, --output=<path>  The path to the output SARIF report file
+  --no-user-errors     Do not report executions with user-defined errors
+
+TlB scheme options:
+  -t, --tlb=<path>  The path to the parsed TL-B scheme.
+  --no-tlb-checks   Turn off TL-B parsing checks
+
+Symbolic analysis options:
+  --analyze-bounced-messages  Consider inputs when the message is bounced.
+  --timeout=<int>             Analysis timeout in seconds.
+
+Analysis target:
+
+  What to analyze. By default, only receivers (recv_interval and recv_external)
+  are analyzed.
+
+  --method=<int>         Id of the method to analyze
+  --analyze-receivers    Analyze recv_internal and recv_external (default)
+  --analyze-all-methods  Analyze all methods (applicable only for contracts
+                         with default main method)
+
+Tact options:
+  --tact=<text>  Tact executable. Default: tact
+
 Options:
   -c, --config=<path>   The path to the Tact config (tact.config.json)
   -p, --project=<text>  Name of the Tact project to analyze
@@ -40,23 +65,40 @@ Options:
 $ java -jar tsa-cli.jar func --help
 Usage: ton-analysis func [<options>]
 
-Options for analyzing FunC sources of smart contracts
+  Options for analyzing FunC sources of smart contracts
 
 Contract properties:
--d, --data=<text>  The serialized contract persistent data
+  -d, --data=<text>  The serialized contract persistent data
 
-Fift options:
---fift-std=<path>  The path to the Fift standard library (dir containing Asm.fif, Fift.fif)
-
-FunC options:
---func-std=<path>  The path to the FunC standard library file (stdlib.fc)
+SARIF options:
+  -o, --output=<path>  The path to the output SARIF report file
+  --no-user-errors     Do not report executions with user-defined errors
 
 TlB scheme options:
--t, --tlb=<path>  The path to the parsed TL-B scheme.
+  -t, --tlb=<path>  The path to the parsed TL-B scheme.
+  --no-tlb-checks   Turn off TL-B parsing checks
+
+Symbolic analysis options:
+  --analyze-bounced-messages  Consider inputs when the message is bounced.
+  --timeout=<int>             Analysis timeout in seconds.
+
+Analysis target:
+
+  What to analyze. By default, only receivers (recv_interval and recv_external)
+  are analyzed.
+
+  --method=<int>         Id of the method to analyze
+  --analyze-receivers    Analyze recv_internal and recv_external (default)
+  --analyze-all-methods  Analyze all methods (applicable only for contracts
+                         with default main method)
+
+Fift options:
+  --fift-std=<path>  The path to the Fift standard library (dir containing
+                     Asm.fif, Fift.fif)
 
 Options:
--i, --input=<path>  The path to the FunC source of the smart contract
--h, --help          Show this message and exit
+  -i, --input=<path>  The path to the FunC source of the smart contract
+  -h, --help          Show this message and exit
 {% endhighlight %}
 </details>
 
@@ -67,17 +109,40 @@ Options:
 $ java -jar tsa-cli.jar fift --help
 Usage: ton-analysis fift [<options>]
 
-Options for analyzing smart contracts in Fift assembler
+  Options for analyzing smart contracts in Fift assembler
 
 Contract properties:
--d, --data=<text>  The serialized contract persistent data
+  -d, --data=<text>  The serialized contract persistent data
+
+SARIF options:
+  -o, --output=<path>  The path to the output SARIF report file
+  --no-user-errors     Do not report executions with user-defined errors
+
+TlB scheme options:
+  -t, --tlb=<path>  The path to the parsed TL-B scheme.
+  --no-tlb-checks   Turn off TL-B parsing checks
+
+Symbolic analysis options:
+  --analyze-bounced-messages  Consider inputs when the message is bounced.
+  --timeout=<int>             Analysis timeout in seconds.
+
+Analysis target:
+
+  What to analyze. By default, only receivers (recv_interval and recv_external)
+  are analyzed.
+
+  --method=<int>         Id of the method to analyze
+  --analyze-receivers    Analyze recv_internal and recv_external (default)
+  --analyze-all-methods  Analyze all methods (applicable only for contracts
+                         with default main method)
 
 Fift options:
---fift-std=<path>  The path to the Fift standard library (dir containing Asm.fif, Fift.fif)
+  --fift-std=<path>  The path to the Fift standard library (dir containing
+                     Asm.fif, Fift.fif)
 
 Options:
--i, --input=<path>  The path to the Fift assembly of the smart contract
--h, --help          Show this message and exit
+  -i, --input=<path>  The path to the Fift assembly of the smart contract
+  -h, --help          Show this message and exit
 {% endhighlight %}
 </details>
 
@@ -88,25 +153,49 @@ Options:
 $ java -jar tsa-cli.jar boc --help 
 Usage: ton-analysis boc [<options>]
 
-Options for analyzing a smart contract in the BoC format
+  Options for analyzing a smart contract in the BoC format
 
 Contract properties:
--d, --data=<text>  The serialized contract persistent data
+  -d, --data=<text>  The serialized contract persistent data
+
+SARIF options:
+  -o, --output=<path>  The path to the output SARIF report file
+  --no-user-errors     Do not report executions with user-defined errors
+
+TlB scheme options:
+  -t, --tlb=<path>  The path to the parsed TL-B scheme.
+  --no-tlb-checks   Turn off TL-B parsing checks
+
+Symbolic analysis options:
+  --analyze-bounced-messages  Consider inputs when the message is bounced.
+  --timeout=<int>             Analysis timeout in seconds.
+
+Analysis target:
+
+  What to analyze. By default, only receivers (recv_interval and recv_external)
+  are analyzed.
+
+  --method=<int>         Id of the method to analyze
+  --analyze-receivers    Analyze recv_internal and recv_external (default)
+  --analyze-all-methods  Analyze all methods (applicable only for contracts
+                         with default main method)
 
 Options:
--i, --input=<path>  The path to the smart contract in the BoC format
--h, --help          Show this message and exit
+  -i, --input=<path>  The path to the smart contract in the BoC format
+  -h, --help          Show this message and exit
 {% endhighlight %}
 </details>
+
+By default, TSA analyzes only `recv_internal` and `recv_external`. To analyze a specific method, use `--method` option.
 
 Optionally, it also accepts a [TL-B scheme](https://docs.ton.org/v3/documentation/data-formats/tlb/tl-b-language) for the `recv_internal` method. For detailed input format information, use the `--help` argument.
 The output in this mode is a SARIF report containing the following information about methods that may encounter a [TVM error](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes) during execution:
 
 - `coverage` field in the report - instruction coverage percentage by the analyzer for the method
-- `decoratedName` and `stmt` - the method id and instruction number where the error may occur, correspondingly
+- `decoratedName` and `inst` - the method id and instruction where the error may occur, correspondingly
 - `text` in a `message` - error code and its type
-- `callFlows` - call stack at the moment of the error occurrence in the form (method id - instruction)
 - `usedParameters` - possible (but not necessarily unique) parameters set causing the error
+  - The parameters might be returned in two formats: `recvInternalInput` and `stackInput`. The first one is used when analyzing `recv_internal` method.
 - `gasUsage` - approximate gas usage of the execution when the error occurred
 
 For more information about error types, see the [Detectors page](../detectors).
@@ -115,22 +204,12 @@ For more information about error types, see the [Detectors page](../detectors).
 
 ## Examples
 
-NOTE: the **original** Tact and FunC compilers do not preserve source code location information (source maps) in the resulting compiled code,
+NOTE: the original Tact and FunC compilers do not preserve source code location information (source maps) in the resulting compiled code,
 and the SARIF report generated by the tool will not be able to pinpoint errors directly in the source code.
 
-The following examples will cover both cases: with source maps and with raw SARIF.
+The position of the instruction where the failure happens is given in format `cell-hash + offset`, which is used in the [tasm tool](https://github.com/tact-lang/tasm/).
 
-### Example with patched compilers via source maps
-
-<details>
-  <summary><b>Source-maps disclaimer</b></summary>
-
-<br>
-We use patched versions of the <a href="https://github.com/espritoxyz/tact/tree/tact-debug-info-bundled">Tact compiler</a>,  
-<a href="https://github.com/espritoxyz/ton/tree/func-0.4.6-debug-info">FunC compiler</a>,  
-and the <a href="https://github.com/jefremof/tsa/tree/pysical-locations">TSA analyzer</a>,<br>
-to achieve full error mapping in the source code, as demonstrated in this pull request via <a href="https://github.com/espritoxyz/tsa-actions/pull/2/files">GitHub Actions</a>
-</details>
+### Tact example
 
 Consider a simple smart contract written in Tact that may encounter an arithmetic overflow error when the `divide` method receives a value of `subtrahend` close to the minimal integer value:
 
@@ -157,21 +236,440 @@ contract Divider {
 }
 ```
 
-Running the patched analyzer for this contract with patched Tact compiler with the following command (according to the [PR](https://github.com/espritoxyz/tsa-actions/pull/2)):
+The method we want to analyze is `subtractAndDivide`, which has method id `127452`.
+
+To eliminate executions that fail with user-defined exceptions, we also use `--no-user-errors` flag.
+
+Running TSA for this contract:
 
 {% highlight bash %}
 java -jar tsa-cli.jar \
-tact -c "tact.config.json" -p "sample" -i "Divider" \
+tact -c "tact.config.json" -p "sample" -i "Divider" --method 127452 --no-user-errors \
 > Divider.sarif
 {% endhighlight %}
 
-produces a SARIF report that could be rendered in GitHub highlighting a possible error:
+produces a SARIF report.
 
-<img alt="img.png" src="../images/sarif-github-error.png"/>
+<details>
+  <summary><b>Raw SARIF report</b></summary>
+
+{% highlight json %}
+{
+    "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+    "version": "2.1.0",
+    "runs": [
+        {
+            "properties": {
+                "coverage": {
+                    "127452": 100.0
+                }
+            },
+            "results": [
+                {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "127452",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "91FC6E7B5CEC4435584AD4A60E936B9971A56CCC3B302F5B8CE2CD88D4E88833",
+                                            "offset": 24
+                                        },
+                                        "inst": "LDI"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "message": {
+                        "text": "TvmFailure(exit=TVM cell underflow, exit code: 9, type=FixedStructuralError, phase=COMPUTE_PHASE)"
+                    },
+                    "properties": {
+                        "gasUsage": 306,
+                        "usedParameters": {
+                            "type": "stackInput",
+                            "usedParameters": [
+                            ]
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue",
+                            "knownTypes": [
+                                {
+                                    "type": {
+                                        "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                        "bitSize": 1,
+                                        "isSigned": true,
+                                        "endian": "BigEndian"
+                                    },
+                                    "offset": 0
+                                }
+                            ]
+                        },
+                        "resultStack": [
+                            "0"
+                        ]
+                    },
+                    "ruleId": "cell-underflow"
+                },
+                {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "127452",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "15A117B18C56A6869BB2D4DC8756972F73922F336788916F7AEA4898CC2E2A25",
+                                            "offset": 40
+                                        },
+                                        "inst": "SUB"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "message": {
+                        "text": "TvmFailure(exit=TVM integer overflow, exit code: 4, phase=COMPUTE_PHASE)"
+                    },
+                    "properties": {
+                        "gasUsage": 687,
+                        "usedParameters": {
+                            "type": "stackInput",
+                            "usedParameters": [
+                                "-115792089237316195423570985008687907853269984665640564039457584007913129639894",
+                                "1"
+                            ]
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue",
+                            "data": "0",
+                            "refs": [
+                                {
+                                    "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                                }
+                            ],
+                            "knownTypes": [
+                                {
+                                    "type": {
+                                        "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                        "bitSize": 1,
+                                        "isSigned": true,
+                                        "endian": "BigEndian"
+                                    },
+                                    "offset": 0
+                                }
+                            ]
+                        },
+                        "resultStack": [
+                            "0"
+                        ]
+                    },
+                    "ruleId": "integer-overflow"
+                },
+                {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "127452",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "15A117B18C56A6869BB2D4DC8756972F73922F336788916F7AEA4898CC2E2A25",
+                                            "offset": 136
+                                        },
+                                        "inst": "DIV"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "message": {
+                        "text": "TvmFailure(exit=TVM integer overflow, exit code: 4, phase=COMPUTE_PHASE)"
+                    },
+                    "properties": {
+                        "gasUsage": 796,
+                        "usedParameters": {
+                            "type": "stackInput",
+                            "usedParameters": [
+                                "42",
+                                "101",
+                                "1"
+                            ]
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue",
+                            "data": "0",
+                            "refs": [
+                                {
+                                    "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                                },
+                                {
+                                    "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                                }
+                            ],
+                            "knownTypes": [
+                                {
+                                    "type": {
+                                        "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                        "bitSize": 1,
+                                        "isSigned": true,
+                                        "endian": "BigEndian"
+                                    },
+                                    "offset": 0
+                                }
+                            ]
+                        },
+                        "resultStack": [
+                            "0"
+                        ]
+                    },
+                    "ruleId": "integer-overflow"
+                },
+                {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "127452",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "15A117B18C56A6869BB2D4DC8756972F73922F336788916F7AEA4898CC2E2A25",
+                                            "offset": 136
+                                        },
+                                        "inst": "DIV"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "message": {
+                        "text": "TvmFailure(exit=TVM integer overflow, exit code: 4, phase=COMPUTE_PHASE)"
+                    },
+                    "properties": {
+                        "gasUsage": 796,
+                        "usedParameters": {
+                            "type": "stackInput",
+                            "usedParameters": [
+                                "43",
+                                "-115792089237316195423570985008687907853269984665640564039457584007913129639936",
+                                "1"
+                            ]
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue",
+                            "data": "0",
+                            "refs": [
+                                {
+                                    "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                                },
+                                {
+                                    "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                                },
+                                {
+                                    "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                                },
+                                {
+                                    "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                                }
+                            ],
+                            "knownTypes": [
+                                {
+                                    "type": {
+                                        "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                        "bitSize": 1,
+                                        "isSigned": true,
+                                        "endian": "BigEndian"
+                                    },
+                                    "offset": 0
+                                }
+                            ]
+                        },
+                        "resultStack": [
+                            "0"
+                        ]
+                    },
+                    "ruleId": "integer-overflow"
+                },
+                {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "127452",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "15A117B18C56A6869BB2D4DC8756972F73922F336788916F7AEA4898CC2E2A25",
+                                            "offset": 40
+                                        },
+                                        "inst": "SUB"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "message": {
+                        "text": "TvmFailure(exit=TVM integer overflow, exit code: 4, phase=COMPUTE_PHASE)"
+                    },
+                    "properties": {
+                        "gasUsage": 687,
+                        "usedParameters": {
+                            "type": "stackInput",
+                            "usedParameters": [
+                                "-115792089237316195423570985008687907853269984665640564039457584007913129639894",
+                                "1"
+                            ]
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue",
+                            "data": "1",
+                            "knownTypes": [
+                                {
+                                    "type": {
+                                        "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                        "bitSize": 1,
+                                        "isSigned": true,
+                                        "endian": "BigEndian"
+                                    },
+                                    "offset": 0
+                                }
+                            ]
+                        },
+                        "resultStack": [
+                            "0"
+                        ]
+                    },
+                    "ruleId": "integer-overflow"
+                },
+                {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "127452",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "15A117B18C56A6869BB2D4DC8756972F73922F336788916F7AEA4898CC2E2A25",
+                                            "offset": 136
+                                        },
+                                        "inst": "DIV"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "message": {
+                        "text": "TvmFailure(exit=TVM integer overflow, exit code: 4, phase=COMPUTE_PHASE)"
+                    },
+                    "properties": {
+                        "gasUsage": 796,
+                        "usedParameters": {
+                            "type": "stackInput",
+                            "usedParameters": [
+                                "43",
+                                "-115792089237316195423570985008687907853269984665640564039457584007913129639936",
+                                "1"
+                            ]
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue",
+                            "data": "1",
+                            "knownTypes": [
+                                {
+                                    "type": {
+                                        "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                        "bitSize": 1,
+                                        "isSigned": true,
+                                        "endian": "BigEndian"
+                                    },
+                                    "offset": 0
+                                }
+                            ]
+                        },
+                        "resultStack": [
+                            "0"
+                        ]
+                    },
+                    "ruleId": "integer-overflow"
+                },
+                {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "127452",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "15A117B18C56A6869BB2D4DC8756972F73922F336788916F7AEA4898CC2E2A25",
+                                            "offset": 136
+                                        },
+                                        "inst": "DIV"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "message": {
+                        "text": "TvmFailure(exit=TVM integer overflow, exit code: 4, phase=COMPUTE_PHASE)"
+                    },
+                    "properties": {
+                        "gasUsage": 796,
+                        "usedParameters": {
+                            "type": "stackInput",
+                            "usedParameters": [
+                                "42",
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue",
+                            "data": "1",
+                            "knownTypes": [
+                                {
+                                    "type": {
+                                        "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                        "bitSize": 1,
+                                        "isSigned": true,
+                                        "endian": "BigEndian"
+                                    },
+                                    "offset": 0
+                                }
+                            ]
+                        },
+                        "resultStack": [
+                            "0"
+                        ]
+                    },
+                    "ruleId": "integer-overflow"
+                }
+            ],
+            "tool": {
+                "driver": {
+                    "name": "TSA",
+                    "organization": "Explyt"
+                }
+            }
+        }
+    ]
+}
+{% endhighlight %}
+</details>
+
+The first error occurrs due to incorrecly initialized C4. To eliminate such errors, set cocrete C4 with option `--data`.
+
+The other errors show different possible integer overflows in such contract.
 
 ---
 
-### Example with a raw SARIF
+### FunC example
 
 Consider a simple smart contract that may encounter a cell overflow error when the `write` method receives a value greater than 4:
 
@@ -198,7 +696,9 @@ Consider a simple smart contract that may encounter a cell overflow error when t
 }
 
 () recv_internal(int msg_value, cell in_msg, slice in_msg_body) impure {
-    ;; Do nothing
+    int loop_count = in_msg_body~load_int(32);
+    builder value = write(loop_count);
+    set_data(value.end_cell());
 }
 ```
 
@@ -206,230 +706,149 @@ Running the analyzer for this contract with the following command
 (assuming the contract, FunC and Fift stdlibs are located in the current directory):
 
 {% highlight bash %}
-docker run --platform linux/amd64 -it --rm -v $PWD:/project ghcr.io/espritoxyz/tsa:latest func -i /project/example.fc \
---func-std /project/stdlib.fc \
---fift-std /project/fiftstdlib
+java -jar tsa-cli.jar \
+func -i /project/example.fc --fift-std /project/fiftstdlib --method 0 \
+> CellOverflow.sarif
 {% endhighlight %}
 
-(please note that FunC stdlib is pointed using the specific option `func-std`, not as a part of the input file) identifies the error in the raw SARIF report:
+identifies the error in the raw SARIF report:
 
 <details>
   <summary><b>Raw SARIF report</b></summary>
 
 {% highlight json %}
 {
-    "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+    "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
     "version": "2.1.0",
     "runs": [
         {
             "properties": {
                 "coverage": {
-                    "0": 100.0,
-                    "75819": 100.0
+                    "0": 100.0
                 }
             },
             "results": [
                 {
-                    "codeFlows": [
-                        {
-                            "threadFlows": [
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "STREF#5"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "implicit RET#7"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "implicit RET#7"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "implicit RET#7"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "implicit RET#7"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "fullyQualifiedName": "Lambda",
-                                                        "properties": {
-                                                            "stmt": "artificial_jmp_to_TvmOrdContinuation(stmt=TvmStackBasicPushInst(location=Lambda:#0, i=0), savelist=TvmRegisterSavelist(c0=null, c1=null, c2=null, c3=null, c4=null, c5=null, c7=null))#1"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                },
-                                {
-                                    "locations": [
-                                        {
-                                            "location": {
-                                                "logicalLocations": [
-                                                    {
-                                                        "decoratedName": "75819",
-                                                        "properties": {
-                                                            "stmt": "REPEAT#11"
-                                                        }
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ],
                     "level": "error",
                     "locations": [
                         {
                             "logicalLocations": [
                                 {
-                                    "decoratedName": "75819"
+                                    "decoratedName": "0",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "D61895B014C3C65BD3848270B17ACC2CD2A6AE3889C8D0E8BB51D862EBF18576",
+                                            "offset": 16
+                                        },
+                                        "inst": "LDI"
+                                    }
                                 }
                             ]
                         }
                     ],
                     "message": {
-                        "text": "TvmFailure(exit=TVM cell overflow, exit code: 8, type=UnknownError)"
+                        "text": "TvmFailure(exit=TVM cell underflow, exit code: 9, type=FixedStructuralError, phase=COMPUTE_PHASE)"
                     },
                     "properties": {
-                        "gasUsage": 3451,
-                        "usedParameters": [
-                            "2097151"
-                        ],
+                        "gasUsage": 188,
+                        "usedParameters": {
+                            "type": "recvInternalInput",
+                            "srcAddress": {
+                                "cell": {
+                                    "data": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                                }
+                            },
+                            "msgBody": {
+                                "cell": {
+                                    "knownTypes": [
+                                        {
+                                            "type": {
+                                                "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                                "bitSize": 32,
+                                                "isSigned": true,
+                                                "endian": "BigEndian"
+                                            },
+                                            "offset": 0
+                                        }
+                                    ]
+                                }
+                            },
+                            "msgValue": "73786976294838206464",
+                            "bounce": false,
+                            "bounced": false,
+                            "ihrDisabled": false,
+                            "ihrFee": "0",
+                            "fwdFee": "0",
+                            "createdLt": "0",
+                            "createdAt": "0"
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                        },
+                        "resultStack": [
+                            "0"
+                        ]
+                    },
+                    "ruleId": "cell-underflow"
+                },
+                {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "0",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "FB03ED4CCA61DC70C17C9A270289101970E900837BA0F3EEABB0DD5D91CEA5D3",
+                                            "offset": 184
+                                        },
+                                        "inst": "STREF"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "message": {
+                        "text": "TvmFailure(exit=TVM cell overflow, exit code: 8, phase=COMPUTE_PHASE)"
+                    },
+                    "properties": {
+                        "gasUsage": 3760,
+                        "usedParameters": {
+                            "type": "recvInternalInput",
+                            "srcAddress": {
+                                "cell": {
+                                    "data": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                                }
+                            },
+                            "msgBody": {
+                                "cell": {
+                                    "data": "00000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                                    "knownTypes": [
+                                        {
+                                            "type": {
+                                                "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
+                                                "bitSize": 32,
+                                                "isSigned": true,
+                                                "endian": "BigEndian"
+                                            },
+                                            "offset": 0
+                                        }
+                                    ]
+                                }
+                            },
+                            "msgValue": "73786976294838206464",
+                            "bounce": false,
+                            "bounced": false,
+                            "ihrDisabled": false,
+                            "ihrFee": "0",
+                            "fwdFee": "0",
+                            "createdLt": "0",
+                            "createdAt": "0"
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue"
+                        },
                         "resultStack": [
                             "0"
                         ]
@@ -449,10 +868,12 @@ docker run --platform linux/amd64 -it --rm -v $PWD:/project ghcr.io/espritoxyz/t
 {% endhighlight %}
 </details>
 
-Here the analyzed method has the id `75819`, 
-the analyzer covered 100% instructions of this method,
-and the `cell overflow` error with exit code `8` occurred in the stmt with the index `11` in the `REPEAT` loop inside this method,
-`2097151` value passed to this method causes this error,
-and gas usage equals to `3451`.
+Here we analyzed `recv_internal`, which has method id `0`. The analyzer covered 100% instructions.
+
+The first error occurrs when the given message body is too short. To eliminate such errors, specify TL-B scheme for the input data.
+
+Another error is the expected cell overflow.
+
+Since we analyzed `recv_internal`, the input is given not as raw stack elements, but as parsed message data, including fields like `msgValue`, `bounced` and other.
 
 For more examples containing erroneous places, take a look at the directory in [the repository with manually written contracts](https://github.com/espritoxyz/tsa/tree/master/tsa-test/src/test/resources).

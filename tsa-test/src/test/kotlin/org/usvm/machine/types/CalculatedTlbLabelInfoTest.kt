@@ -4,7 +4,6 @@ import io.ksmt.expr.KInterpretedValue
 import org.ton.TlbStructure
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
-import org.ton.cell.Cell
 import org.ton.examples.types.customVarInteger
 import org.ton.examples.types.doubleCustomVarInteger
 import org.ton.examples.types.intSwitchStructure
@@ -20,6 +19,8 @@ import org.ton.examples.types.wrappedMsgStructure
 import org.usvm.UExpr
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.TvmComponents
+import org.usvm.machine.TvmConcreteContractData
+import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmMachine
 import org.usvm.machine.TvmOptions
@@ -53,7 +54,8 @@ class CalculatedTlbLabelInfoTest {
     )
     private val dummyState = dummyInterpreter.getInitialState(
         startContractId = 0,
-        contractData = listOf(null),
+        concreteGeneralData = TvmConcreteGeneralData(),
+        concreteContractData = listOf(TvmConcreteContractData()),
         methodId = BigInteger.ZERO
     )
     val cellDataFieldManager = dummyState.cellDataFieldManager

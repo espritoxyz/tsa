@@ -24,7 +24,6 @@ Additionally, the test contract wrapper is generated.
 java -jar tsa-cli.jar test-gen \
   -p path/to/project \
   --func contracts/contract.func \
-  --func-std path/to/project/contracts/stdlib.func \
   --fift-std path/to/fiftstdlib
 {% endhighlight %}
 

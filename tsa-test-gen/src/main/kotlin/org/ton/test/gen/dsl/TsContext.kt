@@ -13,6 +13,7 @@ class TsContext {
     private val mutableVariables: MutableSet<TsVariable<*>> = newSetFromMap(IdentityHashMap())
 
     val emptyCell = TvmTestDataCellValue().toTsValue()
+    val cellWithZeroOpcode = TvmTestDataCellValue(data = "0".repeat(32)).toTsValue()
 
     val falseValue = TsBooleanValue(value = false)
     val trueValue = TsBooleanValue(value = true)

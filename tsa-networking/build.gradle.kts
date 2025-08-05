@@ -3,6 +3,8 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":tsa-core"))
+
     implementation("io.github.neodix42:tonlib:0.8.2")
     implementation("io.github.neodix42:emulator:0.8.2")
 

@@ -118,6 +118,23 @@ class TvmStepScopeManager(
         )
     }
 
+    fun forkWithCheckerStatusKnowledgeOnFalseState(
+        condition: UBoolExpr,
+        blockOnUnknownFalseState: TvmState.() -> Unit = {},
+        blockOnUnsatFalseState: TvmState.() -> Unit = {},
+        blockOnFalseState: TvmState.() -> Unit = {},
+    ): Unit? {
+        check(allowFailuresOnCurrentStep) {
+            "[forkWithCheckerStatusKnowledgeOnFalseState] should be called only with allowFailuresOnCurrentStep=true, but now it is false."
+        }
+        return scope.forkWithCheckerStatusKnowledge(
+            condition,
+            blockOnUnsatFalseState = blockOnUnsatFalseState,
+            blockOnUnknownFalseState = blockOnUnknownFalseState,
+            blockOnFalseState = blockOnFalseState
+        )
+    }
+
     // TODO what to return?
     // TODO docs
     fun <T> doWithConditions(
@@ -131,6 +148,7 @@ class TvmStepScopeManager(
         }
 
         val states = ctx.statesForkProvider.forkMulti(originalState, conditionsWithActions.map { it.condition })
+        scope.stepScopeState = CANNOT_BE_PROCESSED
         states.forEachIndexed { idx, state ->
             state?.let {
                 val action = conditionsWithActions[idx]
@@ -222,6 +240,7 @@ class TvmStepScopeManager(
          * @return `null` if the underlying state is `null`.
          */
         inline fun doWithState(block: TvmState.() -> Unit) {
+            check(canProcessFurtherOnCurrentStep) { "Caller should check before processing the current hop further" }
             return originalState.block()
         }
 
@@ -263,6 +282,8 @@ class TvmStepScopeManager(
             blockOnUnsatFalseState: TvmState.() -> Unit = {},
             blockOnFalseState: TvmState.() -> Unit = {},
         ): Unit? {
+            check(canProcessFurtherOnCurrentStep)
+
             val possibleForkPoint = originalState.pathNode
 
             val clonedState = originalState.clone()
@@ -532,6 +553,8 @@ class TvmStepScopeManager(
          */
         @Suppress("MoveVariableDeclarationIntoWhen")
         fun checkSat(condition: UBoolExpr): Unit? {
+            check(canProcessFurtherOnCurrentStep)
+
             // If this state did not fork at all or was sat at the last fork point, it must be still sat, so we can just
             // check this condition with presented models
             if (originalState.models.isNotEmpty()) {
@@ -557,7 +580,7 @@ class TvmStepScopeManager(
         /**
          * Represents the current state of this [TvmStepScope].
          */
-        private enum class StepScopeState {
+        enum class StepScopeState {
             /**
              * Cannot be processed further with any actions.
              */

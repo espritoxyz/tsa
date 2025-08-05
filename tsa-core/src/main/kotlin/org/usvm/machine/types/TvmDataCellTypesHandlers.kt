@@ -8,6 +8,7 @@ import org.ton.Endian
 import org.ton.TlbAddressByRef
 import org.ton.TlbBitArrayByRef
 import org.ton.TlbCoinsLabel
+import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbLabel
@@ -25,7 +26,6 @@ import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.TvmStepScopeManager.ActionOnCondition
 import org.usvm.machine.intValue
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcOnStateCtx
@@ -41,7 +41,6 @@ import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
 import org.usvm.utils.extractAddresses
 
-
 sealed interface MakeSliceTypeLoadOutcome
 
 private data class NewTlbStack(val stack: TlbStack) : MakeSliceTypeLoadOutcome
@@ -53,7 +52,7 @@ private data object NoTlbStack : MakeSliceTypeLoadOutcome
 context(TvmContext)
 private fun <T> MutableMap<T, UBoolExpr>.addGuard(key: T, guard: UBoolExpr) {
     val oldValue = this[key] ?: falseExpr
-    this[key] = oldValue or guard
+    this[key] = mkOr(oldValue, guard, flat = false)
 }
 
 context(TvmContext)
@@ -75,9 +74,8 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoa
 
     calcOnStateCtx {
         val outcomes = hashMapOf<MakeSliceTypeLoadOutcome, MutableMap<ReadResult?, UBoolExpr>>()
-        val cellAddress = memory.readField(oldSlice, TvmContext.sliceCellField, addressSort)
         val offset = memory.readField(oldSlice, TvmContext.sliceDataPosField, sizeSort)
-        val loadList = dataCellLoadedTypeInfo.loadData(cellAddress, offset, type, oldSlice)
+        val loadList = dataCellLoadedTypeInfo.loadData(this, offset, type, oldSlice)
 
         loadList.forEach { load ->
             val tlbStack = dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceAddress)
@@ -258,7 +256,7 @@ fun TvmStepScopeManager.makeCellToSlice(
     // One cell on a concrete address might both have and not have TL-B scheme for different constraints.
     // This is why absence of TL-B stack is a separate situation on which we have to fork.
     // This is why type of the key is [TlbStack?]
-    val possibleLabels = mutableMapOf<TlbLabel?, UBoolExpr>()
+    val possibleLabels = mutableMapOf<TlbCompositeLabel?, UBoolExpr>()
 
     calcOnStateCtx {
         val infoVariants = dataCellInfoStorage.getLabelForFreshSlice(cellAddress)

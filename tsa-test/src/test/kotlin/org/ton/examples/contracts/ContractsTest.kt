@@ -2,18 +2,17 @@ package org.ton.examples.contracts
 
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.ton.bytecode.MethodId
-import org.ton.examples.FIFT_STDLIB_RESOURCE
-import org.ton.examples.TvmTestExecutor
-import org.ton.examples.checkAtLeastOneStateForAllMethods
-import org.ton.examples.compileAndAnalyzeFift
-import org.ton.examples.extractResource
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.FIFT_STDLIB_RESOURCE
+import org.ton.test.utils.TvmTestExecutor
+import org.ton.test.utils.checkAtLeastOneStateForAllMethods
+import org.ton.test.utils.compileAndAnalyzeFift
+import org.ton.test.utils.extractResource
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.runHardTestsRegex
 import org.ton.runHardTestsVar
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.FiftAnalyzer
-import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import kotlin.io.path.createTempFile
 import kotlin.io.path.deleteIfExists

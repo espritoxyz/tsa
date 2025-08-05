@@ -1,6 +1,7 @@
 package org.ton.test.gen.dsl.render
 
 import org.ton.test.gen.dsl.models.TsAddress
+import org.ton.test.gen.dsl.models.TsArray
 import org.ton.test.gen.dsl.models.TsAssignment
 import org.ton.test.gen.dsl.models.TsBeforeAllBlock
 import org.ton.test.gen.dsl.models.TsBeforeEachBlock
@@ -21,15 +22,19 @@ import org.ton.test.gen.dsl.models.TsEquals
 import org.ton.test.gen.dsl.models.TsExpectToEqual
 import org.ton.test.gen.dsl.models.TsExpectToHaveTransaction
 import org.ton.test.gen.dsl.models.TsFieldAccess
+import org.ton.test.gen.dsl.models.TsGreater
 import org.ton.test.gen.dsl.models.TsInt
 import org.ton.test.gen.dsl.models.TsIntValue
+import org.ton.test.gen.dsl.models.TsLambdaPredicate
 import org.ton.test.gen.dsl.models.TsMethodCall
 import org.ton.test.gen.dsl.models.TsNum
 import org.ton.test.gen.dsl.models.TsNumAdd
 import org.ton.test.gen.dsl.models.TsNumDiv
+import org.ton.test.gen.dsl.models.TsNumPow
 import org.ton.test.gen.dsl.models.TsNumSub
 import org.ton.test.gen.dsl.models.TsObject
 import org.ton.test.gen.dsl.models.TsObjectInit
+import org.ton.test.gen.dsl.models.TsPredicate
 import org.ton.test.gen.dsl.models.TsSandboxContract
 import org.ton.test.gen.dsl.models.TsSendMessageResult
 import org.ton.test.gen.dsl.models.TsSlice
@@ -40,6 +45,7 @@ import org.ton.test.gen.dsl.models.TsStringValue
 import org.ton.test.gen.dsl.models.TsTestBlock
 import org.ton.test.gen.dsl.models.TsTestCase
 import org.ton.test.gen.dsl.models.TsTestFile
+import org.ton.test.gen.dsl.models.TsTransaction
 import org.ton.test.gen.dsl.models.TsType
 import org.ton.test.gen.dsl.models.TsVariable
 import org.ton.test.gen.dsl.models.TsVoid
@@ -60,7 +66,10 @@ interface TsVisitor<R> {
     fun visit(element: TsBigint): R
     fun visit(element: TsWrapper): R
     fun visit(element: TsObject): R
+    fun visit(element: TsTransaction): R
+    fun <T : TsType> visit(element: TsPredicate<T>): R
     fun <T : TsWrapper> visit(element: TsSandboxContract<T>): R
+    fun <T : TsType> visit(element: TsArray<T>): R
 
     /* blocks */
     fun visit(element: TsTestFile): R
@@ -96,9 +105,12 @@ interface TsVisitor<R> {
     fun visit(element: TsBuilderValue): R
     fun <T : TsType> visit(element: TsEquals<T>): R
     fun <T : TsObject> visit(element: TsObjectInit<T>): R
+    fun <T : TsType> visit(element: TsGreater<T>): R
+    fun <T : TsType> visit(element: TsLambdaPredicate<T>): R
 
     /* arithmetic */
     fun <T : TsNum> visit(element: TsNumAdd<T>): R
     fun <T : TsNum> visit(element: TsNumSub<T>): R
     fun <T : TsNum> visit(element: TsNumDiv<T>): R
+    fun <T : TsNum> visit(element: TsNumPow<T>): R
 }

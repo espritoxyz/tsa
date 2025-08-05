@@ -41,9 +41,6 @@ fun sliceLoadIntTransaction(
     val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
 
     sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned) { value ->
-        // hide the original [scope] from this closure
-        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-        val scope = Unit
         validateSliceLoadState(originalStateId)
 
         result = value
@@ -63,9 +60,6 @@ fun sliceLoadAddrTransaction(
     }
 
     sliceLoadAddrTlb(scope, slice, updatedSlice) { value ->
-        // hide the original [scope] from this closure
-        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-        val scope = Unit
         validateSliceLoadState(originalStateId)
 
         result = value
@@ -104,9 +98,6 @@ fun sliceLoadRefTransaction(
     }
 
     sliceLoadRefTlb(scope, slice, updatedSlice) { value ->
-        // hide the original [scope] from this closure
-        @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-        val scope = Unit
         validateSliceLoadState(originalStateId)
 
         result = value

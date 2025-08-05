@@ -4,7 +4,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import mu.KLogging
 import org.ton.TvmInputInfo
-import org.ton.boc.BagOfCells
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.setTSACheckerFunctions
@@ -35,7 +34,8 @@ import kotlin.time.Duration.Companion.minutes
 sealed interface TvmAnalyzer<SourcesDescription> {
     fun analyzeAllMethods(
         sources: SourcesDescription,
-        contractDataHex: String? = null,
+        concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+        concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
         methodsBlackList: Set<MethodId> = hashSetOf(),
         methodsWhiteList: Set<MethodId>? = null,
         inputInfo: Map<BigInteger, TvmInputInfo> = emptyMap(),
@@ -43,18 +43,19 @@ sealed interface TvmAnalyzer<SourcesDescription> {
         takeEmptyTests: Boolean = false,
     ): TvmContractSymbolicTestResult {
         val contract = convertToTvmContractCode(sources)
-        return analyzeAllMethods(contract, methodsBlackList, methodsWhiteList, contractDataHex, inputInfo, tvmOptions)
+        return analyzeAllMethods(contract, methodsBlackList, methodsWhiteList, concreteGeneralData, concreteContractData, inputInfo, tvmOptions)
     }
 
     fun analyzeSpecificMethod(
         sources: SourcesDescription,
         methodId: MethodId,
-        contractDataHex: String? = null,
+        concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+        concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
         inputInfo: TvmInputInfo = TvmInputInfo(),
         tvmOptions: TvmOptions = TvmOptions(quietMode = true, timeout = 10.minutes),
     ): TvmSymbolicTestSuite {
         val contract = convertToTvmContractCode(sources)
-        return analyzeSpecificMethod(contract, methodId, contractDataHex, inputInfo, tvmOptions)
+        return analyzeSpecificMethod(contract, methodId, concreteGeneralData, concreteContractData, inputInfo, tvmOptions)
     }
 
     fun convertToTvmContractCode(sources: SourcesDescription): TsaContractCode
@@ -80,7 +81,8 @@ class TactAnalyzer(
         val project = config.projects.firstOrNull {
             it.name == sources.projectName
         } ?: error("Project with name ${sources.projectName} not found.")
-        val outputDir = sources.configPath.parent.toAbsolutePath() / project.output
+        val curDirectory = sources.configPath.parent?.toAbsolutePath() ?: Paths.get("").toAbsolutePath()
+        val outputDir = curDirectory / project.output
         val bocFileName = "${sources.projectName}_${sources.contractName}.code.boc"
 
         return outputDir.resolve(bocFileName).normalize()
@@ -128,7 +130,6 @@ class TactAnalyzer(
 }
 
 class FuncAnalyzer(
-    private val funcStdlibPath: Path,
     private val fiftStdlibPath: Path,
 ) : TvmAnalyzer<Path> {
     private val funcExecutablePath: Path = Paths.get(FUNC_EXECUTABLE)
@@ -145,7 +146,7 @@ class FuncAnalyzer(
     }
 
     fun compileFuncSourceToFift(funcSourcesPath: Path, fiftFilePath: Path) {
-        val funcCommand = "$funcExecutablePath -AP $funcStdlibPath ${funcSourcesPath.absolutePathString()}"
+        val funcCommand = "$funcExecutablePath -AP ${funcSourcesPath.absolutePathString()}"
         val executionCommand = funcCommand.toExecutionCommand()
         val (exitValue, completedInTime, output, errors) = executeCommandWithTimeout(executionCommand, COMPILER_TIMEOUT)
 
@@ -164,7 +165,7 @@ class FuncAnalyzer(
 
     fun compileFuncSourceToBoc(funcSourcesPath: Path, bocFilePath: Path) {
         val funcCommand =
-            "$funcExecutablePath -W ${bocFilePath.absolutePathString()} $funcStdlibPath ${funcSourcesPath.absolutePathString()}"
+            "$funcExecutablePath -W ${bocFilePath.absolutePathString()} ${funcSourcesPath.absolutePathString()}"
         val fiftCommand = "$fiftExecutablePath -I $fiftStdlibPath"
         val command = "$funcCommand | $fiftCommand"
         val executionCommand = command.toExecutionCommand()
@@ -426,7 +427,8 @@ fun analyzeInterContract(
     additionalObserver: UMachineObserver<TvmState>? = null,
     options: TvmOptions = TvmOptions(),
     throwNotImplementedError: Boolean = false,
-    manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
+    manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
+    concreteContractData: List<TvmConcreteContractData> = contracts.map { TvmConcreteContractData() },
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
     val startContractCode = contracts[startContractId]
@@ -440,14 +442,14 @@ fun analyzeInterContract(
         machine.analyze(
             contracts,
             startContractId,
-            // TODO support contract data for inter contract
-            contractData = contracts.map { null },
+            concreteGeneralData = TvmConcreteGeneralData(),
+            concreteContractData = concreteContractData,
             coverageStatistics,
             methodId,
             inputInfo = inputInfo,
             additionalStopStrategy = additionalStopStrategy,
             additionalObserver = additionalObserver,
-            manualStatePostProcess = manualStatePostProcess,
+            manualStateProcessor = manualStateProcessor,
         )
     }
 
@@ -459,7 +461,8 @@ fun analyzeAllMethods(
     contract: TsaContractCode,
     methodsBlackList: Set<MethodId> = hashSetOf(),
     methodWhitelist: Set<MethodId>? = null,
-    contractDataHex: String? = null,
+    concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+    concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     inputInfo: Map<BigInteger, TvmInputInfo> = emptyMap(),
     tvmOptions: TvmOptions = TvmOptions(),
     takeEmptyTests: Boolean = false,
@@ -476,7 +479,8 @@ fun analyzeAllMethods(
         analyzeSpecificMethod(
             contract,
             method.id,
-            contractDataHex,
+            concreteGeneralData,
+            concreteContractData,
             inputInfo[method.id] ?: TvmInputInfo(),
             tvmOptions
         )
@@ -485,19 +489,15 @@ fun analyzeAllMethods(
     return TvmTestResolver.groupTestSuites(methodTests, takeEmptyTests)
 }
 
-@OptIn(ExperimentalStdlibApi::class)
 fun analyzeSpecificMethod(
     contract: TsaContractCode,
     methodId: MethodId,
-    contractDataHex: String? = null,
+    concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+    concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     inputInfo: TvmInputInfo = TvmInputInfo(),
     tvmOptions: TvmOptions = TvmOptions(),
-    manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
+    manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
 ): TvmSymbolicTestSuite {
-    val contractData = contractDataHex?.let {
-        BagOfCells(it.hexToByteArray()).roots.single()
-    }
-
     val machine = TvmMachine(tvmOptions = tvmOptions)
     val (states, coverage) = machine.use {
         runAnalysisInCatchingBlock(
@@ -507,11 +507,12 @@ fun analyzeSpecificMethod(
         ) { coverageStatistics ->
             machine.analyze(
                 contract,
-                contractData,
+                concreteGeneralData,
+                concreteContractData,
                 coverageStatistics,
                 methodId,
                 inputInfo,
-                manualStatePostProcess,
+                manualStateProcessor,
             )
         }
     }
@@ -521,10 +522,9 @@ fun analyzeSpecificMethod(
 
 fun getFuncContract(
     path: Path,
-    funcStdlibPath: Path,
     fiftStdlibPath: Path,
     isTSAChecker: Boolean = false
-): TsaContractCode = FuncAnalyzer(funcStdlibPath, fiftStdlibPath).convertToTvmContractCode(path).also {
+): TsaContractCode = FuncAnalyzer(fiftStdlibPath).convertToTvmContractCode(path).also {
     if (isTSAChecker) {
         setTSACheckerFunctions(it)
     }

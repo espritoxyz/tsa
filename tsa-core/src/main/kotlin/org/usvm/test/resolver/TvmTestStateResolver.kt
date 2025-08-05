@@ -1,10 +1,6 @@
 package org.usvm.test.resolver
 
-import io.ksmt.expr.KArrayConst
 import io.ksmt.expr.KBitVecValue
-import io.ksmt.expr.KExpr
-import io.ksmt.sort.KArraySortBase
-import io.ksmt.sort.KSort
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbAtomicLabel
@@ -164,13 +160,18 @@ class TvmTestStateResolver(
             ?: error("Unexpected address type")
     }
 
-    fun resolveContractBalance(): TvmTestIntegerValue {
+    fun resolveInitialContractBalance(): TvmTestIntegerValue {
         val balance = getContractParam(BALANCE_PARAMETER_IDX).tupleValue
             ?.get(0, stack)?.cell(stack)
             ?: error("Unexpected contract balance")
 
-        return (resolveStackValue(balance) as? TvmTestIntegerValue)
+        val c7Balance = (resolveStackValue(balance) as? TvmTestIntegerValue)
             ?: error("Unexpected balance type")
+
+        return when (val input = resolveInput()) {
+            is TvmTestInput.RecvInternalInput -> TvmTestIntegerValue(c7Balance.value - input.msgValue.value)
+            is TvmTestInput.StackInput -> c7Balance
+        }
     }
 
     fun resolveTime(): TvmTestIntegerValue {
@@ -482,10 +483,12 @@ class TvmTestStateResolver(
                 is TvmRefsMemoryRegion.TvmRefsRegionPinpointUpdateNode -> {
                     val guardValue = evaluateInModel(updateNode.guard)
                     if (guardValue.isTrue) {
-                        val idx = resolveInt(updateNode.key)
-                        if (idx < refsLength) {
-                            val refCell = resolveCell(updateNode.value)
-                            storedRefs.putIfAbsent(idx, refCell)
+                        updateNode.values.forEach { (key, value) ->
+                            val idx = resolveInt(key)
+                            if (idx < refsLength) {
+                                val refCell = resolveCell(value)
+                                storedRefs.putIfAbsent(idx, refCell)
+                            }
                         }
                     }
                 }

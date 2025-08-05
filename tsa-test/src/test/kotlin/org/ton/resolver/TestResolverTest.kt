@@ -2,7 +2,7 @@ package org.ton.resolver
 
 import org.ton.bigint.plus
 import org.ton.bytecode.TvmArithmDivInst
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.state.TvmIntegerOverflowError
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmMethodFailure

@@ -8,6 +8,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bytecode.BALANCE_PARAMETER_IDX
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.TvmCell
+import org.ton.bytecode.TvmCellData
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -29,6 +31,7 @@ import java.math.BigInteger
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.api.writeField
+import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.GRAMS_LENGTH_BITS
 import org.usvm.machine.TvmContext.Companion.HASH_BITS
@@ -162,6 +165,8 @@ const val gasPrice = 26214400
 
 fun TvmState.initContractInfo(
     contractCode: TsaContractCode,
+    concreteData: TvmConcreteContractData,
+    msgValue: UExpr<TvmInt257Sort>?,
 ): TvmStackTupleValueConcreteNew = with(ctx) {
     val tag = TvmStackIntValue(mkBvHex("076ef1ea", sizeBits = INT_BITS).uncheckedCast())
 
@@ -184,7 +189,17 @@ fun TvmState.initContractInfo(
     val transactionLogicTime = TvmStackIntValue(zeroValue)
 
     val randomSeed = TvmStackIntValue(makeSymbolicPrimitive(int257sort))
-    val grams = makeSymbolicPrimitive(int257sort)
+
+    val initialBalance = if (concreteData.initialBalance == null) {
+        makeSymbolicPrimitive(int257sort)
+    } else {
+        concreteData.initialBalance.toBv257()
+    }
+    val grams = if (msgValue == null) {
+        initialBalance
+    } else {
+        mkBvAddExpr(initialBalance, msgValue)
+    }
     val balance = TvmStackTupleValueConcreteNew(
         ctx,
         persistentListOf(
@@ -192,10 +207,10 @@ fun TvmState.initContractInfo(
             TvmStackNullValue.toStackEntry(),
         )
     )
-    val workchain = makeSymbolicPrimitive(mkBv8Sort())
-    val extendedWorkchain = workchain.signedExtendToInteger()
-    val addr = TvmStackCellValue(
-        allocDataCellFromData(
+
+    val (addrValue, workchain) = if (concreteData.addressBits == null) {
+        val workchain = makeSymbolicPrimitive(mkBv8Sort())
+        val address = allocDataCellFromData(
             mkBvConcatExpr(
                 mkBvConcatExpr(
                     // addr_std$10 anycast:(Maybe Anycast)
@@ -207,7 +222,22 @@ fun TvmState.initContractInfo(
                 makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt()))
             )
         )
-    )
+        address to workchain
+    } else {
+        val address = allocateCell(TvmCell(data = TvmCellData(concreteData.addressBits), refs = emptyList()))
+        val workchain = mkBv(
+            concreteData.addressBits.substring(
+                TvmContext.ADDRESS_TAG_LENGTH + 1,
+                TvmContext.ADDRESS_TAG_LENGTH + 1 + TvmContext.STD_WORKCHAIN_BITS,
+            ),
+            TvmContext.STD_WORKCHAIN_BITS.toUInt()
+        )
+        address to workchain
+    }
+
+    val extendedWorkchain = workchain.signedExtendToInteger()
+
+    val addr = TvmStackCellValue(addrValue)
     val config = TvmStackCellValue(initConfigRoot())
     val code = TvmStackCellValue(allocateCell(contractCode.codeCell))
 
@@ -241,7 +271,7 @@ fun TvmState.initContractInfo(
     pathConstraints += mkBvSignedGreaterExpr(maxTimestampValue, blockLogicTime.intValue)
     pathConstraints += mkBvSignedGreaterOrEqualExpr(transactionLogicTime.intValue, zeroValue)
     pathConstraints += mkBvSignedGreaterExpr(maxTimestampValue, transactionLogicTime.intValue)
-    pathConstraints += mkBvSignedGreaterOrEqualExpr(grams, zeroValue)
+    pathConstraints += mkBvSignedGreaterOrEqualExpr(initialBalance, zeroValue)
     pathConstraints += mkBvSignedGreaterOrEqualExpr(storagePhaseFees.intValue, zeroValue)
     pathConstraints += mkAnd((extendedWorkchain eq masterchain) or (extendedWorkchain eq baseChain))
 

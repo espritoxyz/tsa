@@ -61,8 +61,8 @@ abstract class TsBlockBuilder<T : TsBlock> : TsBuilder<T> {
         statements += TsAssignment(this, value)
     }
 
-    fun <T : TsType> TsExpression<T>.expectToEqual(expected: TsExpression<T>) {
-        statements += TsExpectToEqual(actual = this, expected)
+    fun <T : TsType> TsExpression<T>.expectToEqual(expected: TsExpression<T>, message: String? = null) {
+        statements += TsExpectToEqual(actual = this, expected, message = message)
     }
 
     fun TsExpression<TsSendMessageResult>.expectToHaveTransaction(
@@ -131,9 +131,10 @@ class TsExpectToHaveTransactionBuilder(
     var successful: TsExpression<TsBoolean>? = null
     var aborted: TsExpression<TsBoolean>? = null
     var deploy: TsExpression<TsBoolean>? = null
+    var message: String? = null
 
     override fun build(): TsExpectToHaveTransaction =
-        TsExpectToHaveTransaction(sendMessageResult, from, to, value, body, exitCode, successful, aborted, deploy)
+        TsExpectToHaveTransaction(sendMessageResult, from, to, value, body, exitCode, successful, aborted, deploy, message)
 }
 
 fun TsContext.testFile(name: String, block: TsTestFileBuilder.() -> Unit) =

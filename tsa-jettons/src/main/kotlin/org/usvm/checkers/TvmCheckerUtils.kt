@@ -4,6 +4,7 @@ import org.ton.TvmInputInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
 import org.usvm.FirstFailureTerminator
+import org.usvm.machine.TvmManualStateProcessor
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.state.TvmState
@@ -18,6 +19,9 @@ fun runAnalysisAndExtractFailingExecutions(
     useRecvInternalInput: Boolean = true,
     manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
 ): List<TvmSymbolicTest> {
+    val postProcessor = object : TvmManualStateProcessor() {
+        override fun postProcessBeforePartialConcretization(state: TvmState): List<TvmState> = manualStatePostProcess(state)
+    }
     val additionalStopStrategy = FirstFailureTerminator()
     val analysisResult = analyzeInterContract(
         contracts,
@@ -30,7 +34,8 @@ fun runAnalysisAndExtractFailingExecutions(
             useRecvInternalInput = useRecvInternalInput
         ),
         inputInfo = inputInfo ?: TvmInputInfo(),
-        manualStatePostProcess = manualStatePostProcess,
+        manualStateProcessor = postProcessor,
+        throwNotImplementedError = true,
     )
     val foundTests = analysisResult.tests
     val result = foundTests.filter { it.result is TvmMethodFailure }

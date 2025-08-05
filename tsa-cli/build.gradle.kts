@@ -15,7 +15,7 @@ dependencies {
     implementation("com.github.ajalt.clikt:clikt:${Versions.clikt}")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${Versions.kotlinx_serialization}")
-
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-tvm", version = Versions.tonKotlin)
 }
 
 val mainClassName = "org.ton.MainKt"

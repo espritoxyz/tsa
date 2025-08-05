@@ -1,8 +1,8 @@
 package org.ton.examples.signature
 
-import org.ton.examples.TvmTestExecutor
-import org.ton.examples.extractResource
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.TvmTestExecutor
+import org.ton.test.utils.extractResource
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.usvm.machine.TvmContext
 import org.usvm.test.resolver.TvmMethodFailure

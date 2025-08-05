@@ -45,10 +45,6 @@ class TvmMessageAddrInterpreter(
         }
 
         sliceLoadAddrTlb(scope, slice, updatedSlice) { value ->
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             doWithState {
                 addOnStack(value, TvmSliceType)
                 addOnStack(updatedSlice, TvmSliceType)

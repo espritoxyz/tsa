@@ -8,6 +8,6 @@ sealed interface TvmParameterInfo {
 
     sealed interface CellInfo : TvmParameterInfo
     data object UnknownCellInfo : CellInfo
-    data class DataCellInfo(val dataCellStructure: TlbLabel) : CellInfo
+    data class DataCellInfo(val dataCellStructure: TlbCompositeLabel) : CellInfo
     data class DictCellInfo(val keySize: Int) : CellInfo
 }

@@ -1,0 +1,15 @@
+#include "../imports/stdlib.fc";
+
+const int stonfi_address_int = 0x779dcc815138d9500e449c5291e7f12738c23d575b5310000f6a253bd607384e;
+
+() recv_internal() impure {
+    var me = my_address();
+    var stonfi_address = begin_cell()
+        .store_uint(1, 1)
+        .store_uint(0, 10)
+        .store_uint(stonfi_address_int, 256)
+        .end_cell()
+        .begin_parse();
+
+    throw_if(1000, equal_slice_bits(me, stonfi_address));
+}

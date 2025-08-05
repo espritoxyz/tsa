@@ -1,9 +1,9 @@
 package org.ton.examples.types
 
 import org.ton.Endian
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
-import org.ton.examples.propertiesFound
-import org.ton.examples.testOptionsToAnalyzeSpecificMethod
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.propertiesFound
+import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.test.resolver.TvmCellDataTypeLoad
 import org.usvm.test.resolver.TvmTestCellDataIntegerRead
 import org.usvm.test.resolver.TvmTestCellDataMaybeConstructorBitRead

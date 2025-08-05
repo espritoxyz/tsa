@@ -1,5 +1,6 @@
 package org.ton.examples
 
+import org.ton.test.utils.analyzeAllMethods
 import kotlin.test.Test
 import kotlin.test.assertTrue
 

@@ -1,7 +1,7 @@
 package org.ton.examples.minimization
 
-import org.ton.examples.extractResource
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.extractResource
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.toMethodId
 import org.usvm.test.minimization.minimizeTestCase
 import kotlin.test.Test

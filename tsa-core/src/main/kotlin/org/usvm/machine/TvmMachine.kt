@@ -5,7 +5,6 @@ import org.ton.TvmInputInfo
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmInst
-import org.ton.cell.Cell
 import org.usvm.PathSelectionStrategy
 import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
@@ -26,13 +25,13 @@ import org.usvm.stopstrategies.StopStrategy
 import org.usvm.stopstrategies.TimeoutStopStrategy
 import java.math.BigInteger
 import kotlin.time.Duration.Companion.INFINITE
-import kotlin.time.Duration.Companion.seconds
 
 class TvmMachine(
-    private val tvmOptions: TvmOptions = TvmOptions(),
+    tvmOptions: TvmOptions = TvmOptions(),
 ) : UMachine<TvmState>() {
-    private val options: UMachineOptions = defaultOptions.copy(
+    override val options: UMachineOptions = defaultOptions.copy(
         timeout = tvmOptions.timeout,
+        solverTimeout = tvmOptions.solverTimeout,
         loopIterationLimit = tvmOptions.loopIterationLimit,
     )
 
@@ -41,32 +40,35 @@ class TvmMachine(
 
     fun analyze(
         contractCode: TsaContractCode,
-        contractData: Cell?,
+        concreteGeneralData: TvmConcreteGeneralData,
+        concreteContractData: TvmConcreteContractData,
         coverageStatistics: TvmCoverageStatistics,
         methodId: BigInteger,
         inputInfo: TvmInputInfo = TvmInputInfo(),
-        manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
+        manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
     ): List<TvmState> =
         analyze(
             listOf(contractCode),
             startContractId = 0,
-            listOf(contractData),
+            concreteGeneralData,
+            listOf(concreteContractData),
             coverageStatistics,
             methodId,
             inputInfo,
-            manualStatePostProcess = manualStatePostProcess
+            manualStateProcessor = manualStateProcessor
         )
 
     fun analyze(
         contractsCode: List<TsaContractCode>,
         startContractId: ContractId,
-        contractData: List<Cell?>,
+        concreteGeneralData: TvmConcreteGeneralData,
+        concreteContractData: List<TvmConcreteContractData>,
         coverageStatistics: TvmCoverageStatistics,  // TODO: adapt for several contracts
         methodId: BigInteger,
         inputInfo: TvmInputInfo = TvmInputInfo(),
         additionalStopStrategy: StopStrategy = StopStrategy { false },
         additionalObserver: UMachineObserver<TvmState>? = null,
-        manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
+        manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
     ): List<TvmState> {
         val interpreter = TvmInterpreter(
             ctx,
@@ -75,7 +77,7 @@ class TvmMachine(
             inputInfo = inputInfo,
         )
         logger.debug("{}.analyze({})", this, contractsCode)
-        val initialState = interpreter.getInitialState(startContractId, contractData, methodId)
+        val initialState = interpreter.getInitialState(startContractId, concreteGeneralData, concreteContractData, methodId)
 
         val loopTracker = TvmLoopTracker()
         val pathSelector = createPathSelector(
@@ -152,8 +154,9 @@ class TvmMachine(
             stopStrategy = integrativeStopStrategy,
         )
 
-        val states = statesCollector.collectedStates.flatMap { manualStatePostProcess(it) }
-        return interpreter.postProcessStates(states)
+        var states = statesCollector.collectedStates.flatMap { manualStateProcessor.postProcessBeforePartialConcretization(it) }
+        states = interpreter.postProcessStates(states)
+        return states.flatMap { manualStateProcessor.postProcessAfterPartialConcretization(it) }
     }
 
     private fun isStateTerminated(state: TvmState): Boolean = state.isTerminated
@@ -174,7 +177,7 @@ class TvmMachine(
             loopIterativeDeepening = true,
             loopIterationLimit = DEFAULT_LOOP_ITERATIONS_LIMIT,
             stepLimit = null,
-            solverTimeout = 1.seconds
+            throwExceptionOnStepFailure = true,
         )
     }
 

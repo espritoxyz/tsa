@@ -162,20 +162,26 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
         val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
 
         val ptr = ParsingState(msgSlice)
-        val (msgFull, msgValue) = parseCommonMsgInfoRelaxed(scope, ptr)
+        val (msgFull, msgValue, destination) = parseCommonMsgInfoRelaxed(scope, ptr)
             ?: return null
         parseStateInit(scope, ptr)
             ?: return null
         val bodySlice = parseBody(scope, ptr)
             ?: return null
 
-        OutMessage(msgValue, msgFull, bodySlice)
+        OutMessage(msgValue, msgFull, bodySlice, destination)
     }
+
+    private data class CommonMessageInfo(
+        val msgFull: UHeapRef,
+        val msgValue: UExpr<TvmInt257Sort>,
+        val destAddrSlice: UHeapRef,
+    )
 
     private fun parseCommonMsgInfoRelaxed(
         scope: TvmStepScopeManager,
         ptr: ParsingState
-    ): Pair<UHeapRef, UExpr<TvmInt257Sort>>? = with(ctx) {
+    ): CommonMessageInfo? = with(ctx) {
         val msgFull = scope.calcOnState { allocEmptyBuilder() }
 
         val tag = sliceLoadIntTransaction(scope, ptr.slice, 1)?.second
@@ -243,7 +249,7 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
             sliceLoadIntTransaction(scope, ptr.slice, 32)?.unwrap(ptr)
                 ?: return@with null
 
-            return scope.builderToCell(msgFull) to symbolicMsgValue
+            return CommonMessageInfo(scope.builderToCell(msgFull), symbolicMsgValue, destSlice)
         }
 
         TODO("External messages are not supported")
@@ -439,4 +445,5 @@ data class OutMessage(
     val msgValue: UExpr<TvmInt257Sort>,
     val fullMsgCell: UHeapRef,
     val msgBodySlice: UHeapRef,
+    val destAddrSlice: UHeapRef,
 )

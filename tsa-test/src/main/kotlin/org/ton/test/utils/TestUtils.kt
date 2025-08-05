@@ -1,10 +1,10 @@
-package org.ton.examples
+package org.ton.test.utils
 
+import org.ton.TlbCompositeLabel
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
-import org.ton.examples.types.InputParameterInfoTests
 import org.ton.tlb.readFromJson
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.FiftAnalyzer
@@ -12,6 +12,8 @@ import org.usvm.machine.FiftInterpreterResult
 import org.usvm.machine.FuncAnalyzer
 import org.usvm.machine.TactAnalyzer
 import org.usvm.machine.TactSourcesDescription
+import org.usvm.machine.TvmConcreteContractData
+import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
@@ -35,6 +37,7 @@ import org.usvm.machine.toMethodId
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import kotlin.io.path.Path
 import kotlin.io.path.deleteIfExists
+import kotlin.reflect.KClass
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -54,7 +57,8 @@ fun extractResource(resourcePath: String) =
 
 fun tactCompileAndAnalyzeAllMethods(
     tactSources: TactSourcesDescription,
-    contractDataHex: String? = null,
+    concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+    concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     methodsBlackList: Set<MethodId> = hashSetOf(),
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
@@ -62,7 +66,8 @@ fun tactCompileAndAnalyzeAllMethods(
     takeEmptyTests: Boolean = false,
 ): TvmContractSymbolicTestResult = TactAnalyzer().analyzeAllMethods(
     tactSources,
-    contractDataHex,
+    concreteGeneralData,
+    concreteContractData,
     methodsBlackList,
     methodWhiteList,
     inputInfo,
@@ -72,17 +77,18 @@ fun tactCompileAndAnalyzeAllMethods(
 
 fun funcCompileAndAnalyzeAllMethods(
     funcSourcesPath: Path,
-    contractDataHex: String? = null,
+    concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+    concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     methodsBlackList: Set<MethodId> = hashSetOf(),
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
     tvmOptions: TvmOptions = TvmOptions(),
 ): TvmContractSymbolicTestResult = FuncAnalyzer(
-    funcStdlibPath = FUNC_STDLIB_RESOURCE,
     fiftStdlibPath = FIFT_STDLIB_RESOURCE,
 ).analyzeAllMethods(
     funcSourcesPath,
-    contractDataHex,
+    concreteGeneralData,
+    concreteContractData,
     methodsBlackList,
     methodWhiteList,
     inputInfo,
@@ -91,14 +97,16 @@ fun funcCompileAndAnalyzeAllMethods(
 
 fun compileAndAnalyzeFift(
     fiftPath: Path,
-    contractDataHex: String? = null,
+    concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+    concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     methodsBlackList: Set<MethodId> = hashSetOf(),
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
     tvmOptions: TvmOptions = TvmOptions(),
 ): TvmContractSymbolicTestResult = FiftAnalyzer(fiftStdlibPath = FIFT_STDLIB_RESOURCE).analyzeAllMethods(
     fiftPath,
-    contractDataHex,
+    concreteGeneralData,
+    concreteContractData,
     methodsBlackList,
     methodWhiteList,
     inputInfo,
@@ -108,13 +116,15 @@ fun compileAndAnalyzeFift(
 fun compileAndAnalyzeFift(
     fiftPath: Path,
     methodId: MethodId,
-    contractDataHex: String? = null,
+    concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+    concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     inputInfo: TvmInputInfo = TvmInputInfo(),
     tvmOptions: TvmOptions = TvmOptions(),
 ): TvmSymbolicTestSuite = FiftAnalyzer(fiftStdlibPath = FIFT_STDLIB_RESOURCE).analyzeSpecificMethod(
     fiftPath,
     methodId,
-    contractDataHex,
+    concreteGeneralData,
+    concreteContractData,
     inputInfo,
     tvmOptions,
 )
@@ -131,26 +141,26 @@ fun compileFiftCodeBlocksContract(
 
 fun compileFuncToFift(funcSourcesPath: Path, fiftFilePath: Path) =
     FuncAnalyzer(
-        funcStdlibPath = FUNC_STDLIB_RESOURCE,
         fiftStdlibPath = FIFT_STDLIB_RESOURCE,
     ).compileFuncSourceToFift(funcSourcesPath, fiftFilePath)
 
 fun analyzeAllMethods(
     bytecodePath: String,
-    contractDataHex: String? = null,
+    concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+    concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     methodsBlackList: Set<MethodId> = hashSetOf(),
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
     options: TvmOptions = TvmOptions(),
 ): TvmContractSymbolicTestResult =
-    BocAnalyzer.analyzeAllMethods(Path(bytecodePath), contractDataHex, methodsBlackList, methodWhiteList, inputInfo, options)
+    BocAnalyzer.analyzeAllMethods(Path(bytecodePath), concreteGeneralData, concreteContractData, methodsBlackList, methodWhiteList, inputInfo, options)
 
 fun analyzeFuncIntercontract(
     sources: List<Path>,
     startContract: ContractId = 0,
     options: TvmOptions,
 ): TvmSymbolicTestSuite {
-    val contracts = sources.map { getFuncContract(it, FUNC_STDLIB_RESOURCE, FIFT_STDLIB_RESOURCE) }
+    val contracts = sources.map { getFuncContract(it, FIFT_STDLIB_RESOURCE) }
 
     return analyzeInterContract(
         contracts = contracts,
@@ -326,10 +336,10 @@ internal fun checkInvariants(
     assertTrue(failedInvariants.isEmpty(), "Invariants $failedInvariants were violated")
 }
 
-internal fun extractTlbInfo(typesPath: String): Map<MethodId, TvmInputInfo> {
-    val path = InputParameterInfoTests::class.java.getResource(typesPath)?.path
+internal fun extractTlbInfo(typesPath: String, callerClass: KClass<*>): Map<MethodId, TvmInputInfo> {
+    val path = callerClass.java.getResource(typesPath)?.path
         ?: error("Cannot find resource bytecode $typesPath")
-    val struct = readFromJson(Path(path), "InternalMsgBody")
+    val struct = readFromJson(Path(path), "InternalMsgBody") as? TlbCompositeLabel
         ?: error("Couldn't parse TL-B structure")
     val info = TvmParameterInfo.SliceInfo(
         TvmParameterInfo.DataCellInfo(

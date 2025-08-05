@@ -2,6 +2,7 @@ package org.ton.test.gen.dsl.render
 
 import org.ton.test.gen.dsl.TsContext
 import org.ton.test.gen.dsl.models.TsAddress
+import org.ton.test.gen.dsl.models.TsArray
 import org.ton.test.gen.dsl.models.TsAssignment
 import org.ton.test.gen.dsl.models.TsBeforeAllBlock
 import org.ton.test.gen.dsl.models.TsBeforeEachBlock
@@ -26,15 +27,19 @@ import org.ton.test.gen.dsl.models.TsExpectToEqual
 import org.ton.test.gen.dsl.models.TsExpectToHaveTransaction
 import org.ton.test.gen.dsl.models.TsExpression
 import org.ton.test.gen.dsl.models.TsFieldAccess
+import org.ton.test.gen.dsl.models.TsGreater
 import org.ton.test.gen.dsl.models.TsInt
 import org.ton.test.gen.dsl.models.TsIntValue
+import org.ton.test.gen.dsl.models.TsLambdaPredicate
 import org.ton.test.gen.dsl.models.TsMethodCall
 import org.ton.test.gen.dsl.models.TsNum
 import org.ton.test.gen.dsl.models.TsNumAdd
 import org.ton.test.gen.dsl.models.TsNumDiv
+import org.ton.test.gen.dsl.models.TsNumPow
 import org.ton.test.gen.dsl.models.TsNumSub
 import org.ton.test.gen.dsl.models.TsObject
 import org.ton.test.gen.dsl.models.TsObjectInit
+import org.ton.test.gen.dsl.models.TsPredicate
 import org.ton.test.gen.dsl.models.TsSandboxContract
 import org.ton.test.gen.dsl.models.TsSendMessageResult
 import org.ton.test.gen.dsl.models.TsSlice
@@ -45,18 +50,19 @@ import org.ton.test.gen.dsl.models.TsStringValue
 import org.ton.test.gen.dsl.models.TsTestBlock
 import org.ton.test.gen.dsl.models.TsTestCase
 import org.ton.test.gen.dsl.models.TsTestFile
+import org.ton.test.gen.dsl.models.TsTransaction
 import org.ton.test.gen.dsl.models.TsType
 import org.ton.test.gen.dsl.models.TsVariable
 import org.ton.test.gen.dsl.models.TsVoid
 import org.ton.test.gen.dsl.models.TsWrapper
 import org.ton.test.gen.dsl.wrapper.TsWrapperDescriptor
-import org.usvm.test.resolver.truncateSliceCell
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestDictCellValue
 import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestNullValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestValue
+import org.usvm.test.resolver.truncateSliceCell
 
 class TsRenderer(
     private val ctx: TsContext,
@@ -151,6 +157,17 @@ class TsRenderer(
         printer.print("}")
     }
 
+    override fun visit(element: TsTransaction) {
+        printer.print("Transaction")
+    }
+
+    override fun <T : TsType> visit(element: TsPredicate<T>) {
+        printer.print("(_: ")
+        element.argType.accept(this)
+        printer.print(") => ")
+        TsBoolean.accept(this)
+    }
+
     override fun visit(element: TsWrapper) {
         printer.print(element.name)
     }
@@ -159,6 +176,11 @@ class TsRenderer(
         printer.print("SandboxContract<")
         element.wrapperType.accept(this)
         printer.print(">")
+    }
+
+    override fun <T : TsType> visit(element: TsArray<T>) {
+        element.elementType.accept(this)
+        printer.print("[]")
     }
 
     override fun visit(element: TsTestFile) {
@@ -300,26 +322,48 @@ class TsRenderer(
         if (element.actual.type == TsBigint) {
             // workaround, since jest cannot serialize BigInt with --json flag
 
-            printer.print("expect(")
-            TsEquals(element.actual, element.expected).accept(this)
-            printer.print(").toBe(true)")
+            if (element.message == null) {
+                printer.print("expect(")
+                TsEquals(element.actual, element.expected).accept(this)
+                printer.print(").toBe(true)")
+            } else {
+                printer.print("assertWithMessage(")
+                TsEquals(element.actual, element.expected).accept(this)
+                printer.print(", \"${element.message}\")")
+            }
+
             endStatement()
 
             return
         }
 
-        printer.print("expect(")
-        element.actual.accept(this)
-        printer.print(").toEqual(")
-        element.expected.accept(this)
-        printer.print(")")
+        if (element.message == null) {
+            printer.print("expect(")
+            element.actual.accept(this)
+            printer.print(").toEqual(")
+            element.expected.accept(this)
+            printer.print(")")
+        } else {
+            printer.print("assertWithMessage(")
+            TsEquals(element.actual, element.expected).accept(this)
+            printer.print(", \"${element.message}\")")
+        }
+
         endStatement()
     }
 
     override fun visit(element: TsExpectToHaveTransaction) {
-        printer.print("expect(")
+        if (element.message == null) {
+            printer.print("expect(")
+        } else {
+            printer.print("assertWithMessage(hasTransaction(")
+        }
         element.sendMessageResult.accept(this)
-        printer.println(".transactions).toHaveTransaction({")
+        if (element.message == null) {
+            printer.println(".transactions).toHaveTransaction({")
+        } else {
+            printer.println(".transactions, {")
+        }
 
         val printProperty = { el: TsElement?, propertyName: String ->
             if (el != null) {
@@ -339,7 +383,13 @@ class TsRenderer(
             printProperty(element.aborted, "aborted")
             printProperty(element.deploy, "deploy")
         }
-        printer.print("})")
+
+        if (element.message == null) {
+            printer.print("})")
+        } else {
+            printer.print("}), \"${element.message}\")")
+        }
+
         endStatement()
     }
 
@@ -358,6 +408,12 @@ class TsRenderer(
     override fun <T : TsNum> visit(element: TsNumDiv<T>) {
         precedencePrint(element.lhs, element)
         printer.print(" / ")
+        precedencePrint(element.rhs, element)
+    }
+
+    override fun <T : TsNum> visit(element: TsNumPow<T>) {
+        precedencePrint(element.lhs, element)
+        printer.print(" ** ")
         precedencePrint(element.rhs, element)
     }
 
@@ -412,6 +468,18 @@ class TsRenderer(
         printer.print("}")
     }
 
+    override fun <T : TsType> visit(element: TsGreater<T>) {
+        precedencePrint(element.lhs, element)
+        printer.print(" > ")
+        precedencePrint(element.rhs, element)
+    }
+
+    override fun <T : TsType> visit(element: TsLambdaPredicate<T>) {
+        printer.print(element.argName)
+        printer.print(" => ")
+        precedencePrint(element.body(element.arg), element)
+    }
+
     private fun precedencePrint(element: TsExpression<*>, parent: TsExpression<*>) {
         // TODO support associativity
 
@@ -445,6 +513,9 @@ class TsRenderer(
             is TsNumAdd<*> -> 11
             is TsNumSub<*> -> 11
             is TsEquals<*> -> 8
+            is TsNumPow -> 13
+            is TsGreater<*> -> 9
+            is TsLambdaPredicate<*> -> 2
         }
 
     private fun renderTestValue(arg: TvmTestValue): String =
@@ -521,13 +592,16 @@ class TsRenderer(
 
         private val TEST_FILE_IMPORTS = """
             import {Blockchain, createShardAccount, SandboxContract, SendMessageResult} from '@ton/sandbox'
-            import {Address, beginCell, Builder, Cell, Dictionary, DictionaryValue, Slice, toNano} from '@ton/core'
+            import {Address, beginCell, Builder, Cell, Dictionary, DictionaryValue, Slice, toNano, Transaction} from '@ton/core'
             import '@ton/test-utils'
             import * as fs from "node:fs"
-            import {randomAddress} from "@ton/test-utils"
+            import {randomAddress, findTransaction} from "@ton/test-utils"
         """.trimIndent()
 
         private val TEST_FILE_UTILS = """
+            const bigIntMin = (...args: bigint[]) => args.reduce((m, e) => e < m ? e : m)
+            const bigIntMax = (...args: bigint[]) => args.reduce((m, e) => e > m ? e : m)
+            
             async function initializeContract(
                 blockchain: Blockchain, 
                 address: Address, 
@@ -557,7 +631,17 @@ class TsRenderer(
             async function cellFromHex(hex: string): Promise<Cell> {
                 return Cell.fromBoc(Buffer.from(hex, 'hex'))[0];
             }
+
+            function assertWithMessage(predicate: boolean, message: string) {
+                if (!predicate) {
+                    throw new Error(message)
+                }
+            }
             
+            function hasTransaction(txs: any, match: any) {
+                return findTransaction(txs, match) !== undefined
+            }
+
             """.trimIndent()
 
         private const val FUNC_COMPILER_IMPORT = "import {compileFunc} from \"@ton-community/func-js\""

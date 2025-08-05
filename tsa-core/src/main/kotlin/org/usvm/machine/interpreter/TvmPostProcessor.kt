@@ -143,7 +143,8 @@ class TvmPostProcessor(val ctx: TvmContext) {
         resolver: TvmTestStateResolver
     ): UBoolExpr? = with(ctx) {
         val value = resolver.resolveRef(ref)
-        val fixateValueCond = fixateConcreteValue(scope, ref, value, resolver)
+        val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+        val fixateValueCond = fixator.fixateConcreteValue(scope, ref)
             ?: return@with null
         val concreteHash = calculateConcreteHash(value)
         val hashCond = hash eq concreteHash
@@ -182,7 +183,8 @@ class TvmPostProcessor(val ctx: TvmContext) {
         resolver: TvmTestStateResolver
     ): UBoolExpr? = with(ctx) {
         val value = resolver.resolveRef(ref)
-        val fixateValueCond = fixateConcreteValue(scope, ref, value, resolver, structuralConstraintsOnly = true)
+        val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = true)
+        val fixateValueCond = fixator.fixateConcreteValue(scope, ref)
             ?: return@with null
         val concreteDepth = calculateConcreteDepth(value)
         val depthCond = depth eq concreteDepth
@@ -212,157 +214,5 @@ class TvmPostProcessor(val ctx: TvmContext) {
         }
 
         return 1 + cell.refs.maxOf { calculateCellDepth(it) }
-    }
-
-    private fun fixateConcreteValue(
-        scope: TvmStepScopeManager,
-        ref: UHeapRef,
-        value: TvmTestReferenceValue,
-        resolver: TvmTestStateResolver,
-        structuralConstraintsOnly: Boolean = false,
-    ): UBoolExpr? =
-        when (value) {
-            is TvmTestDataCellValue -> {
-                fixateConcreteValueForDataCell(scope, ref, value, resolver, structuralConstraintsOnly)
-            }
-            is TvmTestSliceValue -> {
-                fixateConcreteValueForSlice(scope, ref, value, resolver, structuralConstraintsOnly)
-            }
-            is TvmTestDictCellValue -> {
-                fixateConcreteValueForDictCell(scope, ref, value, resolver, structuralConstraintsOnly)
-            }
-            is TvmTestBuilderValue -> {
-                fixateConcreteValueForBuilder(scope, ref, value, resolver, structuralConstraintsOnly)
-            }
-        }
-
-    private fun fixateConcreteValueForBuilder(
-        scope: TvmStepScopeManager,
-        ref: UHeapRef,
-        value: TvmTestBuilderValue,
-        resolver: TvmTestStateResolver,
-        structuralConstraintsOnly: Boolean,
-    ): UBoolExpr? {
-        require(ref is UConcreteHeapRef) {
-            "Unexpected non-concrete builder ref $ref"
-        }
-
-        val cellRef = scope.builderToCell(ref)
-        return fixateConcreteValueForDataCell(scope, cellRef, value.endCell(), resolver, structuralConstraintsOnly)
-    }
-
-    private fun fixateConcreteValueForSlice(
-        scope: TvmStepScopeManager,
-        ref: UHeapRef,
-        value: TvmTestSliceValue,
-        resolver: TvmTestStateResolver,
-        structuralConstraintsOnly: Boolean,
-    ): UBoolExpr? = with(ctx) {
-        val dataPosSymbolic = scope.calcOnState { memory.readField(ref, sliceDataPosField, sizeSort) }
-        val refPosSymbolic = scope.calcOnState { memory.readField(ref, sliceRefPosField, sizeSort) }
-        val cellRef = scope.calcOnState { memory.readField(ref, TvmContext.sliceCellField, addressSort) }
-
-        fixateConcreteValueForDataCell(
-            scope,
-            cellRef,
-            truncateSliceCell(value),
-            resolver,
-            structuralConstraintsOnly,
-            dataPosSymbolic,
-            refPosSymbolic
-        )
-    }
-
-    private fun fixateConcreteValueForDataCell(
-        scope: TvmStepScopeManager,
-        ref: UHeapRef,
-        value: TvmTestDataCellValue,
-        resolver: TvmTestStateResolver,
-        structuralConstraintsOnly: Boolean,
-        dataOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
-        refsOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
-    ): UBoolExpr? = with(ctx) {
-        val childrenCond = value.refs.foldIndexed(trueExpr as UBoolExpr) { index, acc, child ->
-            val childRef = scope.calcOnState { readCellRef(ref, mkSizeAddExpr(mkSizeExpr(index), refsOffset)) }
-            val currentConstraint = fixateConcreteValue(scope, childRef, child, resolver, structuralConstraintsOnly)
-                ?: return@with null
-            acc and currentConstraint
-        }
-
-        val symbolicRefNumber = scope.calcOnState {
-            mkSizeSubExpr(
-                memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort),
-                refsOffset,
-            )
-        }
-        val refCond = symbolicRefNumber eq mkSizeExpr(value.refs.size)
-
-        val dataCond = if (!structuralConstraintsOnly) {
-            val symbolicData = scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
-                ?: return@with null
-            val symbolicDataLength = scope.calcOnState {
-                mkSizeSubExpr(
-                    memory.readField(ref, TvmContext.cellDataLengthField, sizeSort),
-                    dataOffset,
-                )
-            }
-
-            val bitsCond = if (value.data.isEmpty()) {
-                trueExpr
-            } else {
-                val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
-                (symbolicData eq concreteData)
-            }
-
-            bitsCond and (symbolicDataLength eq mkSizeExpr(value.data.length))
-        } else {
-            trueExpr
-        }
-
-        childrenCond and refCond and dataCond
-    }
-
-    private fun fixateConcreteValueForDictCell(
-        scope: TvmStepScopeManager,
-        ref: UHeapRef,
-        value: TvmTestDictCellValue,
-        resolver: TvmTestStateResolver,
-        structuralConstraintsOnly: Boolean,
-    ): UBoolExpr? = with(ctx) {
-        val keyLength = scope.calcOnState { memory.readField(ref, dictKeyLengthField, int257sort) }
-        var result = keyLength eq value.keyLength.toBv257()
-
-        // TODO shouldn't the ref value also be fixed in case ref is ite ?
-        //  After assertion dict can contain more entries, as we are not asserting not containing entries
-        val model = resolver.model
-        val modelRef = model.eval(ref) as UConcreteHeapRef
-
-        val dictId = DictId(value.keyLength)
-        val keySort = mkBvSort(value.keyLength.toUInt())
-        val entries = scope.calcOnState {
-            dictKeyEntries(model, memory, modelRef, dictId, keySort)
-        }
-
-        entries.forEach { entry ->
-            val key = entry.setElement
-            val keyContains = scope.calcOnState {
-                dictContainsKey(ref, dictId, key)
-            }
-            val entryValue = scope.calcOnState {
-                dictGetValue(ref, dictId, key)
-            }
-
-            val concreteKey = TvmTestIntegerValue(model.eval(key).bigIntValue())
-            val concreteValue = value.entries[concreteKey]
-            if (concreteValue == null) {
-                result = result and keyContains.not()
-            } else {
-                val valueConstraint = fixateConcreteValue(scope, entryValue, concreteValue, resolver, structuralConstraintsOnly)
-                    ?: return@with null
-                result = result and keyContains and valueConstraint
-            }
-        }
-
-        return result
     }
 }

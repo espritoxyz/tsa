@@ -4,7 +4,6 @@ import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbAtomicLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbLabel
-import org.ton.createWrapperStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.isFalse
@@ -188,11 +187,8 @@ data class TlbStack(
     )
 
     companion object {
-        fun new(ctx: TvmContext, label: TlbLabel): TlbStack {
-            val struct = when (label) {
-                is TlbCompositeLabel -> label.internalStructure
-                is TlbAtomicLabel -> createWrapperStructure(label)
-            }
+        fun new(ctx: TvmContext, label: TlbCompositeLabel): TlbStack {
+            val struct = label.internalStructure
             val frame = buildFrameForStructure(ctx, struct, persistentListOf(), ctx.tvmOptions.tlbOptions.maxTlbDepth)
             val frames = frame?.let { listOf(it) } ?: emptyList()
             return TlbStack(frames)

@@ -291,10 +291,6 @@ private fun resolveReceiveInternalInput(test: TvmSymbolicTest): TvmReceiveIntern
 
     val configHex = transformTestConfigIntoHex(test.config)
 
-    // TODO: this is not really correct, because part of msgValue is used for paying for gas
-    val balance = test.contractBalance
-    val initialBalance = TvmTestIntegerValue(balance.value - input.msgValue.value)
-
     val contractAddress = extractAddress(test.contractAddress.data)
         ?: error("Unexpected incorrect contract address ${test.contractAddress.data}")
     val srcAddress = extractAddress(input.srcAddress.cell.data)
@@ -308,12 +304,12 @@ private fun resolveReceiveInternalInput(test: TvmSymbolicTest): TvmReceiveIntern
     return TvmReceiveInternalInput(
         configHex = configHex,
         msgBodyCell = truncateSliceCell(input.msgBody),
-        initialBalance = initialBalance,
+        initialBalance = test.initialContractBalance,
         time = test.time,
         address = contractAddress,
         srcAddress = srcAddress,
         input = input,
-        exitCode = result.exitCode.toInt(),
+        exitCode = result.exitCode,
     )
 }
 
@@ -346,7 +342,7 @@ private fun resolveReceiveExternalInput(test: TvmSymbolicTest): TvmReceiveExtern
     val configHex = transformTestConfigIntoHex(test.config)
 
     // TODO: this is probably balance at the end of execution. But since we don't take into account gas for now, that's the same thing
-    val balance = test.contractBalance
+    val balance = test.initialContractBalance
 
     val contractAddress = extractAddress(test.contractAddress.data)
         ?: error("Unexpected incorrect contract address")

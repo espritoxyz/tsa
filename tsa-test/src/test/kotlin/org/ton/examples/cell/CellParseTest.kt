@@ -1,9 +1,9 @@
 package org.ton.examples.cell
 
-import org.ton.examples.compareSymbolicAndConcreteResults
-import org.ton.examples.compileAndAnalyzeFift
-import org.ton.examples.testConcreteOptions
-import org.ton.examples.runFiftMethod
+import org.ton.test.utils.compareSymbolicAndConcreteResults
+import org.ton.test.utils.compileAndAnalyzeFift
+import org.ton.test.utils.testConcreteOptions
+import org.ton.test.utils.runFiftMethod
 import kotlin.io.path.Path
 import kotlin.test.Test
 
@@ -22,7 +22,7 @@ class CellParseTest {
             fiftResourcePath,
             tvmOptions = testConcreteOptions,
         )
-        val methodIds = (0..11).toSet()
+        val methodIds = (0..12).toSet()
 
         compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
             runFiftMethod(fiftResourcePath, methodId)

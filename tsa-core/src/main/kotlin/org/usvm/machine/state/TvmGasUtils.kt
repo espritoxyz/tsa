@@ -13,10 +13,16 @@ const val SIMPLE_INSTRUCTION_BASE_GAS = 10
 const val SIMPLE_INSTRUCTION_BIT_GAS = 1
 
 const val SIMPLE_INSTRUCTION_BIT_SIZE = 16 // todo: check for instructions with simple gas and another bit size
-const val SIMPLE_GAS_USAGE = SIMPLE_INSTRUCTION_BASE_GAS + SIMPLE_INSTRUCTION_BIT_SIZE * SIMPLE_INSTRUCTION_BIT_GAS // 26
+const val SIMPLE_GAS_USAGE =
+    SIMPLE_INSTRUCTION_BASE_GAS + SIMPLE_INSTRUCTION_BIT_SIZE * SIMPLE_INSTRUCTION_BIT_GAS // 26
 
 fun TvmStepScopeManager.consumeDefaultGas(stmt: TvmInst) = doWithState {
     consumeDefaultGas(stmt)
+}
+
+
+fun TvmStepScopeManager.consumeConstantGas(value: Int) = doWithState {
+    consumeGas(value)
 }
 
 fun TvmState.consumeDefaultGas(stmt: TvmInst) = when (val gas = stmt.gasConsumption) {

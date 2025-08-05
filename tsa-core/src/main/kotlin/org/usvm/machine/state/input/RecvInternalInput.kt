@@ -2,7 +2,7 @@ package org.usvm.machine.state.input
 
 import org.ton.Endian
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
-import org.usvm.UBoolSort
+import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -10,6 +10,7 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
@@ -17,6 +18,7 @@ import org.usvm.machine.asIntValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
+import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRef
@@ -26,16 +28,22 @@ import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getContractInfoParam
+import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
 class RecvInternalInput(
-    initialState: TvmState
+    initialState: TvmState,
+    private val concreteGeneralData: TvmConcreteGeneralData,
 ) : TvmStateInput {
     val msgBodySliceNonBounced = initialState.generateSymbolicSlice()  // used only in non-bounced messages
     val msgValue = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort)
-    val srcAddress = initialState.generateSymbolicSlice()
+    val srcAddress = if (concreteGeneralData.initialSenderBits == null) {
+        initialState.generateSymbolicSlice()
+    } else {
+        initialState.allocSliceFromData(initialState.ctx.mkBv(concreteGeneralData.initialSenderBits, TvmContext.stdMsgAddrSize.toUInt()))
+    }
 
     // bounced:Bool
     val bounced = if (initialState.ctx.tvmOptions.analyzeBouncedMessaged) {
@@ -98,9 +106,13 @@ class RecvInternalInput(
     val createdLt = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // created_lt:uint64
     val createdAt = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // created_at:uint32
 
-    val addrCell = initialState.getContractInfoParam(ADDRESS_PARAMETER_IDX).cellValue as? UConcreteHeapRef
-        ?: error("Cannot extract contract address")
-    val addrSlice = initialState.allocSliceFromCell(addrCell)
+    val addrCell: UConcreteHeapRef by lazy {
+        initialState.getContractInfoParam(ADDRESS_PARAMETER_IDX).cellValue as? UConcreteHeapRef
+            ?: error("Cannot extract contract address")
+    }
+    val addrSlice: UConcreteHeapRef by lazy {
+        initialState.allocSliceFromCell(addrCell)
+    }
 
     fun getSrcAddressCell(state: TvmState): UConcreteHeapRef {
         val srcAddressCell =
@@ -125,6 +137,26 @@ class RecvInternalInput(
 
             val balanceConstraints = mkBalanceConstraints(scope)
 
+            val opcodeConstraint = if (concreteGeneralData.initialOpcode != null) {
+                val msgBodyCell = scope.calcOnState {
+                    memory.readField(msgBodySliceNonBounced, TvmContext.sliceCellField, addressSort)
+                }
+                val msgBodyCellSize = scope.calcOnState {
+                    memory.readField(msgBodyCell, TvmContext.cellDataLengthField, sizeSort)
+                }
+                val sizeConstraint = mkBvSignedGreaterOrEqualExpr(msgBodyCellSize, mkSizeExpr(TvmContext.OP_BITS.toInt()))
+
+                // TODO: use TL-B?
+                val opcode = scope.slicePreloadDataBits(msgBodySliceNonBounced, TvmContext.OP_BITS.toInt())
+                    ?: error("Cannot read opcode from initial msgBody")
+
+                val opcodeConstraint = opcode eq mkBv(concreteGeneralData.initialOpcode.toLong(), TvmContext.OP_BITS)
+
+                sizeConstraint and opcodeConstraint
+            } else {
+                trueExpr
+            }
+
             // TODO any other constraints?
 
             mkAnd(
@@ -132,6 +164,7 @@ class RecvInternalInput(
                 createdLtConstraint,
                 createdAtConstraint,
                 balanceConstraints,
+                opcodeConstraint,
             )
         }
 
@@ -142,14 +175,14 @@ class RecvInternalInput(
         )
     }
 
-    private fun TvmContext.mkBalanceConstraints(scope: TvmStepScopeManager): UExpr<UBoolSort> {
+    private fun TvmContext.mkBalanceConstraints(scope: TvmStepScopeManager): UBoolExpr {
         val balance = scope.calcOnState { getBalance() }
             ?: error("Unexpected incorrect config balance value")
 
-        val initialBalance = mkBvSubExpr(balance, msgValue)
         val balanceConstraints = mkAnd(
             mkBvSignedLessOrEqualExpr(balance, maxMessageCurrencyValue),
-            mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, initialBalance),
+            mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, msgValue),
+            mkBvSignedLessOrEqualExpr(msgValue, balance),
         )
 
         return balanceConstraints

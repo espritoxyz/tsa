@@ -1,6 +1,6 @@
 package org.ton.examples.constraints
 
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.TvmOptions
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import kotlin.io.path.Path

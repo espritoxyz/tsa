@@ -25,6 +25,7 @@ import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import io.ksmt.utils.uncheckedCast
+import org.ton.boc.BagOfCells
 import java.math.BigInteger
 import java.nio.file.Path
 import org.ton.bytecode.TsaContractCode
@@ -39,10 +40,12 @@ import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TactAnalyzer
 import org.usvm.machine.TactSourcesDescription
 import org.usvm.machine.TvmAnalyzer
+import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
+import org.usvm.machine.hexToCell
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.toMethodId
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
@@ -62,8 +65,8 @@ private data object Receivers : AnalysisTarget
 private data class SpecificMethod(val methodId: Int) : AnalysisTarget
 
 private fun CliktCommand.analysisTargetOption() = mutuallyExclusiveOptions(
-    option("--method").int().help("Id of the method to analyze. If not specified, analyze all methods").convert { SpecificMethod(it) },
-    option("--analyze-receivers").flag().help("Analyze recv_internal and recv_external").convert { Receivers },
+    option("--method").int().help("Id of the method to analyze").convert { SpecificMethod(it) },
+    option("--analyze-receivers").flag().help("Analyze recv_internal and recv_external (default)").convert { Receivers },
     option("--analyze-all-methods").flag().help("Analyze all methods (applicable only for contracts with default main method)").convert { AllMethods }
 )
     .single()
@@ -87,13 +90,6 @@ class FiftOptions : OptionGroup("Fift options") {
         .help("The path to the Fift standard library (dir containing Asm.fif, Fift.fif)")
 }
 
-class FuncOptions : OptionGroup("FunC options") {
-    val funcStdlibPath by option("--func-std")
-        .path(mustExist = true, canBeFile = true, canBeDir = false)
-        .required()
-        .help("The path to the FunC standard library file (stdlib.fc)")
-}
-
 class TactOptions : OptionGroup("Tact options") {
     val tactExecutable by option("--tact")
         .default(TactAnalyzer.DEFAULT_TACT_EXECUTABLE)
@@ -114,7 +110,7 @@ class TlbCLIOptions : OptionGroup("TlB scheme options") {
             return if (path == null) {
                 emptyMap()
             } else {
-                val struct = readFromJson(path, "InternalMsgBody")
+                val struct = readFromJson(path, "InternalMsgBody") as? TlbCompositeLabel
                     ?: error("Couldn't parse `InternalMsgBody` structure from $path")
                 val info = TvmParameterInfo.SliceInfo(
                     TvmParameterInfo.DataCellInfo(
@@ -158,10 +154,12 @@ private fun <SourcesDescription> performAnalysis(
         is Receivers -> listOf(TvmContext.RECEIVE_INTERNAL_ID, TvmContext.RECEIVE_EXTERNAL_ID)
     }
 
+    val concreteData = TvmConcreteContractData(contractC4 = contractData?.hexToCell())
+
     return if (methodIds == null) {
         analyzer.analyzeAllMethods(
             sources,
-            contractData,
+            concreteContractData = concreteData,
             inputInfo = inputInfo,
             tvmOptions = options,
         )
@@ -171,7 +169,7 @@ private fun <SourcesDescription> performAnalysis(
             analyzer.analyzeSpecificMethod(
                 sources,
                 methodId,
-                contractDataHex = contractData,
+                concreteContractData = concreteData,
                 inputInfo = inputInfo[methodId] ?: TvmInputInfo(),
                 tvmOptions = options,
             )
@@ -207,7 +205,6 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
 
     // TODO: make these optional (only for FunC)
     private val fiftOptions by FiftOptions()
-    private val funcOptions by FuncOptions()
     private val tactOptions by TactOptions()
 
     private val tlbOptions by TlbCLIOptions()
@@ -234,7 +231,7 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
             }
         }
         val analyzer = when (contractType) {
-            ContractType.Func -> FuncAnalyzer(funcOptions.funcStdlibPath, fiftOptions.fiftStdlibPath)
+            ContractType.Func -> FuncAnalyzer(fiftOptions.fiftStdlibPath)
             ContractType.Boc -> BocAnalyzer
             ContractType.Tact -> tactAnalyzer
 
@@ -301,11 +298,9 @@ class FuncAnalysis : ErrorsSarifDetector<Path>(name = "func", help = "Options fo
         .help("The path to the FunC source of the smart contract")
 
     private val fiftOptions by FiftOptions()
-    private val funcOptions by FuncOptions()
 
     override fun run() {
         val analyzer = FuncAnalyzer(
-            funcStdlibPath = funcOptions.funcStdlibPath,
             fiftStdlibPath = fiftOptions.fiftStdlibPath
         )
 
@@ -357,7 +352,6 @@ class CheckerAnalysis : CliktCommand(
     help = "Options for using custom checkers",
 ) {
     private val fiftOptions by FiftOptions()
-    private val funcOptions by FuncOptions()
     private val tactOptions by TactOptions()
 
     private val sarifOptions by SarifOptions()
@@ -385,6 +379,35 @@ class CheckerAnalysis : CliktCommand(
             }
         }
 
+    private val concreteData: List<NullablePath> by option("-d", "--data")
+        .help {
+            """
+                Paths to .boc files with contract data.
+                
+                The order corresponds to the order of contracts with -c option.
+                
+                If data for a contract should be skipped, type "-".
+                
+                Example:
+                
+                -d data1.boc -d - -c Boc contract1.boc -c Func contract2.fc
+                
+            """.trimIndent()
+        }
+        .convert { value ->
+            if (value == "-") {
+                NullablePath(null)
+            } else {
+                NullablePath(pathOptionDescriptor.transformValue(this, value))
+            }
+        }
+        .multiple()
+        .validate {
+            require(it.isEmpty() || it.size == contractSources.size) {
+                "If data specified, number of data paths should be equal to the number of contracts (excluding checker contract)"
+            }
+        }
+
     private val fiftAnalyzer by lazy {
         FiftAnalyzer(
             fiftStdlibPath = fiftOptions.fiftStdlibPath
@@ -393,7 +416,6 @@ class CheckerAnalysis : CliktCommand(
 
     private val funcAnalyzer by lazy {
         FuncAnalyzer(
-            funcStdlibPath = funcOptions.funcStdlibPath,
             fiftStdlibPath = fiftOptions.fiftStdlibPath
         )
     }
@@ -407,7 +429,6 @@ class CheckerAnalysis : CliktCommand(
     override fun run() {
         val checkerContract = getFuncContract(
             checkerContractPath,
-            funcOptions.funcStdlibPath,
             fiftOptions.fiftStdlibPath,
             isTSAChecker = true
         )
@@ -423,11 +444,24 @@ class CheckerAnalysis : CliktCommand(
             .getOrElse { TvmInputInfo() } // In case TL-B scheme is incorrect (not json format, for example), use empty scheme
             ?: TvmInputInfo() // In case TL-B scheme is not provided, use empty scheme
 
-        val options = TvmOptions(
-            intercontractOptions = IntercontractOptions(communicationScheme = interContractSchemePath?.extractIntercontractScheme()),
-            turnOnTLBParsingChecks = false,
-            enableOutMessageAnalysis = true,
-        )
+        val options = if (interContractSchemePath != null) {
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = interContractSchemePath?.extractIntercontractScheme()),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+            )
+        } else {
+            TvmOptions(turnOnTLBParsingChecks = false)
+        }
+
+        val concreteContractData = listOf(TvmConcreteContractData()) + concreteData.map { path ->
+            path.path ?: return@map TvmConcreteContractData()
+            val bytes = path.path.toFile().readBytes()
+            val dataCell = BagOfCells(bytes).roots.single()
+            TvmConcreteContractData(contractC4 = dataCell)
+        }.ifEmpty {
+            contractsToAnalyze.map { TvmConcreteContractData() }
+        }
 
         val contracts = listOf(checkerContract) + contractsToAnalyze
         val result = analyzeInterContract(
@@ -436,6 +470,7 @@ class CheckerAnalysis : CliktCommand(
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
             options = options,
             inputInfo = inputInfo,
+            concreteContractData = concreteContractData,
         )
 
         val sarifReport = result.toSarifReport(
@@ -450,12 +485,16 @@ class CheckerAnalysis : CliktCommand(
     }
 }
 
+@JvmInline
+private value class NullablePath(
+    val path: Path?
+)
+
 class InterContractAnalysis : CliktCommand(
     name = "inter-contract",
     help = "Options for analyzing inter-contract communication of smart contracts",
 ) {
     private val fiftOptions by FiftOptions()
-    private val funcOptions by FuncOptions()
     private val tactOptions by TactOptions()
 
     private val sarifOptions by SarifOptions()
@@ -473,7 +512,6 @@ class InterContractAnalysis : CliktCommand(
 
     private val funcAnalyzer by lazy {
         FuncAnalyzer(
-            funcStdlibPath = funcOptions.funcStdlibPath,
             fiftStdlibPath = fiftOptions.fiftStdlibPath
         )
     }

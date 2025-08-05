@@ -1,6 +1,10 @@
 package org.ton.blockchain
 
+import org.ton.bitstring.BitString
+import org.ton.bitstring.toBitString
 import org.ton.block.AddrStd
+import org.ton.cell.Cell
+import org.ton.cell.CellType
 import java.net.HttpURLConnection
 import java.net.URI
 import kotlin.io.encoding.Base64
@@ -33,8 +37,19 @@ fun ByteArray.toBase64() =
 fun String.base64ToHex() =
     Base64.Default.decode(this).toHexString()
 
+@OptIn(ExperimentalEncodingApi::class)
+fun String.fromBase64() =
+    Base64.Default.decode(this)
+
 @OptIn(ExperimentalStdlibApi::class)
 fun String.hexToBase64() =
     hexToByteArray().toBase64()
 
 fun String.toUrlAddress() = replace(":", "%3A")
+
+fun extractHashFromLibraryCell(cell: Cell): BitString? {
+    if (cell.type != CellType.LIBRARY_REFERENCE) {
+        return null
+    }
+    return cell.bits.drop(cell.bits.size - 256).toBitString()
+}

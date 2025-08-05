@@ -341,16 +341,14 @@ private fun TvmState.transformToConcreteDictIfPossible(ref: UConcreteHeapRef, ke
     memory.types.allocate(ref.address, TvmDictCellType)
     memory.writeField(ref, dictKeyLengthField, int257sort, keyLength.toBv257(), guard = trueExpr)
 
-    parsedDict.forEach { (keyBitString, valueCell) ->
+    val content = parsedDict.map { (keyBitString, valueCell) ->
         val cellRef = allocateCell(valueCell.toTvmCell())
         val sliceValue = allocSliceFromCell(cellRef)
-        dictAddKeyValue(
-            ref,
-            DictId(keyLength),
-            key = mkBv(keyBitString.toBinary(), keyLength.toUInt()),
-            value = sliceValue,
-        )
+        val key = mkBv(keyBitString.toBinary(), keyLength.toUInt())
+        key to sliceValue
     }
+
+    initializeConcreteDict(ref, DictId(keyLength), content, mkBvSort(keyLength.toUInt()))
 
     return true
 }

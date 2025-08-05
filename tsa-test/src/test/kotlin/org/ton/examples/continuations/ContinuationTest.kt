@@ -1,12 +1,12 @@
 package org.ton.examples.continuations
 
 import org.junit.jupiter.api.Assertions
-import org.ton.examples.compareSymbolicAndConcreteResults
-import org.ton.examples.compileAndAnalyzeFift
-import org.ton.examples.propertiesFound
-import org.ton.examples.runFiftMethod
-import org.ton.examples.testConcreteOptions
-import org.ton.examples.testOptionsToAnalyzeSpecificMethod
+import org.ton.test.utils.compareSymbolicAndConcreteResults
+import org.ton.test.utils.compileAndAnalyzeFift
+import org.ton.test.utils.propertiesFound
+import org.ton.test.utils.runFiftMethod
+import org.ton.test.utils.testConcreteOptions
+import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestIntegerValue
 import java.math.BigInteger

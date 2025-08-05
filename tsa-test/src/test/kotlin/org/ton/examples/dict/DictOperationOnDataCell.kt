@@ -1,19 +1,22 @@
 package org.ton.examples.dict
 
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
+import org.ton.boc.BagOfCells
 import org.ton.bytecode.MethodId
-import org.ton.examples.checkInvariants
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
-import org.ton.examples.propertiesFound
+import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.propertiesFound
 import org.ton.runHardTestsRegex
 import org.ton.runHardTestsVar
 import org.usvm.machine.BocAnalyzer
+import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.TvmDictOperationOnDataCell
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import kotlin.test.Test
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
 class DictOperationOnDataCell {
@@ -44,20 +47,21 @@ class DictOperationOnDataCell {
         )
     }
 
-    //@EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
-    @OptIn(ExperimentalStdlibApi::class)
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun testConcreteDictInC4() {
         val resourcePath = getResourcePath<DictExampleTest>(dictInC4Path)
         val dataResourcePath = getResourcePath<DictExampleTest>(dictInC4DataPath)
-        val data = dataResourcePath.toFile().readBytes().toHexString()
+        val data = dataResourcePath.toFile().readBytes()
 
         val tests = BocAnalyzer.analyzeSpecificMethod(
             resourcePath,
             methodId = MethodId.ZERO,
-            contractDataHex = data,
+            concreteContractData = TvmConcreteContractData(contractC4 = BagOfCells(data).roots.single()),
             tvmOptions = TvmOptions(timeout = 3.minutes)
         )
+
+        assertTrue { tests.isNotEmpty() }
 
         checkInvariants(
             tests,

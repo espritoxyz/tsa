@@ -28,7 +28,7 @@ data object TvmTestResolver {
         val fetchedValues = stateResolver.resolveFetchedValues()
         val config = stateResolver.resolveConfig()
         val contractAddress = stateResolver.resolveContractAddress()
-        val contractBalance = stateResolver.resolveContractBalance()
+        val contractBalance = stateResolver.resolveInitialContractBalance()
         val time = stateResolver.resolveTime()
         val initialData = stateResolver.resolveInitialData()
         val rootInitialData = stateResolver.resolveRootData()
@@ -43,7 +43,7 @@ data object TvmTestResolver {
             contractAddress = contractAddress,
             initialData = initialData,
             rootInitialData = rootInitialData,
-            contractBalance = contractBalance,
+            initialContractBalance = contractBalance,
             time = time,
             input = input,
             fetchedValues = fetchedValues,
@@ -116,7 +116,7 @@ data class TvmSymbolicTest(
     val methodId: MethodId,
     val config: TvmTestDictCellValue,
     val contractAddress: TvmTestDataCellValue,
-    val contractBalance: TvmTestIntegerValue,
+    val initialContractBalance: TvmTestIntegerValue,
     val time: TvmTestIntegerValue,
     val rootInitialData: TvmTestCellValue,
     val initialData: Map<ContractId, TvmTestCellValue>,

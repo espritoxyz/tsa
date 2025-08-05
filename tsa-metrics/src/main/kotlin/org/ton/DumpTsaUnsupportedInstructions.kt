@@ -9,6 +9,8 @@ import org.ton.bytecode.TvmMainMethod
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.tvmDefaultInstructions
 import org.usvm.machine.TvmComponents
+import org.usvm.machine.TvmConcreteContractData
+import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmMachine
 import org.usvm.machine.TvmOptions
@@ -49,7 +51,7 @@ fun main() {
                         TvmInputInfo(),
                     )
                     val dummyState =
-                        dummyInterpreter.getInitialState(startContractId = 0, listOf(null), BigInteger.ZERO)
+                        dummyInterpreter.getInitialState(startContractId = 0, TvmConcreteGeneralData(), listOf(TvmConcreteContractData()), BigInteger.ZERO)
 
                     runCatching {
                         try {

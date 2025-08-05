@@ -1,6 +1,6 @@
 package org.ton.examples.cell
 
-import org.ton.examples.compareSymbolicAndConcreteResultsFunc
+import org.ton.test.utils.compareSymbolicAndConcreteResultsFunc
 import kotlin.test.Test
 
 class CellDepthTest {

@@ -11,6 +11,10 @@ data object TsBuilder : TsType
 data object TsAddress : TsType
 data object TsBlockchain : TsType
 data object TsSendMessageResult : TsType
+data object TsTransaction : TsType
+
+data class TsArray<T : TsType>(val elementType: T) : TsType
+data class TsPredicate<T : TsType>(val argType: T) : TsType
 
 sealed interface TsNum : TsType
 data object TsInt : TsNum

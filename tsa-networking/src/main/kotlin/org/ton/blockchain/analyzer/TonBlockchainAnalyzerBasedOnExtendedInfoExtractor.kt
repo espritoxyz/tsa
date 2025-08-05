@@ -30,6 +30,6 @@ class TonBlockchainAnalyzerBasedOnExtendedInfoExtractor(
         holderAddress: String
     ): String {
         // [getJettonWalletInfo] cannot be used here, because we must calculate potential address even if it is not on blockchain
-        TODO("Not yet implemented")
+        return infoExtractor.runGetWalletAddressOnJettonMaster(jettonAddress, holderAddress)
     }
 }

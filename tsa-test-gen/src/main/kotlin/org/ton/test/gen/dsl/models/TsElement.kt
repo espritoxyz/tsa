@@ -34,6 +34,9 @@ sealed interface TsElement {
             is TsWrapper -> visit(element)
             is TsObject -> visit(element)
             is TsSandboxContract<*> -> visit(element)
+            is TsTransaction -> visit(element)
+            is TsArray<*> -> visit(element)
+            is TsPredicate<*> -> visit(element)
         }
 
     fun <R> TsVisitor<R>.visitStatement(element: TsStatement): R =
@@ -65,11 +68,14 @@ sealed interface TsElement {
             is TsNumAdd<*> -> visit(element)
             is TsNumSub<*> -> visit(element)
             is TsNumDiv<*> -> visit(element)
+            is TsNumPow<*> -> visit(element)
             is TsMethodCall<*> -> visit(element)
             is TsFieldAccess<*, *> -> visit(element)
             is TsConstructorCall<*> -> visit(element)
             is TsEquals<*> -> visit(element)
             is TsObjectInit<*> -> visit(element)
+            is TsGreater<*> -> visit(element)
+            is TsLambdaPredicate<*> -> visit(element)
         }
 }
 
@@ -175,6 +181,17 @@ data class TsObjectInit<T : TsObject>(
         }
     }
 }
+data class TsGreater<T : TsType>(val lhs: TsExpression<T>, val rhs: TsExpression<T>) : TsExpression<TsBoolean> {
+    override val type = TsBoolean
+}
+data class TsLambdaPredicate<T : TsType>(
+    val argName: String,
+    val argType: T,
+    val body: (TsVariable<T>) -> TsExpression<TsBoolean>,
+) : TsExpression<TsPredicate<T>> {
+    val arg = TsVariable(argName, argType)
+    override val type: TsPredicate<T> = TsPredicate(arg.type)
+}
 
 /* arithmetic */
 
@@ -190,10 +207,22 @@ data class TsNumDiv<T : TsNum>(val lhs: TsExpression<T>, val rhs: TsExpression<T
     override val type: T
         get() = lhs.type
 }
+data class TsNumPow<T : TsNum>(val lhs: TsExpression<T>, val rhs: TsExpression<T>) : TsExpression<T> {
+    override val type: T
+        get() = lhs.type
+}
 
 /* test-utils */
 
-data class TsExpectToEqual<T : TsType>(val actual: TsExpression<T>, val expected: TsExpression<T>) : TsStatement
+sealed class TsExpectStatement(
+    open val message: String?,
+) : TsStatement
+
+data class TsExpectToEqual<T : TsType>(
+    val actual: TsExpression<T>,
+    val expected: TsExpression<T>,
+    override val message: String? = null,
+) : TsExpectStatement(message)
 
 data class TsExpectToHaveTransaction(
     val sendMessageResult: TsExpression<TsSendMessageResult>,
@@ -205,7 +234,8 @@ data class TsExpectToHaveTransaction(
     val successful: TsExpression<TsBoolean>?,
     val aborted: TsExpression<TsBoolean>?,
     val deploy: TsExpression<TsBoolean>?,
-) : TsStatement
+    override val message: String? = null,
+) : TsExpectStatement(message)
 
 /* executable */
 

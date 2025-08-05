@@ -1,6 +1,6 @@
 package org.ton.examples.ints
 
-import org.ton.examples.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import kotlin.io.path.Path
 import kotlin.test.Test
 import kotlin.test.assertTrue
