@@ -144,7 +144,7 @@ data class KnownTypeTlbStackFrame(
                 }
 
                 val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
-                val contentSymbolic = state.memory.readField(read.address, field, field.getSort())
+                val contentSymbolic = state.memory.readField(read.address, field, field.getSort(this))
                 val content = model.eval(contentSymbolic)
                 val bits = (content as? KBitVecValue)?.stringValue ?: error("Unexpected expr $content")
 
@@ -166,7 +166,7 @@ data class KnownTypeTlbStackFrame(
                 check(read.leftBits >= intSize)
 
                 val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
-                val intValueSymbolic = state.memory.readField(read.address, field, field.getSort())
+                val intValueSymbolic = state.memory.readField(read.address, field, field.getSort(this))
                 val intValue = (model.eval(intValueSymbolic) as KBitVecValue<*>).stringValue
 
                 val intValueBinaryTrimmed = intValue.takeLast(intSize)
@@ -184,7 +184,7 @@ data class KnownTypeTlbStackFrame(
 
             is TlbBitArrayByRef, is TlbAddressByRef -> {
                 val field = SliceRefField(struct.id, path)
-                val slice = state.memory.readField(read.address, field, field.getSort())
+                val slice = state.memory.readField(read.address, field, field.getSort(this))
 
                 val content = read.resolver.resolveRef(slice) as? TvmTestSliceValue
                     ?: error("$slice must evaluate to slice")

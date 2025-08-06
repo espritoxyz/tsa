@@ -37,7 +37,7 @@ private fun getChildrenStructure(
         }
 
         is TlbStructure.Empty -> {
-            ChildrenStructure.empty(ctx)
+            ChildrenStructure.empty()
         }
 
         is TlbStructure.LoadRef -> {
@@ -52,7 +52,7 @@ private fun getChildrenStructure(
             val exceededGuard = furtherChildren.children.last().exists()
 
             val newChildren = listOf(
-                ChildStructure<SimpleAbstractionForUExpr>(mapOf(struct.ref to abstractTrue()))
+                ChildStructure<SimpleAbstractionForUExpr>(mapOf(struct.ref to AbstractGuard.abstractTrue()))
             ) + furtherChildren.children.subList(0, furtherChildren.children.size - 1)
 
             ChildrenStructure(newChildren, exceededGuard)
@@ -97,7 +97,7 @@ private fun getChildrenStructure(
             var atLeastOneBranch = false
             val possibleVariants = possibleSwitchVariants[struct]
                 ?: error("Switch variants not found for switch $struct")
-            val result = possibleVariants.foldIndexed(ChildrenStructure.empty<SimpleAbstractionForUExpr>(ctx)) { idx, acc, (key, rest) ->
+            val result = possibleVariants.foldIndexed(ChildrenStructure.empty<SimpleAbstractionForUExpr>()) { idx, acc, (key, rest) ->
                 val further = getChildrenStructure(
                     ctx,
                     rest,

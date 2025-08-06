@@ -1,8 +1,12 @@
 package org.ton.test.gen.dsl.wrapper.basic
 
+import org.ton.test.gen.dsl.TsContext
 import org.ton.test.gen.dsl.wrapper.TsWrapperDescriptor
 
-class TsBasicWrapperDescriptor(override val name: String) : TsWrapperDescriptor<TsBasicWrapper> {
+class TsBasicWrapperDescriptor(
+    override val ctx: TsContext,
+    override val name: String,
+) : TsWrapperDescriptor<TsBasicWrapper> {
     override val wrapperType: TsBasicWrapper = TsBasicWrapper(name)
 
     override fun renderFile(): String = """

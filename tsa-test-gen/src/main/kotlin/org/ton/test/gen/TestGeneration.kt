@@ -115,7 +115,7 @@ private fun TsContext.constructTests(
     }
 
     return testFile(name) {
-        val wrapperDescriptor = TsBasicWrapperDescriptor(name)
+        val wrapperDescriptor = TsBasicWrapperDescriptor(this@constructTests, name)
         registerWrapper(wrapperDescriptor)
 
         val code = newVar("code", TsCell)

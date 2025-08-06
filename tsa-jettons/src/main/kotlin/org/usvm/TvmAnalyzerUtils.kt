@@ -25,7 +25,6 @@ fun getContractFromBytes(bytes: ByteArray): TsaContractCode {
     }
 }
 
-const val FUNC_STDLIB_PATH = "/imports"
 const val FIFT_STDLIB_PATH = "/fiftstdlib"
 
 class FirstFailureTerminator : StopStrategy, UMachineObserver<TvmState> {

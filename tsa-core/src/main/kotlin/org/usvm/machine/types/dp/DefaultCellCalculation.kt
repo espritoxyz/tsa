@@ -108,26 +108,18 @@ private fun getDefaultCell(
                     getDefaultDict(struct.ref.keySize)
                 }
                 is TvmParameterInfo.DataCellInfo -> {
-                    when (struct.ref.dataCellStructure) {
-                        is TlbAtomicLabel -> {
-                            val content = struct.ref.dataCellStructure.defaultCellValue(ctx)
-                            TvmTestDataCellValue(data = content)
-                        }
-                        is TlbCompositeLabel -> {
-                            val params = DPParamsForDefaultCellCalculation(
-                                maxRefs = TvmContext.MAX_REFS_NUMBER,
-                                maxTlbDepth = generalMaxTlbDepth,
-                                maxCellDepth = maxCellDepth - 1,
-                                label = struct.ref.dataCellStructure
-                            )
-                            if (params !in calculatedValues.keys) {
-                                error("Needed value was not calculated when it was needed during DP process")
-                            }
-
-                            calculatedValues[params]
-                                ?: return null
-                        }
+                    val params = DPParamsForDefaultCellCalculation(
+                        maxRefs = TvmContext.MAX_REFS_NUMBER,
+                        maxTlbDepth = generalMaxTlbDepth,
+                        maxCellDepth = maxCellDepth - 1,
+                        label = struct.ref.dataCellStructure
+                    )
+                    if (params !in calculatedValues.keys) {
+                        error("Needed value was not calculated when it was needed during DP process")
                     }
+
+                    calculatedValues[params]
+                        ?: return null
                 }
             }
 

@@ -8,7 +8,6 @@ import org.ton.TlbBitArrayByRef
 import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
-import org.ton.TlbLabel
 import org.ton.TlbStructure
 import org.ton.TlbStructure.KnownTypePrefix
 import org.ton.TlbStructure.LoadRef
@@ -33,8 +32,10 @@ import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestStateResolver
 
 
-context(TvmContext)
-fun generateCellDataConstraint(struct: KnownTypePrefix, param: AbstractionForUExprWithCellDataPrefix): UBoolExpr =
+fun TvmContext.generateCellDataConstraint(
+    struct: KnownTypePrefix,
+    param: AbstractionForUExprWithCellDataPrefix,
+): UBoolExpr =
     when (struct.typeLabel) {
         is TlbCompositeLabel -> {
             trueExpr
@@ -43,7 +44,7 @@ fun generateCellDataConstraint(struct: KnownTypePrefix, param: AbstractionForUEx
         is FixedSizeDataLabel -> {
             val (addr, prefixSize, path, state) = param
             val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
-            val sort = field.getSort()
+            val sort = field.getSort(this)
             val symbol = state.memory.readField(addr, field, sort)
             val data =
                 state.preloadDataBitsFromCellWithoutStructuralAsserts(addr, prefixSize, struct.typeLabel.concreteSize)
@@ -65,7 +66,7 @@ fun generateCellDataConstraint(struct: KnownTypePrefix, param: AbstractionForUEx
             )
 
             val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
-            val sort = field.getSort()
+            val sort = field.getSort(this)
 
             val intFromTlbField = state.memory.readField(addr, field, sort)
             val extendedIntFromTlbInt = if (struct.typeLabel.isSigned) {
@@ -105,9 +106,6 @@ fun KnownTypePrefix.typeArgs(
     address: UConcreteHeapRef,
     path: List<Int>,
 ): List<UExpr<TvmSizeSort>> = with(state.ctx) {
-    check(owner != null) {
-        "Cannot calculate type arguments for KnownTypePrefix without owner (${this@typeArgs})"
-    }
     typeArgIds.map {
         val typeArgStruct = owner.getStructureById(it)
         check(typeArgStruct is KnownTypePrefix) {
@@ -122,14 +120,13 @@ fun KnownTypePrefix.typeArgs(
             "Only integers of size <= 31 can be used as type argument, but found $label of size $bitSize"
         }
         val field = ConcreteSizeBlockField(bitSize, it, path)
-        val sort = field.getSort()
+        val sort = field.getSort(this)
         val intValue = state.memory.readField(address, field, sort)
         intValue.zeroExtendToSort(sizeSort)
     }
 }
 
-context(TvmContext)
-fun generateGuardForSwitch(
+fun TvmContext.generateGuardForSwitch(
     switch: TlbStructure,
     variantId: Int,
     possibleVariants: List<SwitchPrefix.SwitchVariant>,
@@ -139,7 +136,7 @@ fun generateGuardForSwitch(
 ): UBoolExpr {
     require(variantId in 0..possibleVariants.size)
     val field = SwitchField(switch.id, path, possibleVariants.map { it.struct.id })
-    val sort = field.getSort()
+    val sort = field.getSort(this)
     val value = state.memory.readField(address, field, sort)
     val variantIdExpr = mkBv(variantId, sort)
     return if (variantId == possibleVariants.size - 1) {
@@ -239,8 +236,8 @@ fun generateTlbFieldConstraints(
                     val bitSize = structure.typeLabel.bitSize(this, typeArgs)
 
                     val field = SymbolicSizeBlockField(structure.typeLabel.lengthUpperBound, structure.id, path)
-                    val fieldValue = state.memory.readField(ref, field, field.getSort())
-                    val bits = field.getSort().sizeBits
+                    val fieldValue = state.memory.readField(ref, field, field.getSort(this))
+                    val bits = field.getSort(this).sizeBits
 
                     val oneValue = mkBv(1, bits)
 

@@ -37,7 +37,7 @@ class TvmMessageAddrInterpreter(
     }
 
     private fun visitLoadMessageAddrInst(scope: TvmStepScopeManager, stmt: TvmAppAddrLdmsgaddrInst) = with(ctx) {
-        val slice = scope.calcOnState { stack.takeLastSlice() }
+        val slice = scope.calcOnState { takeLastSlice() }
             ?: return scope.doWithState(throwTypeCheckError)
 
         val updatedSlice = scope.calcOnState {
@@ -58,7 +58,7 @@ class TvmMessageAddrInterpreter(
         scope.doWithStateCtx {
             // TODO support var address
 
-            val slice = stack.takeLastSlice()
+            val slice = takeLastSlice()
             if (slice == null) {
                 throwTypeCheckError(this)
                 return@doWithStateCtx

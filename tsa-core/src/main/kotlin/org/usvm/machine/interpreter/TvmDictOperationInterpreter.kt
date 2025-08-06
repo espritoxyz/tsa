@@ -376,7 +376,7 @@ class TvmDictOperationInterpreter(
         returnUpdatedSlice: Boolean,
         putDictOnStack: Boolean = true,
     ) {
-        val slice = scope.calcOnStateCtx { stack.takeLastSlice() }
+        val slice = scope.calcOnStateCtx { takeLastSlice() }
         if (slice == null) {
             scope.doWithState(ctx.throwTypeCheckError)
             return
@@ -430,7 +430,7 @@ class TvmDictOperationInterpreter(
     }
 
     private fun doStoreDictToBuilder(inst: TvmDictSerialInst, scope: TvmStepScopeManager) {
-        val builder = scope.calcOnStateCtx { stack.takeLastBuilder() }
+        val builder = scope.calcOnStateCtx { takeLastBuilder() }
         if (builder == null) {
             scope.doWithState(ctx.throwTypeCheckError)
             return
@@ -726,7 +726,7 @@ class TvmDictOperationInterpreter(
         val keySort = ctx.mkBvSort(keyLength.toUInt())
 
         val resultElement = scope.calcOnState { makeSymbolicPrimitive(keySort) }
-        val resultElementExtended = resultElement.extendDictKey(keyType)
+        val resultElementExtended = extendDictKey(resultElement, keyType)
 
         val allSetEntries = scope.calcOnState {
             memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
@@ -754,7 +754,7 @@ class TvmDictOperationInterpreter(
                     compareLessThan,
                     allowEq = true,
                     resultElementExtended,
-                    storeKey.extendDictKey(keyType)
+                    extendDictKey(storeKey, keyType)
                 )
                 mkImplies(storedKeyContains, cmp)
             }.let { mkAnd(it) }
@@ -822,7 +822,7 @@ class TvmDictOperationInterpreter(
             }
 
             DictKeyType.SLICE -> {
-                val slice = scope.calcOnState { stack.takeLastSlice() }
+                val slice = scope.calcOnState { takeLastSlice() }
                     ?: return scope.doWithState(throwTypeCheckError)
 
                 scope.slicePreloadDataBits(slice, keyLength)?.zeroExtendToSort(cellDataSort)
@@ -847,7 +847,7 @@ class TvmDictOperationInterpreter(
 
         val keySort = ctx.mkBvSort(keyLength.toUInt())
         val resultElement = scope.calcOnStateCtx { makeSymbolicPrimitive(keySort) }
-        val resultElementExtended = resultElement.extendDictKey(keyType)
+        val resultElementExtended = extendDictKey(resultElement, keyType)
 
         val allSetEntries = scope.calcOnStateCtx {
             memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
@@ -875,7 +875,7 @@ class TvmDictOperationInterpreter(
 
         val resultIsClosest = scope.calcOnStateCtx {
             storedKeys.map { (storeKey, storedKeyContains) ->
-                val storeKeyExtended = storeKey.extendDictKey(keyType)
+                val storeKeyExtended = extendDictKey(storeKey, keyType)
                 val compareLessThan = when (mode) {
                     DictNextPrevMode.NEXT -> false
                     DictNextPrevMode.PREV -> true
@@ -935,14 +935,14 @@ class TvmDictOperationInterpreter(
         DictKeyType.SLICE -> TvmContext.MAX_DATA_LENGTH
     }
 
-    context(TvmContext)
-    private fun UExpr<UBvSort>.extendDictKey(
+    private fun TvmContext.extendDictKey(
+        value: UExpr<UBvSort>,
         keyType: DictKeyType
     ): UExpr<TvmCellDataSort> = when (keyType) {
-        DictKeyType.SIGNED_INT -> signExtendToSort(cellDataSort)
+        DictKeyType.SIGNED_INT -> value.signExtendToSort(cellDataSort)
 
         DictKeyType.UNSIGNED_INT,
-        DictKeyType.SLICE -> zeroExtendToSort(cellDataSort)
+        DictKeyType.SLICE -> value.zeroExtendToSort(cellDataSort)
     }
 
     private fun TvmContext.compareKeys(
@@ -1067,7 +1067,7 @@ class TvmDictOperationInterpreter(
             DictKeyType.UNSIGNED_INT -> scope.takeLastIntOrThrowTypeError()
                 ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
             DictKeyType.SLICE -> {
-                val slice = scope.calcOnState { stack.takeLastSlice() }
+                val slice = scope.calcOnState { takeLastSlice() }
                 if (slice == null) {
                     scope.doWithState(throwTypeCheckError)
                     return null
@@ -1099,7 +1099,7 @@ class TvmDictOperationInterpreter(
 
     private fun loadValue(scope: TvmStepScopeManager, valueType: DictValueType) = scope.calcOnState {
         when (valueType) {
-            DictValueType.SLICE -> stack.takeLastSlice()
+            DictValueType.SLICE -> takeLastSlice()
             DictValueType.CELL -> {
                 val cell = takeLastCell() ?: return@calcOnState null
                 val builder = allocEmptyCell()
@@ -1108,7 +1108,7 @@ class TvmDictOperationInterpreter(
                 allocSliceFromCell(builder)
             }
             DictValueType.BUILDER -> {
-                val builder = stack.takeLastBuilder() ?: return@calcOnState null
+                val builder = takeLastBuilder() ?: return@calcOnState null
                 val cell = memory.allocConcrete(TvmDataCellType).also { builderCopyFromBuilder(builder, it) }
 
                 scope.calcOnState { allocSliceFromCell(cell) }

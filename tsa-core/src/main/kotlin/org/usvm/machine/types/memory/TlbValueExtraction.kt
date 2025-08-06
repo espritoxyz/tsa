@@ -21,6 +21,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
@@ -68,10 +69,10 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
             check(gramsStruct.typeLabel is TlbIntegerLabelOfSymbolicSize)
 
             val gramsField = SymbolicSizeBlockField(gramsStruct.typeLabel.lengthUpperBound, gramsStruct.id, newPath)
-            val gramsValue = state.memory.readField(address, gramsField, gramsField.getSort()).unsignedExtendToInteger()
+            val gramsValue = state.memory.readField(address, gramsField, gramsField.getSort(this)).unsignedExtendToInteger()
 
             val lengthField = ConcreteSizeBlockField(lengthStruct.typeLabel.concreteSize, lengthStruct.id, newPath)
-            val lengthValue = state.memory.readField(address, lengthField, lengthField.getSort())
+            val lengthValue = state.memory.readField(address, lengthField, lengthField.getSort(this))
 
             UExprPairReadResult(lengthValue, gramsValue).uncheckedCast<Any, ReadResult>()
         }
@@ -84,7 +85,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
             // no checks for sizeBits are made: they should be done before this call
 
             val field = ConcreteSizeBlockField(concreteSize, curStructure.id, path)
-            val value = state.memory.readField(address, field, field.getSort())
+            val value = state.memory.readField(address, field, field.getSort(this))
 
             val result = if (read.isSigned) {
                 value.signedExtendToInteger()
@@ -101,7 +102,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
             }
 
             val field = ConcreteSizeBlockField(concreteSize, curStructure.id, path)
-            val fieldValue = state.memory.readField(address, field, field.getSort())
+            val fieldValue = state.memory.readField(address, field, field.getSort(this))
 
             UExprReadResult(state.allocSliceFromData(fieldValue)).uncheckedCast<Any, ReadResult>()
         }
@@ -112,7 +113,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
             }
 
             val field = SliceRefField(curStructure.id, path)
-            val value = state.memory.readField(address, field, field.getSort())
+            val value = state.memory.readField(address, field, field.getSort(this))
 
             UExprReadResult(value).uncheckedCast<Any, ReadResult>()
         }
@@ -123,7 +124,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
             }
 
             val field = SliceRefField(curStructure.id, path)
-            val value = state.memory.readField(address, field, field.getSort())
+            val value = state.memory.readField(address, field, field.getSort(this))
 
             val length = state.getSliceRemainingBitsCount(value)
 
@@ -154,7 +155,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
             val restLabel = rest.typeLabel as? FixedSizeDataLabel
                 ?: error("Unexpected label: ${rest.typeLabel}")
             val restField = ConcreteSizeBlockField(restLabel.concreteSize, rest.id, path.add(curStructure.id))
-            val restValue = state.memory.readField(address, restField, restField.getSort())
+            val restValue = state.memory.readField(address, restField, restField.getSort(this))
 
             val prefix = mkBv(variant.key, variant.key.length.toUInt())
 
@@ -198,13 +199,12 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
     }
 }
 
-context(TvmContext)
 private fun extractInt(
     offset: UExpr<TvmSizeSort>,
     length: UExpr<TvmSizeSort>,
     data: String,
     isSigned: Boolean,
-): UExpr<TvmContext.TvmInt257Sort> {
+): UExpr<TvmContext.TvmInt257Sort> = with(offset.ctx.tctx()) {
     val bits = mkBv(data, data.length.toUInt()).zeroExtendToSort(cellDataSort)
     val shifted = mkBvLogicalShiftRightExpr(
         bits,
@@ -213,43 +213,44 @@ private fun extractInt(
     return extractIntFromShiftedData(shifted, length.zeroExtendToSort(int257sort), isSigned)
 }
 
-context(TvmContext)
 fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.readFromConstant(
     offset: UExpr<TvmSizeSort>,
     data: String,
-): ReadResult? = when (this) {
-    is TvmCellDataIntegerRead -> {
-        val intExpr = extractInt(offset, sizeBits, data, isSigned)
-        UExprReadResult(intExpr).uncheckedCast()
-    }
-    is TvmCellMaybeConstructorBitRead -> {
-        val bit = extractInt(offset, oneSizeExpr, data, isSigned = false)
-        val boolExpr = mkIte(
-            bit eq zeroValue,
-            trueBranch = { falseExpr },
-            falseBranch = { trueExpr },
-        )
-        UExprReadResult(boolExpr).uncheckedCast()
-    }
-    is TvmCellDataMsgAddrRead -> {
-        null
-    }
-    is TvmCellDataBitArrayRead -> {
-        null
-    }
-    is TvmCellDataCoinsRead -> {
-        val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
-        val fourDataBits = if (concreteOffset != null) {
-            data.substring(concreteOffset, min(concreteOffset + 4, data.length))
-        } else {
+): ReadResult? = with(offset.ctx.tctx()) {
+    when (this@readFromConstant) {
+        is TvmCellDataIntegerRead -> {
+            val intExpr = extractInt(offset, sizeBits, data, isSigned)
+            UExprReadResult(intExpr).uncheckedCast()
+        }
+        is TvmCellMaybeConstructorBitRead -> {
+            val bit = extractInt(offset, oneSizeExpr, data, isSigned = false)
+            val boolExpr = mkIte(
+                bit eq zeroValue,
+                trueBranch = { falseExpr },
+                falseBranch = { trueExpr },
+            )
+            UExprReadResult(boolExpr).uncheckedCast()
+        }
+        is TvmCellDataMsgAddrRead -> {
             null
         }
-        val result = if (fourDataBits == "0000") {
-            UExprPairReadResult(mkBv(0, mkBvSort(4u)), zeroValue)
-        } else {
+        is TvmCellDataBitArrayRead -> {
             null
         }
+        is TvmCellDataCoinsRead -> {
+            val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
+            val fourDataBits = if (concreteOffset != null) {
+                data.substring(concreteOffset, min(concreteOffset + 4, data.length))
+            } else {
+                null
+            }
+            val result = if (fourDataBits == "0000") {
+                UExprPairReadResult(mkBv(0, mkBvSort(4u)), zeroValue)
+            } else {
+                null
+            }
 
-        result?.uncheckedCast<Any, ReadResult>()
+            result?.uncheckedCast<Any, ReadResult>()
+        }
     }
 }

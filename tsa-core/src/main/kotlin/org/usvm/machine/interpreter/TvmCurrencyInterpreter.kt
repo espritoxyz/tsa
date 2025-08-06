@@ -36,7 +36,7 @@ class TvmCurrencyInterpreter(
 
     private fun visitLoadGramsInst(scope: TvmStepScopeManager, stmt: TvmAppCurrencyLdgramsInst) {
         scope.doWithStateCtx {
-            val slice = stack.takeLastSlice()
+            val slice = takeLastSlice()
             if (slice == null) {
                 throwTypeCheckError(this)
                 return@doWithStateCtx
@@ -55,7 +55,7 @@ class TvmCurrencyInterpreter(
     private fun visitStoreGrams(scope: TvmStepScopeManager, stmt: TvmAppCurrencyStgramsInst) = with(ctx) {
         val grams = scope.takeLastIntOrThrowTypeError()
             ?: return
-        val builder = scope.calcOnState { stack.takeLastBuilder() }
+        val builder = scope.calcOnState { takeLastBuilder() }
             ?: return scope.calcOnState(throwTypeCheckError)
 
         val updatedBuilder = scope.calcOnState {

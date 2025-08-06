@@ -19,6 +19,7 @@ import org.usvm.apply
 import org.usvm.collection.set.primitive.UPrimitiveSetEntries
 import org.usvm.collection.set.primitive.USetEntryLValue
 import org.usvm.collection.set.primitive.USetModelRegion
+import org.usvm.collection.set.primitive.USetRegion
 import org.usvm.collection.set.primitive.USetRegionId
 import org.usvm.collection.set.primitive.setEntries
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
@@ -128,6 +129,37 @@ fun TvmState.dictAddKeyValue(
     val dictValueRegion = memory.dictValueRegion(dictValueRegionId)
 
     val updatedValues = dictValueRegion.writeRefValue(dictRef, key, value.asExpr(valueSort), guard = trueExpr)
+    memory.setRegion(dictValueRegionId, updatedValues)
+}
+
+fun TvmState.initializeConcreteDict(
+    dictRef: UConcreteHeapRef,
+    dictId: DictId,
+    values: List<Pair<UExpr<UBvSort>, UExpr<*>>>,
+    keySort: UBvSort,
+): Unit = with(ctx) {
+    val setRegionId = USetRegionId(keySort, dictId, DictKeyInfo)
+    val oldSetRegion = memory.getRegion(setRegionId) as USetRegion<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>
+
+    val setContent = values.mapTo(mutableSetOf()) { it.first }
+
+    val newRegion = oldSetRegion.initializeAllocatedSet(
+        dictRef.address,
+        setRegionId.setType,
+        keySort,
+        setContent,
+        trueExpr,
+        ownership,
+        makeDisjointCheck = false,
+    )
+
+    memory.setRegion(setRegionId, newRegion)
+
+    val valueSort = addressSort
+    val dictValueRegionId = TvmDictValueRegionId(dictId, keySort)
+    val dictValueRegion = memory.dictValueRegion(dictValueRegionId)
+    val valueMap = values.associate { it.first to it.second.asExpr(valueSort) }
+    val updatedValues = dictValueRegion.writeRefDisjointValues(dictRef, valueMap, guard = trueExpr)
     memory.setRegion(dictValueRegionId, updatedValues)
 }
 

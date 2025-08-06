@@ -20,7 +20,7 @@ Here:
 For example, to analyze inter-contract interactions between two FunC contracts located in `sender.fc` and `receiver.fc`, run the following command:
 
 {% highlight bash %}
-docker run --platform linux/amd64 -it --rm -v [SOURCES_DIR_ABSOLUTE_PATH]:/project ghcr.io/espritoxyz/tsa:latest inter /project/[FIRST_CONTRACT_RELATIVE_PATH] /project/[SECOND_CONTRACT_RELATIVE_PATH] --func-std /project/[PATH_TO_FUNC_STDLIB] --fift-std /project/[PATH_TO_FIFT_STDLIB_DIR]
+docker run --platform linux/amd64 -it --rm -v [SOURCES_DIR_ABSOLUTE_PATH]:/project ghcr.io/espritoxyz/tsa:latest inter /project/[FIRST_CONTRACT_RELATIVE_PATH] /project/[SECOND_CONTRACT_RELATIVE_PATH] --fift-std /project/[PATH_TO_FIFT_STDLIB_DIR]
 {% endhighlight %}
 
 #### Using JAR Executables
@@ -43,7 +43,7 @@ java -jar tsa-cli.jar
 
 ### Windows
 
-Currently, `TSA` can only be run on Windows using the JAR executables. Refer to the [relevant section](#using-jar-executables) for details.
+Currently, `TSA` is not supported on Windows.
 
 ## Building from sources
 

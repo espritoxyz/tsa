@@ -50,7 +50,7 @@ class TvmCryptoInterpreter(private val ctx: TvmContext) {
         scope.consumeDefaultGas(stmt)
 
         scope.calcOnState {
-            val value = stack.takeLastRef(operandType)
+            val value = takeLastRef(operandType)
                 ?: return@calcOnState scope.calcOnState(ctx.throwTypeCheckError)
 
             val hash = addressToHash[value] ?: run {
@@ -75,7 +75,7 @@ class TvmCryptoInterpreter(private val ctx: TvmContext) {
 
         val key = scope.takeLastIntOrThrowTypeError()
             ?: return@with
-        val signature = scope.calcOnState { stack.takeLastSlice() }
+        val signature = scope.calcOnState { takeLastSlice() }
             ?: return scope.doWithState(throwTypeCheckError)
         val hash = scope.takeLastIntOrThrowTypeError()
             ?: return@with

@@ -11,6 +11,7 @@ import org.usvm.USort
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.isFalse
 import org.usvm.isStaticHeapRef
+import org.usvm.isTrue
 import org.usvm.machine.map
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.foldHeapRef
@@ -56,6 +57,33 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort: USort>(
         },
         blockOnSymbolic = { _, (ref, _) -> error("Unexpected input cell $ref") }
     )
+
+    fun writeRefDisjointValues(
+        ref: UHeapRef,
+        values: Map<UExpr<KeySort>, UExpr<ValueSort>>,
+        guard: UBoolExpr
+    ): TvmRefsMemoryRegion<LValue, KeySort, ValueSort> = foldHeapRef(
+        ref = ref,
+        initial = this,
+        initialGuard = guard,
+        staticIsConcrete = true,
+        blockOnConcrete = { region, (concreteRef, refGuard) ->
+            region.writeRefDisjointValues(concreteRef.address, values, refGuard)
+        },
+        blockOnSymbolic = { _, (ref, _) -> error("Unexpected input cell $ref") }
+    )
+
+    private fun writeRefDisjointValues(
+        ref: UConcreteHeapAddress,
+        values: Map<UExpr<KeySort>, UExpr<ValueSort>>,
+        guard: UBoolExpr
+    ): TvmRefsMemoryRegion<LValue, KeySort, ValueSort> {
+        if (guard.isFalse) return this
+
+        val initialNode = refValue[ref]
+        val updatedNode = writeRefDisjointValues(initialNode, values, guard)
+        return TvmRefsMemoryRegion(refValue.put(ref, updatedNode))
+    }
 
     fun copyRefValues(src: UHeapRef, dst: UConcreteHeapRef): TvmRefsMemoryRegion<LValue, KeySort, ValueSort> =
         foldHeapRef(
@@ -139,14 +167,23 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort: USort>(
     ): UExpr<ValueSort> = with(key.uctx) {
         when (node) {
             is TvmRefsRegionPinpointUpdateNode<KeySort, ValueSort> -> {
-                val nodeIncludesKey = mkAnd(mkEq(key, node.key), node.guard)
-                mkIte(
-                    condition = nodeIncludesKey,
-                    trueBranch = { node.value },
-                    falseBranch = {
-                        readPrevRefValue(node, key, readingFromInputRef, valueInfo)
+                node.values.entries.forEach { (nodeKey, value) ->
+                    val nodeIncludesKey = mkAnd(mkEq(key, nodeKey), node.guard)
+                    if (nodeIncludesKey.isTrue) {
+                        return value
                     }
-                )
+                }
+
+                val prevValue = readPrevRefValue(node, key, readingFromInputRef, valueInfo)
+
+                node.values.entries.fold(prevValue) { acc, (nodeKey, value) ->
+                    val nodeIncludesKey = mkAnd(mkEq(key, nodeKey), node.guard)
+                    mkIte(
+                        condition = nodeIncludesKey,
+                        trueBranch = value,
+                        falseBranch = acc,
+                    )
+                }
             }
 
             is TvmRefsRegionInputNode<KeySort, ValueSort> -> {
@@ -195,7 +232,7 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort: USort>(
         readingFromInputRef: Boolean,
         valueInfo: TvmRefsRegionValueInfo<ValueSort>,
         updateParentNode: (TvmRefsRegionInputNode<KeySort, ValueSort>) -> Unit
-    ): UExpr<ValueSort> = with(key.uctx) {
+    ): UExpr<ValueSort> {
         if (!readingFromInputRef) {
             // Reading from an allocated ref, no need to provide input value
             return valueInfo.mkDefaultValue()
@@ -213,15 +250,22 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort: USort>(
         key: UExpr<KeySort>,
         value: UExpr<ValueSort>,
         guard: UBoolExpr
-    ): TvmRefsRegionPinpointUpdateNode<KeySort, ValueSort> = TvmRefsRegionPinpointUpdateNode(key, value, guard, node)
+    ): TvmRefsRegionPinpointUpdateNode<KeySort, ValueSort> =
+        TvmRefsRegionPinpointUpdateNode(mapOf(key to value), guard, node)
+
+    private fun writeRefDisjointValues(
+        node: TvmRefsRegionUpdateNode<KeySort, ValueSort>?,
+        values: Map<UExpr<KeySort>, UExpr<ValueSort>>,
+        guard: UBoolExpr
+    ): TvmRefsRegionPinpointUpdateNode<KeySort, ValueSort> =
+        TvmRefsRegionPinpointUpdateNode(values, guard, node)
 
     sealed interface TvmRefsRegionUpdateNode<KeySort : USort, ValueSort: USort> {
         var prevUpdate: TvmRefsRegionUpdateNode<KeySort, ValueSort>?
     }
 
     data class TvmRefsRegionPinpointUpdateNode<KeySort : USort, ValueSort: USort>(
-        val key: UExpr<KeySort>,
-        val value: UExpr<ValueSort>,
+        val values: Map<UExpr<KeySort>, UExpr<ValueSort>>,
         val guard: UBoolExpr,
         override var prevUpdate: TvmRefsRegionUpdateNode<KeySort, ValueSort>?
     ) : TvmRefsRegionUpdateNode<KeySort, ValueSort>

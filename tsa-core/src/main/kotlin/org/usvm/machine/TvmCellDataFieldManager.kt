@@ -54,8 +54,7 @@ class TvmCellDataFieldManager(
         state.memory.readField(cellRef, cellDataField, cellDataSort)
     }
 
-    context(TvmContext)
-    private fun generatedDataConstraint(scope: TvmStepScopeManager, refs: List<UConcreteHeapRef>): UBoolExpr =
+    private fun TvmContext.generatedDataConstraint(scope: TvmStepScopeManager, refs: List<UConcreteHeapRef>): UBoolExpr =
         scope.calcOnState {
             refs.fold(trueExpr as UBoolExpr) { acc, ref ->
                 if (addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(ref)) {

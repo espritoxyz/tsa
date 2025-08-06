@@ -16,6 +16,7 @@ import org.ton.cell.Cell
 import org.usvm.UBoolSort
 import org.usvm.UBvSort
 import org.usvm.UExpr
+import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import java.nio.file.Path
 import kotlin.io.path.Path
@@ -56,7 +57,8 @@ fun Cell.toTvmCell(): TvmCell {
     return TvmCell(data, children)
 }
 
-context(TvmContext)
-fun UExpr<UBoolSort>.asIntValue(): UExpr<TvmInt257Sort> = mkIte(this, oneValue, zeroValue)
+fun UExpr<UBoolSort>.asIntValue(): UExpr<TvmInt257Sort> = with(ctx.tctx()) {
+    mkIte(this@asIntValue, oneValue, zeroValue)
+}
 
 fun maxUnsignedValue(bits: UInt): BigInteger = powerOfTwo(bits).minus(BigInteger.ONE)

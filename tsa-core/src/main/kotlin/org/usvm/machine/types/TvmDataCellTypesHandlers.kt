@@ -26,7 +26,6 @@ import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.TvmStepScopeManager.ActionOnCondition
 import org.usvm.machine.intValue
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcOnStateCtx
@@ -42,7 +41,6 @@ import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
 import org.usvm.utils.extractAddresses
 
-
 sealed interface MakeSliceTypeLoadOutcome
 
 private data class NewTlbStack(val stack: TlbStack) : MakeSliceTypeLoadOutcome
@@ -51,13 +49,11 @@ private data class Error(val error: TvmStructuralError) : MakeSliceTypeLoadOutco
 
 private data object NoTlbStack : MakeSliceTypeLoadOutcome
 
-context(TvmContext)
-private fun <T> MutableMap<T, UBoolExpr>.addGuard(key: T, guard: UBoolExpr) {
-    val oldValue = this[key] ?: falseExpr
-    this[key] = oldValue or guard
+private fun <T> MutableMap<T, UBoolExpr>.addGuard(key: T, guard: UBoolExpr) = with(guard.ctx) {
+    val oldValue = this@addGuard[key] ?: falseExpr
+    this@addGuard[key] = mkOr(oldValue, guard, flat = false)
 }
 
-context(TvmContext)
 private fun <T, U> MutableMap<T, MutableMap<U, UBoolExpr>>.addGuard(keyOuter: T, keyInner: U, guard: UBoolExpr) {
     val innerMap = getOrPut(keyOuter) { hashMapOf() }
     innerMap.addGuard(keyInner, guard)
@@ -76,9 +72,8 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoa
 
     calcOnStateCtx {
         val outcomes = hashMapOf<MakeSliceTypeLoadOutcome, MutableMap<ReadResult?, UBoolExpr>>()
-        val cellAddress = memory.readField(oldSlice, TvmContext.sliceCellField, addressSort)
         val offset = memory.readField(oldSlice, TvmContext.sliceDataPosField, sizeSort)
-        val loadList = dataCellLoadedTypeInfo.loadData(cellAddress, offset, type, oldSlice)
+        val loadList = dataCellLoadedTypeInfo.loadData(this, offset, type, oldSlice)
 
         loadList.forEach { load ->
             val tlbStack = dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceAddress)
@@ -320,7 +315,7 @@ private fun TvmState.addTlbConstantToBuilder(
 ) {
     val oldTlbBuilder = dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
         ?: return
-    val newTlbBuilder = with(ctx) { oldTlbBuilder.addConstant(constant) }
+    val newTlbBuilder = oldTlbBuilder.addConstant(ctx, constant)
     dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, newTlbBuilder)
 }
 
@@ -349,7 +344,7 @@ fun TvmState.storeIntTlbLabelToBuilder(
 
         addTlbLabelToBuilder(oldBuilder, newBuilder, label) { state, ref, structId ->
             val field = ConcreteSizeBlockField(bitSizeConcrete, structId, persistentListOf())
-            state.memory.writeField(ref, field, field.getSort(), valueShrinked, guard = trueExpr)
+            state.memory.writeField(ref, field, field.getSort(this), valueShrinked, guard = trueExpr)
         }
 
     } else {
@@ -359,7 +354,7 @@ fun TvmState.storeIntTlbLabelToBuilder(
 
         addTlbLabelToBuilder(oldBuilder, newBuilder, label) { state, ref, structId ->
             val field = SymbolicSizeBlockField(label.lengthUpperBound, structId, persistentListOf())
-            state.memory.writeField(ref, field, field.getSort(), valueShrinked, guard = trueExpr)
+            state.memory.writeField(ref, field, field.getSort(this), valueShrinked, guard = trueExpr)
         }
     }
 }
@@ -378,11 +373,11 @@ fun TvmState.storeCoinTlbLabelToBuilder(
         check(valueStructure.typeLabel is TlbIntegerLabelOfSymbolicSize)
 
         val lengthField = ConcreteSizeBlockField(lengthStructure.typeLabel.concreteSize, lengthStructure.id, persistentListOf(structId))
-        val lengthSort = lengthField.getSort()
+        val lengthSort = lengthField.getSort(this)
         check(lengthSort.sizeBits == length.sort.sizeBits)
 
         val valueField = SymbolicSizeBlockField(valueStructure.typeLabel.lengthUpperBound, valueStructure.id, persistentListOf(structId))
-        val valueSort = valueField.getSort()
+        val valueSort = valueField.getSort(this)
 
         val valueShrinked = mkBvExtractExpr(high = valueSort.sizeBits.toInt() - 1, low = 0, value)
 
@@ -422,7 +417,7 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
     calcOnState {
         addTlbLabelToBuilder(oldBuilder, newBuilder, label) { state, resultCellRef, structId ->
             val field = SliceRefField(structId, persistentListOf())
-            state.memory.writeField(resultCellRef, field, field.getSort(), resultSliceRef, guard = trueExpr)
+            state.memory.writeField(resultCellRef, field, field.getSort(ctx), resultSliceRef, guard = trueExpr)
         }
     }
 }

@@ -4,8 +4,19 @@ import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvLogicalShiftRightExpr
 import io.ksmt.expr.KExpr
+import io.ksmt.expr.rewrite.simplify.simplifyAnd
+import io.ksmt.expr.rewrite.simplify.simplifyBoolIteConstBranches
+import io.ksmt.expr.rewrite.simplify.simplifyBoolIteSameConditionBranch
+import io.ksmt.expr.rewrite.simplify.simplifyIteBool
+import io.ksmt.expr.rewrite.simplify.simplifyIteLight
+import io.ksmt.expr.rewrite.simplify.simplifyIteNotCondition
+import io.ksmt.expr.rewrite.simplify.simplifyIteSameBranches
+import io.ksmt.expr.rewrite.simplify.simplifyNot
+import io.ksmt.expr.rewrite.simplify.simplifyOr
+import io.ksmt.sort.KBoolSort
 import io.ksmt.sort.KBvCustomSizeSort
 import io.ksmt.sort.KBvSort
+import io.ksmt.sort.KSort
 import io.ksmt.utils.BvUtils.bvMaxValueUnsigned
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.asExpr
@@ -83,12 +94,6 @@ class TvmContext(
 
     val masterchain: KBitVecValue<TvmInt257Sort> = minusOneValue
     val baseChain: KBitVecValue<TvmInt257Sort> = zeroValue
-
-    fun <Abstraction : AbstractionForUExpr<Abstraction>> abstractTrue(): AbstractGuard<Abstraction> =
-        AbstractGuard { trueExpr }
-
-    fun <Abstraction : AbstractionForUExpr<Abstraction>> abstractFalse(): AbstractGuard<Abstraction> =
-        AbstractGuard { falseExpr }
 
     val zeroSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(0)
     val oneSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(1)
@@ -199,6 +204,52 @@ class TvmContext(
         return super.mkBvExtractExpr(high, low, value)
     }
 
+    private fun tvmSimplifyBoolIte(
+        condition: KExpr<KBoolSort>,
+        trueBranch: KExpr<KBoolSort>,
+        falseBranch: KExpr<KBoolSort>
+    ): KExpr<KBoolSort> =
+        simplifyBoolIteConstBranches(
+            condition = condition,
+            trueBranch = trueBranch,
+            falseBranch = falseBranch,
+            rewriteOr = { a, b -> simplifyOr(a, b, flat = false) },
+            rewriteAnd = KContext::simplifyAnd,
+            rewriteNot = KContext::simplifyNot
+        ) { condition2, trueBranch2, falseBranch2 ->
+            simplifyBoolIteSameConditionBranch(
+                condition = condition2,
+                trueBranch = trueBranch2,
+                falseBranch = falseBranch2,
+                rewriteAnd = KContext::simplifyAnd,
+                rewriteOr = { a, b -> simplifyOr(a, b, flat = false) },
+                cont = ::mkIteNoSimplify
+            )
+        }
+
+    private fun <T : KSort> tvmSimplifyIte(
+        condition: KExpr<KBoolSort>,
+        trueBranch: KExpr<T>,
+        falseBranch: KExpr<T>
+    ): KExpr<T> =
+        simplifyIteNotCondition(condition, trueBranch, falseBranch) { condition2, trueBranch2, falseBranch2 ->
+            simplifyIteLight(condition2, trueBranch2, falseBranch2) { condition3, trueBranch3, falseBranch3 ->
+                simplifyIteSameBranches(
+                    condition3,
+                    trueBranch3,
+                    falseBranch3,
+                    { a, b, c -> tvmSimplifyIte(a, b, c) },
+                    { a, b -> simplifyOr(a, b, flat = false) }
+                ) { condition4, trueBranch4, falseBranch4 ->
+                    simplifyIteBool(condition4, trueBranch4, falseBranch4, { a, b, c -> tvmSimplifyBoolIte(a, b, c) }, ::mkIteNoSimplify)
+                }
+            }
+        }
+
+    override fun <T : KSort> mkIte(condition: KExpr<KBoolSort>, trueBranch: KExpr<T>, falseBranch: KExpr<T>): KExpr<T> {
+        return tvmSimplifyIte(condition, trueBranch, falseBranch)
+    }
+
     companion object {
         const val MAX_DATA_LENGTH: Int = 1023
         const val MAX_REFS_NUMBER: Int = 4
@@ -261,6 +312,8 @@ class TvmContext(
         val dictKeyLengthField: TvmField = TvmFieldImpl(TvmDictCellType, "keyLength")
 
         val stdMsgAddrSize = ADDRESS_TAG_LENGTH + 1 + STD_WORKCHAIN_BITS + ADDRESS_BITS
+
+        fun KContext.tctx(): TvmContext = this as TvmContext
     }
 
     class TvmInt257Sort(ctx: KContext) : KBvCustomSizeSort(ctx, INT_BITS)

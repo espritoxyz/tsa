@@ -118,10 +118,23 @@ sealed interface TsExpression<T : TsType> : TsElement {
 
 sealed interface TsLValue<T : TsType> : TsExpression<T>
 
-data class TsVariable<T : TsType> internal constructor(
+class TsVariable<T : TsType> internal constructor(
     val name: String,
     override val type: T,
-) : TsLValue<T>
+) : TsLValue<T> {
+    override fun equals(other: Any?): Boolean {
+        if (other !is TsVariable<*>) {
+            return false
+        }
+        return name == other.name && type == other.type
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + type.hashCode()
+        return result
+    }
+}
 
 data class TsFieldAccess<R : TsType, T : TsType>(
     val receiver: TsExpression<R>,

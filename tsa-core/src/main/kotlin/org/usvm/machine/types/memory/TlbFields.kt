@@ -12,8 +12,7 @@ interface TlbField : TvmField {
     val structureId: Int
     val pathToStructure: List<Int>
 
-    context(TvmContext)
-    fun getSort(): USort
+    fun getSort(ctx: TvmContext): USort
 }
 
 data class ConcreteSizeBlockField(
@@ -21,16 +20,14 @@ data class ConcreteSizeBlockField(
     override val structureId: Int,
     override val pathToStructure: List<Int>,
 ) : TlbField {
-    context(TvmContext)
-    override fun getSort() = mkBvSort(bitSize.toUInt())
+    override fun getSort(ctx: TvmContext) = ctx.mkBvSort(bitSize.toUInt())
 }
 
 data class SliceRefField(
     override val structureId: Int,
     override val pathToStructure: List<Int>,
 ) : TlbField {
-    context(TvmContext)
-    override fun getSort() = addressSort
+    override fun getSort(ctx: TvmContext) = ctx.addressSort
 }
 
 data class SymbolicSizeBlockField(
@@ -38,8 +35,7 @@ data class SymbolicSizeBlockField(
     override val structureId: Int,
     override val pathToStructure: List<Int>,
 ) : TlbField {
-    context(TvmContext)
-    override fun getSort() = mkBvSort(maxBitSize.toUInt())
+    override fun getSort(ctx: TvmContext) = ctx.mkBvSort(maxBitSize.toUInt())
 
     init {
         check(maxBitSize >= 32)
@@ -54,14 +50,12 @@ data class SwitchField(
     // calculate minimum number of bits needed for storing [possibleContinuations.size] values
     private val bitSize: UInt = log2(possibleContinuations.size.toUInt() * 2u - 1u)
 
-    context(TvmContext)
-    override fun getSort() = mkBvSort(bitSize)
+    override fun getSort(ctx: TvmContext) = ctx.mkBvSort(bitSize)
 }
 
 data class UnknownBlockField(
     override val structureId: Int,
     override val pathToStructure: List<Int>
 ) : TlbField {
-    context(TvmContext)
-    override fun getSort() = cellDataSort
+    override fun getSort(ctx: TvmContext) = ctx.cellDataSort
 }

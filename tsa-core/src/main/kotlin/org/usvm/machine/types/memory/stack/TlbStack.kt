@@ -1,9 +1,7 @@
 package org.usvm.machine.types.memory.stack
 
 import kotlinx.collections.immutable.persistentListOf
-import org.ton.TlbAtomicLabel
 import org.ton.TlbCompositeLabel
-import org.ton.TlbLabel
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.isFalse
@@ -30,7 +28,7 @@ data class TlbStack(
         val ctx = state.ctx
         val result = mutableListOf<GuardedResult<ReadResult>>()
 
-        val emptyRead = loadData.type.isEmptyRead()
+        val emptyRead = loadData.type.isEmptyRead(ctx)
 
         if (frames.isEmpty()) {
             // finished parsing

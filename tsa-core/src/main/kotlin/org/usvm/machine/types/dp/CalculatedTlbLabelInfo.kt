@@ -255,7 +255,7 @@ private fun calculateClosure(labels: Collection<TlbCompositeLabel>): Set<TlbComp
             }
             if (struct is TlbStructure.LoadRef && struct.ref is TvmParameterInfo.DataCellInfo) {
                 val newLabel = struct.ref.dataCellStructure
-                if (newLabel is TlbCompositeLabel && newLabel !in result) {
+                if (newLabel !in result) {
                     result.add(newLabel)
                     queue.add(newLabel)
                 }

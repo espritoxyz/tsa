@@ -5,6 +5,8 @@ import org.ton.TlbStructure
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutStructuralAsserts
+import org.usvm.machine.types.dp.AbstractGuard.Companion.abstractFalse
+import org.usvm.machine.types.dp.AbstractGuard.Companion.abstractTrue
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.generateCellDataConstraint
 import org.usvm.machine.types.memory.generateGuardForSwitch
@@ -94,7 +96,7 @@ private fun getDataConstraints(
         is TlbStructure.Unknown -> {
             AbstractGuard { (address, prefixSize, path, state) ->
                 val field = UnknownBlockField(struct.id, path)
-                val fieldValue = state.memory.readField(address, field, field.getSort())
+                val fieldValue = state.memory.readField(address, field, field.getSort(ctx))
                 val curData = state.cellDataFieldManager.readCellDataWithoutAsserts(state, address)
 
                 mkBvShiftLeftExpr(curData, prefixSize.zeroExtendToSort(cellDataSort)) eq fieldValue

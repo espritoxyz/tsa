@@ -3,10 +3,8 @@ package org.usvm.test.resolver
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import kotlinx.collections.immutable.persistentListOf
-import org.ton.TlbAtomicLabel
 import org.ton.TlbBitArrayByRef
 import org.ton.TlbBuiltinLabel
-import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbResolvedBuiltinLabel
@@ -75,7 +73,6 @@ import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.TvmUnexpectedEndOfReading
 import org.usvm.machine.types.TvmUnexpectedRefReading
-import org.usvm.machine.types.defaultCellValue
 import org.usvm.machine.types.dp.getDefaultDict
 import org.usvm.machine.types.getPossibleTypes
 import org.usvm.machine.types.memory.readInModelFromTlbFields
@@ -283,7 +280,7 @@ class TvmTestStateResolver(
         }
     }
 
-    fun <T : USort> evaluateInModel(expr: UExpr<T>): UExpr<T> = model.eval(expr)
+    private fun <T : USort> evaluateInModel(expr: UExpr<T>): UExpr<T> = model.eval(expr)
 
     private fun resolveTuple(tuple: TvmStackTupleValue): TvmTestTupleValue = when (tuple) {
         is TvmStackTupleValueConcreteNew -> {
@@ -402,18 +399,12 @@ class TvmTestStateResolver(
                 getDefaultDict(cellInfo.keySize)
             }
             is TvmParameterInfo.DataCellInfo -> {
-                when (val label = cellInfo.dataCellStructure) {
-                    is TlbAtomicLabel -> {
-                        TvmTestDataCellValue(data = label.defaultCellValue(ctx))
-                    }
-                    is TlbCompositeLabel -> {
-                        val defaultValue = state.dataCellInfoStorage.mapper.calculatedTlbLabelInfo.getDefaultCell(label)
-                        check(defaultValue != null) {
-                            "Default cell for label ${label.name} must be calculated"
-                        }
-                        defaultValue
-                    }
+                val label = cellInfo.dataCellStructure
+                val defaultValue = state.dataCellInfoStorage.mapper.calculatedTlbLabelInfo.getDefaultCell(label)
+                check(defaultValue != null) {
+                    "Default cell for label ${label.name} must be calculated"
                 }
+                defaultValue
             }
         }
 
@@ -483,10 +474,12 @@ class TvmTestStateResolver(
                 is TvmRefsMemoryRegion.TvmRefsRegionPinpointUpdateNode -> {
                     val guardValue = evaluateInModel(updateNode.guard)
                     if (guardValue.isTrue) {
-                        val idx = resolveInt(updateNode.key)
-                        if (idx < refsLength) {
-                            val refCell = resolveCell(updateNode.value)
-                            storedRefs.putIfAbsent(idx, refCell)
+                        updateNode.values.forEach { (key, value) ->
+                            val idx = resolveInt(key)
+                            if (idx < refsLength) {
+                                val refCell = resolveCell(value)
+                                storedRefs.putIfAbsent(idx, refCell)
+                            }
                         }
                     }
                 }

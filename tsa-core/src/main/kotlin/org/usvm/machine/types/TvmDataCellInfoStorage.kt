@@ -57,31 +57,22 @@ class TvmDataCellInfoStorage private constructor(
                 // case of DictCell: do nothing
                 return@fold acc
             }
-            when (val label = curInfo.dataCellStructure) {
-                is TlbAtomicLabel -> {
-                    check(label.arity == 0)
-                    val refNumberGuard = endOfCell.refNumber eq zeroSizeExpr
-                    val dataLengthGuard = endOfCell.offset eq label.dataLength(state, emptyList())
-                    acc and (guard implies (refNumberGuard and dataLengthGuard))
-                }
-                is TlbCompositeLabel -> {
-                    val leafInfo = mapper.calculatedTlbLabelInfo.getLeavesInfo(state, endOfCell.cellAddress, label)
-                        ?: return@fold acc
+            val label = curInfo.dataCellStructure
+            val leafInfo = mapper.calculatedTlbLabelInfo.getLeavesInfo(state, endOfCell.cellAddress, label)
+                ?: return@fold acc
 
-                    leafInfo.fold(acc) { innerAcc, (struct, sizeInfo) ->
-                        when (struct) {
-                            is TlbStructure.Unknown -> {
-                                val newGuard = mkSizeGeExpr(endOfCell.offset, sizeInfo.dataLength) and
-                                        mkSizeGeExpr(endOfCell.refNumber, sizeInfo.refsLength)
-                                innerAcc and ((guard and sizeInfo.guard) implies  newGuard)
-                            }
+            leafInfo.fold(acc) { innerAcc, (struct, sizeInfo) ->
+                when (struct) {
+                    is TlbStructure.Unknown -> {
+                        val newGuard = mkSizeGeExpr(endOfCell.offset, sizeInfo.dataLength) and
+                                mkSizeGeExpr(endOfCell.refNumber, sizeInfo.refsLength)
+                        innerAcc and ((guard and sizeInfo.guard) implies  newGuard)
+                    }
 
-                            is TlbStructure.Empty -> {
-                                val newGuard = (endOfCell.offset eq sizeInfo.dataLength) and
-                                        (endOfCell.refNumber eq sizeInfo.refsLength)
-                                innerAcc and ((guard and sizeInfo.guard) implies  newGuard)
-                            }
-                        }
+                    is TlbStructure.Empty -> {
+                        val newGuard = (endOfCell.offset eq sizeInfo.dataLength) and
+                                (endOfCell.refNumber eq sizeInfo.refsLength)
+                        innerAcc and ((guard and sizeInfo.guard) implies  newGuard)
                     }
                 }
             }
@@ -99,24 +90,18 @@ class TvmDataCellInfoStorage private constructor(
                 // TODO: throw error for treating DictCell as DataCell
                 return@fold acc
             }
-            when (val label = curInfo.dataCellStructure) {
-                is TlbAtomicLabel -> {
-                    acc and (guard implies (loadRef.refNumber eq zeroSizeExpr))
-                }
-                is TlbCompositeLabel -> {
-                    val leafInfo = mapper.calculatedTlbLabelInfo.getLeavesInfo(state, loadRef.cellAddress, label)
-                        ?: return@fold acc
+            val label = curInfo.dataCellStructure
+            val leafInfo = mapper.calculatedTlbLabelInfo.getLeavesInfo(state, loadRef.cellAddress, label)
+                ?: return@fold acc
 
-                    leafInfo.fold(acc) { innerAcc, (struct, sizeInfo) ->
-                        when (struct) {
-                            is TlbStructure.Unknown -> {
-                                innerAcc
-                            }
-                            is TlbStructure.Empty -> {
-                                val newGuard = mkSizeLeExpr(loadRef.refNumber, sizeInfo.refsLength)
-                                innerAcc and ((guard and sizeInfo.guard) implies newGuard)
-                            }
-                        }
+            leafInfo.fold(acc) { innerAcc, (struct, sizeInfo) ->
+                when (struct) {
+                    is TlbStructure.Unknown -> {
+                        innerAcc
+                    }
+                    is TlbStructure.Empty -> {
+                        val newGuard = mkSizeLeExpr(loadRef.refNumber, sizeInfo.refsLength)
+                        innerAcc and ((guard and sizeInfo.guard) implies newGuard)
                     }
                 }
             }

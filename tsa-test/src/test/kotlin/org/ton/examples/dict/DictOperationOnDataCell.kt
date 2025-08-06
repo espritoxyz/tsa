@@ -16,6 +16,7 @@ import org.usvm.machine.state.TvmDictOperationOnDataCell
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import kotlin.test.Test
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
 class DictOperationOnDataCell {
@@ -59,6 +60,8 @@ class DictOperationOnDataCell {
             concreteContractData = TvmConcreteContractData(contractC4 = BagOfCells(data).roots.single()),
             tvmOptions = TvmOptions(timeout = 3.minutes)
         )
+
+        assertTrue { tests.isNotEmpty() }
 
         checkInvariants(
             tests,

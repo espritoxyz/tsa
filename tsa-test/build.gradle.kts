@@ -17,3 +17,7 @@ dependencies {
 
     implementation(kotlin("test"))
 }
+
+tasks.test {
+    maxHeapSize = "2048m"
+}

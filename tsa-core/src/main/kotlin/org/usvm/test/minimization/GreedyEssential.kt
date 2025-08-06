@@ -2,9 +2,11 @@ package org.usvm.test.minimization
 
 import java.util.PriorityQueue
 
-private inline class ExecutionNumber(val number: Int)
+@JvmInline
+private value class ExecutionNumber(val number: Int)
 
-private inline class LineNumber(val number: Int)
+@JvmInline
+private value class LineNumber(val number: Int)
 
 /**
  * [Greedy essential algorithm](CONFLUENCE:Test+Minimization)

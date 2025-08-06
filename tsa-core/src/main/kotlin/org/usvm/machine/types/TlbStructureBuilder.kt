@@ -42,13 +42,12 @@ value class TlbStructureBuilder(
         }
     }
 
-    context(TvmContext)
-    fun addConstant(bitString: String): TlbStructureBuilder =
+    fun addConstant(ctx: TvmContext, bitString: String): TlbStructureBuilder =
         TlbStructureBuilder { suffix, owner, state, address ->
             val id = TlbStructureIdProvider.provideId()
             val switchField = SwitchField(id, persistentListOf(), listOf(suffix.id))
-            val sort = switchField.getSort()
-            state.memory.writeField(address, switchField, sort, mkBv(0, sort), guard = trueExpr)
+            val sort = switchField.getSort(ctx)
+            state.memory.writeField(address, switchField, sort, ctx.mkBv(0, sort), guard = ctx.trueExpr)
             build(
                 TlbStructure.SwitchPrefix(
                     id = id,

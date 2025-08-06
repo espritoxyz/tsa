@@ -1,7 +1,6 @@
 package org.usvm.machine.types.memory.stack
 
 import io.ksmt.expr.KBitVecValue
-import io.ksmt.sort.KSort
 import org.ton.TlbStructure
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
@@ -9,7 +8,6 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
-
 
 data object StackFrameOfUnknown : TlbStackFrame {
     // [Unknown] can be used only on zero TL-B level
@@ -32,7 +30,7 @@ data object StackFrameOfUnknown : TlbStackFrame {
         read: TlbStack.ConcreteReadInfo
     ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> = with(read.resolver.state.ctx) {
         val field = UnknownBlockField(TlbStructure.Unknown.id, path)
-        val dataSymbolic = read.resolver.state.memory.readField(read.address, field, field.getSort())
+        val dataSymbolic = read.resolver.state.memory.readField(read.address, field, field.getSort(this))
         val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
 
         val newReadInfo = TlbStack.ConcreteReadInfo(read.address, read.resolver, leftBits = 0)

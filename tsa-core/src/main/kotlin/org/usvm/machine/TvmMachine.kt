@@ -25,13 +25,13 @@ import org.usvm.stopstrategies.StopStrategy
 import org.usvm.stopstrategies.TimeoutStopStrategy
 import java.math.BigInteger
 import kotlin.time.Duration.Companion.INFINITE
-import kotlin.time.Duration.Companion.seconds
 
 class TvmMachine(
-    private val tvmOptions: TvmOptions = TvmOptions(),
+    tvmOptions: TvmOptions = TvmOptions(),
 ) : UMachine<TvmState>() {
-    private val options: UMachineOptions = defaultOptions.copy(
+    override val options: UMachineOptions = defaultOptions.copy(
         timeout = tvmOptions.timeout,
+        solverTimeout = tvmOptions.solverTimeout,
         loopIterationLimit = tvmOptions.loopIterationLimit,
     )
 
@@ -177,7 +177,7 @@ class TvmMachine(
             loopIterativeDeepening = true,
             loopIterationLimit = DEFAULT_LOOP_ITERATIONS_LIMIT,
             stepLimit = null,
-            solverTimeout = 1.seconds
+            throwExceptionOnStepFailure = true,
         )
     }
 

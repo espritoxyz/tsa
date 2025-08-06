@@ -1036,8 +1036,7 @@ class TvmInterpreter(
         }
     }
 
-    context(TvmContext)
-    private fun doSubtraction(
+    private fun TvmContext.doSubtraction(
         scope: TvmStepScopeManager,
     ): UExpr<TvmInt257Sort>? {
         val secondOperand = scope.takeLastIntOrThrowTypeError()
@@ -1457,7 +1456,7 @@ class TvmInterpreter(
             is TvmCompareOtherSdemptyInst -> {
                 scope.consumeDefaultGas(stmt)
 
-                val slice = scope.calcOnState { stack.takeLastSlice() }
+                val slice = scope.calcOnState { takeLastSlice() }
                     ?: return scope.doWithState(throwTypeCheckError)
 
                 val remainingBits = scope.calcOnState { getSliceRemainingBitsCount(slice) }
@@ -1472,7 +1471,7 @@ class TvmInterpreter(
             is TvmCompareOtherSremptyInst -> {
                 scope.consumeDefaultGas(stmt)
 
-                val slice = scope.calcOnState { stack.takeLastSlice() }
+                val slice = scope.calcOnState { takeLastSlice() }
                 if (slice == null) {
                     scope.doWithState(throwTypeCheckError)
                     return
@@ -1490,7 +1489,7 @@ class TvmInterpreter(
             is TvmCompareOtherSemptyInst -> {
                 scope.consumeDefaultGas(stmt)
 
-                val slice = scope.calcOnState { stack.takeLastSlice() }
+                val slice = scope.calcOnState { takeLastSlice() }
                 if (slice == null) {
                     scope.doWithState(throwTypeCheckError)
                     return
@@ -1514,7 +1513,7 @@ class TvmInterpreter(
             is TvmCompareOtherSdcnttrail0Inst -> {
                 scope.consumeDefaultGas(stmt)
 
-                val slice = scope.calcOnState { stack.takeLastSlice() }
+                val slice = scope.calcOnState { takeLastSlice() }
                 if (slice == null) {
                     scope.doWithState(throwTypeCheckError)
                     return
@@ -1541,7 +1540,7 @@ class TvmInterpreter(
     private fun visitSliceDataEqInst(scope: TvmStepScopeManager, stmt: TvmCompareOtherSdeqInst) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
-        val (slice1, slice2) = scope.calcOnState { stack.takeLastSlice() to stack.takeLastSlice() }
+        val (slice1, slice2) = scope.calcOnState { takeLastSlice() to takeLastSlice() }
         if (slice1 == null || slice2 == null) {
             scope.doWithState(throwTypeCheckError)
             return

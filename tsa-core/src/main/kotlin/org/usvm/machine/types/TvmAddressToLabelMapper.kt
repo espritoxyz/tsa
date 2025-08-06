@@ -1,21 +1,16 @@
 package org.usvm.machine.types
 
-import org.ton.TlbAtomicLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TvmParameterInfo
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
-import org.usvm.api.readField
 import org.usvm.isAllocated
 import org.usvm.isTrue
-import org.usvm.machine.TvmContext
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
 import org.usvm.mkSizeExpr
 import org.usvm.model.UModelBase
-import org.usvm.sizeSort
 import kotlin.math.max
 
 class TvmAddressToLabelMapper(
@@ -51,7 +46,7 @@ class TvmAddressToLabelMapper(
             "Must call getChildrenAddresses only for refs that TvmAddressToLabelMapper already knows about, but got $ref"
         }
         val maxRefs = parentStruct.variants.keys.fold(0) { acc, cellInfo ->
-            if (cellInfo is TvmParameterInfo.DataCellInfo && cellInfo.dataCellStructure is TlbCompositeLabel) {
+            if (cellInfo is TvmParameterInfo.DataCellInfo) {
                 max(acc, calculatedTlbLabelInfo.maxRefSize(cellInfo.dataCellStructure) ?: 0)
             } else {
                 acc
@@ -79,7 +74,7 @@ class TvmAddressToLabelMapper(
         val childLabels = childAddresses.map { hashMapOf<TvmParameterInfo.CellInfo, UBoolExpr>() }
 
         parentStruct.variants.forEach { (cellInfo, guard) ->
-            if (cellInfo !is TvmParameterInfo.DataCellInfo || cellInfo.dataCellStructure !is TlbCompositeLabel) {
+            if (cellInfo !is TvmParameterInfo.DataCellInfo) {
                 return@forEach
             }
 
@@ -196,35 +191,20 @@ class TvmAddressToLabelMapper(
                 return@fold acc
             }
 
-            val curGuard = when (val label = cellInfo.dataCellStructure) {
-                is TlbAtomicLabel -> {
-                    check(label.arity == 0)
-                    if (generateSizeConstraints) {
-                        val dataLength = label.dataLength(state, emptyList())
-                        val dataLengthField = state.memory.readField(ref, TvmContext.cellDataLengthField, sizeSort)
-                        val refsLengthField = state.memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort)
-                        (dataLengthField eq dataLength) and (refsLengthField eq zeroSizeExpr)
-                    } else {
-                        trueExpr
-                    }
-                }
+            val label = cellInfo.dataCellStructure
 
-                is TlbCompositeLabel -> {
-                    var result = trueExpr as UBoolExpr
-                    if (generateSizeConstraints) {
-                        val sizeConstraints = calculatedTlbLabelInfo.getSizeConstraints(state, ref, label)
-                        result = result and (sizeConstraints ?: trueExpr)
-                    }
-                    if (generateDataConstraints) {
-                        val dataConstraints = calculatedTlbLabelInfo.getDataConstraints(state, ref, label)
-                        result = result and (dataConstraints ?: trueExpr)
-                    }
-                    if (generateTlbFieldConstraints) {
-                        val tlbConstraints = calculatedTlbLabelInfo.getTlbFieldConstraints(state, ref, label)
-                        result = result and tlbConstraints
-                    }
-                    result
-                }
+            var curGuard = trueExpr as UBoolExpr
+            if (generateSizeConstraints) {
+                val sizeConstraints = calculatedTlbLabelInfo.getSizeConstraints(state, ref, label)
+                curGuard = curGuard and (sizeConstraints ?: trueExpr)
+            }
+            if (generateDataConstraints) {
+                val dataConstraints = calculatedTlbLabelInfo.getDataConstraints(state, ref, label)
+                curGuard = curGuard and (dataConstraints ?: trueExpr)
+            }
+            if (generateTlbFieldConstraints) {
+                val tlbConstraints = calculatedTlbLabelInfo.getTlbFieldConstraints(state, ref, label)
+                curGuard = curGuard and tlbConstraints
             }
 
             acc and (guard implies curGuard)

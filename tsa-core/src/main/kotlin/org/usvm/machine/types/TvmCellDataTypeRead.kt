@@ -43,10 +43,10 @@ class TvmCellDataCoinsRead(
     val ctx: TvmContext
 ) : TvmCellDataTypeRead<UExprPairReadResult<KBvSort, TvmContext.TvmInt257Sort>>
 
-
-context(TvmContext)
-fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.isEmptyRead(): UBoolExpr =
-    when (this) {
-        is SizedCellDataTypeRead -> sizeBits eq zeroSizeExpr
-        is TvmCellDataMsgAddrRead, is TvmCellDataCoinsRead -> falseExpr
+fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.isEmptyRead(ctx: TvmContext): UBoolExpr =
+    with(ctx) {
+        when (this@isEmptyRead) {
+            is SizedCellDataTypeRead -> sizeBits eq zeroSizeExpr
+            is TvmCellDataMsgAddrRead, is TvmCellDataCoinsRead -> falseExpr
+        }
     }
