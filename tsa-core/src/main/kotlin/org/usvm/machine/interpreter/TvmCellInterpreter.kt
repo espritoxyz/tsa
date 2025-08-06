@@ -487,8 +487,10 @@ class TvmCellInterpreter(
         pushResultOnStack: Boolean
     ): Unit = with(ctx) {
         scope.consumeDefaultGas(stmt)
-        val sizeBits = scope.takeLastIntOrThrowTypeError() ?: return
-        val slice = scope.takeLastSliceOrThrowTypeError() ?: return
+        val sizeBits = scope.takeLastIntOrThrowTypeError()
+            ?: return
+        val slice = scope.takeLastSliceOrThrowTypeError()
+            ?: return
         val isSizeWithinBounds = unsignedIntegerFitsBits(sizeBits, bits = 10u)
         checkOutOfRange(isSizeWithinBounds, scope) ?: return
         val quietBlock: (TvmState.() -> Unit)? = if (!quiet) null else fun TvmState.() {
@@ -511,14 +513,17 @@ class TvmCellInterpreter(
 
     fun visitSdsubstrInst(scope: TvmStepScopeManager, stmt: TvmCellParseSdsubstrInst) = with(ctx) {
         scope.consumeDefaultGas(stmt)
-        val sizeBits = scope.takeLastIntOrThrowTypeError() ?: return
-        val offsetBits = scope.takeLastIntOrThrowTypeError() ?: return
-        val slice = scope.takeLastSliceOrThrowTypeError() ?: return
+        val sizeBits = scope.takeLastIntOrThrowTypeError()
+            ?: return
+        val offsetBits = scope.takeLastIntOrThrowTypeError()
+            ?: return
+        val slice = scope.takeLastSliceOrThrowTypeError()
+            ?: return
 
         val isSizeWithinBounds = unsignedIntegerFitsBits(sizeBits, bits = 10u)
-        checkOutOfRange(isSizeWithinBounds, scope) ?: return
         val isOffsetWithinBounds = unsignedIntegerFitsBits(offsetBits, bits = 10u)
-        checkOutOfRange(isOffsetWithinBounds, scope) ?: return
+        checkOutOfRange(isOffsetWithinBounds and isSizeWithinBounds, scope)
+            ?: return
 
         loadSliceXImpl(
             scope,
@@ -964,8 +969,6 @@ class TvmCellInterpreter(
         slice: UHeapRef,
         doWithUpdatedSliceRef: TvmStepScopeManager.(UConcreteHeapRef) -> Unit = {}
     ): Unit = with(ctx) {
-        val sizeBits = sizeBits
-        val slice = slice
         val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
         scope.makeSliceTypeLoad(
             slice,

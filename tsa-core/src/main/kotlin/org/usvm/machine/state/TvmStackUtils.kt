@@ -80,13 +80,12 @@ fun TvmState.takeLastIntOrThrowTypeError(): UExpr<TvmInt257Sort>? =
 fun TvmStepScopeManager.takeLastIntOrThrowTypeError(): UExpr<TvmInt257Sort>? =
     calcOnState { takeLastIntOrThrowTypeError() }
 
-context(TvmContext)
-fun TvmStepScopeManager.takeLastSliceOrThrowTypeError(): UHeapRef? {
-    val slice = this.calcOnState { stack.takeLastSlice() }
+fun TvmStepScopeManager.takeLastSliceOrThrowTypeError(): UHeapRef? = with(ctx) {
+    val slice = this@takeLastSliceOrThrowTypeError.calcOnState { stack.takeLastSlice() }
     if (slice == null) {
         doWithState(throwTypeCheckError)
     }
-    return slice
+    slice
 }
 
 fun TvmState.takeLastCell(): UHeapRef? =
