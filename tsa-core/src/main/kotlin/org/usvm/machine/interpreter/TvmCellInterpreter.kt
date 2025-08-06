@@ -492,7 +492,8 @@ class TvmCellInterpreter(
         val slice = scope.takeLastSliceOrThrowTypeError()
             ?: return
         val isSizeWithinBounds = unsignedIntegerFitsBits(sizeBits, bits = 10u)
-        checkOutOfRange(isSizeWithinBounds, scope) ?: return
+        checkOutOfRange(isSizeWithinBounds, scope)
+            ?: return
         val quietBlock: (TvmState.() -> Unit)? = if (!quiet) null else fun TvmState.() {
             addOnStack(slice, TvmSliceType)
             stack.addInt(zeroValue)
@@ -1020,7 +1021,8 @@ class TvmCellInterpreter(
         val bitsToRemain = scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
             ?: return
 
-        val slice = scope.takeLastSliceOrThrowTypeError() ?: return
+        val slice = scope.takeLastSliceOrThrowTypeError()
+            ?: return
 
         val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
 

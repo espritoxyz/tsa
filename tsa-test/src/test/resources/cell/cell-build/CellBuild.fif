@@ -59,9 +59,9 @@ PROGRAM{
     13 STU
     ENDC
     CTOS
-    1025 PUSHINT // big offset; integer-out-of-range (exit code 5) in sdsubst below
+    1025 PUSHINT // big offset; integer-out-of-range (exit code 5) in sdsubstr below
     4 PUSHINT
-    SDSUBSTR // 0b0110
+    SDSUBSTR
     4 LDU
     DROP
   }>
@@ -74,7 +74,7 @@ PROGRAM{
     CTOS
     4 PUSHINT
     1025 PUSHINT // big substring length; integer-out-of-range (exit code 5) in sdsubstr below
-    SDSUBSTR // 0b0110
+    SDSUBSTR
     4 LDU
     DROP
   }>
@@ -87,7 +87,7 @@ PROGRAM{
     CTOS
     800 PUSHINT
     800 PUSHINT // big sum; cell-underflow (exit code 9) in sdsubstr below
-    SDSUBSTR // 0b0110
+    SDSUBSTR
     4 LDU
     DROP
   }>
