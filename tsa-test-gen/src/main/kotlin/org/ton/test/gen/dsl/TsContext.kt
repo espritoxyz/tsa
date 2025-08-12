@@ -23,9 +23,9 @@ class TsContext {
     val twoValue = 2.toTsValue()
     val tenValue = 10.toTsValue()
 
-    val zeroBigintValue = BigInteger.ZERO.toTsValue()
-    val oneBigIntValue = BigInteger.ONE.toTsValue()
-    val twoBigIntValue = BigInteger.TWO.toTsValue()
+    val zeroBigintValue = BigInteger.valueOf(0).toTsValue()
+    val oneBigIntValue = BigInteger.valueOf(1).toTsValue()
+    val twoBigIntValue = BigInteger.valueOf(2).toTsValue()
 
     internal fun TsVariable<*>.isMutable(): Boolean = this in mutableVariables
 
