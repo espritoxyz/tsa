@@ -1,5 +1,4 @@
 allprojects {
-    version = "1.0"
     group = "org.usvm"
 }
 
@@ -16,7 +15,7 @@ subprojects {
     }
 
     // Conditionally apply the maven-publish plugin and configure publication only for selected modules.
-    if (project.name in listOf("tsa-core", "tsa-jettons", "tsa-metrics", "tsa-networking", "tsa-sarif", "tsa-test-gen", "tsa-test")) {
+    if (project.name in listOf("tsa-core", "tsa-jettons", "tsa-networking", "tsa-sarif", "tsa-test-gen", "tsa-test")) {
         plugins.apply("maven-publish")
         extensions.configure<PublishingExtension> {
             publications {
