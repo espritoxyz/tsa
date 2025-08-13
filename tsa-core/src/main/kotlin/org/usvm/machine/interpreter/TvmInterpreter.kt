@@ -578,7 +578,7 @@ class TvmInterpreter(
                     ?: error("Could not apply structural constraints")  // TODO: add special exit for that
             },
             exceptionHandler = {
-                logger.debug(it) {
+                logger.warn(it) {
                     "Exception is thrown during the interpretation of $stmt instruction, dropping the state."
                 }
 
