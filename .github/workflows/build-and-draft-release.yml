@@ -29,12 +29,12 @@ jobs:
       - name: 'Assemble'
         run: ./gradlew clean assemble
 
-      - name: 'Upload artifacts to release'
-        uses: svenstaro/upload-release-action@v2
+      - name: 'Create draft release'
+        uses: softprops/action-gh-release@v1
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
           draft: true
-          prerelease: true
-          release_name: Build for ${{ steps.sha.outputs.sha_short }}
+          prerelese: true
+          name: Build for ${{ steps.sha.outputs.sha_short }}
           body: Automated draft release for commit ${{ steps.sha.outputs.sha_full }}
-          file: tsa-cli/build/libs/tsa-cli.jar
+          files: |
+            **/build/libs/tsa-cli.jar
