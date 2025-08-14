@@ -206,7 +206,7 @@ class TvmArtificialInstInterpreter(
             val prevStack = prevMem.stack
             stack = prevStack.clone()  // we should not touch stack from contractStack, as it is contained in other states
             stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
-            registersOfCurrentContract = prevMem.registers
+            registersOfCurrentContract = prevMem.registers.clone()  // like for stack, we shouldn't touch registers
 
             phase = COMPUTE_PHASE
             newStmt(prevInst.nextStmt())
