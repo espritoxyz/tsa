@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "main", "master" ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: 'Build and draft release'
@@ -33,7 +36,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           draft: true
-          prerelese: true
+          prerelease: true
           name: Build for ${{ steps.sha.outputs.sha_short }}
           body: Automated draft release for commit ${{ steps.sha.outputs.sha_full }}
           files: |
