@@ -16,6 +16,10 @@ jobs:
         with:
           submodules: recursive
 
+      - name: 'Add git path to trusted'
+        run: |
+          git config --global --add safe.directory ${GITHUB_WORKSPACE}
+
       - name: Set SHA output
         id: sha
         run: |
