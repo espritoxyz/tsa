@@ -6,6 +6,7 @@ const val ASSERT_METHOD_ID = 3
 const val ASSERT_NOT_METHOD_ID = 4
 const val FETCH_VALUE_ID = 5
 const val SEND_INTERNAL_MESSAGE_ID = 6
+const val GET_C4_METHOD_ID = 7
 
 const val ON_INTERNAL_MESSAGE_METHOD_ID = 65621
 

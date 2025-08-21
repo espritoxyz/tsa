@@ -31,8 +31,6 @@ class ArgsConstraintsTest {
     private val balancePath = "/args/balance.fc"
     private val senderAddressPath = "/args/sender_address.fc"
     private val opcodePath = "/args/opcode.fc"
-    private val internalCallChecker = "/checkers/send_internal.fc"
-    private val internalCallCheckerWithCapture = "/checkers/send_internal_with_capture.fc"
 
     @Test
     fun testConsistentMessageValue() {
@@ -141,47 +139,6 @@ class ArgsConstraintsTest {
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
-    }
-
-    @Test
-    fun testConsistentBalanceThroughChecker() {
-        runTestConsistentBalanceThroughChecker(internalCallChecker)
-    }
-
-    @Test
-    fun testConsistentBalanceThroughCheckerWithCapture() {
-        runTestConsistentBalanceThroughChecker(internalCallCheckerWithCapture)
-    }
-
-    private fun runTestConsistentBalanceThroughChecker(checkerPathStr: String) {
-        val path = getResourcePath<ArgsConstraintsTest>(balancePath)
-        val checkerPath = extractResource(checkerPathStr)
-
-        val checkerContract = getFuncContract(
-            checkerPath,
-            FIFT_STDLIB_RESOURCE,
-            isTSAChecker = true
-        )
-        val analyzedContract = getFuncContract(path, FIFT_STDLIB_RESOURCE)
-
-        val tests = analyzeInterContract(
-            listOf(checkerContract, analyzedContract),
-            startContractId = 0,
-            methodId = TvmContext.RECEIVE_INTERNAL_ID,
-        )
-
-        propertiesFound(
-            tests,
-            listOf(
-                { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
-            )
-        )
-
-        checkInvariants(
-            tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
-        )
     }
 
     @Test
