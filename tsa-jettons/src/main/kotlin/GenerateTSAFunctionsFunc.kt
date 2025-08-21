@@ -54,6 +54,10 @@ fun main() {
         () tsa_send_internal_message(int contract_id, int input_id) impure method_id(6) {
             ;; do nothing
         }
+        
+        cell tsa_get_c4(int contract_id) impure method_id(7) {
+            return return_1();
+        }
     """.trimIndent()
 
     val mkSymbolicApiFunctions = """

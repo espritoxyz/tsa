@@ -1,0 +1,21 @@
+#include "../imports/stdlib.fc";
+#include "../imports/tsa_functions.fc";
+
+() main() impure {
+    tsa_forbid_failures();
+
+    cell checker_data = get_data();
+    var checker_ds = checker_data.begin_parse();
+    int checker_value = checker_ds~load_uint(32);
+    tsa_assert(checker_value == 0);
+
+    tsa_allow_failures();
+
+    cell data = tsa_get_c4(1);
+
+    var ds = data.begin_parse();
+    int value = ds~load_uint(32);
+    ds.end_parse();
+
+    throw_unless(1000, value == 0x100);
+}

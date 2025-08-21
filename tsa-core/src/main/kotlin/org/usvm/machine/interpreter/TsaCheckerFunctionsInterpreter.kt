@@ -19,6 +19,7 @@ import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
+import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.callMethod
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
@@ -31,6 +32,7 @@ import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.state.takeLastIntOrNull
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.toMethodId
+import org.usvm.machine.types.TvmCellType
 import org.usvm.utils.intValueOrNull
 
 class TsaCheckerFunctionsInterpreter(
@@ -108,6 +110,10 @@ class TsaCheckerFunctionsInterpreter(
                 performMkSymbolicInt(scope, stmt)
             }
 
+            GET_C4_METHOD_ID -> {
+                performGetC4(scope, stmt)
+            }
+
             else -> {
                 return Unit
             }
@@ -117,14 +123,10 @@ class TsaCheckerFunctionsInterpreter(
 
     private fun performRecvInternalCall(scope: TvmStepScopeManager, stmt: TvmInst) {
         val newInputId = scope.calcOnState {
-            val value = takeLastIntOrNull()
-            value?.intValueOrNull
-                ?: error("Parameter input_id for tsa_send_internal_message must be concrete integer, but found $value")
+            getConcreteIntFromStack(parameterName = "input_id", functionName = "tsa_send_internal_message")
         }
         val nextContractId = scope.calcOnState {
-            val value = takeLastIntOrNull()
-            value?.intValueOrNull
-                ?: error("Parameter contract_id for tsa_send_internal_message must be concrete integer, but found $value")
+            getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_send_internal_message")
         }
         val nextMethodId = TvmContext.RECEIVE_INTERNAL_ID.toInt()
 
@@ -133,14 +135,10 @@ class TsaCheckerFunctionsInterpreter(
 
     private fun performOrdinaryTsaCall(scope: TvmStepScopeManager, stackOperations: StackOperations, stmt: TvmInst) {
         val nextMethodId = scope.calcOnState {
-            val value = takeLastIntOrNull()
-            value?.intValueOrNull
-                ?: error("Parameter method_id for tsa_call must be concrete integer, but found $value")
+            getConcreteIntFromStack(parameterName = "method_id", functionName = "tsa_call")
         }
         val nextContractId = scope.calcOnState {
-            val value = takeLastIntOrNull()
-            value?.intValueOrNull
-                ?: error("Parameter contract_id for tsa_call must be concrete integer, but found $value")
+            getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_call")
         }
 
         performTsaCall(scope, stackOperations, stmt, nextMethodId, nextContractId)
@@ -339,9 +337,7 @@ class TsaCheckerFunctionsInterpreter(
 
     private fun performFetchValue(scope: TvmStepScopeManager, stmt: TvmInst) {
         scope.doWithState {
-            val valueIdSymbolic = takeLastIntOrNull()
-            val valueId = valueIdSymbolic?.intValueOrNull
-                ?: error("Parameter value_id for tsa_fetch_vaslue must be concrete integer, but found $valueIdSymbolic")
+            val valueId = getConcreteIntFromStack(parameterName = "value_id", functionName = "tsa_fetch_value")
             val entry = stack.takeLastEntry()
             check(!fetchedValues.containsKey(valueId)) {
                 "Value with id $valueId is already present: $fetchedValues[$valueId]"
@@ -353,10 +349,8 @@ class TsaCheckerFunctionsInterpreter(
 
     private fun performMkSymbolicInt(scope: TvmStepScopeManager, stmt: TvmInst) {
         scope.doWithStateCtx {
-            val isSigned = takeLastIntOrThrowTypeError()?.intValueOrNull
-                ?: return@doWithStateCtx
-            val bits = takeLastIntOrThrowTypeError()?.intValueOrNull
-                ?: return@doWithStateCtx
+            val isSigned = getConcreteIntFromStack(parameterName = "is_signed", functionName = "tsa_mk_int")
+            val bits = getConcreteIntFromStack(parameterName = "bits", functionName = "tsa_mk_int")
 
             check(bits >= 0) {
                 "Bits count must be non-negative, but found $bits"
@@ -374,5 +368,23 @@ class TsaCheckerFunctionsInterpreter(
             stack.addInt(value)
             newStmt(stmt.nextStmt())
         }
+    }
+
+    private fun performGetC4(scope: TvmStepScopeManager, stmt: TvmInst) {
+        scope.doWithState {
+            val contractId = getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_get_c4")
+
+            val c4 = contractIdToC4Register[contractId]
+                ?: error("Contract with id $contractId not found")
+
+            addOnStack(c4.value.value, TvmCellType)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun TvmState.getConcreteIntFromStack(parameterName: String, functionName: String): Int {
+        val valueIdSymbolic = takeLastIntOrNull()
+        return valueIdSymbolic?.intValueOrNull
+            ?: error("Parameter $parameterName for $functionName must be concrete integer, but found $valueIdSymbolic")
     }
 }
