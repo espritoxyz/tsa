@@ -189,6 +189,8 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeSliceTypeLoad
+import org.usvm.mkSizeExpr
+import org.usvm.sizeSort
 import org.usvm.utils.intValueOrNull
 
 class TvmDictOperationInterpreter(
@@ -498,7 +500,7 @@ class TvmDictOperationInterpreter(
             scope.doWithState { copyDict(dictCellRef, resultDict, dictId, key.sort) }
         } else {
             scope.doWithStateCtx {
-                memory.writeField(resultDict, dictKeyLengthField, int257sort, keyLength.toBv257(), guard = trueExpr)
+                memory.writeField(resultDict, dictKeyLengthField, sizeSort, mkSizeExpr(keyLength), guard = trueExpr)
             }
         }
 
@@ -968,7 +970,7 @@ class TvmDictOperationInterpreter(
     }
 
     private fun assertDictKeyLength(scope: TvmStepScopeManager, dict: UHeapRef, keyLength: Int): Unit? = scope.calcOnStateCtx {
-        val dictKeyLength = scope.calcOnState { memory.readField(dict, dictKeyLengthField, int257sort) }
+        val dictKeyLength = scope.calcOnState { memory.readField(dict, dictKeyLengthField, sizeSort) }
         val dictKeyConst = dictKeyLength.intValueOrNull
 
         if (dictKeyConst == null) {
@@ -977,8 +979,8 @@ class TvmDictOperationInterpreter(
             return@calcOnStateCtx memory.writeField(
                 dict,
                 dictKeyLengthField,
-                int257sort,
-                keyLength.toBv257(),
+                sizeSort,
+                mkSizeExpr(keyLength),
                 guard = trueExpr
             )
         }

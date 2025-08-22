@@ -375,7 +375,7 @@ class TvmTestStateResolver(
             error("Unexpected dict ref: $modelRef")
         }
 
-        val keyLength = extractInt(memory.readField(dict, dictKeyLengthField, int257sort))
+        val keyLength = extractInt(memory.readField(dict, dictKeyLengthField, sizeSort))
         val dictId = DictId(keyLength)
         val keySort = mkBvSort(keyLength.toUInt())
         val keySetEntries = dictKeyEntries(model, memory, modelRef, dictId, keySort)

@@ -63,8 +63,7 @@ class ContractsTest {
     @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun testPumpersMaster() {
-        // TODO: one test fails concrete execution + sometimes test generation fails itself
-        analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
+        analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = true)
     }
 
     @Test
@@ -216,13 +215,13 @@ class ContractsTest {
         analyzeFuncContract(electorPath, methodsNumber = 3, enableTestGeneration = true)
     }
 
-    @Ignore("Dict slice values overflow https://github.com/explyt/tsa/issues/155")
+//    @Ignore("Dict slice values overflow https://github.com/explyt/tsa/issues/155")
     @Test
     fun highloadWallet() {
         analyzeFuncContract(highloadWalletPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
-    @Ignore("Dict slice values overflow https://github.com/explyt/tsa/issues/155")
+//    @Ignore("Dict slice values overflow https://github.com/explyt/tsa/issues/155")
     @Test
     fun highloadWalletV2() {
         analyzeFuncContract(highloadWalletV2Path, methodsNumber = 4, enableTestGeneration = true)

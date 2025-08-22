@@ -34,6 +34,7 @@ import org.usvm.memory.UReadOnlyMemory
 import org.usvm.memory.USymbolicCollectionKeyInfo
 import org.usvm.model.UModelBase
 import org.usvm.regions.SetRegion
+import org.usvm.sizeSort
 import org.usvm.uctx
 import usvm.hack.UModelBaseAccess
 
@@ -212,8 +213,8 @@ fun TvmState.copyDict(
     val updatedValues = dictValueRegion.copyRefValues(originalDict, resultDict)
     memory.setRegion(dictValueRegionId, updatedValues)
 
-    val dictKeyLength = memory.readField(originalDict, dictKeyLengthField, int257sort)
-    memory.writeField(resultDict, dictKeyLengthField, int257sort, dictKeyLength, guard = trueExpr)
+    val dictKeyLength = memory.readField(originalDict, dictKeyLengthField, sizeSort)
+    memory.writeField(resultDict, dictKeyLengthField, sizeSort, dictKeyLength, guard = trueExpr)
 }
 
 fun dictKeyEntries(

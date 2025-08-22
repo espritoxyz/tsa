@@ -83,10 +83,12 @@ class TvmValueFixator(
         ref: UHeapRef,
         value: TvmTestSliceValue,
     ): UBoolExpr? = with(ctx) {
-        val dataPosSymbolic = scope.calcOnState { memory.readField(ref,
-            TvmContext.sliceDataPosField, sizeSort) }
-        val refPosSymbolic = scope.calcOnState { memory.readField(ref,
-            TvmContext.sliceRefPosField, sizeSort) }
+        val dataPosSymbolic = scope.calcOnState {
+            memory.readField(ref, TvmContext.sliceDataPosField, sizeSort)
+        }
+        val refPosSymbolic = scope.calcOnState {
+            memory.readField(ref, TvmContext.sliceRefPosField, sizeSort)
+        }
         val cellRef = scope.calcOnState { memory.readField(ref, TvmContext.sliceCellField, addressSort) }
 
         fixateConcreteValueForDataCell(
@@ -150,14 +152,17 @@ class TvmValueFixator(
         ref: UHeapRef,
         value: TvmTestDictCellValue,
     ): UBoolExpr? = with(ctx) {
-        val keyLength = scope.calcOnState { memory.readField(ref,
-            TvmContext.dictKeyLengthField, int257sort) }
-        var result = keyLength eq value.keyLength.toBv257()
+        val keyLength = scope.calcOnState {
+            memory.readField(ref, TvmContext.dictKeyLengthField, sizeSort)
+        }
+        var result = keyLength eq mkSizeExpr(value.keyLength)
 
         // TODO shouldn't the ref value also be fixed in case ref is ite ?
         //  After assertion dict can contain more entries, as we are not asserting not containing entries
         val model = resolver.model
         val modelRef = model.eval(ref) as UConcreteHeapRef
+
+//        result = result and (ref eq modelRef)
 
         val dictId = DictId(value.keyLength)
         val keySort = mkBvSort(value.keyLength.toUInt())

@@ -36,6 +36,8 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.types.TvmDictCellType
+import org.usvm.mkSizeExpr
+import org.usvm.sizeSort
 import java.math.BigInteger
 
 
@@ -575,7 +577,7 @@ private fun TvmState.allocCellFromFields(vararg fields: KExpr<KBvSort>): UHeapRe
 
 private fun TvmState.allocDict(keyLength: Int): UConcreteHeapRef = with(ctx) {
     memory.allocConcrete(TvmDictCellType).also {
-        memory.writeField(it, dictKeyLengthField, int257sort, keyLength.toBv257(), guard = trueExpr)
+        memory.writeField(it, dictKeyLengthField, sizeSort, mkSizeExpr(keyLength), guard = trueExpr)
     }
 }
 

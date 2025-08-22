@@ -2,12 +2,19 @@ package org.ton.examples.dict
 
 import org.ton.boc.BagOfCells
 import org.ton.bytecode.MethodId
+import org.ton.test.gen.dsl.render.TsRenderer
+import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.compareSymbolicAndConcreteResultsFunc
+import org.ton.test.utils.extractResource
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.propertiesFound
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
+import org.usvm.test.resolver.TvmMethodFailure
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -20,6 +27,8 @@ class DictComplexTest {
 
     private val veryBigConcreteDictCode: String = "/contracts/EQAebdctnt2DE6nSS3dkFHmdxHa4ml_Y8U_SShBYdGCYqj_9.boc"
     private val veryBigConcreteDictData: String = "/contracts/EQAebdctnt2DE6nSS3dkFHmdxHa4ml_Y8U_SShBYdGCYqj_9_data.boc"
+
+    private val potentialDictOverflow = "/dict/value_overflow.fc"
 
     @Test
     fun nearestTest() {
@@ -63,5 +72,25 @@ class DictComplexTest {
         )
 
         assertTrue { tests.isNotEmpty() }
+    }
+
+    @Test
+    fun testDictValueOverflow() {
+        val path = extractResource(potentialDictOverflow)
+        val results = funcCompileAndAnalyzeAllMethods(path)
+
+        assertEquals(1, results.size)
+
+        val tests = results.single()
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            )
+        )
+
+        TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
     }
 }
