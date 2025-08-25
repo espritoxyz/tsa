@@ -13,6 +13,7 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmMethodFailure
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -29,6 +30,7 @@ class DictComplexTest {
     private val veryBigConcreteDictData: String = "/contracts/EQAebdctnt2DE6nSS3dkFHmdxHa4ml_Y8U_SShBYdGCYqj_9_data.boc"
 
     private val potentialDictOverflow = "/dict/value_overflow.fc"
+    private val dictFixation = "/dict/dict_fixation.fc"
 
     @Test
     fun nearestTest() {
@@ -88,6 +90,29 @@ class DictComplexTest {
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            )
+        )
+
+        TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
+    }
+
+    @Ignore
+    @Test
+    fun testDictFixation() {
+        val path = extractResource(dictFixation)
+        val results = funcCompileAndAnalyzeAllMethods(path)
+
+        assertEquals(1, results.size)
+
+        val tests = results.single()
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
             )
         )
 

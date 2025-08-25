@@ -215,13 +215,11 @@ class ContractsTest {
         analyzeFuncContract(electorPath, methodsNumber = 3, enableTestGeneration = true)
     }
 
-//    @Ignore("Dict slice values overflow https://github.com/explyt/tsa/issues/155")
     @Test
     fun highloadWallet() {
         analyzeFuncContract(highloadWalletPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
-//    @Ignore("Dict slice values overflow https://github.com/explyt/tsa/issues/155")
     @Test
     fun highloadWalletV2() {
         analyzeFuncContract(highloadWalletV2Path, methodsNumber = 4, enableTestGeneration = true)

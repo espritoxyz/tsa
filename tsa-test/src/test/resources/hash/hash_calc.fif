@@ -6,7 +6,8 @@ PROGRAM{
   1 DECLMETHOD simple_slice_hash
   2 DECLMETHOD slice_ops_hash
   3 DECLMETHOD ref_hash
-  4 DECLMETHOD dict_hash
+  4 DECLMETHOD dict_hash_1
+  5 DECLMETHOD dict_hash_2
   simple_cell_hash PROC:<{
       NEWC
       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
@@ -33,11 +34,23 @@ PROGRAM{
       ENDC
       HASHCU
     }>
-  dict_hash PROC:<{
+  dict_hash_1 PROC:<{
       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
       x{6766864616261} PUSHSLICE  // just some slice
       NULL
       10 PUSHINT
+      DICTSET
+      HASHCU
+  }>
+  dict_hash_2 PROC:<{
+      x{} PUSHSLICE
+      x{4000000000000000} PUSHSLICE
+      x{} PUSHSLICE
+      x{0000000000000000} PUSHSLICE
+      NULL
+      64 PUSHINT
+      DICTSET
+      64 PUSHINT
       DICTSET
       HASHCU
   }>
