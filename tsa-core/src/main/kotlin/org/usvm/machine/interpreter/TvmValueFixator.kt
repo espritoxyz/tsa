@@ -157,12 +157,10 @@ class TvmValueFixator(
         }
         var result = keyLength eq mkSizeExpr(value.keyLength)
 
-        // TODO shouldn't the ref value also be fixed in case ref is ite ?
-        //  After assertion dict can contain more entries, as we are not asserting not containing entries
         val model = resolver.model
         val modelRef = model.eval(ref) as UConcreteHeapRef
 
-//        result = result and (ref eq modelRef)
+        result = result and (ref eq modelRef)
 
         val dictId = DictId(value.keyLength)
         val keySort = mkBvSort(value.keyLength.toUInt())
@@ -180,13 +178,16 @@ class TvmValueFixator(
             }
 
             val concreteKey = TvmTestIntegerValue(model.eval(key).bigIntValue())
+
+            val keyConstraint = model.eval(key) eq key
+
             val concreteValue = value.entries[concreteKey]
             if (concreteValue == null) {
-                result = result and keyContains.not()
+                result = result and keyContains.not() and keyConstraint
             } else {
                 val valueConstraint = fixateConcreteValue(scope, entryValue, concreteValue)
                     ?: return@with null
-                result = result and keyContains and valueConstraint
+                result = result and keyContains and valueConstraint and keyConstraint
             }
         }
 

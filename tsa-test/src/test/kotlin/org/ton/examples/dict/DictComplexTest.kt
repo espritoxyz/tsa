@@ -13,7 +13,6 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmMethodFailure
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -96,7 +95,6 @@ class DictComplexTest {
         TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
     }
 
-    @Ignore
     @Test
     fun testDictFixation() {
         val path = extractResource(dictFixation)
