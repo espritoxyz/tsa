@@ -168,6 +168,7 @@ import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictRemoveKey
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.generateSymbolicSlice
+import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.sliceCopy
@@ -189,6 +190,8 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeSliceTypeLoad
+import org.usvm.mkSizeExpr
+import org.usvm.sizeSort
 import org.usvm.utils.intValueOrNull
 
 class TvmDictOperationInterpreter(
@@ -498,9 +501,12 @@ class TvmDictOperationInterpreter(
             scope.doWithState { copyDict(dictCellRef, resultDict, dictId, key.sort) }
         } else {
             scope.doWithStateCtx {
-                memory.writeField(resultDict, dictKeyLengthField, int257sort, keyLength.toBv257(), guard = trueExpr)
+                memory.writeField(resultDict, dictKeyLengthField, sizeSort, mkSizeExpr(keyLength), guard = trueExpr)
             }
         }
+
+        assertDictValueDoesNotOverflow(scope, dictId, value)
+            ?: return
 
         scope.doWithState { dictAddKeyValue(resultDict, dictId, key, value) }
 
@@ -516,6 +522,9 @@ class TvmDictOperationInterpreter(
         require(oldValue != null) {
             "Unexpected null dict that contains key $key"
         }
+
+        assertDictValueDoesNotOverflow(scope, dictId, oldValue)
+            ?: return
 
         val unwrappedOldValue = oldValue.takeIf { getOldValue }?.let {
             unwrapDictValue(scope, it, valueType)
@@ -598,8 +607,6 @@ class TvmDictOperationInterpreter(
             dictContainsKey(dictCellRef, dictId, key)
         }
 
-        val sliceValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
-
         scope.fork(
             dictContainsKey,
             falseStateIsExceptional = false,
@@ -613,7 +620,12 @@ class TvmDictOperationInterpreter(
             }
         ) ?: return
 
+        val sliceValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
+
         val unwrappedValue = unwrapDictValue(scope, sliceValue, valueType)
+            ?: return
+
+        assertDictValueDoesNotOverflow(scope, dictId, sliceValue)
             ?: return
 
         scope.doWithState {
@@ -668,6 +680,9 @@ class TvmDictOperationInterpreter(
 
         val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
         val unwrappedValue = unwrapDictValue(scope, value, valueType)
+            ?: return
+
+        assertDictValueDoesNotOverflow(scope, dictId, value)
             ?: return
 
         handleDictRemoveKey(scope, dictCellRef, dictId, key,
@@ -728,6 +743,7 @@ class TvmDictOperationInterpreter(
         val resultElement = scope.calcOnState { makeSymbolicPrimitive(keySort) }
         val resultElementExtended = extendDictKey(resultElement, keyType)
 
+        // since these entries were stored during execution, value overflow constraints have already been asserted
         val allSetEntries = scope.calcOnState {
             memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
         }
@@ -767,6 +783,9 @@ class TvmDictOperationInterpreter(
 
         val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, resultElement) }
         val unwrappedValue = unwrapDictValue(scope, value, valueType)
+            ?: return
+
+        assertDictValueDoesNotOverflow(scope, dictId, value)
             ?: return
 
         if (!removeKey) {
@@ -849,6 +868,7 @@ class TvmDictOperationInterpreter(
         val resultElement = scope.calcOnStateCtx { makeSymbolicPrimitive(keySort) }
         val resultElementExtended = extendDictKey(resultElement, keyType)
 
+        // since these entries were stored during execution, value overflow constraints have already been asserted
         val allSetEntries = scope.calcOnStateCtx {
             memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
         }
@@ -897,6 +917,7 @@ class TvmDictOperationInterpreter(
         val dictHasNextKeyConstraint = ctx.mkAnd(dictContainsResultElement, resultIsNextPrev, resultIsClosest)
 
         if (!scope.assertIfSat(dictHasNextKeyConstraint)) {
+            // TODO handle UNKNOWN
             // There is no next key in the dict
             scope.doWithStateCtx {
                 addOnStack(falseValue, TvmIntegerType)
@@ -914,6 +935,9 @@ class TvmDictOperationInterpreter(
         val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, resultElement) }
         val unwrappedValue = unwrapDictValue(scope, value, valueType)
             ?: return
+
+        assertDictValueDoesNotOverflow(scope, dictId, value)
+            ?: return@with
 
         scope.doWithStateCtx {
             storeValue(valueType, unwrappedValue)
@@ -968,27 +992,15 @@ class TvmDictOperationInterpreter(
     }
 
     private fun assertDictKeyLength(scope: TvmStepScopeManager, dict: UHeapRef, keyLength: Int): Unit? = scope.calcOnStateCtx {
-        val dictKeyLength = scope.calcOnState { memory.readField(dict, dictKeyLengthField, int257sort) }
-        val dictKeyConst = dictKeyLength.intValueOrNull
+        val dictKeyLength = scope.calcOnState { memory.readField(dict, dictKeyLengthField, sizeSort) }
 
-        if (dictKeyConst == null) {
-            // [dict] is input dict, as otherwise [dictKeyLength] would be a constant value
-
-            return@calcOnStateCtx memory.writeField(
-                dict,
-                dictKeyLengthField,
-                int257sort,
-                keyLength.toBv257(),
-                guard = trueExpr
-            )
+        scope.assert(
+            constraint = dictKeyLength eq mkSizeExpr(keyLength),
+            unsatBlock = { throwRealDictError(this) },
+        ) ?: run {
+            logger.warn { "Cannot assert dict key length constraint" }
+            null
         }
-
-        if (keyLength != dictKeyConst) {
-            throwRealDictError(this)
-            return@calcOnStateCtx null
-        }
-
-        Unit
     }
 
     private fun loadKeyLength(
@@ -1171,6 +1183,28 @@ class TvmDictOperationInterpreter(
             },
             blockOnFalseState = { originalDictContainsKeyNonEmptyResult(resultDict) },
         )
+    }
+
+    private fun TvmState.dictValueDoesNotOverflowConstraint(
+        keyLength: Int,
+        value: UHeapRef
+    ): UBoolExpr = with(ctx) {
+        // hml_short$0 {m:#} {n:#} len:(Unary ~n) {n <= m} s:(n * Bit) = HmLabel ~n m;
+        val maxLabelBits = 1 + (keyLength + 1) + keyLength
+        val valueBitsLeft = getSliceRemainingBitsCount(value)
+        val maxDictLeafBits = mkBvAddExpr(valueBitsLeft, mkSizeExpr(maxLabelBits))
+
+        mkBvSignedLessOrEqualExpr(maxDictLeafBits, maxDataLengthSizeExpr)
+    }
+
+    private fun assertDictValueDoesNotOverflow(scope: TvmStepScopeManager, dictId: DictId, value: UHeapRef): Unit? {
+        val constraint = scope.calcOnState { dictValueDoesNotOverflowConstraint(dictId.keyLength, value) }
+
+        return scope.assert(constraint)
+            ?: run {
+                logger.warn { "Cannot assert dict value to not overflow" }
+                null
+            }
     }
 
     private enum class DictKeyType {

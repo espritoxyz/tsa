@@ -1,0 +1,21 @@
+#include "../imports/stdlib.fc";
+
+() main(slice in_msg) {
+    var dict = in_msg~load_dict();
+
+    (int i, slice value, var found?) = dict.idict_get_next?(64, -1);
+
+    throw_unless(999, found?);
+
+    throw_unless(1000, slice_bits(value) >= 1020);
+
+    int dict_hash = cell_hash(dict);
+
+    int expected_dict_hash = in_msg~load_uint(256);
+
+    in_msg.end_parse();
+
+    throw_unless(1001, dict_hash == expected_dict_hash);
+
+    throw(1002);
+}

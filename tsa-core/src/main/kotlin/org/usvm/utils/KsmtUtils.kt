@@ -3,6 +3,7 @@ package org.usvm.utils
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KEqExpr
 import io.ksmt.expr.KNotExpr
+import io.ksmt.sort.KBvSort
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.minus
@@ -18,10 +19,11 @@ import org.usvm.UIteExpr
 import org.usvm.isAllocated
 import org.usvm.isStatic
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.bigIntValue
 import org.usvm.memory.foldHeapRef
 
-val UExpr<TvmContext.TvmInt257Sort>.intValueOrNull: Int?
+val UExpr<out KBvSort>.intValueOrNull: Int?
     get() = (this as? KBitVecValue<*>)?.bigIntValue()?.toInt()
 
 fun TvmContext.extractAddresses(

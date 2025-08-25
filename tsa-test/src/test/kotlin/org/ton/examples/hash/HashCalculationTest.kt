@@ -17,7 +17,7 @@ class HashCalculationTest {
 
         val symbolicResult = compileAndAnalyzeFift(fiftResourcePath, tvmOptions = testConcreteOptions)
 
-        val methodIds = (0..4).toSet()
+        val methodIds = (0..5).toSet()
         compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
             runFiftMethod(fiftResourcePath, methodId)
         }
