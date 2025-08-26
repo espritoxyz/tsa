@@ -86,16 +86,22 @@ class TvmArtificialInstInterpreter(
     }
 
     private fun visitActionPhaseInst(scope: TvmStepScopeManager, stmt: TsaArtificialActionPhaseInst) {
-        scope.doWithState {
-            val commitedState = lastCommitedStateOfContracts[currentContract]
+        val commitedState = scope.calcOnState {
+            lastCommitedStateOfContracts[currentContract]
+        }
 
-            if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis) {
+        val analysisOfGetMethod = scope.calcOnState { analysisOfGetMethod }
+
+        if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis) {
+            scope.doWithState {
                 phase = ACTION_PHASE
-
-                processNewMessages(scope, commitedState)
-                    ?: return@doWithState
             }
 
+            processNewMessages(scope, commitedState)
+                ?: return
+        }
+
+        scope.doWithState {
             newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
         }
     }
@@ -173,13 +179,17 @@ class TvmArtificialInstInterpreter(
     private fun processNewMessages(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
-    ): Unit? = scope.calcOnState {
+    ): Unit? {
         val (newUnprocessedMessages, messageDestinations) =
             transactionInterpreter.parseActionsToDestinations(scope, commitedState)
-                ?: return@calcOnState null
+                ?: return null
 
-        messageQueue = messageQueue.addAll(messageDestinations)
-        unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
+        scope.doWithState {
+            messageQueue = messageQueue.addAll(messageDestinations)
+            unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
+        }
+
+        return Unit
     }
 
     private fun processCheckerExit(scope: TvmStepScopeManager, result: TvmMethodResult) {
