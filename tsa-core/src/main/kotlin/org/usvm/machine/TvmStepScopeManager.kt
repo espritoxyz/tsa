@@ -173,8 +173,8 @@ class TvmStepScopeManager(
                     forkedStates += newScopeResults.forkedStates
                     stateAlive = newScopeResults.originalStateAlive
 
-                    if (state == originalState) {
-                        scope.stepScopeState = newScopeManager.scope.stepScopeState
+                    if (state == originalState && !newScopeResults.originalStateAlive) {
+                        scope.stepScopeState = DEAD
                     }
                 }
 

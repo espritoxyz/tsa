@@ -123,8 +123,7 @@ class TvmValueFixator(
         val refCond = symbolicRefNumber eq mkSizeExpr(value.refs.size)
 
         val dataCond = if (!structuralConstraintsOnly) {
-            val symbolicData = scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
-                ?: return@with null
+
             val symbolicDataLength = scope.calcOnState {
                 mkSizeSubExpr(
                     memory.readField(ref, TvmContext.cellDataLengthField, sizeSort),
@@ -135,6 +134,9 @@ class TvmValueFixator(
             val bitsCond = if (value.data.isEmpty()) {
                 trueExpr
             } else {
+                val symbolicData = scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
+                    ?: return@with null
+
                 val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
                 (symbolicData eq concreteData)
             }

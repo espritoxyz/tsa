@@ -166,6 +166,7 @@ import org.usvm.machine.state.dictAddKeyValue
 import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictRemoveKey
+import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getSliceRemainingBitsCount
@@ -1170,19 +1171,54 @@ class TvmDictOperationInterpreter(
 
         val resultSetContainsNoStoredKey = ctx.mkNot(resultSetContainsAnyStoredKey)
 
-        scope.fork(
-            resultSetContainsNoStoredKey,
-            falseStateIsExceptional = false,
-            blockOnTrueState = {
-                if (!resultSetEntries.isInput) {
-                    originalDictContainsKeyEmptyResult()
-                } else {
-                    // todo: empty input dict
-                    originalDictContainsKeyNonEmptyResult(resultDict)
+        scope.doWithConditions(
+            listOf(
+                TvmStepScopeManager.ActionOnCondition(
+                    caseIsExceptional = false,
+                    condition = resultSetContainsNoStoredKey,
+                    paramForDoForAllBlock = 1,
+                    action = {},
+                ),
+                TvmStepScopeManager.ActionOnCondition(
+                    caseIsExceptional = false,
+                    condition = ctx.mkNot(resultSetContainsNoStoredKey),
+                    paramForDoForAllBlock = 2,
+                    action = {},
+                ),
+            )
+        ) { caseId ->
+            when (caseId) {
+                1 -> {
+                    if (!resultSetEntries.isInput) {
+                        doWithState {
+                            originalDictContainsKeyEmptyResult()
+                        }
+                    } else {
+                        // todo: empty input dict
+                        val leftKey = calcOnStateCtx {
+                            makeSymbolicPrimitive(mkBvSort(dictId.keyLength.toUInt()))
+                        }
+                        val condition = calcOnStateCtx {
+                            (leftKey neq key) and dictContainsKey(dictCellRef, dictId, leftKey)
+                        }
+                        assert(condition)
+                            ?: return@doWithConditions
+
+                        doWithState {
+                            originalDictContainsKeyNonEmptyResult(resultDict)
+                        }
+                    }
                 }
-            },
-            blockOnFalseState = { originalDictContainsKeyNonEmptyResult(resultDict) },
-        )
+                2 -> {
+                    doWithState {
+                        originalDictContainsKeyNonEmptyResult(resultDict)
+                    }
+                }
+                else -> {
+                    error("Unexpected case id: $caseId")
+                }
+            }
+        }
     }
 
     private fun TvmState.dictValueDoesNotOverflowConstraint(
