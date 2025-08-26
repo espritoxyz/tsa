@@ -40,11 +40,15 @@ fun sliceLoadIntTransaction(
     val originalStateId = scope.calcOnState { id }
     val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
 
+    scope.doNotKillScopeOnDoWithConditions = true
+
     sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned) { value ->
         validateSliceLoadState(originalStateId)
 
         result = value
     }
+
+    scope.doNotKillScopeOnDoWithConditions = false
 
     result?.let { updatedSliceAddress to it }
 }
@@ -59,11 +63,15 @@ fun sliceLoadAddrTransaction(
         memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
     }
 
+    scope.doNotKillScopeOnDoWithConditions = true
+
     sliceLoadAddrTlb(scope, slice, updatedSlice) { value ->
         validateSliceLoadState(originalStateId)
 
         result = value
     }
+
+    scope.doNotKillScopeOnDoWithConditions = false
 
     result?.let { updatedSlice to it }
 }
@@ -78,11 +86,15 @@ fun sliceLoadGramsTransaction(
         memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
     }
 
+    scope.doNotKillScopeOnDoWithConditions = true
+
     sliceLoadGramsTlb(scope, slice, updatedSlice) { grams ->
         validateSliceLoadState(originalStateId)
 
         resGrams = grams
     }
+
+    scope.doNotKillScopeOnDoWithConditions = false
 
     return resGrams?.let { updatedSlice to it }
 }
@@ -97,11 +109,15 @@ fun sliceLoadRefTransaction(
         memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
     }
 
+    scope.doNotKillScopeOnDoWithConditions = true
+
     sliceLoadRefTlb(scope, slice, updatedSlice) { value ->
         validateSliceLoadState(originalStateId)
 
         result = value
     }
+
+    scope.doNotKillScopeOnDoWithConditions = false
 
     return result?.let { updatedSlice to it }
 }

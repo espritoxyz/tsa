@@ -26,6 +26,8 @@ class TvmStepScopeManager(
     private val forkedStates = mutableListOf<TvmState>()
     private val scope: TvmStepScope = TvmStepScope(originalState, forkBlackList, forkedStates)
 
+    var doNotKillScopeOnDoWithConditions: Boolean = false
+
     fun doWithState(block: TvmState.() -> Unit) = scope.doWithState(block)
 
     fun <T> calcOnState(block: TvmState.() -> T) = scope.calcOnState(block)
@@ -135,7 +137,6 @@ class TvmStepScopeManager(
         )
     }
 
-    // TODO what to return?
     // TODO docs
     fun <T> doWithConditions(
         givenConditionsWithActions: List<ActionOnCondition<T>>,
@@ -148,7 +149,9 @@ class TvmStepScopeManager(
         }
 
         val states = ctx.statesForkProvider.forkMulti(originalState, conditionsWithActions.map { it.condition })
-        scope.stepScopeState = CANNOT_BE_PROCESSED
+        if (!doNotKillScopeOnDoWithConditions) {
+            scope.stepScopeState = CANNOT_BE_PROCESSED
+        }
         states.forEachIndexed { idx, state ->
             state?.let {
                 val action = conditionsWithActions[idx]
@@ -174,7 +177,11 @@ class TvmStepScopeManager(
                     stateAlive = newScopeResults.originalStateAlive
 
                     if (state == originalState) {
-                        scope.stepScopeState = newScopeManager.scope.stepScopeState
+                        if (!doNotKillScopeOnDoWithConditions && !newScopeResults.originalStateAlive) {
+                            scope.stepScopeState = DEAD
+                        } else {
+                            scope.stepScopeState = newScopeManager.scope.stepScopeState
+                        }
                     }
                 }
 

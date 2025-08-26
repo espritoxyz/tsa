@@ -148,6 +148,7 @@ import org.usvm.machine.state.sliceMoveRefPtr
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.state.slicePreloadRef
+import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.state.takeLastBuilder
 import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
@@ -508,7 +509,12 @@ class TvmCellInterpreter(
             sizeBits = sizeBits,
             slice = slice
         ) {
-            calcOnState { newStmt(stmt.nextStmt()) }
+            calcOnState {
+                if (quiet) {
+                    addOnStack(ctx.oneValue, TvmIntegerType)
+                }
+                newStmt(stmt.nextStmt())
+            }
         }
     }
 
@@ -533,7 +539,7 @@ class TvmCellInterpreter(
             pushResultOnStack = false,
             sizeBits = offsetBits,
             slice = slice,
-            doWithUpdatedSliceRef = {
+            doWithTailSliceRef = {
                 loadSliceXImpl(
                     this,
                     quietBlock = null,
@@ -541,7 +547,7 @@ class TvmCellInterpreter(
                     pushResultOnStack = true,
                     slice = it,
                     sizeBits = sizeBits,
-                    doWithUpdatedSliceRef = {
+                    doWithTailSliceRef = {
                         doWithState {
                             newStmt(stmt.nextStmt())
                         }
@@ -968,7 +974,7 @@ class TvmCellInterpreter(
         pushResultOnStack: Boolean = true,
         sizeBits: UExpr<TvmContext.TvmInt257Sort>,
         slice: UHeapRef,
-        doWithUpdatedSliceRef: TvmStepScopeManager.(UConcreteHeapRef) -> Unit = {}
+        doWithTailSliceRef: TvmStepScopeManager.(UConcreteHeapRef) -> Unit = {}
     ): Unit = with(ctx) {
         val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
         scope.makeSliceTypeLoad(
@@ -1002,9 +1008,12 @@ class TvmCellInterpreter(
 
             doWithState {
                 sliceMoveDataPtr(updatedSliceAddress, sizeBits.extractToSizeSort())
-                visitLoadDataInstEnd(stmt = null, preload, quietBlock != null, updatedSliceAddress)
+
+                if (!preload) {
+                    addOnStack(updatedSliceAddress, TvmSliceType)
+                }
             }
-            doWithUpdatedSliceRef(updatedSliceAddress)
+            doWithTailSliceRef(updatedSliceAddress)
         }
     }
 
@@ -1177,15 +1186,6 @@ class TvmCellInterpreter(
             return
         }
 
-        val remainingPrefixBitsLength = scope.calcOnState { getSliceRemainingBitsCount(prefixSlice) }
-        val prefixBits = scope.slicePreloadDataBits(prefixSlice, remainingPrefixBitsLength)
-            ?: return@with
-
-
-        val remainingDataBitsLength = scope.calcOnState { getSliceRemainingBitsCount(slice) }
-        val dataBits = scope.slicePreloadDataBits(slice, remainingDataBitsLength)
-            ?: return@with
-
         val quietBlock: TvmState.() -> Unit = {
             addOnStack(slice, TvmSliceType)
             stack.addInt(zeroValue)
@@ -1193,61 +1193,48 @@ class TvmCellInterpreter(
         }
         val quietBlockOrNull = if (quiet) quietBlock else null
 
-        val dataCell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
-        val cellDataLength = scope.calcOnState { memory.readField(dataCell, cellDataLengthField, sizeSort) }
-        scope.assertDataLengthConstraintWithoutError(
-            cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $dataCell") }
-        ) ?: return
+        val sizeBits = scope.calcOnState { getSliceRemainingBitsCount(prefixSlice) }
 
-        val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
-        val requiredBitsInDataCell = mkSizeAddExpr(dataPos, remainingPrefixBitsLength)
-
-        // Check that we have no less than prefix length bits in the data cell
-        checkCellDataUnderflow(scope, dataCell, minSize = requiredBitsInDataCell, quietBlock = quietBlockOrNull)
-            ?: return@with
-
-        // xxxxxxxxxxxxx[prefix]
-        // yyyyyy[prefix|suffix]
-        val prefixShift = mkBvSubExpr(mkSizeExpr(MAX_DATA_LENGTH), remainingPrefixBitsLength)
-            .zeroExtendToSort(cellDataSort)
-        val shiftedPrefix = mkBvShiftLeftExpr(prefixBits, prefixShift)
-
-        val suffixShift = mkSizeSubExpr(remainingDataBitsLength, remainingPrefixBitsLength)
-            .zeroExtendToSort(cellDataSort)
-        // Firstly, shift data bits right to remove suffix and get 00000000000yyyyyyyy[prefix]
-        val dataWithoutSuffix = mkBvLogicalShiftRightExpr(dataBits, suffixShift)
-        // Then, shift it left to get only prefix [prefix]00000000000000
-        val shiftedData = mkBvShiftLeftExpr(dataWithoutSuffix, prefixShift)
-
-        scope.fork(
-            shiftedPrefix eq shiftedData,
-            falseStateIsExceptional = !quiet,
-            blockOnFalseState = {
-                quietBlockOrNull?.invoke(this)
-                    ?: throwStructuralCellUnderflowError(this)
-            }
-        ) ?: return@with
-
-        val suffixSlice = scope.calcOnState {
-            memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
-        }
-
-        scope.doWithState {
-            sliceMoveDataPtr(suffixSlice, remainingPrefixBitsLength)
-            addOnStack(suffixSlice, TvmSliceType)
-
-            if (quiet) {
-                stack.addInt(minusOneValue)
+        loadSliceXImpl(
+            scope,
+            preload = true,
+            quietBlock = quietBlockOrNull,
+            sizeBits = sizeBits.unsignedExtendToInteger(),
+            slice = slice,
+        ) { tailRef ->
+            val actualPrefix = calcOnState {
+                takeLastSlice()
+                    ?: error("Unexpected top stack value after loadSliceXImpl with preload=true")
             }
 
-            newStmt(stmt.nextStmt())
+            val condition = slicesAreEqual(actualPrefix, prefixSlice)
+                ?: return@loadSliceXImpl
+
+            fork(
+                condition,
+                falseStateIsExceptional = !quiet,
+                blockOnFalseState = {
+                    quietBlockOrNull?.invoke(this)
+                        ?: throwStructuralCellUnderflowError(this)
+                }
+            ) ?: return@loadSliceXImpl
+
+            doWithState {
+                addOnStack(tailRef, TvmSliceType)
+
+                if (quiet) {
+                    stack.addInt(minusOneValue)
+                }
+
+                newStmt(stmt.nextStmt())
+            }
         }
     }
 
     private fun doCellToSlice(
         scope: TvmStepScopeManager,
-        stmt: TvmCellParseInst
+        stmt: TvmCellParseInst,
+        end: TvmStepScopeManager.() -> Unit = {},
     ) {
         val cell = scope.takeLastCell()
         if (cell == null) {
@@ -1265,6 +1252,7 @@ class TvmCellInterpreter(
                 addOnStack(slice, TvmSliceType)
                 newStmt(stmt.nextStmt())
             }
+            end()
         }
     }
 
@@ -1288,10 +1276,10 @@ class TvmCellInterpreter(
         scope.consumeDefaultGas(stmt)
 
         // TODO: Exotic cells are not supported, so we handle this instruction as CTOS
-        doCellToSlice(scope, stmt)
-
-        scope.doWithStateCtx {
-            stack.addInt(falseValue)
+        doCellToSlice(scope, stmt) {
+            doWithStateCtx {
+                stack.addInt(falseValue)
+            }
         }
     }
 

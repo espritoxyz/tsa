@@ -13,8 +13,11 @@ PROGRAM{
   8  DECLMETHOD s_cut_last
   9  DECLMETHOD sd_skip_last
   10  DECLMETHOD s_skip_last
-  11  DECLMETHOD sd_beginsx
+  11  DECLMETHOD sd_beginsx_1
   12  DECLMETHOD s_cut_last_ldrefrtos
+  13  DECLMETHOD sd_begins_1
+  14  DECLMETHOD sd_begins_2
+  15  DECLMETHOD sd_beginsx_2
   load_int PROC:<{
     192 PUSHINT
     65472 PUSHINT
@@ -320,7 +323,7 @@ PROGRAM{
 
     SEMPTY // [-1 -1 -1]
   }>
-  sd_beginsx PROC:<{
+  sd_beginsx_1 PROC:<{
     117 PUSHINT // 1110101
     NEWC
     7 STU
@@ -343,6 +346,50 @@ PROGRAM{
     CTOS
     DUMPSTK
 
+    SDEQ
+  }>
+  sd_beginsx_2 PROC:<{
+      117 PUSHINT // 1110101
+      NEWC
+      7 STU
+      ENDC // Now we have a cell with 7 bits 1110101
+      CTOS
+
+      0 PUSHINT // 000
+      NEWC
+      3 STU
+      ENDC
+      CTOS
+
+      // [{1110101} {000}]
+      SDBEGINSX // throws error
+    }>
+  sd_begins_1 PROC:<{
+      117 PUSHINT // 1110101
+      NEWC
+      7 STU
+      ENDC // Now we have a cell with 7 bits 1110101
+      CTOS
+
+      // [{1110101} {111}]
+      x{F_} SDBEGINSQ
+
+      SWAP
+      DROP
+    }>
+  sd_begins_2 PROC:<{
+    117 PUSHINT // 1110101
+    NEWC
+    7 STU
+    ENDC // Now we have a cell with 7 bits 1110101
+    CTOS
+
+    DUP
+
+    // [{1110101} {0000}]
+    x{0} SDBEGINSQ
+
+    s2 XCHG0
     SDEQ
   }>
   s_cut_last_ldrefrtos PROC:<{

@@ -22,7 +22,7 @@ class CellParseTest {
             fiftResourcePath,
             tvmOptions = testConcreteOptions,
         )
-        val methodIds = (0..12).toSet()
+        val methodIds = (0..15).toSet()
 
         compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
             runFiftMethod(fiftResourcePath, methodId)
