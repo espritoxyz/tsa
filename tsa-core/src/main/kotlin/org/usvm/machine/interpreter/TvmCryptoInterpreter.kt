@@ -99,16 +99,18 @@ class TvmCryptoInterpreter(private val ctx: TvmContext) {
             condition,
             falseStateIsExceptional = false,
             blockOnFalseState = {
+                signatureChecks = signatureChecks.add(TvmSignatureCheck(hash, signatureBits, key, checkPassed = false))
+
                 stack.addInt(falseValue)
                 newStmt(stmt.nextStmt())
             }
         ) ?: run {
-            logger.debug { "Cannot fork on dummy constraint" }
+            logger.warn { "Cannot fork on dummy constraint" }
             return
         }
 
         scope.doWithState {
-            signatureChecks = signatureChecks.add(TvmSignatureCheck(hash, signatureBits, key))
+            signatureChecks = signatureChecks.add(TvmSignatureCheck(hash, signatureBits, key, checkPassed = true))
 
             stack.addInt(trueValue)
             newStmt(stmt.nextStmt())

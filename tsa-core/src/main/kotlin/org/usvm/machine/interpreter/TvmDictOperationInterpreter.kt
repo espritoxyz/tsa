@@ -1198,11 +1198,17 @@ class TvmDictOperationInterpreter(
                         val leftKey = calcOnStateCtx {
                             makeSymbolicPrimitive(mkBvSort(dictId.keyLength.toUInt()))
                         }
+
                         val condition = calcOnStateCtx {
                             (leftKey neq key) and dictContainsKey(dictCellRef, dictId, leftKey)
                         }
                         assert(condition)
                             ?: return@doWithConditions
+
+                        // No need to [assertDictValueDoesNotOverflow] on value of leftKey:
+                        // at this point, this value didn't appear in path constraints
+                        // (if it did, we have already made this assertion).
+                        // Cells that are not in path constraints are resolved as empty cells.
 
                         doWithState {
                             originalDictContainsKeyNonEmptyResult(resultDict)

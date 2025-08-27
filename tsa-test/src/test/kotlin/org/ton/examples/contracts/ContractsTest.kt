@@ -2,19 +2,18 @@ package org.ton.examples.contracts
 
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.ton.bytecode.MethodId
+import org.ton.runHardTestsRegex
+import org.ton.runHardTestsVar
+import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.checkAtLeastOneStateForAllMethods
 import org.ton.test.utils.compileAndAnalyzeFift
 import org.ton.test.utils.extractResource
-import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
-import org.ton.runHardTestsRegex
-import org.ton.runHardTestsVar
-import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.funcAnalyzer
+import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.FiftAnalyzer
-import org.usvm.machine.FuncAnalyzer
 import org.usvm.machine.getResourcePath
 import kotlin.io.path.createTempFile
 import kotlin.io.path.deleteIfExists
@@ -81,7 +80,7 @@ class ContractsTest {
         analyzeFuncContract(walletV4Path, methodsNumber = 7, enableTestGeneration = true)
     }
 
-    @Ignore("slow hash validation https://github.com/explyt/tsa/issues/112")
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun testWalletV5() {
         analyzeFuncContract(walletV5Path, methodsNumber = 7, enableTestGeneration = true)
