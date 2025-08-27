@@ -343,7 +343,7 @@ class TvmTestStateResolver(
         }
 
         // cell is not in path constraints => just return empty cell
-        if (cell is UConcreteHeapRef && cell.isStatic && cell !in constraintVisitor.refs) {
+        if (modelRef.isStatic && modelRef !in constraintVisitor.refs) {
             return@with TvmTestDataCellValue()
         }
 

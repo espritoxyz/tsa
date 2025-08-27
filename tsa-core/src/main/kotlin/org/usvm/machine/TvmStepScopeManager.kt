@@ -179,7 +179,7 @@ class TvmStepScopeManager(
                     if (state == originalState) {
                         if (!doNotKillScopeOnDoWithConditions && !newScopeResults.originalStateAlive) {
                             scope.stepScopeState = DEAD
-                        } else {
+                        } else if (doNotKillScopeOnDoWithConditions) {
                             scope.stepScopeState = newScopeManager.scope.stepScopeState
                         }
                     }
