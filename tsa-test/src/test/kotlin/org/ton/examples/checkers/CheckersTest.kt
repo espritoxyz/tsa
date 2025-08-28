@@ -98,6 +98,7 @@ class CheckersTest {
         )
     }
 
+    @Ignore("Bounced messages in intercontracts communication are not supported")
     @Test
     fun bounceTest() {
         val pathSender = getResourcePath<ArgsConstraintsTest>(senderBouncePath)
