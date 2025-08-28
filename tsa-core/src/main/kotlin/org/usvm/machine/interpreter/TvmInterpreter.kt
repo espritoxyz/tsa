@@ -285,6 +285,7 @@ import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.initContractInfo
 import org.usvm.machine.state.initializeContractExecutionMemory
+import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.jumpToContinuation
@@ -436,7 +437,7 @@ class TvmInterpreter(
         startContractId: ContractId,
     ) {
         val msgValue = when (val input = state.input) {
-            is RecvInternalInput -> input.msgValue
+            is ReceiverInput -> input.msgValue
             is TvmStackInput -> null
         }
 
@@ -453,7 +454,7 @@ class TvmInterpreter(
         state.registersOfCurrentContract = executionMemory.registers
 
         when (val input = state.input) {
-            is RecvInternalInput -> {
+            is ReceiverInput -> {
                 val configBalance = state.getBalance()
                     ?: error("Unexpected incorrect config balance value")
 
@@ -476,8 +477,10 @@ class TvmInterpreter(
                     newInputInfo[msgBodyCellNonBounced] = UnknownCellInfo
                 }
 
-                val srcAddressCell = input.getSrcAddressCell(state)
-                newInputInfo[srcAddressCell] = DataCellInfo(TlbFullMsgAddrLabel)
+                val srcAddressCell = input.srcAddressCell
+                if (srcAddressCell != null) {
+                    newInputInfo[srcAddressCell] = DataCellInfo(TlbFullMsgAddrLabel)
+                }
 
                 val dataCellInfoStorage = TvmDataCellInfoStorage.build(
                     state = state,

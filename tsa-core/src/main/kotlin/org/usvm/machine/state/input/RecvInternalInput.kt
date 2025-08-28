@@ -35,40 +35,40 @@ import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
 class RecvInternalInput(
-    initialState: TvmState,
+    state: TvmState,
     private val concreteGeneralData: TvmConcreteGeneralData,
     private val contractId: ContractId,
 ) : ReceiverInput {
-    val msgBodySliceNonBounced = initialState.generateSymbolicSlice()  // used only in non-bounced messages
-    val msgValue = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort)
+    override val msgBodySliceNonBounced = state.generateSymbolicSlice()  // used only in non-bounced messages
+    override val msgValue = state.makeSymbolicPrimitive(state.ctx.int257sort)
     val srcAddressSlice = if (concreteGeneralData.initialSenderBits == null) {
-        initialState.generateSymbolicSlice()
+        state.generateSymbolicSlice()
     } else {
-        initialState.allocSliceFromData(initialState.ctx.mkBv(concreteGeneralData.initialSenderBits, TvmContext.stdMsgAddrSize.toUInt()))
+        state.allocSliceFromData(state.ctx.mkBv(concreteGeneralData.initialSenderBits, TvmContext.stdMsgAddrSize.toUInt()))
     }
 
     // bounced:Bool
-    val bounced = if (initialState.ctx.tvmOptions.analyzeBouncedMessaged) {
-        initialState.makeSymbolicPrimitive(initialState.ctx.boolSort)
+    val bounced = if (state.ctx.tvmOptions.analyzeBouncedMessaged) {
+        state.makeSymbolicPrimitive(state.ctx.boolSort)
     } else {
-        initialState.ctx.falseExpr
+        state.ctx.falseExpr
     }
 
     private val msgBodyCellBounced: UConcreteHeapRef by lazy {
-        with(initialState.ctx) {
+        with(state.ctx) {
             // hack for using builder operations
-            val scope = TvmStepScopeManager(initialState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+            val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
 
-            val builder = initialState.allocEmptyBuilder()
+            val builder = state.allocEmptyBuilder()
             builderStoreIntTlb(scope, builder, builder, bouncedMessageTagLong.toBv257(), sizeBits = sizeExpr32, isSigned = false, endian = Endian.BigEndian)
                 ?: error("Cannot store bounced message prefix")
 
             // tail's length is up to 256 bits
-            val tailSize = initialState.makeSymbolicPrimitive(mkBvSort(8u)).zeroExtendToSort(sizeSort)
-            val tail = initialState.generateSymbolicSlice()
-            val tailCell = initialState.memory.readField(tail, TvmContext.sliceCellField, addressSort)
-            initialState.memory.writeField(tailCell, TvmContext.cellDataLengthField, sizeSort, tailSize, guard = trueExpr)
-            initialState.memory.writeField(tailCell, TvmContext.cellRefsLengthField, sizeSort, zeroSizeExpr, guard = trueExpr)
+            val tailSize = state.makeSymbolicPrimitive(mkBvSort(8u)).zeroExtendToSort(sizeSort)
+            val tail = state.generateSymbolicSlice()
+            val tailCell = state.memory.readField(tail, TvmContext.sliceCellField, addressSort)
+            state.memory.writeField(tailCell, TvmContext.cellDataLengthField, sizeSort, tailSize, guard = trueExpr)
+            state.memory.writeField(tailCell, TvmContext.cellRefsLengthField, sizeSort, zeroSizeExpr, guard = trueExpr)
             builderStoreSliceTlb(scope, builder, builder, tail)
                 ?: error("Cannot store bounced message tail")
 
@@ -80,16 +80,16 @@ class RecvInternalInput(
                 "Unexpected forks while building bounced message"
             }
 
-            initialState.builderToCell(builder)
+            state.builderToCell(builder)
         }
     }
 
     private val msgBodySliceBounced: UHeapRef by lazy {
-        initialState.allocSliceFromCell(msgBodyCellBounced)
+        state.allocSliceFromCell(msgBodyCellBounced)
     }
 
     val msgBodySliceMaybeBounced: UHeapRef by lazy {
-        initialState.ctx.mkIte(
+        state.ctx.mkIte(
             condition = bounced,
             trueBranch = { msgBodySliceBounced },
             falseBranch = { msgBodySliceNonBounced },
@@ -98,22 +98,22 @@ class RecvInternalInput(
 
     // bounce:Bool
     // If bounced=true, then bounce must be false
-    val bounce = with(initialState.ctx) {
-        bounced.not() and initialState.makeSymbolicPrimitive(initialState.ctx.boolSort)
+    val bounce = with(state.ctx) {
+        bounced.not() and state.makeSymbolicPrimitive(state.ctx.boolSort)
     }
 
-    val ihrDisabled = initialState.makeSymbolicPrimitive(initialState.ctx.boolSort) // ihr_disabled:Bool
-    val ihrFee = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // ihr_fee:Grams
-    val fwdFee = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // fwd_fee:Grams
-    val createdLt = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // created_lt:uint64
-    val createdAt = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort) // created_at:uint32
+    val ihrDisabled = state.makeSymbolicPrimitive(state.ctx.boolSort) // ihr_disabled:Bool
+    val ihrFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // ihr_fee:Grams
+    val fwdFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // fwd_fee:Grams
+    val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_lt:uint64
+    val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32
 
     val addrCell: UConcreteHeapRef by lazy {
-        initialState.getContractInfoParamOf(ADDRESS_PARAMETER_IDX, contractId).cellValue as? UConcreteHeapRef
+        state.getContractInfoParamOf(ADDRESS_PARAMETER_IDX, contractId).cellValue as? UConcreteHeapRef
             ?: error("Cannot extract contract address")
     }
     val addrSlice: UConcreteHeapRef by lazy {
-        initialState.allocSliceFromCell(addrCell)
+        state.allocSliceFromCell(addrCell)
     }
 
     fun getSrcAddressCell(state: TvmState): UConcreteHeapRef {
