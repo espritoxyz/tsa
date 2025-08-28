@@ -21,8 +21,11 @@ class CheckersTest {
     private val internalCallChecker = "/checkers/send_internal.fc"
     private val internalCallCheckerWithCapture = "/checkers/send_internal_with_capture.fc"
     private val balancePath = "/args/balance.fc"
+    private val bounceCheckerPath = "/checker/bounce.fc"
     private val getC4CheckerPath = "/checkers/get_c4.fc"
     private val emptyContractPath = "/empty_contract.fc"
+    private val senderBouncePath = "/args/send_bounce_true.fc"
+    private val recepientBouncePath = "/args/receive_bounce_msg.fc"
 
     @Test
     fun testConsistentBalanceThroughChecker() {
@@ -92,6 +95,40 @@ class CheckersTest {
         checkInvariants(
             tests,
             listOf { test -> test.result is TvmSuccessfulExecution }
+        )
+    }
+
+    @Test
+    fun bounceTest() {
+        val pathSender = getResourcePath<ArgsConstraintsTest>(senderBouncePath)
+        val pathRecepient = getResourcePath<ArgsConstraintsTest>(recepientBouncePath)
+        val checkerPath = extractResource(bounceCheckerPath)
+
+        val checkerContract = getFuncContract(
+            checkerPath,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
+        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
+
+        val tests = analyzeInterContract(
+            listOf(checkerContract, analyzedSender, analyzedRecepient),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            concreteContractData = listOf(
+                TvmConcreteContractData(),
+                TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+                TvmConcreteContractData(contractC4 = Cell(BitString.of(""))),
+            )
+        )
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> test.result is TvmSuccessfulExecution },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+            )
         )
     }
 }

@@ -1,0 +1,31 @@
+#include "../imports/stdlib.fc";
+#include "../imports/tsa_functions.fc";
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    tsa_assert_not(flags & 1);
+
+    slice body_copy = msg_body;
+    int op = body_copy~load_uint(32);
+    tsa_assert(op == 100);
+    
+}
+
+() main() impure {
+    tsa_forbid_failures();
+
+    slice data1 = tsa_get_c4(1).begin_parse(); ;; c4 of send_bounced_true.fc
+    int bounced? = data1~load_uint(1);
+    tsa_assert(bounced? == 0);
+
+    tsa_send_internal_message(1, 0);
+
+    tsa_allow_failures();
+
+    slice data_aft_msg = tsa_get_c4(1).begin_parse();
+    int bounced_after_msg = data_aft_msg~load_uint(1);
+
+    throw_if(257, bounced_after_msg != 1);
+}

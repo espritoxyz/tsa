@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "handlers": [
+      {
+        "op": "64",
+        "destinations": [2]
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "handlers": []
+  }
+]

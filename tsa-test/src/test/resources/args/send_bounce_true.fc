@@ -1,0 +1,27 @@
+#include "../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) {
+        set_data(begin_cell().store_uint(1, 1).end_cell());
+        return();
+    }
+
+    int op = msg_body~load_uint(32);
+    if (op == 100) {
+
+        cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; the address of the recipient contract
+        .store_coins(100000000)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg, 0);
+
+        return();
+    }
+}
