@@ -3,6 +3,7 @@ package org.usvm.machine.state.input
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.sliceCellField
@@ -18,6 +19,9 @@ sealed class ReceiverInput(
     abstract val msgValue: UExpr<TvmContext.TvmInt257Sort>
     abstract val msgBodySliceNonBounced: UConcreteHeapRef
     abstract val srcAddressSlice: UConcreteHeapRef?  // null for external messages
+
+    val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_lt:uint64
+    val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32
 
     val contractAddressCell: UConcreteHeapRef by lazy {
         state.getContractInfoParamOf(ADDRESS_PARAMETER_IDX, contractId).cellValue as? UConcreteHeapRef

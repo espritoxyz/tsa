@@ -38,7 +38,7 @@ class RecvInternalInput(
     state: TvmState,
     private val concreteGeneralData: TvmConcreteGeneralData,
     private val contractId: ContractId,
-) : ReceiverInput {
+) : ReceiverInput(contractId, state) {
     override val msgBodySliceNonBounced = state.generateSymbolicSlice()  // used only in non-bounced messages
     override val msgValue = state.makeSymbolicPrimitive(state.ctx.int257sort)
     override val srcAddressSlice = if (concreteGeneralData.initialSenderBits == null) {
@@ -105,12 +105,6 @@ class RecvInternalInput(
     val ihrDisabled = state.makeSymbolicPrimitive(state.ctx.boolSort) // ihr_disabled:Bool
     val ihrFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // ihr_fee:Grams
     val fwdFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // fwd_fee:Grams
-    val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_lt:uint64
-    val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32
-
-    override val contractAddressSlice: UConcreteHeapRef by lazy {
-        state.allocSliceFromCell(contractAddressCell)
-    }
 
     private fun assertArgConstraints(scope: TvmStepScopeManager): Unit? {
         val constraint = scope.doWithCtx {
