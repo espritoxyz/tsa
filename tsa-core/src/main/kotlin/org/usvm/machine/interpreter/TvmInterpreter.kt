@@ -286,6 +286,7 @@ import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.initContractInfo
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
+import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.jumpToContinuation
@@ -402,9 +403,16 @@ class TvmInterpreter(
         }.toPersistentMap()
 
         val useRecvInternalInput = methodId == RECEIVE_INTERNAL_ID && ctx.tvmOptions.useReceiverInputs
+        val useRecvExternalInput = methodId == RECEIVE_EXTERNAL_ID && ctx.tvmOptions.useReceiverInputs
         if (useRecvInternalInput) {
             val input = RecvInternalInput(state, concreteGeneralData, startContractId)
             state.input = input
+        } else if (useRecvExternalInput) {
+            val input = RecvExternalInput(state, concreteGeneralData, startContractId)
+            state.input = input
+            check(concreteGeneralData.initialSenderBits == null) {
+                "Cannot take into account concrete sender if when using RecvExternal input"
+            }
         } else {
             state.input = TvmStackInput
             check(concreteGeneralData.initialOpcode == null && concreteGeneralData.initialSenderBits == null) {

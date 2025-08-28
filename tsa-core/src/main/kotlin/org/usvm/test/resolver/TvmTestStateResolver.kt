@@ -121,10 +121,15 @@ class TvmTestStateResolver(
             createdAt = resolveInt257(input.createdAt),
         )
 
+    private fun resolveRecvExternalInput(input: RecvExternalInput): TvmTestInput.RecvExternalInput =
+        TvmTestInput.RecvExternalInput(
+            msgBody = resolveSlice(input.msgBodySliceMaybeBounced),
+        )
+
     fun resolveInput(): TvmTestInput = when (val input = state.input) {
         is TvmStackInput -> TvmTestInput.StackInput(resolveStackInput())
         is RecvInternalInput -> resolveRecvInternalInput(input)
-        is RecvExternalInput -> TODO()
+        is RecvExternalInput -> resolveRecvExternalInput(input)
     }
 
     private fun resolveBool(boolExpr: UBoolExpr): Boolean = model.eval(boolExpr).isTrue
