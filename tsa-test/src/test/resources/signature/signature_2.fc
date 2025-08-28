@@ -1,0 +1,32 @@
+#include "../imports/stdlib.fc";
+
+int get_public_key() inline {
+    slice ds = get_data().begin_parse();
+    return ds~load_uint(256);
+}
+
+() recv_internal(slice in_msg) impure {
+    var signature = in_msg~load_bits(512);
+    int public_key = get_public_key();
+
+    slice in_msg_signed = in_msg;
+
+    ;; non-trivial data
+    if (in_msg~load_uint(32) != 0x73696E74) {
+        throw(111);
+    }
+
+    int tail = in_msg~load_uint(256 - 32);
+    throw_unless(112, tail == 0);
+
+    in_msg.end_parse();
+
+    int correct_signature = check_signature(slice_hash(in_msg_signed), signature, public_key);
+
+    if (correct_signature) {
+        throw(1000);
+    } else {
+        throw_unless(1001, public_key == 0);
+        throw(1002);
+    }
+}
