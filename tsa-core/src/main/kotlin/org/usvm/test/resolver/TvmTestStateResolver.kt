@@ -51,7 +51,7 @@ import org.usvm.machine.state.ensureSymbolicBuilderInitialized
 import org.usvm.machine.state.ensureSymbolicCellInitialized
 import org.usvm.machine.state.ensureSymbolicSliceInitialized
 import org.usvm.machine.state.input.RecvInternalInput
-import org.usvm.machine.state.input.TvmStateStackInput
+import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.tvmCellRefsRegion
 import org.usvm.machine.types.TvmBuilderType
@@ -121,7 +121,7 @@ class TvmTestStateResolver(
         )
 
     fun resolveInput(): TvmTestInput = when (val input = state.input) {
-        is TvmStateStackInput -> TvmTestInput.StackInput(resolveStackInput())
+        is TvmStackInput -> TvmTestInput.StackInput(resolveStackInput())
         is RecvInternalInput -> resolveRecvInternalInput(input)
     }
 

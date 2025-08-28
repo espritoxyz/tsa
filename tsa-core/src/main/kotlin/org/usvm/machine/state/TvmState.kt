@@ -31,7 +31,7 @@ import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.RecvInternalInput
-import org.usvm.machine.state.input.TvmStateInput
+import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.types.GlobalStructuralConstraintsHolder
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -110,7 +110,7 @@ class TvmState(
     lateinit var contractIdToFirstElementOfC7: PersistentMap<ContractId, TvmStackTupleValueConcreteNew>
     lateinit var contractIdToInitialData: Map<ContractId, TvmInitialStateData>
     lateinit var stack: TvmStack
-    lateinit var input: TvmStateInput
+    lateinit var input: TvmInput
 
     val contractIds: Set<ContractId>
         get() = contractIdToInitialData.keys

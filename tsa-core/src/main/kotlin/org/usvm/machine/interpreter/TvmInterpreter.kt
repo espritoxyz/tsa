@@ -286,7 +286,7 @@ import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.initContractInfo
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.RecvInternalInput
-import org.usvm.machine.state.input.TvmStateStackInput
+import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.killCurrentState
 import org.usvm.machine.state.lastStmt
@@ -405,7 +405,7 @@ class TvmInterpreter(
             val input = RecvInternalInput(state, concreteGeneralData, startContractId)
             state.input = input
         } else {
-            state.input = TvmStateStackInput
+            state.input = TvmStackInput
             check(concreteGeneralData.initialOpcode == null && concreteGeneralData.initialSenderBits == null) {
                 "Cannot take into account concrete initialOpcode or sender if not using RecvInternal input"
             }
@@ -437,10 +437,10 @@ class TvmInterpreter(
     ) {
         val msgValue = when (val input = state.input) {
             is RecvInternalInput -> input.msgValue
-            is TvmStateStackInput -> null
+            is TvmStackInput -> null
         }
 
-        val allowInputStackValues = ctx.tvmOptions.enableInputValues && (state.input is TvmStateStackInput)
+        val allowInputStackValues = ctx.tvmOptions.enableInputValues && (state.input is TvmStackInput)
         val executionMemory = initializeContractExecutionMemory(
             contractsCode,
             state,
@@ -503,7 +503,7 @@ class TvmInterpreter(
                 }
             }
 
-            is TvmStateStackInput -> {
+            is TvmStackInput -> {
                 val dataCellInfoStorage = TvmDataCellInfoStorage.build(
                     state,
                     inputInfo,

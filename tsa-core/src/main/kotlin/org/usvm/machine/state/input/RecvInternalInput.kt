@@ -38,7 +38,7 @@ class RecvInternalInput(
     initialState: TvmState,
     private val concreteGeneralData: TvmConcreteGeneralData,
     private val contractId: ContractId,
-) : TvmStateInput {
+) : ReceiverInput {
     val msgBodySliceNonBounced = initialState.generateSymbolicSlice()  // used only in non-bounced messages
     val msgValue = initialState.makeSymbolicPrimitive(initialState.ctx.int257sort)
     val srcAddressSlice = if (concreteGeneralData.initialSenderBits == null) {
