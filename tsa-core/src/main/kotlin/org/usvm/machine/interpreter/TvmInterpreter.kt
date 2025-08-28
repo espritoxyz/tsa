@@ -360,6 +360,10 @@ class TvmInterpreter(
         methodId: MethodId,
         targets: List<TvmTarget> = emptyList()
     ): TvmState {
+        require(concreteContractData.size == contractsCode.size) {
+            "concreteContractData must be given for all analyzed contracts"
+        }
+
         val contractCode = contractsCode.getOrNull(startContractId)
             ?: error("Contract $startContractId not found.")
 
@@ -495,7 +499,7 @@ class TvmInterpreter(
 
                 // Save msgBody for inter-contract
                 if (ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-                    state.lastMsgBody = input.msgBodySliceMaybeBounced
+                    state.lastMsgBodySlice = input.msgBodySliceMaybeBounced
                 }
             }
 
