@@ -2,21 +2,23 @@ package org.ton.examples.checkers
 
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
-import org.ton.examples.args.ArgsConstraintsTest
+import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.propertiesFound
+import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
-import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import kotlin.io.path.readText
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
-import kotlin.test.Ignore
 
 class CheckersTest {
     private val internalCallChecker = "/checkers/send_internal.fc"
@@ -27,6 +29,7 @@ class CheckersTest {
     private val emptyContractPath = "/empty_contract.fc"
     private val senderBouncePath = "/args/send_bounce_true.fc"
     private val recepientBouncePath = "/args/receive_bounce_msg.fc"
+    private val bounceTestScheme = "/checkers/bounce-test-scheme.json"
 
     @Test
     fun testConsistentBalanceThroughChecker() {
@@ -39,7 +42,7 @@ class CheckersTest {
     }
 
     private fun runTestConsistentBalanceThroughChecker(checkerPathStr: String) {
-        val path = getResourcePath<ArgsConstraintsTest>(balancePath)
+        val path = extractResource(balancePath)
         val checkerPath = extractResource(checkerPathStr)
 
         val checkerContract = getFuncContract(
@@ -71,7 +74,7 @@ class CheckersTest {
 
     @Test
     fun testGetC4() {
-        val path = getResourcePath<ArgsConstraintsTest>(emptyContractPath)
+        val path = extractResource(emptyContractPath)
         val checkerPath = extractResource(getC4CheckerPath)
 
         val checkerContract = getFuncContract(
@@ -102,8 +105,8 @@ class CheckersTest {
     @Ignore("Bounced messages in intercontracts communication are not supported")
     @Test
     fun bounceTest() {
-        val pathSender = getResourcePath<ArgsConstraintsTest>(senderBouncePath)
-        val pathRecepient = getResourcePath<ArgsConstraintsTest>(recepientBouncePath)
+        val pathSender = extractResource(senderBouncePath)
+        val pathRecepient = extractResource(recepientBouncePath)
         val checkerPath = extractResource(bounceCheckerPath)
 
         val checkerContract = getFuncContract(
@@ -114,10 +117,21 @@ class CheckersTest {
         val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
         val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
 
+        val communicationSchemePath = extractResource(bounceTestScheme)
+        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
+
+        val options = TvmOptions(
+            intercontractOptions = IntercontractOptions(
+                communicationScheme = communicationScheme,
+            ),
+            enableOutMessageAnalysis = true,
+        )
+
         val tests = analyzeInterContract(
             listOf(checkerContract, analyzedSender, analyzedRecepient),
             startContractId = 0,
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = options,
             concreteContractData = listOf(
                 TvmConcreteContractData(),
                 TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),

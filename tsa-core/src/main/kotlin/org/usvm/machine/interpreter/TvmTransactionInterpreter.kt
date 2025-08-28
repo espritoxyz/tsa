@@ -5,7 +5,6 @@ import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.UHeapRef
-import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.INT_BITS
 import org.usvm.machine.TvmContext.Companion.NONE_ADDRESS_TAG
@@ -68,7 +67,7 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
         val handlers = scheme[contractId]
             ?: error("Contract handlers are not found")
 
-        val msgBody = scope.calcOnState { lastMsgBody }
+        val msgBody = scope.calcOnState { lastMsgBodySlice }
             ?: error("Unexpected null msg_body")
 
         // TODO possible underflow

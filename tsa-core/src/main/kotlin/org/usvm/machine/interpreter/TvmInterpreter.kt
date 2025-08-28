@@ -499,7 +499,7 @@ class TvmInterpreter(
 
                 // Save msgBody for inter-contract
                 if (ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-                    state.lastMsgBody = input.msgBodySliceMaybeBounced
+                    state.lastMsgBodySlice = input.msgBodySliceMaybeBounced
                 }
             }
 

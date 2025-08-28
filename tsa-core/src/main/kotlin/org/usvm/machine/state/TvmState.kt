@@ -77,7 +77,7 @@ class TvmState(
     var unprocessedMessages: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
     // inter-contract fields
     var messageQueue: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
-    var lastMsgBody: UHeapRef? = null,
+    var lastMsgBodySlice: UHeapRef? = null,
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
     // post-process fields
     var addressToHash: PersistentMap<UHeapRef, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
@@ -175,7 +175,7 @@ class TvmState(
             additionalFlags = additionalFlags,
             cellDataFieldManager = cellDataFieldManager.clone(),
             messageQueue = messageQueue,
-            lastMsgBody = lastMsgBody,
+            lastMsgBodySlice = lastMsgBodySlice,
             intercontractPath = intercontractPath,
             phase = phase,
             analysisOfGetMethod = analysisOfGetMethod,

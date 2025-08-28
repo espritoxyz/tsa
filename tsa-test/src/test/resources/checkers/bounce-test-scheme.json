@@ -3,7 +3,11 @@
     "id": 1,
     "handlers": [
       {
-        "op": "64",
+        "op": "00000064",
+        "destinations": [2]
+      },
+      {
+        "op": "00000065",
         "destinations": [2]
       }
     ]

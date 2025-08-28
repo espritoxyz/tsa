@@ -264,6 +264,12 @@ class TsaCheckerFunctionsInterpreter(
         val nextContractCode = contractsCode.getOrNull(nextContractId)
             ?: error("Contract with id $nextContractId not found")
 
+        if (stackOperations is NewRecvInternalInput) {
+            val input = state.additionalInputs[stackOperations.inputId]
+                ?: error("Input with id ${stackOperations.inputId} not found")
+            lastMsgBodySlice = input.msgBodySliceMaybeBounced
+        }
+
         switchToFirstMethodInContract(nextContractCode, nextMethodId.toMethodId())
     }
 
