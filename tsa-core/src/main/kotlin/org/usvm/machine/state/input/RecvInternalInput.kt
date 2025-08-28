@@ -41,7 +41,7 @@ class RecvInternalInput(
 ) : ReceiverInput {
     override val msgBodySliceNonBounced = state.generateSymbolicSlice()  // used only in non-bounced messages
     override val msgValue = state.makeSymbolicPrimitive(state.ctx.int257sort)
-    val srcAddressSlice = if (concreteGeneralData.initialSenderBits == null) {
+    override val srcAddressSlice = if (concreteGeneralData.initialSenderBits == null) {
         state.generateSymbolicSlice()
     } else {
         state.allocSliceFromData(state.ctx.mkBv(concreteGeneralData.initialSenderBits, TvmContext.stdMsgAddrSize.toUInt()))
@@ -108,23 +108,8 @@ class RecvInternalInput(
     val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_lt:uint64
     val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32
 
-    val addrCell: UConcreteHeapRef by lazy {
-        state.getContractInfoParamOf(ADDRESS_PARAMETER_IDX, contractId).cellValue as? UConcreteHeapRef
-            ?: error("Cannot extract contract address")
-    }
-    val addrSlice: UConcreteHeapRef by lazy {
-        state.allocSliceFromCell(addrCell)
-    }
-
-    fun getSrcAddressCell(state: TvmState): UConcreteHeapRef {
-        val srcAddressCell =
-            state.memory.readField(srcAddressSlice, TvmContext.sliceCellField, state.ctx.addressSort) as UConcreteHeapRef
-
-        return srcAddressCell
-    }
-
-    fun getAddressSlices(): List<UConcreteHeapRef> {
-        return listOf(srcAddressSlice, addrSlice)
+    override val contractAddressSlice: UConcreteHeapRef by lazy {
+        state.allocSliceFromCell(contractAddressCell)
     }
 
     private fun assertArgConstraints(scope: TvmStepScopeManager): Unit? {
@@ -207,7 +192,7 @@ class RecvInternalInput(
             ?: error("Cannot store src address")
 
         // dest:MsgAddressInt
-        builderStoreSliceTlb(scope, resultBuilder, resultBuilder, addrSlice)
+        builderStoreSliceTlb(scope, resultBuilder, resultBuilder, contractAddressSlice)
             ?: error("Cannot store dest address")
 
         // value:CurrencyCollection
