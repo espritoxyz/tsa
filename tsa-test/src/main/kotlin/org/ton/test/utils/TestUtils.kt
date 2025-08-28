@@ -47,12 +47,12 @@ import kotlin.test.assertTrue
 // Options for tests with concrete execution
 val testConcreteOptions = TvmOptions(
     turnOnTLBParsingChecks = false,
-    useRecvInternalInput = false,
+    useReceiverInputs = false,
     enableInputValues = false,
     useMainMethodForInitialMethodJump = false,
 )
 
-val testOptionsToAnalyzeSpecificMethod = TvmOptions(useRecvInternalInput = false)
+val testOptionsToAnalyzeSpecificMethod = TvmOptions(useReceiverInputs = false)
 
 fun extractResource(resourcePath: String) =
     getResourcePath(object {}.javaClass, resourcePath)

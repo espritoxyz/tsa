@@ -79,7 +79,7 @@ data class SwitchTlbStackFrame(
                 NextFrame(it)
             } ?: EndOfStackFrame
 
-            val value = loadData.type.readFromConstant(zeroSizeExpr, key)
+            val value = loadData.type.readFromConstant(state, zeroSizeExpr, key)
 
             result.add(
                 GuardedResult(

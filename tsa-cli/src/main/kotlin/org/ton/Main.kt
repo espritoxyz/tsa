@@ -197,7 +197,7 @@ private fun performAnalysisInterContract(
             quietMode = true,
             analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
             timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-            useRecvInternalInput = useRecvInternalInput,
+            useReceiverInputs = useRecvInternalInput,
             intercontractOptions = IntercontractOptions(communicationScheme = interContractSchemePath.extractIntercontractScheme()),
             enableOutMessageAnalysis = true,
         )
@@ -207,7 +207,7 @@ private fun performAnalysisInterContract(
             quietMode = true,
             analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
             timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-            useRecvInternalInput = useRecvInternalInput,
+            useReceiverInputs = useRecvInternalInput,
         )
     }
 

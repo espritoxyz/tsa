@@ -31,7 +31,7 @@ fun runAnalysisAndExtractFailingExecutions(
         additionalObserver = if (stopWhenFoundOneConflictingExecution) additionalStopStrategy else null,
         options = TvmOptions(
             turnOnTLBParsingChecks = false,
-            useRecvInternalInput = useRecvInternalInput
+            useReceiverInputs = useRecvInternalInput
         ),
         inputInfo = inputInfo ?: TvmInputInfo(),
         manualStateProcessor = postProcessor,

@@ -1,8 +1,6 @@
 package org.usvm.machine.state.input
 
 import org.ton.Endian
-import org.ton.bytecode.ADDRESS_PARAMETER_IDX
-import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -25,21 +23,15 @@ import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRef
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderToCell
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.generateSymbolicSlice
-import org.usvm.machine.state.getBalanceOf
-import org.usvm.machine.state.getContractInfoParamOf
-import org.usvm.machine.state.slicePreloadDataBits
-import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
 class RecvInternalInput(
     state: TvmState,
-    private val concreteGeneralData: TvmConcreteGeneralData,
-    private val contractId: ContractId,
-) : ReceiverInput(contractId, state) {
-    override val msgBodySliceNonBounced = state.generateSymbolicSlice()  // used only in non-bounced messages
+    concreteGeneralData: TvmConcreteGeneralData,
+    contractId: ContractId,
+) : ReceiverInput(contractId, concreteGeneralData, state) {
     override val msgValue = state.makeSymbolicPrimitive(state.ctx.int257sort)
     override val srcAddressSlice = if (concreteGeneralData.initialSenderBits == null) {
         state.generateSymbolicSlice()
@@ -88,7 +80,7 @@ class RecvInternalInput(
         state.allocSliceFromCell(msgBodyCellBounced)
     }
 
-    val msgBodySliceMaybeBounced: UHeapRef by lazy {
+    override val msgBodySliceMaybeBounced: UHeapRef by lazy {
         state.ctx.mkIte(
             condition = bounced,
             trueBranch = { msgBodySliceBounced },
@@ -106,75 +98,12 @@ class RecvInternalInput(
     val ihrFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // ihr_fee:Grams
     val fwdFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // fwd_fee:Grams
 
-    private fun assertArgConstraints(scope: TvmStepScopeManager): Unit? {
-        val constraint = scope.doWithCtx {
-            val msgValueConstraint = mkAnd(
-                mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, msgValue),
-                mkBvSignedLessOrEqualExpr(msgValue, maxMessageCurrencyValue)
-            )
-
-            val createdLtConstraint = unsignedIntegerFitsBits(createdLt, bits = 64u)
-            val createdAtConstraint = unsignedIntegerFitsBits(createdAt, bits = 32u)
-
-            val balanceConstraints = mkBalanceConstraints(scope)
-
-            val opcodeConstraint = if (concreteGeneralData.initialOpcode != null) {
-                val msgBodyCell = scope.calcOnState {
-                    memory.readField(msgBodySliceNonBounced, TvmContext.sliceCellField, addressSort)
-                }
-                val msgBodyCellSize = scope.calcOnState {
-                    memory.readField(msgBodyCell, TvmContext.cellDataLengthField, sizeSort)
-                }
-                val sizeConstraint = mkBvSignedGreaterOrEqualExpr(msgBodyCellSize, mkSizeExpr(TvmContext.OP_BITS.toInt()))
-
-                // TODO: use TL-B?
-                val opcode = scope.slicePreloadDataBits(msgBodySliceNonBounced, TvmContext.OP_BITS.toInt())
-                    ?: error("Cannot read opcode from initial msgBody")
-
-                val opcodeConstraint = opcode eq mkBv(concreteGeneralData.initialOpcode.toLong(), TvmContext.OP_BITS)
-
-                sizeConstraint and opcodeConstraint
-            } else {
-                trueExpr
-            }
-
-            // TODO any other constraints?
-
-            mkAnd(
-                msgValueConstraint,
-                createdLtConstraint,
-                createdAtConstraint,
-                balanceConstraints,
-                opcodeConstraint,
-            )
-        }
-
-        return scope.assert(
-            constraint,
-            unsatBlock = { error("Cannot assert recv_internal constraints") },
-            unknownBlock = { error("Unknown result while asserting recv_internal constraints") }
-        )
-    }
-
-    private fun TvmContext.mkBalanceConstraints(scope: TvmStepScopeManager): UBoolExpr {
-        val balance = scope.calcOnState { getBalanceOf(contractId) }
-            ?: error("Unexpected incorrect config balance value")
-
-        val balanceConstraints = mkAnd(
-            mkBvSignedLessOrEqualExpr(balance, maxMessageCurrencyValue),
-            mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, msgValue),
-            mkBvSignedLessOrEqualExpr(msgValue, balance),
-        )
-
-        return balanceConstraints
-    }
-
-    fun constructFullMessage(state: TvmState): UConcreteHeapRef = with(state.ctx) {
+    override fun constructFullMessage(state: TvmState): UConcreteHeapRef = with(state.ctx) {
         val resultBuilder = state.allocEmptyBuilder()
 
         // hack for using builder operations
         val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
-        assertArgConstraints(scope)
+        assertArgConstraints(scope, minMessageCurrencyValue = minMessageCurrencyValue)
 
         val flags = generateFlags(this)
 
@@ -193,6 +122,7 @@ class RecvInternalInput(
         // store message value
         builderStoreGramsTlb(scope, resultBuilder, resultBuilder, msgValue)
             ?: error("Cannot store message value")
+
         // extra currency collection
         builderStoreIntTlb(scope, resultBuilder, resultBuilder, zeroValue, sizeBits = oneSizeExpr, isSigned = false, endian = Endian.BigEndian)
             ?: error("Cannot store extra currency collection")

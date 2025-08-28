@@ -50,6 +50,7 @@ import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.ensureSymbolicBuilderInitialized
 import org.usvm.machine.state.ensureSymbolicCellInitialized
 import org.usvm.machine.state.ensureSymbolicSliceInitialized
+import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.lastStmt
@@ -123,6 +124,7 @@ class TvmTestStateResolver(
     fun resolveInput(): TvmTestInput = when (val input = state.input) {
         is TvmStackInput -> TvmTestInput.StackInput(resolveStackInput())
         is RecvInternalInput -> resolveRecvInternalInput(input)
+        is RecvExternalInput -> TODO()
     }
 
     private fun resolveBool(boolExpr: UBoolExpr): Boolean = model.eval(boolExpr).isTrue

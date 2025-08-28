@@ -292,7 +292,7 @@ class TsaCheckerFunctionsInterpreter(
                     "RecvInternalInput must be generated at this point"
                 }
 
-                recvInternalInput.getAddressSlices().forEach {
+                recvInternalInput.addressSlices.forEach {
                     scope.calcOnState {
                         dataCellInfoStorage.mapper.addAddressSlice(it)
                     }

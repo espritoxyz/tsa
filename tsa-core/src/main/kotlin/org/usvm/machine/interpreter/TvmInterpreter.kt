@@ -401,7 +401,7 @@ class TvmInterpreter(
             C4Register(TvmCellValue(ref))
         }.toPersistentMap()
 
-        val useRecvInternalInput = methodId == RECEIVE_INTERNAL_ID && ctx.tvmOptions.useRecvInternalInput
+        val useRecvInternalInput = methodId == RECEIVE_INTERNAL_ID && ctx.tvmOptions.useReceiverInputs
         if (useRecvInternalInput) {
             val input = RecvInternalInput(state, concreteGeneralData, startContractId)
             state.input = input
@@ -490,7 +490,7 @@ class TvmInterpreter(
                 )
                 setDataCellInfoStorageAndSetModel(state, dataCellInfoStorage)
 
-                input.getAddressSlices().forEach {
+                input.addressSlices.forEach {
                     dataCellInfoStorage.mapper.addAddressSlice(it)
                 }
 
