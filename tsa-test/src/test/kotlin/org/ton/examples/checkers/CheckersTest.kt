@@ -21,7 +21,7 @@ class CheckersTest {
     private val internalCallChecker = "/checkers/send_internal.fc"
     private val internalCallCheckerWithCapture = "/checkers/send_internal_with_capture.fc"
     private val balancePath = "/args/balance.fc"
-    private val bounceCheckerPath = "/checker/bounce.fc"
+    private val bounceCheckerPath = "/checkers/bounce.fc"
     private val getC4CheckerPath = "/checkers/get_c4.fc"
     private val emptyContractPath = "/empty_contract.fc"
     private val senderBouncePath = "/args/send_bounce_true.fc"
