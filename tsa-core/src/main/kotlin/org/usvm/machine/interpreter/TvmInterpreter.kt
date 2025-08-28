@@ -360,6 +360,10 @@ class TvmInterpreter(
         methodId: MethodId,
         targets: List<TvmTarget> = emptyList()
     ): TvmState {
+        require(concreteContractData.size == contractsCode.size) {
+            "concreteContractData must be given for all analyzed contracts"
+        }
+
         val contractCode = contractsCode.getOrNull(startContractId)
             ?: error("Contract $startContractId not found.")
 
