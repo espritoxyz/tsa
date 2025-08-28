@@ -7,11 +7,11 @@
     int flags = cs~load_uint(4);
     tsa_assert_not(flags & 1);
 
-    if (unput_id = 0) {
+    if (input_id == 0) {
         int op = msg_body~load_uint(32);
         tsa_assert(op == 101);
     }
-    if (unput_id = 1) {
+    if (input_id == 1) {
         int op = msg_body~load_uint(32);
         tsa_assert(op == 100);
     }
@@ -25,23 +25,23 @@
     int bounced? = data1~load_uint(1);
     tsa_assert(bounced? == 0);
 
-    tsa_send_internal_message(1, 0);
+    tsa_send_internal_message(1, 0); ;; send msg without bounce flag
 
     tsa_allow_failures();
 
     slice data_aft_first_msg = tsa_get_c4(1).begin_parse();
     int bounced_aft_first_msg = data_aft_first_msg~load_uint(1);
 
-    throw_if(257, bounced_aft_first_msg != 0);
+    throw_if(257, bounced_aft_first_msg != 0); ;; the contact should not reveive bounced message
 
     tsa_forbid_failures();
 
-    tsa_send_internal_message(1, 1);
+    tsa_send_internal_message(1, 1); ;; send msg with bounce flag
 
     tsa_allow_failures();
 
     slice data_aft_second_msg = tsa_get_c4(1).begin_parse();
     int bounced_aft_second_msg = data_aft_second_msg~load_uint(1);
 
-    throw_if(258, bounced_aft_second_msg != 1);
+    throw_if(258, bounced_aft_second_msg == 1); ;; the contract should receive bounced message
 }
