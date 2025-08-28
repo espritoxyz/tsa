@@ -121,14 +121,13 @@ class CheckersTest {
             concreteContractData = listOf(
                 TvmConcreteContractData(),
                 TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+                TvmConcreteContractData(),
             )
         )
 
         propertiesFound(
             tests,
-            listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
-            )
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
         )
 
         checkInvariants(
