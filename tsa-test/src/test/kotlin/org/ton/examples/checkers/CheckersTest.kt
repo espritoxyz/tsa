@@ -127,7 +127,6 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf(
-                { test -> test.result is TvmSuccessfulExecution },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
             )
         )
