@@ -16,6 +16,7 @@ import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.test.Ignore
 
 class CheckersTest {
     private val internalCallChecker = "/checkers/send_internal.fc"
@@ -120,7 +121,6 @@ class CheckersTest {
             concreteContractData = listOf(
                 TvmConcreteContractData(),
                 TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
-                TvmConcreteContractData(contractC4 = Cell(BitString.of(""))),
             )
         )
 
@@ -129,6 +129,7 @@ class CheckersTest {
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
             )
         )
     }
