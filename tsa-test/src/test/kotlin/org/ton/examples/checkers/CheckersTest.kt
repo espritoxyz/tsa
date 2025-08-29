@@ -173,6 +173,8 @@ class CheckersTest {
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
         )
 
+        assertTrue { tests.isNotEmpty() }
+
         checkInvariants(
             tests,
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
@@ -197,6 +199,8 @@ class CheckersTest {
             startContractId = 0,
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
         )
+
+        assertTrue { tests.isNotEmpty() }
 
         checkInvariants(
             tests,
