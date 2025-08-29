@@ -1,7 +1,7 @@
 package org.usvm.machine.types
 
+import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbCompositeLabel
-import org.ton.TlbFullMsgAddrLabel
 import org.ton.TvmParameterInfo
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
@@ -259,7 +259,7 @@ class TvmAddressToLabelMapper(
         }
 
         inputAddressToLabels[cellRef] =
-            LabelInfo(mapOf(TvmParameterInfo.DataCellInfo(TlbFullMsgAddrLabel) to ctx.trueExpr))
+            LabelInfo(mapOf(TvmParameterInfo.DataCellInfo(TlbBasicMsgAddrLabel) to ctx.trueExpr))
 
         // no need to generate label info for children because addresses have no children
 
