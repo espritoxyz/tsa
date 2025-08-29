@@ -5,6 +5,9 @@
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
     tsa_forbid_failures();
 
+    ;; set checker's address equal to analyzed contract address
+    tsa_assert(equal_slice_bits(my_address(), tsa_call_1_0(1, -10)));
+
     ;; ensure the initial message is not bounced
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);

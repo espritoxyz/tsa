@@ -782,8 +782,25 @@ private fun TvmContext.updateBuilderData(
     return mkBvOrExpr(builderData, shiftedBits)
 }
 
+private fun TvmContext.coinPrefix(value: UExpr<TvmInt257Sort>): UExpr<UBvSort> {
+    val sort = mkBvSort(GRAMS_LENGTH_BITS)
+    return (1..<16).fold(mkBv(0, sort) as UExpr<UBvSort>) { acc, cur ->
+        val curBv = mkBv(cur, sort)
+        val curBvExtended = curBv.unsignedExtendToInteger()
+
+        // ((len - 1) * 8)
+        val prevValueBits = mkBvShiftLeftExpr(mkBvSubExpr(curBvExtended, oneValue), threeValue)
+
+        mkIte(
+            mkBvSignedGreaterExpr(value, bvMaxValueUnsignedExtended(prevValueBits)),
+            trueBranch = curBv,
+            falseBranch = acc,
+        )
+    }
+}
+
 /**
- * Return lengthValue
+ * Return coin prefix (value from 0 to 15 that specifies coin length) as 4-bit bitvector.
  * */
 fun TvmStepScopeManager.builderStoreGrams(
     builder: UConcreteHeapRef,
@@ -795,41 +812,54 @@ fun TvmStepScopeManager.builderStoreGrams(
     val maxValue = 8 * ((1 shl lenSizeBits) - 1)
 
     val notOutOfRangeValue = unsignedIntegerFitsBits(value, maxValue.toUInt())
-    checkOutOfRange(notOutOfRangeValue, this@builderStoreGrams) ?: return null
+    checkOutOfRange(notOutOfRangeValue, this@builderStoreGrams)
+        ?: return null
 
-    // len:(#< 16)
-    val lengthValue = calcOnState { makeSymbolicPrimitive(mkBvSort(lenSizeBits.toUInt())) }
-    val lengthValueExtended = lengthValue.unsignedExtendToInteger()
+    val coinPrefix = if (!ctx.intBlastingTurnedOff() && !ctx.tvmOptions.alwaysUseSymbolicLengthInStoreCoins) {
+        coinPrefix(value)
 
-    // (len * 8)
-    val valueBits = mkBvShiftLeftExpr(lengthValueExtended, threeValue)
-    // ((len - 1) * 8)
-    val prevValueBits = mkBvShiftLeftExpr(mkBvSubExpr(lengthValueExtended, oneValue), threeValue)
-    // (len = 0 /\ value = 0) \/
-    // (len > 0 /\ `value ufits in (len * 8) bits` /\ `value doesn't ufit in ((len - 1) * 8) bits`)
-    val lengthValueConstraint = mkOr(
-        (lengthValueExtended eq zeroValue) and (value eq zeroValue),
-        mkAnd(
-            mkBvSignedGreaterExpr(lengthValueExtended, zeroValue),
-            mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(valueBits)),
-            mkBvSignedGreaterExpr(value, bvMaxValueUnsignedExtended(prevValueBits)),
+    } else {
+        // len:(#< 16)
+        val coinPrefix = calcOnState { makeSymbolicPrimitive(mkBvSort(lenSizeBits.toUInt())) }
+        val coinPrefixExtended = coinPrefix.unsignedExtendToInteger()
+
+        // (len * 8)
+        val valueBits = mkBvShiftLeftExpr(coinPrefixExtended, threeValue)
+        // ((len - 1) * 8)
+        val prevValueBits = mkBvShiftLeftExpr(mkBvSubExpr(coinPrefixExtended, oneValue), threeValue)
+        // (len = 0 /\ value = 0) \/
+        // (len > 0 /\ `value ufits in (len * 8) bits` /\ `value doesn't ufit in ((len - 1) * 8) bits`)
+        val lengthValueConstraint = mkOr(
+            (coinPrefixExtended eq zeroValue) and (value eq zeroValue),
+            mkAnd(
+                mkBvSignedGreaterExpr(coinPrefixExtended, zeroValue),
+                mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(valueBits)),
+                mkBvSignedGreaterExpr(value, bvMaxValueUnsignedExtended(prevValueBits)),
+            )
         )
-    )
 
-    assert(
-        lengthValueConstraint,
-        unsatBlock = {
-            error("Cannot assert grams length constraints")
-        },
-    ) ?: return null
+        assert(
+            lengthValueConstraint,
+            unsatBlock = {
+                error("Cannot assert grams length constraints")
+            },
+        ) ?: return null
+
+        coinPrefix
+    }
+
+    val coinPrefixExtended = coinPrefix.unsignedExtendToInteger()
 
     builderStoreInt(
         builder,
-        lengthValueExtended,
+        coinPrefixExtended,
         lenSizeBits.toBv257(),
         isSigned = false,
         quietBlock
     ) ?: return null
+
+    // (len * 8)
+    val valueBits = mkBvShiftLeftExpr(coinPrefixExtended, threeValue)
 
     builderStoreInt(
         builder,
@@ -839,7 +869,7 @@ fun TvmStepScopeManager.builderStoreGrams(
         quietBlock
     ) ?: return null
 
-    return lengthValue
+    return coinPrefix
 }
 
 fun TvmState.builderStoreNextRef(builder: UHeapRef, ref: UHeapRef) = with(ctx) {

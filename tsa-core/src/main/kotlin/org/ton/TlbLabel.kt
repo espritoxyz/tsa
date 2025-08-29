@@ -111,26 +111,6 @@ class TlbAddressByRef(
     override val arity: Int = 0
 }
 
-// TODO: other types of addresses (not just std)
-data object TlbFullMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel("MsgAddr") {
-    init {
-        internalStructure = SwitchPrefix(
-            id = TlbStructureIdProvider.provideId(),
-            switchSize = 3,
-            owner = this,
-            givenVariants = mapOf(
-                "100" to KnownTypePrefix(
-                    id = TlbStructureIdProvider.provideId(),
-                    TlbInternalStdMsgAddrLabel,
-                    typeArgIds = emptyList(),
-                    rest = Empty,
-                    owner = this,
-                )
-            )
-        )
-    }
-}
-
 data object TlbBasicMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel("MsgAddr") {
     init {
         internalStructure = SwitchPrefix(

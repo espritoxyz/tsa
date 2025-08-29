@@ -23,6 +23,7 @@ import io.ksmt.utils.asExpr
 import io.ksmt.utils.powerOfTwo
 import io.ksmt.utils.toBigInteger
 import org.ton.bytecode.MethodId
+import org.ton.bytecode.TvmContinuation
 import java.math.BigInteger
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
@@ -65,7 +66,7 @@ typealias TvmSizeSort = UBv32Sort
 
 class TvmContext(
     val tvmOptions: TvmOptions,
-    components: UComponents<TvmType, TvmSizeSort>,
+    private val components: TvmComponents,
 ) : UContext<TvmSizeSort>(components) {
     val int257sort = TvmInt257Sort(this)
     val cellDataSort = TvmCellDataSort(this)
@@ -330,4 +331,10 @@ class TvmContext(
     // Utility sorts for arith operations
     class TvmInt257Ext1Sort(ctx: KContext) : KBvCustomSizeSort(ctx, INT_EXT1_BITS)
     class TvmInt257Ext256Sort(ctx: KContext) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
+
+    fun intBlastingTurnedOff(): Boolean {
+        val solver = solver<TvmType>() as? TvmComponents.SolverWithIntBlasting
+            ?: error("unexpected solver")
+        return solver.intBlastingIsTurnedOff()
+    }
 }

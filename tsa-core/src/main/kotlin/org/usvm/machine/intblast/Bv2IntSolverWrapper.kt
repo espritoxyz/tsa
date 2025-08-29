@@ -152,4 +152,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         bv2intSolver.close()
         regularSolver.close()
     }
+
+    val intBlastingTurnedOff: Boolean
+        get() = !isRewriteSolver
 }
