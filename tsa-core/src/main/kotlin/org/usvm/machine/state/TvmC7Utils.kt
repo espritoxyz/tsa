@@ -222,7 +222,7 @@ fun TvmState.initContractInfo(
     val balance = makeBalanceEntry(ctx, initialBalance)
 
     val (addrValue, workchain) = if (concreteData.addressBits == null) {
-        val workchain = makeSymbolicPrimitive(mkBv8Sort())
+        val workchain =  mkBv(0, 8u) // TODO: consider other workchains?
         val address = allocDataCellFromData(
             mkBvConcatExpr(
                 mkBvConcatExpr(
