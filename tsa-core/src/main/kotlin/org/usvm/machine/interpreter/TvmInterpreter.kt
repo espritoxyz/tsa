@@ -406,15 +406,16 @@ class TvmInterpreter(
         val useRecvExternalInput = methodId == RECEIVE_EXTERNAL_ID && ctx.tvmOptions.useReceiverInputs
         if (useRecvInternalInput) {
             val input = RecvInternalInput(state, concreteGeneralData, startContractId)
-            state.input = input
+            state.initialInput = input
+            state.currentInput = input
         } else if (useRecvExternalInput) {
             val input = RecvExternalInput(state, concreteGeneralData, startContractId)
-            state.input = input
+            state.initialInput = input
             check(concreteGeneralData.initialSenderBits == null) {
                 "Cannot take into account concrete sender if when using RecvExternal input"
             }
         } else {
-            state.input = TvmStackInput
+            state.initialInput = TvmStackInput
             check(concreteGeneralData.initialOpcode == null && concreteGeneralData.initialSenderBits == null) {
                 "Cannot take into account concrete initialOpcode or sender if not using RecvInternal input"
             }
@@ -444,12 +445,12 @@ class TvmInterpreter(
         state: TvmState,
         startContractId: ContractId,
     ) {
-        val msgValue = when (val input = state.input) {
+        val msgValue = when (val input = state.initialInput) {
             is ReceiverInput -> input.msgValue
             is TvmStackInput -> null
         }
 
-        val allowInputStackValues = ctx.tvmOptions.enableInputValues && (state.input is TvmStackInput)
+        val allowInputStackValues = ctx.tvmOptions.enableInputValues && (state.initialInput is TvmStackInput)
         val executionMemory = initializeContractExecutionMemory(
             contractsCode,
             state,
@@ -461,7 +462,7 @@ class TvmInterpreter(
         state.stack = executionMemory.stack
         state.registersOfCurrentContract = executionMemory.registers
 
-        when (val input = state.input) {
+        when (val input = state.initialInput) {
             is ReceiverInput -> {
                 val configBalance = state.getBalance()
                     ?: error("Unexpected incorrect config balance value")

@@ -1,0 +1,14 @@
+#include "../imports/stdlib.fc";
+
+() recv_external(int balance, int msg_value, cell in_msg_full, slice in_msg) impure {
+    var [balance_from_params, _] = get_balance();
+
+    throw_unless(1000, balance_from_params == balance);
+    throw_if(1001, balance - msg_value == 12345);
+
+    accept_message();
+}
+
+() main() {
+    ;; nothing
+}

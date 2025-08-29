@@ -1,0 +1,20 @@
+#include "../imports/stdlib.fc";
+#include "../imports/tsa_functions.fc";
+
+() on_external_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    tsa_forbid_failures();
+
+    slice ms = in_msg_full.begin_parse();
+
+    ms~skip_bits(4);
+
+    slice msg_target_addr_slice = ms~load_msg_addr();
+
+    tsa_fetch_value(msg_target_addr_slice, -1);
+
+    tsa_allow_failures();
+}
+
+() main() impure {
+    tsa_send_external_message(1, 0);
+}

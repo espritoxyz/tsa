@@ -336,12 +336,12 @@ internal fun propertiesFound(
 }
 
 internal fun checkInvariants(
-    testSuite: TvmSymbolicTestSuite,
+    tests: List<TvmSymbolicTest>,
     properties: List<(TvmSymbolicTest) -> Boolean>
 ) {
     val failedInvariants = mutableListOf<Int>()
     properties.forEachIndexed outer@{ index, property ->
-        testSuite.tests.forEach { test ->
+        tests.forEach { test ->
             if (!property(test)) {
                 failedInvariants.add(index)
                 return@outer

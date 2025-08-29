@@ -124,9 +124,10 @@ class TvmTestStateResolver(
     private fun resolveRecvExternalInput(input: RecvExternalInput): TvmTestInput.RecvExternalInput =
         TvmTestInput.RecvExternalInput(
             msgBody = resolveSlice(input.msgBodySliceMaybeBounced),
+            wasAccepted = state.acceptedInputs.contains(input),
         )
 
-    fun resolveInput(): TvmTestInput = when (val input = state.input) {
+    fun resolveInput(): TvmTestInput = when (val input = state.initialInput) {
         is TvmStackInput -> TvmTestInput.StackInput(resolveStackInput())
         is RecvInternalInput -> resolveRecvInternalInput(input)
         is RecvExternalInput -> resolveRecvExternalInput(input)
@@ -233,9 +234,13 @@ class TvmTestStateResolver(
             )
         }
 
-    fun resolveAdditionalInputs(): Map<Int, TvmTestInput.RecvInternalInput> =
+    fun resolveAdditionalInputs(): Map<Int, TvmTestInput> =
         state.additionalInputs.entries.associate { (inputId, symbolicInput) ->
-            inputId to resolveRecvInternalInput(symbolicInput)
+            val resolvedInput = when (symbolicInput) {
+                is RecvExternalInput -> resolveRecvExternalInput(symbolicInput)
+                is RecvInternalInput -> resolveRecvInternalInput(symbolicInput)
+            }
+            inputId to resolvedInput
         }
 
     private fun resolveTvmStructuralError(

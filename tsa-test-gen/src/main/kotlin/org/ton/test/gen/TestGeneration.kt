@@ -104,7 +104,8 @@ private fun TsContext.constructTests(
 
     val recvExternalTests = if (generateRecvExternalTests) {
         tests.filter {
-            it.methodId == RECEIVE_EXTERNAL_ID && it.result is TvmMethodFailure && it.externalMessageWasAccepted
+            it.methodId == RECEIVE_EXTERNAL_ID && it.result is TvmMethodFailure &&
+                (it.input as? TvmTestInput.RecvExternalInput)?.wasAccepted == true
         }.let { if (useMinimization) minimizeTestCase(it) else it }
     } else {
         emptyList()

@@ -15,6 +15,8 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmTestInput
 import kotlin.io.path.readText
 import kotlin.test.Ignore
 import kotlin.test.Test
@@ -23,7 +25,9 @@ import kotlin.test.assertTrue
 class CheckersTest {
     private val internalCallChecker = "/checkers/send_internal.fc"
     private val internalCallCheckerWithCapture = "/checkers/send_internal_with_capture.fc"
+    private val externalCallCheckerWithCapture = "/checkers/send_external_with_capture.fc"
     private val balancePath = "/args/balance.fc"
+    private val balanceExternalPath = "/args/balance_external.fc"
     private val bounceCheckerPath = "/checkers/bounce.fc"
     private val getC4CheckerPath = "/checkers/get_c4.fc"
     private val emptyContractPath = "/empty_contract.fc"
@@ -33,16 +37,39 @@ class CheckersTest {
 
     @Test
     fun testConsistentBalanceThroughChecker() {
-        runTestConsistentBalanceThroughChecker(internalCallChecker)
+        runTestConsistentBalanceThroughChecker(internalCallChecker, fetchedKeys = emptySet(), balancePath)
     }
 
     @Test
     fun testConsistentBalanceThroughCheckerWithCapture() {
-        runTestConsistentBalanceThroughChecker(internalCallCheckerWithCapture)
+        runTestConsistentBalanceThroughChecker(internalCallCheckerWithCapture, fetchedKeys = setOf(-1, -2), balancePath)
     }
 
-    private fun runTestConsistentBalanceThroughChecker(checkerPathStr: String) {
-        val path = extractResource(balancePath)
+    @Test
+    fun testConsistentBalanceThroughCheckerWithCaptureExternal() {
+        runTestConsistentBalanceThroughChecker(
+            externalCallCheckerWithCapture,
+            fetchedKeys = setOf(-1),
+            balanceExternalPath
+        ) {
+            if (it.additionalInputs.size != 1) {
+                return@runTestConsistentBalanceThroughChecker false
+            }
+            if (it.result is TvmSuccessfulExecution) {
+                (it.additionalInputs.values.single() as? TvmTestInput.RecvExternalInput)?.wasAccepted == true
+            } else {
+                (it.additionalInputs.values.single() as? TvmTestInput.RecvExternalInput)?.wasAccepted == false
+            }
+        }
+    }
+
+    private fun runTestConsistentBalanceThroughChecker(
+        checkerPathStr: String,
+        fetchedKeys: Set<Int>,
+        contractPath: String,
+        additionalCheck: (TvmSymbolicTest) -> Boolean = { true },
+    ) {
+        val path = extractResource(contractPath)
         val checkerPath = extractResource(checkerPathStr)
 
         val checkerContract = getFuncContract(
@@ -68,7 +95,16 @@ class CheckersTest {
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+                additionalCheck,
+            )
+        )
+
+        val successfulTests = tests.filter { it.result is TvmSuccessfulExecution }
+        checkInvariants(
+            successfulTests,
+            listOf { test -> fetchedKeys.all { it in test.fetchedValues } },
         )
     }
 

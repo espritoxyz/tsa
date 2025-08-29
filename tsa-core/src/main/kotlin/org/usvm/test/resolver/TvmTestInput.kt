@@ -42,11 +42,11 @@ sealed interface TvmTestInput {
             )
     }
 
-
     @Serializable
     @SerialName("recvExternalInput")
     data class RecvExternalInput(
         val msgBody: TvmTestSliceValue,
+        val wasAccepted: Boolean,
     ) : TvmTestInput {
         override val usedParameters: List<TvmTestValue>
             get() = listOf(msgBody)
