@@ -7,8 +7,10 @@ const val ASSERT_NOT_METHOD_ID = 4
 const val FETCH_VALUE_ID = 5
 const val SEND_INTERNAL_MESSAGE_ID = 6
 const val GET_C4_METHOD_ID = 7
+const val SEND_EXTERNAL_MESSAGE_ID = 8
 
 const val ON_INTERNAL_MESSAGE_METHOD_ID = 65621
+const val ON_EXTERNAL_MESSAGE_METHOD_ID = 97889
 
 const val MK_SYMBOLIC_INT_METHOD_ID = 100
 
@@ -30,4 +32,9 @@ data class SimpleStackOperations(
     val takeFromNewStack: Int,
 ) : StackOperations
 
-data class NewRecvInternalInput(val inputId: Int) : StackOperations
+data class NewReceiverInput(val inputId: Int, val type: ReceiverType) : StackOperations
+
+enum class ReceiverType {
+    Internal,
+    External,
+}

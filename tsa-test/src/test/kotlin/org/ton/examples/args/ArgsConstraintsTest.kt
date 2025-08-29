@@ -18,6 +18,7 @@ import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import java.math.BigInteger
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ArgsConstraintsTest {
@@ -31,6 +32,7 @@ class ArgsConstraintsTest {
     private val balancePath = "/args/balance.fc"
     private val senderAddressPath = "/args/sender_address.fc"
     private val opcodePath = "/args/opcode.fc"
+    private val recvExternalPath = "/args/recv_external.fc"
 
     @Test
     fun testConsistentMessageValue() {
@@ -225,6 +227,28 @@ class ArgsConstraintsTest {
         checkInvariants(
             result.testSuites.single(),
             listOf { test -> test.result !is TvmSuccessfulExecution }
+        )
+    }
+
+    @Test
+    fun testRecvExternal() {
+        val path = extractResource(recvExternalPath)
+        val result = funcCompileAndAnalyzeAllMethods(path)
+
+        val tests = result.first { it.methodId == TvmContext.RECEIVE_EXTERNAL_ID }
+
+        checkInvariants(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1001 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1002 },
+            )
+        )
+
+        propertiesFound(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1003 }
         )
     }
 }

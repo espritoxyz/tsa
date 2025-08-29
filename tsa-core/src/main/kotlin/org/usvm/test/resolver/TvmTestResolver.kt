@@ -34,7 +34,6 @@ data object TvmTestResolver {
         val gasUsage = stateResolver.resolveGasUsage()
         val outMessages = stateResolver.resolveOutMessages()
         val additionalInputs = stateResolver.resolveAdditionalInputs()
-        val externalMessageWasAccepted = state.pathNode.allStatements.any { it is TvmAppGasAcceptInst }
         val contractStatesBefore = state.contractIds.associateWith { stateResolver.resolveInitialContractState(it) }
 
         return TvmSymbolicTest(
@@ -52,7 +51,6 @@ data object TvmTestResolver {
             numberOfAddressesWithAssertedDataConstraints = state.cellDataFieldManager.getCellsWithAssertedCellData().size,
             intercontractPath = state.intercontractPath,
             coveredInstructions = collectVisitedInstructions(state),
-            externalMessageWasAccepted = externalMessageWasAccepted,
             outMessages = outMessages,
             rootContract = state.rootContractId,
             contractStatesBefore = contractStatesBefore,
@@ -123,10 +121,9 @@ data class TvmSymbolicTest(
 //    val contractStatesAfter: Map<ContractId, TvmContractState>,
     val initialData: Map<ContractId, TvmTestCellValue>,
     val input: TvmTestInput,
-    val additionalInputs: Map<Int, TvmTestInput.RecvInternalInput>,
+    val additionalInputs: Map<Int, TvmTestInput>,
     val fetchedValues: Map<Int, TvmTestValue>,
     val result: TvmMethodSymbolicResult,
-    val externalMessageWasAccepted: Boolean,
     val lastStmt: TvmRealInst,
     val gasUsage: Int,
     val additionalFlags: Set<String>,

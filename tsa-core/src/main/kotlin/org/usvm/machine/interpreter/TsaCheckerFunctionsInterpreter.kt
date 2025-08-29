@@ -25,6 +25,8 @@ import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.initializeContractExecutionMemory
+import org.usvm.machine.state.input.ReceiverInput
+import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
@@ -48,7 +50,7 @@ class TsaCheckerFunctionsInterpreter(
             scope,
             oldStack = stmt.checkerMemorySavelist.oldMemory.stack,
             stackOperations = stmt.checkerMemorySavelist.stackOperations,
-            recvInternalInput = stmt.checkerMemorySavelist.recvInternalInput,
+            newInput = stmt.checkerMemorySavelist.newInput,
             nextContractId = stmt.checkerMemorySavelist.nextContractId,
         ) ?: return
 
@@ -114,10 +116,15 @@ class TsaCheckerFunctionsInterpreter(
                 performGetC4(scope, stmt)
             }
 
+            SEND_EXTERNAL_MESSAGE_ID -> {
+                performRecvExternalCall(scope, stmt)
+            }
+
             else -> {
                 return Unit
             }
         }
+
         return null
     }
 
@@ -130,7 +137,19 @@ class TsaCheckerFunctionsInterpreter(
         }
         val nextMethodId = TvmContext.RECEIVE_INTERNAL_ID.toInt()
 
-        performTsaCall(scope, NewRecvInternalInput(newInputId), stmt, nextMethodId, nextContractId)
+        performTsaCall(scope, NewReceiverInput(newInputId, ReceiverType.Internal), stmt, nextMethodId, nextContractId)
+    }
+
+    private fun performRecvExternalCall(scope: TvmStepScopeManager, stmt: TvmInst) {
+        val newInputId = scope.calcOnState {
+            getConcreteIntFromStack(parameterName = "input_id", functionName = "tsa_send_external_message")
+        }
+        val nextContractId = scope.calcOnState {
+            getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_send_external_message")
+        }
+        val nextMethodId = TvmContext.RECEIVE_EXTERNAL_ID.toInt()
+
+        performTsaCall(scope, NewReceiverInput(newInputId, ReceiverType.External), stmt, nextMethodId, nextContractId)
     }
 
     private fun performOrdinaryTsaCall(scope: TvmStepScopeManager, stackOperations: StackOperations, stmt: TvmInst) {
@@ -151,12 +170,29 @@ class TsaCheckerFunctionsInterpreter(
         nextMethodId: Int,
         nextContractId: Int,
     ) {
-        val recvInternalInput = scope.calcOnState {
-            if (stackOperations is NewRecvInternalInput) {
+        val receiverInput = scope.calcOnState {
+            if (stackOperations is NewReceiverInput) {
                 additionalInputs.getOrElse(stackOperations.inputId) {
-                    RecvInternalInput(this, TvmConcreteGeneralData(), nextContractId)
+                    when (stackOperations.type) {
+                        ReceiverType.Internal -> RecvInternalInput(this, TvmConcreteGeneralData(), nextContractId)
+                        ReceiverType.External -> RecvExternalInput(this, TvmConcreteGeneralData(), nextContractId)
+                    }
                 }.also {
                     additionalInputs = additionalInputs.put(stackOperations.inputId, it)
+
+                    when (stackOperations.type) {
+                        ReceiverType.Internal -> {
+                            check(it is RecvInternalInput) {
+                                "Expected input with id ${stackOperations.inputId} to be internal input. Found: $it"
+                            }
+                        }
+
+                        ReceiverType.External -> {
+                            check(it is RecvExternalInput) {
+                                "Expected input with id ${stackOperations.inputId} to be external input. Found: $it"
+                            }
+                        }
+                    }
                 }
             } else {
                 null
@@ -170,14 +206,14 @@ class TsaCheckerFunctionsInterpreter(
                 contractsCode,
                 this,
                 nextContractId,
-                recvInternalInput?.msgValue,
+                receiverInput?.msgValue,
                 allowInputStackValues = false,
             ).also {
                 stack = it.stack
             }
         }
 
-        prepareNewStack(scope, oldStack, stackOperations, recvInternalInput, nextContractId)
+        prepareNewStack(scope, oldStack, stackOperations, receiverInput, nextContractId)
             ?: return
 
         val oldMemory = scope.calcOnState {
@@ -187,20 +223,31 @@ class TsaCheckerFunctionsInterpreter(
             )
         }
 
-        val handlerMethod = scope.calcOnState {
+        val internalHandlerMethod = scope.calcOnState {
             contractsCode[currentContract].methods[ON_INTERNAL_MESSAGE_METHOD_ID.toMethodId()]
         }
+        val externalHandlerMethod = scope.calcOnState {
+            contractsCode[currentContract].methods[ON_EXTERNAL_MESSAGE_METHOD_ID.toMethodId()]
+        }
 
-        if (handlerMethod != null && stackOperations is NewRecvInternalInput) {
+        val handlerMethod = if (stackOperations is NewReceiverInput && stackOperations.type == ReceiverType.Internal) {
+            internalHandlerMethod
+        } else if (stackOperations is NewReceiverInput && stackOperations.type == ReceiverType.External) {
+            externalHandlerMethod
+        } else {
+            null
+        }
+
+        if (handlerMethod != null && stackOperations is NewReceiverInput) {
             scope.doWithStateCtx {
                 stack.addInt(stackOperations.inputId.toBv257())
             }
-            check(recvInternalInput != null) {
-                "RecvInternalInput should have been calculated by now"
+            check(receiverInput != null) {
+                "Receiver input should have been calculated by now"
             }
             val savelist = CheckerMemorySavelist(
                 oldMemory,
-                recvInternalInput,
+                receiverInput,
                 stackOperations,
                 newExecutionMemory.registers,
                 nextContractId,
@@ -225,8 +272,8 @@ class TsaCheckerFunctionsInterpreter(
 
     class CheckerMemorySavelist(
         val oldMemory: TvmContractExecutionMemory,
-        val recvInternalInput: RecvInternalInput,
-        val stackOperations: NewRecvInternalInput,
+        val newInput: ReceiverInput,
+        val stackOperations: NewReceiverInput,
         val newRegisters: TvmRegisters,
         val nextContractId: ContractId,
         val nextMethodId: Int,
@@ -254,7 +301,7 @@ class TsaCheckerFunctionsInterpreter(
 
         val takeFromNewStack = when (stackOperations) {
             is SimpleStackOperations -> stackOperations.takeFromNewStack
-            is NewRecvInternalInput -> 0
+            is NewReceiverInput -> 0
         }
 
         contractStack = contractStack.add(TvmContractPosition(currentContract, stmt, oldMemory, takeFromNewStack))
@@ -264,10 +311,11 @@ class TsaCheckerFunctionsInterpreter(
         val nextContractCode = contractsCode.getOrNull(nextContractId)
             ?: error("Contract with id $nextContractId not found")
 
-        if (stackOperations is NewRecvInternalInput) {
+        if (stackOperations is NewReceiverInput) {
             val input = state.additionalInputs[stackOperations.inputId]
                 ?: error("Input with id ${stackOperations.inputId} not found")
             lastMsgBodySlice = input.msgBodySliceMaybeBounced
+            currentInput = input
         }
 
         switchToFirstMethodInContract(nextContractCode, nextMethodId.toMethodId())
@@ -277,7 +325,7 @@ class TsaCheckerFunctionsInterpreter(
         scope: TvmStepScopeManager,
         oldStack: TvmStack,
         stackOperations: StackOperations,
-        recvInternalInput: RecvInternalInput?,
+        newInput: ReceiverInput?,
         nextContractId: Int,
     ): Unit? = with(scope.ctx) {
         when (stackOperations) {
@@ -287,42 +335,46 @@ class TsaCheckerFunctionsInterpreter(
                 }
             }
 
-            is NewRecvInternalInput -> {
-                check(recvInternalInput != null) {
+            is NewReceiverInput -> {
+                check(newInput != null) {
                     "RecvInternalInput must be generated at this point"
                 }
 
-                recvInternalInput.getAddressSlices().forEach {
+                newInput.addressSlices.forEach {
                     scope.calcOnState {
                         dataCellInfoStorage.mapper.addAddressSlice(it)
                     }
                 }
                 val addressConstraint = scope.calcOnState {
-                    dataCellInfoStorage.mapper.addAddressSliceAndGenerateConstraint(
-                        this,
-                        recvInternalInput.srcAddressSlice
-                    )
+                    newInput.srcAddressSlice?.let {
+                        dataCellInfoStorage.mapper.addAddressSliceAndGenerateConstraint(
+                            this,
+                            it,
+                        )
+                    }
                 }
 
-                scope.assert(addressConstraint)
-                    ?: return@with null
+                if (addressConstraint != null) {
+                    scope.assert(addressConstraint)
+                        ?: return@with null
+                }
 
                 scope.doWithState {
                     val configBalance = getBalanceOf(nextContractId)
                         ?: error("Unexpected incorrect config balance value")
 
                     stack.addInt(configBalance)
-                    stack.addInt(recvInternalInput.msgValue)
+                    stack.addInt(newInput.msgValue)
                     stack.addStackEntry(
                         TvmConcreteStackEntry(
                             TvmStackCellValue(
-                                recvInternalInput.constructFullMessage(
+                                newInput.constructFullMessage(
                                     this
                                 )
                             )
                         )
                     )
-                    stack.addStackEntry(TvmConcreteStackEntry(TvmStackSliceValue(recvInternalInput.msgBodySliceMaybeBounced)))
+                    stack.addStackEntry(TvmConcreteStackEntry(TvmStackSliceValue(newInput.msgBodySliceMaybeBounced)))
                 }
             }
         }

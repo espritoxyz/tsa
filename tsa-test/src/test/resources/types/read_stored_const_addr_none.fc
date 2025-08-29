@@ -1,0 +1,13 @@
+#include "../imports/stdlib.fc";
+
+
+() recv_internal() impure {
+    cell some_cell = begin_cell()
+        .store_int(0, 4)
+        .end_cell();
+
+    slice cs = some_cell.begin_parse();
+    slice address = cs~load_msg_addr();
+
+    throw_unless(100, slice_bits(address) == 2);
+}

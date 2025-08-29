@@ -214,6 +214,7 @@ private fun extractInt(
 }
 
 fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.readFromConstant(
+    state: TvmState,
     offset: UExpr<TvmSizeSort>,
     data: String,
 ): ReadResult? = with(offset.ctx.tctx()) {
@@ -232,7 +233,19 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.read
             UExprReadResult(boolExpr).uncheckedCast()
         }
         is TvmCellDataMsgAddrRead -> {
-            null
+            val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
+            val twoDataBits = if (concreteOffset != null) {
+                data.substring(concreteOffset, min(concreteOffset + 2, data.length))
+            } else {
+                null
+            }
+            val result = if (twoDataBits == "00") {
+                UExprPairReadResult(twoSizeExpr, state.allocSliceFromData(mkBv(0, sizeBits = 2u)))
+            } else {
+                null
+            }
+
+            result?.uncheckedCast<Any, ReadResult>()
         }
         is TvmCellDataBitArrayRead -> {
             null
