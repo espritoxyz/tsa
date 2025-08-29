@@ -30,6 +30,10 @@ class CheckersTest {
     private val senderBouncePath = "/args/send_bounce_true.fc"
     private val recepientBouncePath = "/args/receive_bounce_msg.fc"
     private val bounceTestScheme = "/checkers/bounce-test-scheme.json"
+    private val remainingBalanceContract = "/args/send_remaining_balance.fc"
+    private val remainingBalanceChecker = "/checkers/remaining_balance.fc"
+    private val remainingValueContract = "/args/send_remaining_value.fc"
+    private val remainingValueChecker = "/checkers/remaining_value.fc"
 
     @Test
     fun testConsistentBalanceThroughChecker() {
@@ -147,6 +151,56 @@ class CheckersTest {
         checkInvariants(
             tests,
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+        )
+    }
+
+    @Ignore("SendRemainingBalance mode is not supported")
+    @Test
+    fun sendRemainingBalanceTest() {
+        val pathContract = extractResource(remainingBalanceContract)
+        val checkerPath = extractResource(remainingBalanceChecker)
+
+        val checkerContract = getFuncContract(
+            checkerPath,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val analyzedContract = getFuncContract(pathContract, FIFT_STDLIB_RESOURCE)
+
+        val tests = analyzeInterContract(
+            listOf(checkerContract, analyzedContract),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+        )
+    }
+
+    @Ignore("SendRemainingValue mode is not supported")
+    @Test
+    fun sendRemainingValueTest() {
+        val pathContract = extractResource(remainingValueContract)
+        val checkerPath = extractResource(remainingValueChecker)
+
+        val checkerContract = getFuncContract(
+            checkerPath,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val analyzedContract = getFuncContract(pathContract, FIFT_STDLIB_RESOURCE)
+
+        val tests = analyzeInterContract(
+            listOf(checkerContract, analyzedContract),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
         )
     }
 }
