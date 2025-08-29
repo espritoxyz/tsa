@@ -85,6 +85,7 @@ class InputParameterInfoTests {
     private val readStoredSlicePath = "/types/read_stored_slice.fc"
     private val zeroCoinsPath = "/types/c4/zero_coins.fc"
     private val constIntAfterCoinsPath = "/types/c4/const_int_after_coins.fc"
+    private val readStoredConstAddrNonePath = "/types/read_stored_const_addr_none.fc"
 
     @Test
     fun testCorrectMaybe() {
@@ -978,7 +979,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )
@@ -1026,13 +1027,30 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )
         )
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
+        assertTrue { tests.all { it.result is TvmSuccessfulExecution } }
+    }
+
+    @Test
+    fun testReadStoredConstAddrNone() {
+        val resourcePath = getResourcePath<InputParameterInfoTests>(readStoredConstAddrNonePath)
+        val results = funcCompileAndAnalyzeAllMethods(
+            resourcePath,
+            tvmOptions = TvmOptions(
+                useReceiverInputs = false,
+                performAdditionalChecksWhileResolving = true,
+                tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
+            )
+        )
+        assertEquals(1, results.testSuites.size)
+        val tests = results.testSuites.first()
+        assertTrue { tests.isNotEmpty() }
         assertTrue { tests.all { it.result is TvmSuccessfulExecution } }
     }
 
@@ -1074,7 +1092,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = false),
             )
@@ -1090,7 +1108,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )
@@ -1118,7 +1136,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )
@@ -1137,7 +1155,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )
@@ -1156,7 +1174,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )
@@ -1180,7 +1198,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )
@@ -1202,7 +1220,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )
@@ -1218,7 +1236,7 @@ class InputParameterInfoTests {
         val results = funcCompileAndAnalyzeAllMethods(
             resourcePath,
             tvmOptions = TvmOptions(
-                useRecvInternalInput = false,
+                useReceiverInputs = false,
                 performAdditionalChecksWhileResolving = true,
                 tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
             )

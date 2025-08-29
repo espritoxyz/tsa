@@ -50,8 +50,9 @@ import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.ensureSymbolicBuilderInitialized
 import org.usvm.machine.state.ensureSymbolicCellInitialized
 import org.usvm.machine.state.ensureSymbolicSliceInitialized
+import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
-import org.usvm.machine.state.input.TvmStateStackInput
+import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.tvmCellRefsRegion
 import org.usvm.machine.types.TvmBuilderType
@@ -120,9 +121,16 @@ class TvmTestStateResolver(
             createdAt = resolveInt257(input.createdAt),
         )
 
-    fun resolveInput(): TvmTestInput = when (val input = state.input) {
-        is TvmStateStackInput -> TvmTestInput.StackInput(resolveStackInput())
+    private fun resolveRecvExternalInput(input: RecvExternalInput): TvmTestInput.RecvExternalInput =
+        TvmTestInput.RecvExternalInput(
+            msgBody = resolveSlice(input.msgBodySliceMaybeBounced),
+            wasAccepted = state.acceptedInputs.contains(input),
+        )
+
+    fun resolveInput(): TvmTestInput = when (val input = state.initialInput) {
+        is TvmStackInput -> TvmTestInput.StackInput(resolveStackInput())
         is RecvInternalInput -> resolveRecvInternalInput(input)
+        is RecvExternalInput -> resolveRecvExternalInput(input)
     }
 
     private fun resolveBool(boolExpr: UBoolExpr): Boolean = model.eval(boolExpr).isTrue
@@ -226,9 +234,13 @@ class TvmTestStateResolver(
             )
         }
 
-    fun resolveAdditionalInputs(): Map<Int, TvmTestInput.RecvInternalInput> =
+    fun resolveAdditionalInputs(): Map<Int, TvmTestInput> =
         state.additionalInputs.entries.associate { (inputId, symbolicInput) ->
-            inputId to resolveRecvInternalInput(symbolicInput)
+            val resolvedInput = when (symbolicInput) {
+                is RecvExternalInput -> resolveRecvExternalInput(symbolicInput)
+                is RecvInternalInput -> resolveRecvInternalInput(symbolicInput)
+            }
+            inputId to resolvedInput
         }
 
     private fun resolveTvmStructuralError(

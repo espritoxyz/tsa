@@ -30,7 +30,7 @@ class DictOperationOnDataCell {
 
         val symbolicResult = funcCompileAndAnalyzeAllMethods(
             resourcePath,
-            tvmOptions = TvmOptions(useRecvInternalInput = false)
+            tvmOptions = TvmOptions(useReceiverInputs = false)
         )
         val tests = symbolicResult.single()
 
