@@ -1,0 +1,21 @@
+#include "../imports/stdlib.fc";
+
+() recv_external(int balance, int msg_value, cell in_msg_full, slice in_msg) impure {
+    throw_unless(1000, msg_value == 0);
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+
+    throw_unless(1001, flags == 8); ;; 1000
+
+    var me = my_address();
+    var dest = cs~load_msg_addr();
+
+    throw_unless(1002, equal_slice_bits(me, dest));
+
+    throw(1003);
+}
+
+() main() impure {
+    ;; do nothing
+}

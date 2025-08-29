@@ -13,6 +13,7 @@ import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.SizedCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead
+import org.usvm.machine.types.TvmCellDataMsgAddrRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
 import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
@@ -54,6 +55,10 @@ data class ConstTlbStackFrame(
             // special case when reading const with coin read is possible
             fourSizeExpr
 
+        } else if (loadData.type is TvmCellDataMsgAddrRead && concreteOffset != null && fourDataBits?.startsWith("00") == true) {
+            // special case when reading const with address read is possible (result is addr_none)
+            twoSizeExpr
+
         } else {
             return@with listOf(
                 GuardedResult(
@@ -76,7 +81,7 @@ data class ConstTlbStackFrame(
             NextFrame(it)
         } ?: EndOfStackFrame
 
-        val value = loadData.type.readFromConstant(offset, data)
+        val value = loadData.type.readFromConstant(state, offset, data)
 
         val result = mutableListOf(
             GuardedResult(

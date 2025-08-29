@@ -12,7 +12,7 @@ import kotlin.time.Duration.Companion.seconds
 data class TvmOptions(
     val quietMode: Boolean = false,
     val enableExternalAddress: Boolean = false,
-    val useRecvInternalInput: Boolean = true,
+    val useReceiverInputs: Boolean = true,
     val enableInputValues: Boolean = true,
     val turnOnTLBParsingChecks: Boolean = true,
     val performAdditionalChecksWhileResolving: Boolean = false,
