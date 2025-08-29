@@ -11,7 +11,6 @@ import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
-import org.ton.TlbFullMsgAddrLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbMaybeRefLabel
@@ -135,7 +134,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
             }
         }
 
-        is TlbFullMsgAddrLabel, is TlbBasicMsgAddrLabel -> {
+        is TlbBasicMsgAddrLabel -> {
 
             if (read !is TvmCellDataMsgAddrRead && read !is TvmCellDataBitArrayRead) {
                 return@with null

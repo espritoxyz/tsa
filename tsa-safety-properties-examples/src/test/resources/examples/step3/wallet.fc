@@ -7,6 +7,10 @@ int load_balance() inline method_id(-42) {
     return ds~load_uint(32);
 }
 
+slice get_address() impure method_id(-10) {
+    return my_address();
+}
+
 () update_balance(int new_balance) impure inline method_id(-422) {
     var new_data = begin_cell().store_uint(new_balance, 32).end_cell();
 

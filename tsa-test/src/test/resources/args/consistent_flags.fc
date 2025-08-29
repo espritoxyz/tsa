@@ -12,8 +12,4 @@
     throw_if(101, ihr_disabled & bounce & (~ bounced));
     throw_if(102, ihr_disabled & (~ bounce) & bounced);
     throw_if(103, ihr_disabled & (~ bounce) & (~ bounced));
-    throw_if(104, (~ ihr_disabled) & bounce & bounced);
-    throw_if(105, (~ ihr_disabled) & bounce & (~ bounced));
-    throw_if(106, (~ ihr_disabled) & (~ bounce) & bounced);
-    throw_if(107, (~ ihr_disabled) & (~ bounce) & (~ bounced));
 }
