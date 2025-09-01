@@ -8,6 +8,7 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import org.usvm.test.resolver.TvmTestInput.RecvInternalInput
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -56,7 +57,7 @@ class Statements {
                     assertTrue(result.exitCode == 256)
                     val inputs = test.additionalInputs
                     // This list contains the opcode for each of the discovered messages, in that order
-                    val foundOpcodes = inputs.map { input -> extractOpcode(input.value.msgBody.cell.data) }
+                    val foundOpcodes = inputs.map { input -> input.value as RecvInternalInput }.map { input -> extractOpcode(input.msgBody.cell.data) }
                     // At least one of the possible opcode lists must coincide with the discovered opcodes
                     possibleOpcodesList.any { possibleOpcodes -> possibleOpcodes == foundOpcodes }
                 } else {
@@ -194,7 +195,7 @@ class Statements {
     @Test
     fun checkSendInUntil4() {
         // This test sends 4 messages to the target, inside an until with 4 iterations.
-        // 4 iterations or more reaches the limit in which TSA unfolds untils. As such, there shouldn't be
+        // 4 iterations or more reaches the limit in which TSA unfolds until statements. As such, there shouldn't be
         // failures in the test results.
         checkSuccessfulSendInStatement(sendInUntilChecker4)
     }
