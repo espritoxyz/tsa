@@ -49,6 +49,7 @@ import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
+import org.usvm.machine.types.storeCellDataTlbLabelInBuilder
 import org.usvm.machine.types.storeCoinTlbLabelToBuilder
 import org.usvm.machine.types.storeIntTlbLabelToBuilder
 import org.usvm.machine.types.storeSliceTlbLabelInBuilder
@@ -87,18 +88,22 @@ private fun splitSizeExpr(
             trueValue == null && falseValue == null -> {
                 null
             }
+
             trueValue == null && falseValue != null -> {
                 GuardedExpr(falseValue.expr, falseValue.guard and cond.not())
             }
+
             trueValue != null && falseValue == null -> {
                 GuardedExpr(trueValue.expr, trueValue.guard and cond)
             }
+
             trueValue != null && falseValue != null -> {
                 GuardedExpr(
                     mkIte(cond, trueValue.expr, falseValue.expr),
                     (cond and trueValue.guard) or (cond.not() and falseValue.guard)
                 )
             }
+
             else -> {
                 error("not reachable")
             }
@@ -109,6 +114,7 @@ private fun splitSizeExpr(
         when (sizeExpr) {
             is KInterpretedValue ->
                 GuardedExpr(sizeExpr, ctx.trueExpr) to null
+
             is UIteExpr<TvmSizeSort> -> {
                 val cond = sizeExpr.condition
                 val (trueConcrete, trueSymbolic) = splitSizeExpr(sizeExpr.trueBranch)
@@ -117,6 +123,7 @@ private fun splitSizeExpr(
                 val symbolic = mergeCellExprsIntoIte(cond, trueSymbolic, falseSymbolic)
                 concrete to symbolic
             }
+
             else -> {
                 // Any complex expressions containing symbolic values are considered fully symbolic
                 null to GuardedExpr(sizeExpr, ctx.trueExpr)
@@ -283,7 +290,7 @@ fun TvmStepScopeManager.slicePreloadDataBitsWithoutChecks(
     val dataPosition = calcOnStateCtx {
         memory.readField(slice, sliceDataPosField, sizeSort)
     }
-   return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
+    return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
 }
 
 /**
@@ -300,7 +307,7 @@ fun TvmStepScopeManager.slicePreloadDataBits(
     assertDataLengthConstraintWithoutError(
         cellDataLength,
         unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
-    ) ?: return@calcOnStateCtx  null
+    ) ?: return@calcOnStateCtx null
 
     val dataPosition = memory.readField(slice, sliceDataPosField, sizeSort)
     val readingEnd = mkBvAddExpr(dataPosition, sizeBits)
@@ -753,6 +760,15 @@ fun TvmStepScopeManager.builderStoreInt(
     }
 }
 
+
+/**
+ *  Bitwise `and` of the lines:
+ *  ```
+ *   <- updBuilderLen ->
+ *  |---------------bits0000000000|
+ *  |builderData------------------|
+ *  ```
+ */
 private fun TvmContext.updateBuilderData(
     builderData: UExpr<TvmCellDataSort>,
     bits: UExpr<TvmCellDataSort>,
@@ -923,7 +939,7 @@ fun TvmState.allocSliceFromData(data: UExpr<UBvSort>): UConcreteHeapRef {
     return allocSliceFromCell(sliceCell)
 }
 
-fun TvmStepScopeManager.allocSliceFromData(data: UExpr<TvmCellDataSort>, sizeBits: UExpr<TvmSizeSort>): UHeapRef? {
+fun TvmStepScopeManager.allocSliceFromData(data: UExpr<TvmCellDataSort>, sizeBits: UExpr<TvmSizeSort>): UHeapRef {
     val sliceCell = allocCellFromData(data, sizeBits)
 
     return calcOnStateCtx { allocSliceFromCell(sliceCell) }
@@ -1160,6 +1176,20 @@ fun builderStoreIntTlb(
     }
 
     scope.builderStoreInt(updatedBuilder, value, sizeBits.signedExtendToInteger(), isSigned)
+}
+
+
+fun builderStoreValueTlb(
+    scope: TvmStepScopeManager,
+    builder: UConcreteHeapRef,
+    updatedBuilder: UConcreteHeapRef,
+    value: UExpr<TvmCellDataSort>,
+    sizeBits: UExpr<TvmSizeSort>,
+): Unit? = scope.doWithCtx {
+    scope.doWithState {
+        storeCellDataTlbLabelInBuilder(builder, updatedBuilder, value, sizeBits)
+    }
+    scope.builderStoreDataBits(updatedBuilder, value, sizeBits.extractToSizeSort())
 }
 
 fun builderStoreGramsTlb(

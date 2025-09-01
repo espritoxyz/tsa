@@ -22,12 +22,14 @@ import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.TvmStepScopeManager.ActionOnCondition
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.setExit
@@ -372,11 +374,19 @@ fun TvmState.storeCoinTlbLabelToBuilder(
         val valueStructure = lengthStructure.rest as TlbStructure.KnownTypePrefix
         check(valueStructure.typeLabel is TlbIntegerLabelOfSymbolicSize)
 
-        val lengthField = ConcreteSizeBlockField(lengthStructure.typeLabel.concreteSize, lengthStructure.id, persistentListOf(structId))
+        val lengthField = ConcreteSizeBlockField(
+            lengthStructure.typeLabel.concreteSize,
+            lengthStructure.id,
+            persistentListOf(structId)
+        )
         val lengthSort = lengthField.getSort(this)
         check(lengthSort.sizeBits == length.sort.sizeBits)
 
-        val valueField = SymbolicSizeBlockField(valueStructure.typeLabel.lengthUpperBound, valueStructure.id, persistentListOf(structId))
+        val valueField = SymbolicSizeBlockField(
+            valueStructure.typeLabel.lengthUpperBound,
+            valueStructure.id,
+            persistentListOf(structId)
+        )
         val valueSort = valueField.getSort(this)
 
         val valueShrinked = mkBvExtractExpr(high = valueSort.sizeBits.toInt() - 1, low = 0, value)
@@ -419,5 +429,22 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
             val field = SliceRefField(structId, persistentListOf())
             state.memory.writeField(resultCellRef, field, field.getSort(ctx), resultSliceRef, guard = trueExpr)
         }
+    }
+}
+
+fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
+    oldBuilder: UConcreteHeapRef,
+    newBuilder: UConcreteHeapRef,
+    value: UExpr<TvmCellDataSort>,
+    sizeBits: UExpr<TvmSizeSort>,
+) = doWithCtx {
+    if (value is KBitVecValue && sizeBits is KInterpretedValue) {
+        val constValue = (value as KBitVecValue<*>).stringValue.takeLast(sizeBits.intValue())
+        calcOnState {
+            addTlbConstantToBuilder(oldBuilder, newBuilder, constValue)
+        }
+    } else {
+        val newSlice = allocSliceFromData(value, sizeBits)
+        storeSliceTlbLabelInBuilder(oldBuilder, newBuilder, newSlice)
     }
 }
