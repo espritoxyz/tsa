@@ -761,29 +761,6 @@ fun TvmStepScopeManager.builderStoreInt(
 }
 
 
-context(TvmContext)
-fun TvmStepScopeManager.builderStoreValue(
-    builder: UConcreteHeapRef,
-    value: UExpr<TvmCellDataSort>,
-    sizeBits: UExpr<TvmInt257Sort>,
-    quietBlock: (TvmState.() -> Unit)? = null
-): Unit? {
-    val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
-    val builderDataLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
-    val updatedLength = mkSizeAddExpr(builderDataLength, sizeBits.extractToSizeSort())
-
-    val canWriteConstraint = mkSizeLeExpr(updatedLength, mkSizeExpr(MAX_DATA_LENGTH))
-    checkCellOverflow(canWriteConstraint, this, quietBlock)
-        ?: return null
-
-    val updatedData = updateBuilderData(builderData, value.zeroExtendToSort(builderData.sort), updatedLength)
-
-    return doWithState {
-        cellDataFieldManager.writeCellData(this, builder, updatedData)
-        memory.writeField(builder, cellDataLengthField, sizeSort, updatedLength, guard = trueExpr)
-    }
-}
-
 /**
  *  Bitwise `and` of the lines:
  *  ```
@@ -962,7 +939,7 @@ fun TvmState.allocSliceFromData(data: UExpr<UBvSort>): UConcreteHeapRef {
     return allocSliceFromCell(sliceCell)
 }
 
-fun TvmStepScopeManager.allocSliceFromData(data: UExpr<TvmCellDataSort>, sizeBits: UExpr<TvmSizeSort>): UHeapRef? {
+fun TvmStepScopeManager.allocSliceFromData(data: UExpr<TvmCellDataSort>, sizeBits: UExpr<TvmSizeSort>): UHeapRef {
     val sliceCell = allocCellFromData(data, sizeBits)
 
     return calcOnStateCtx { allocSliceFromCell(sliceCell) }
@@ -1212,7 +1189,7 @@ fun builderStoreValueTlb(
     scope.doWithState {
         storeCellDataTlbLabelInBuilder(builder, updatedBuilder, value, sizeBits)
     }
-    scope.builderStoreValue(updatedBuilder, value, sizeBits.signedExtendToInteger())
+    scope.builderStoreDataBits(updatedBuilder, value, sizeBits.extractToSizeSort())
 }
 
 fun builderStoreGramsTlb(

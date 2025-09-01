@@ -29,7 +29,7 @@ import org.usvm.machine.TvmStepScopeManager.ActionOnCondition
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
-import org.usvm.machine.state.allocCellFromData
+import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.setExit
@@ -438,12 +438,13 @@ fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
     value: UExpr<TvmCellDataSort>,
     sizeBits: UExpr<TvmSizeSort>,
 ) = doWithCtx {
-    val cellRef = allocCellFromData(value, sizeBits)
-    val newSlice = calcOnState { memory.allocConcrete(TvmSliceType) }
-    doWithState {
-        memory.writeField(newSlice, TvmContext.sliceCellField, addressSort, cellRef, guard = trueExpr)
-        val refsInCell = memory.readField(cellRef, TvmContext.cellRefsLengthField, sizeSort)
-        memory.writeField(newSlice, TvmContext.sliceRefPosField, sizeSort, refsInCell, guard = trueExpr)
+    if (value is KBitVecValue && sizeBits is KInterpretedValue) {
+        val constValue = (value as KBitVecValue<*>).stringValue.takeLast(sizeBits.intValue())
+        calcOnState {
+            addTlbConstantToBuilder(oldBuilder, newBuilder, constValue)
+        }
+    } else {
+        val newSlice = allocSliceFromData(value, sizeBits)
+        storeSliceTlbLabelInBuilder(oldBuilder, newBuilder, newSlice)
     }
-    storeSliceTlbLabelInBuilder(oldBuilder, newBuilder, newSlice)
 }
