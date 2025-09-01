@@ -47,12 +47,12 @@ import kotlin.test.assertTrue
 // Options for tests with concrete execution
 val testConcreteOptions = TvmOptions(
     turnOnTLBParsingChecks = false,
-    useRecvInternalInput = false,
+    useReceiverInputs = false,
     enableInputValues = false,
     useMainMethodForInitialMethodJump = false,
 )
 
-val testOptionsToAnalyzeSpecificMethod = TvmOptions(useRecvInternalInput = false)
+val testOptionsToAnalyzeSpecificMethod = TvmOptions(useReceiverInputs = false)
 
 fun extractResource(resourcePath: String) =
     getResourcePath(object {}.javaClass, resourcePath)
@@ -336,12 +336,12 @@ internal fun propertiesFound(
 }
 
 internal fun checkInvariants(
-    testSuite: TvmSymbolicTestSuite,
+    tests: List<TvmSymbolicTest>,
     properties: List<(TvmSymbolicTest) -> Boolean>
 ) {
     val failedInvariants = mutableListOf<Int>()
     properties.forEachIndexed outer@{ index, property ->
-        testSuite.tests.forEach { test ->
+        tests.forEach { test ->
             if (!property(test)) {
                 failedInvariants.add(index)
                 return@outer

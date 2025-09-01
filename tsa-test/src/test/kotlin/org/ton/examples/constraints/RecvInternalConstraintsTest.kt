@@ -4,7 +4,6 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.TvmOptions
 import org.usvm.test.resolver.TvmSuccessfulExecution
-import kotlin.io.path.Path
 import kotlin.test.Test
 
 class RecvInternalConstraintsTest {
@@ -14,7 +13,7 @@ class RecvInternalConstraintsTest {
     fun testRecvInternalConstraints() {
         val codeResourcePath = extractResource(recvInternalConstraintsPath)
 
-        val options = TvmOptions(useRecvInternalInput = true, turnOnTLBParsingChecks = false)
+        val options = TvmOptions(useReceiverInputs = true, turnOnTLBParsingChecks = false)
         val methodStates = funcCompileAndAnalyzeAllMethods(codeResourcePath, tvmOptions = options)
         val results = methodStates.testSuites.flatMap { it.tests }
 

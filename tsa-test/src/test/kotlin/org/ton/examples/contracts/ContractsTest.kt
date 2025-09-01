@@ -65,16 +65,19 @@ class ContractsTest {
         analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun testJettonWalletWithConfigInsts() {
         analyzeSpecificMethodBoc(jettonWalletWithConfigInstsPath, MethodId.ZERO, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun testStocks() {
         analyzeFuncContract(stocksPath, methodsNumber = 6, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun testWalletV4() {
         analyzeFuncContract(walletV4Path, methodsNumber = 7, enableTestGeneration = true)
@@ -97,6 +100,7 @@ class ContractsTest {
         analyzeFuncContract(jettonMinterPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun jettonWallet() {
         analyzeFuncContract(jettonWalletPath, methodsNumber = 3, enableTestGeneration = true)
@@ -112,26 +116,28 @@ class ContractsTest {
         analyzeFuncContract(storagePath, methodsNumber = 7, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun vestingLockupWallet() {
         analyzeFuncContract(vestingLockupWalletPath, methodsNumber = 6, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun testSubscriptionPlugin() {
         analyzeFuncContract(subscriptionPluginPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun bridge() {
         analyzeFuncContract(bridgePath, methodsNumber = 8, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun bridgeVotesCollector() {
-        // TODO unexpected overflow errors during DICTUDELGET:
-        //  "cannot change label of an old dictionary cell while merging edges"
-        analyzeFuncContract(bridgeVotesCollectorPath, methodsNumber = 5, enableTestGeneration = false)
+        analyzeFuncContract(bridgeVotesCollectorPath, methodsNumber = 5, enableTestGeneration = true)
     }
 
     @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
@@ -158,6 +164,7 @@ class ContractsTest {
         analyzeFuncContract(storageProviderPath, methodsNumber = 10, enableTestGeneration = true)
     }
 
+    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun vesting() {
         analyzeFuncContract(vestingPath, methodsNumber = 9, enableTestGeneration = true)

@@ -1,0 +1,5 @@
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    
+    int op = msg_body~load_uint(32);
+    throw_if(256, op == 200);
+}

@@ -6,6 +6,7 @@ import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.persistentSetOf
 import org.ton.bytecode.TsaArtificialActionPhaseInst
 import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TvmCodeBlock
@@ -30,8 +31,9 @@ import org.usvm.machine.interpreter.OutMessage
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.RecvInternalInput
-import org.usvm.machine.state.input.TvmStateInput
+import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.types.GlobalStructuralConstraintsHolder
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -77,13 +79,15 @@ class TvmState(
     var unprocessedMessages: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
     // inter-contract fields
     var messageQueue: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
-    var lastMsgBody: UHeapRef? = null,
+    var lastMsgBodySlice: UHeapRef? = null,
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
     // post-process fields
     var addressToHash: PersistentMap<UHeapRef, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
     var addressToDepth: PersistentMap<UHeapRef, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
     var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),
-    var additionalInputs: PersistentMap<Int, RecvInternalInput> = persistentMapOf(),
+    var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
+    var currentInput: TvmInput? = null,
+    var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
     ctx,
     ownership,
@@ -110,7 +114,7 @@ class TvmState(
     lateinit var contractIdToFirstElementOfC7: PersistentMap<ContractId, TvmStackTupleValueConcreteNew>
     lateinit var contractIdToInitialData: Map<ContractId, TvmInitialStateData>
     lateinit var stack: TvmStack
-    lateinit var input: TvmStateInput
+    lateinit var initialInput: TvmInput
 
     val contractIds: Set<ContractId>
         get() = contractIdToInitialData.keys
@@ -175,12 +179,14 @@ class TvmState(
             additionalFlags = additionalFlags,
             cellDataFieldManager = cellDataFieldManager.clone(),
             messageQueue = messageQueue,
-            lastMsgBody = lastMsgBody,
+            lastMsgBodySlice = lastMsgBodySlice,
             intercontractPath = intercontractPath,
             phase = phase,
             analysisOfGetMethod = analysisOfGetMethod,
             unprocessedMessages = unprocessedMessages,
             additionalInputs = additionalInputs,
+            currentInput = currentInput,
+            acceptedInputs = acceptedInputs,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -188,7 +194,7 @@ class TvmState(
             newState.registersOfCurrentContract = registersOfCurrentContract.clone()
             newState.contractIdToC4Register = contractIdToC4Register
             newState.stack = stack.clone()
-            newState.input = input
+            newState.initialInput = initialInput
         }
     }
 
