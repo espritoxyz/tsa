@@ -49,6 +49,7 @@ import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
+import org.usvm.machine.types.storeCellDataTlbLabelInBuilder
 import org.usvm.machine.types.storeCoinTlbLabelToBuilder
 import org.usvm.machine.types.storeIntTlbLabelToBuilder
 import org.usvm.machine.types.storeSliceTlbLabelInBuilder
@@ -1209,9 +1210,8 @@ fun builderStoreValueTlb(
     sizeBits: UExpr<TvmSizeSort>,
 ): Unit? = scope.doWithCtx {
     scope.doWithState {
-        storeIntTlbLabelToBuilder(builder, updatedBuilder, sizeBits, value, isSigned = true, endian = Endian.BigEndian)
+        storeCellDataTlbLabelInBuilder(builder, updatedBuilder, value, sizeBits)
     }
-
     scope.builderStoreValue(updatedBuilder, value, sizeBits.signedExtendToInteger())
 }
 
