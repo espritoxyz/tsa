@@ -14,13 +14,12 @@
     int count = 0;
     int all_flags_are_102 = -1;
 
-    ;; On each iteration: send a message, then check the flag field, it should be 102
-    repeat(3) {
+    do {
         tsa_send_internal_message(1, count);
         int flag = tsa_call_1_0(1, 90);
         count = count + 1;
         all_flags_are_102 = all_flags_are_102 & (flag == 102);
-    }
+    } until (count >= 4);
 
     tsa_allow_failures();
 
