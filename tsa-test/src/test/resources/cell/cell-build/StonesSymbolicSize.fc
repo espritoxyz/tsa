@@ -1,0 +1,18 @@
+#include "../../imports/stdlib.fc";
+
+builder store_ones(builder b, int n) asm(b n) "STONES";
+
+
+(int) main(slice msg_body) {
+    var length = msg_body~load_int(32);
+    var hash = msg_body~load_int(257);
+    var hardcoded_prefix = 192;
+    var builder_cell = begin_cell()
+        .store_uint(hardcoded_prefix, 8);
+    var with_stored_ones = store_ones(builder_cell, length);
+    throw_if(129, cell_hash(with_stored_ones.end_cell()) != hash);
+    throw(130);
+    return cell_hash(with_stored_ones.end_cell());
+}
+
+
