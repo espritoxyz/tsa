@@ -2,7 +2,6 @@ package org.usvm.test.resolver
 
 import org.ton.TlbResolvedBuiltinLabel
 import org.ton.bytecode.MethodId
-import org.ton.bytecode.TvmAppGasAcceptInst
 import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
@@ -10,9 +9,9 @@ import org.ton.bytecode.TvmRealInst
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmMethodResult
-import org.usvm.machine.tryCatchIf
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmStructuralExit
 
 data object TvmTestResolver {
@@ -22,7 +21,8 @@ data object TvmTestResolver {
     fun resolve(methodId: MethodId, state: TvmState): TvmSymbolicTest {
         val model = state.models.first()
         val ctx = state.ctx
-        val stateResolver = TvmTestStateResolver(ctx, model, state, ctx.tvmOptions.performAdditionalChecksWhileResolving)
+        val stateResolver =
+            TvmTestStateResolver(ctx, model, state, ctx.tvmOptions.performAdditionalChecksWhileResolving)
 
         val input = stateResolver.resolveInput()
         val fetchedValues = stateResolver.resolveFetchedValues()
@@ -97,7 +97,8 @@ data object TvmTestResolver {
 
 }
 
-data class TvmContractSymbolicTestResult(val testSuites: List<TvmSymbolicTestSuite>) : List<TvmSymbolicTestSuite> by testSuites
+data class TvmContractSymbolicTestResult(val testSuites: List<TvmSymbolicTestSuite>) :
+    List<TvmSymbolicTestSuite> by testSuites
 
 data class TvmSymbolicTestSuite(
     val methodId: MethodId,
@@ -124,7 +125,7 @@ data class TvmSymbolicTest(
     val additionalInputs: Map<Int, TvmTestInput>,
     val fetchedValues: Map<Int, TvmTestValue>,
     val result: TvmMethodSymbolicResult,
-    val lastStmt: TvmRealInst,
+    val lastStmt: TvmRealInst?, // null if the body is empty
     val gasUsage: Int,
     val additionalFlags: Set<String>,
     val intercontractPath: List<ContractId>,
