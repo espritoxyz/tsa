@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import io.ksmt.expr.KBitVecValue
 import org.ton.Endian
 import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellBuildBbitsInst
@@ -14,6 +15,7 @@ import org.ton.bytecode.TvmCellBuildStbrefrInst
 import org.ton.bytecode.TvmCellBuildStbrqInst
 import org.ton.bytecode.TvmCellBuildStiInst
 import org.ton.bytecode.TvmCellBuildStixInst
+import org.ton.bytecode.TvmCellBuildStonesInst
 import org.ton.bytecode.TvmCellBuildStrefAltInst
 import org.ton.bytecode.TvmCellBuildStrefInst
 import org.ton.bytecode.TvmCellBuildStrefqInst
@@ -120,11 +122,11 @@ import org.usvm.machine.state.assertRefsLengthConstraintWithoutError
 import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
-import org.usvm.machine.state.builderStoreInt
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRef
 import org.usvm.machine.state.builderStoreSlice
 import org.usvm.machine.state.builderStoreSliceTlb
+import org.usvm.machine.state.builderStoreValueTlb
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.checkCellDataUnderflow
 import org.usvm.machine.state.checkCellOverflow
@@ -574,6 +576,7 @@ class TvmCellInterpreter(
             is TvmCellBuildStuxInst -> visitStoreIntXInst(scope, stmt, false)
             is TvmCellBuildStixInst -> visitStoreIntXInst(scope, stmt, true)
             is TvmCellBuildStzeroesInst -> visitStoreZeroesInst(scope, stmt)
+            is TvmCellBuildStonesInst -> visitStoreOnesInst(scope, stmt)
             is TvmCellBuildBbitsInst -> visitBuilderBitsInst(scope, stmt)
             is TvmCellBuildStsliceInst -> {
                 scope.consumeDefaultGas(stmt)
@@ -1459,23 +1462,44 @@ class TvmCellInterpreter(
         }
     }
 
-    private fun visitStoreZeroesInst(scope: TvmStepScopeManager, stmt: TvmCellBuildStzeroesInst) = with(ctx) {
+    private fun visitStoreOnesInst(scope: TvmStepScopeManager, stmt: TvmCellBuildStonesInst) =
+        visitStoreSamesInst(scope, stmt, ctx.minusOneCellValue)
+
+    private fun visitStoreZeroesInst(scope: TvmStepScopeManager, stmt: TvmCellBuildStzeroesInst) =
+        visitStoreSamesInst(scope, stmt, ctx.zeroCellValue)
+
+
+    /**
+     * Takes n from stack and takes and n-length slice from [valueToCutFrom]
+     */
+    private fun visitStoreSamesInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmCellBuildInst,
+        valueToCutFrom: KBitVecValue<TvmContext.TvmCellDataSort>
+    ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
-        val zeroesToStore = scope.takeLastIntOrThrowTypeError()
+        val lengthToCut = scope.takeLastIntOrThrowTypeError()
             ?: return@with
-
-        checkOutOfRange(zeroesToStore, scope, min = 0, max = MAX_DATA_LENGTH)
+        checkOutOfRange(lengthToCut, scope, min = 0, max = MAX_DATA_LENGTH)
             ?: return@with
-
+        val mask = mkBvSubExpr(
+            mkBvShiftLeftExpr(oneCellValue, lengthToCut.signExtendToSort(TvmContext.TvmCellDataSort(ctx))),
+            oneCellValue
+        )
+        val trueValueToCutFrom = mkBvAndExpr(valueToCutFrom, mask)
         val builder = scope.calcOnState { takeLastBuilder() }
             ?: return scope.doWithState(throwTypeCheckError)
         val updatedBuilder = scope.calcOnState {
             memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
         }
-
-        scope.builderStoreInt(updatedBuilder, zeroValue, zeroesToStore, isSigned = false)
-
+        builderStoreValueTlb(
+            scope,
+            builder,
+            updatedBuilder,
+            trueValueToCutFrom,
+            lengthToCut.extractToSizeSort()
+        )
         scope.doWithState {
             addOnStack(updatedBuilder, TvmBuilderType)
             newStmt(stmt.nextStmt())

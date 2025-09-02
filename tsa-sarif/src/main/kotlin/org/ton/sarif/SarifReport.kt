@@ -76,14 +76,17 @@ private fun List<TvmSymbolicTest>.toSarifResult(
             }
             resolveRuleId(methodFailure.failure) to methodFailure.failure.toString()
         }
+
         is TvmExecutionWithStructuralError -> {
             val exit = (it.result as TvmExecutionWithStructuralError).exit
             exit.ruleId to exit.toString()
         }
+
         is TvmExecutionWithSoftFailure -> {
             val exit = (it.result as TvmExecutionWithSoftFailure).failure
             exit.exit.ruleId to exit.toString()
         }
+
         is TvmSuccessfulExecution -> {
             return@mapNotNull null
         }
@@ -125,8 +128,8 @@ private fun List<TvmSymbolicTest>.toSarifResult(
                             fullyQualifiedName = methodName,
                             properties = PropertyBag(
                                 mapOf(
-                                    "position" to TvmContractCode.json.encodeToJsonElement(it.lastStmt.physicalLocation),
-                                    "inst" to it.lastStmt.mnemonic,
+                                    "position" to TvmContractCode.json.encodeToJsonElement(it.lastStmt?.physicalLocation),
+                                    "inst" to it.lastStmt?.mnemonic,
                                 )
                             )
                         )

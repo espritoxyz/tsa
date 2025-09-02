@@ -32,7 +32,6 @@ import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.ReceiverInput
-import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.types.GlobalStructuralConstraintsHolder
 import org.usvm.machine.types.TvmDataCellInfoStorage
@@ -45,6 +44,8 @@ import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
 typealias ContractId = Int
+
+fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
 
 class TvmState(
     ctx: TvmContext,
@@ -102,7 +103,7 @@ class TvmState(
     override val isExceptional: Boolean
         get() = stateInitialized && lastStmt.let {
             it is TsaArtificialActionPhaseInst && it.computePhaseResult.isExceptional() ||
-            it is TsaArtificialExitInst && it.result.isExceptional()
+                    it is TsaArtificialExitInst && it.result.isExceptional()
         }
 
     val isTerminated: Boolean
@@ -131,13 +132,13 @@ class TvmState(
                 ?: error("Initial data of contract $rootContractId not found")
         }
 
-    val lastRealStmt: TvmRealInst
+    val lastRealStmt: TvmRealInst?
         get() {
             var node: PathNode<*>? = pathNode
-            while (node?.statement !is TvmRealInst?) {
+            while (node?.statementOrNull() !is TvmRealInst?) {
                 node = node?.parent
             }
-            return (node?.statement as? TvmRealInst) ?: error("No real TVM instructions was executed")
+            return (node?.statementOrNull() as? TvmRealInst)
         }
 
     override fun clone(newConstraints: UPathConstraints<TvmType>?): TvmState {
