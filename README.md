@@ -30,3 +30,7 @@ USVM and TSA itself also widely use the [KSMT](https://github.com/UnitTestBot/ks
 a Kotlin/Java API for SMT solvers, with some optimizations for TON blockchain.
 
 You are very welcome to contribute to both of these projects.
+
+### License
+
+MIT © Esprito Tech QFZ LLC
