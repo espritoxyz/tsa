@@ -19,6 +19,7 @@ import org.usvm.constraints.UTypeEvaluator
 import org.usvm.machine.TvmContext
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.ULValue
+import org.usvm.memory.UMemory
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.UReadOnlyMemoryRegion
@@ -83,7 +84,24 @@ class TvmFixationMemory(
     class TvmFixationMemoryValues(
         val sets: Set<ConcreteSet>,
         val nullRef: UHeapRef,
-    )
+    ) {
+        fun union(other: TvmFixationMemoryValues): TvmFixationMemoryValues {
+            check(((sets.map { it.ref }) intersect (other.sets.map { it.ref }).toSet()).isEmpty()) {
+                "Unexpected intersection of concrete sets"
+            }
+
+            check(nullRef == other.nullRef) {
+                "Unexpected difference in nullRef"
+            }
+
+            return TvmFixationMemoryValues(sets union other.sets, nullRef)
+        }
+
+        companion object {
+            fun empty(memory: UMemory<*, *>) =
+                TvmFixationMemoryValues(emptySet(), nullRef = memory.nullRef())
+        }
+    }
 
     class ConcreteSet(
         val ref: UConcreteHeapRef,

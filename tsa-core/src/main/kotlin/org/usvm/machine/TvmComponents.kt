@@ -28,7 +28,7 @@ import org.usvm.types.UTypeSystem
 import kotlin.time.Duration
 
 class TvmComponents(
-    private val options: UMachineOptions,
+    private val options: TvmOptions,
 ) : UComponents<TvmType, TvmSizeSort>, AutoCloseable {
     private val closeableResources = mutableListOf<AutoCloseable>()
     override val useSolverForForks: Boolean
@@ -53,33 +53,35 @@ class TvmComponents(
                 optimizeForTheories(setOf(KTheory.UF, KTheory.Array, KTheory.LIA, KTheory.NIA))
             }
         }
-        val solver = Bv2IntSolverWrapper(
-            bv2intSolver = KBv2IntSolver(
-                ctx,
-                intSolver,
-                KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED)
-            ),
-            regularSolver = bvSolver,
-            exprFilter = Bv2IntExprFilter(
-                ctx,
-                excludeNonConstBvand = true,
-                excludeNonConstShift = true,
-                excludeNonlinearArith = false
-            ),
-        )
+        val solver = if (!options.turnOffIntBlasting) {
+            Bv2IntSolverWrapper(
+                bv2intSolver = KBv2IntSolver(
+                    ctx,
+                    intSolver,
+                    KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED)
+                ),
+                regularSolver = bvSolver,
+                exprFilter = Bv2IntExprFilter(
+                    ctx,
+                    excludeNonConstBvand = true,
+                    excludeNonConstShift = true,
+                    excludeNonlinearArith = false
+                ),
+            )
+        } else {
+            bvSolver
+        }
 
         lateinit var intBlastingIsTurnedOff: (KSolver<*>) -> Boolean
 
         val wrappedSolver = if (logger.isDebugEnabled) {
             intBlastingIsTurnedOff = {
-                ((it as? LoggingSolver<*>)?.internalSolver as? Bv2IntSolverWrapper<*, *>)?.intBlastingTurnedOff
-                    ?: error("Unexpected solver: $it")
+                ((it as? LoggingSolver<*>)?.internalSolver as? Bv2IntSolverWrapper<*, *>)?.intBlastingTurnedOff != false
             }
             LoggingSolver(solver)
         } else {
             intBlastingIsTurnedOff = {
-                (it as? Bv2IntSolverWrapper<*, *>)?.intBlastingTurnedOff
-                    ?: error("Unexpected solver: $it")
+                (it as? Bv2IntSolverWrapper<*, *>)?.intBlastingTurnedOff != false
             }
             solver
         }

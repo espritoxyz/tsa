@@ -276,7 +276,11 @@ class TvmStepScopeManager(
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
-            return forkWithCheckerStatusKnowledge(condition, blockOnTrueState = blockOnTrueState, blockOnFalseState = blockOnFalseState)
+            return forkWithCheckerStatusKnowledge(
+                condition,
+                blockOnTrueState = blockOnTrueState,
+                blockOnFalseState = blockOnFalseState
+            )
         }
 
         // TODO: I don't like this implementation, but that was the fastest way to do it without patching usvm
@@ -306,26 +310,26 @@ class TvmStepScopeManager(
                 },
                 satBlock = blockOnTrueState
             ) ?: run {
-                    /**
-                     * Hack: change [stepScopeState] to make assert with opposite constraint possible.
-                     *
-                     * If we got here, it means that [condition] was UNSAT or UNKNOWN,
-                     * and that means that the original model in [originalState] did not satisfy [condition],
-                     * and that means that asserting opposite constraint might result only in SAT.
-                     * */
-                    stepScopeState = CAN_BE_PROCESSED
-                    assert(ctx.mkNot(condition), satBlock = blockOnFalseState)
-                        ?: error("Unexpected assert result on negation of $condition")
+                /**
+                 * Hack: change [stepScopeState] to make assert with opposite constraint possible.
+                 *
+                 * If we got here, it means that [condition] was UNSAT or UNKNOWN,
+                 * and that means that the original model in [originalState] did not satisfy [condition],
+                 * and that means that asserting opposite constraint might result only in SAT.
+                 * */
+                stepScopeState = CAN_BE_PROCESSED
+                assert(ctx.mkNot(condition), satBlock = blockOnFalseState)
+                    ?: error("Unexpected assert result on negation of $condition")
 
-                    // fix current step scope
-                    stepScopeState = CANNOT_BE_PROCESSED
+                // fix current step scope
+                stepScopeState = CANNOT_BE_PROCESSED
 
-                    if (unknownHappened) {
-                        originalState.forkPoints += possibleForkPoint
-                    }
-
-                    return null
+                if (unknownHappened) {
+                    originalState.forkPoints += possibleForkPoint
                 }
+
+                return null
+            }
 
             val clonedStepScope = TvmStepScope(clonedState, forkBlackList)
 
@@ -592,11 +596,13 @@ class TvmStepScopeManager(
              * Cannot be processed further with any actions.
              */
             DEAD,
+
             /**
              * Cannot be forked or asserted using [forkWithBlackList], [forkMultiWithBlackList] or [assert],
              * but is considered as alive from the Machine's point of view.
              */
             CANNOT_BE_PROCESSED,
+
             /**
              * Can be forked using [forkWithBlackList] or [forkMultiWithBlackList] and asserted using [assert].
              */

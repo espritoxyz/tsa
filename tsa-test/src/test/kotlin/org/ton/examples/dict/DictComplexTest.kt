@@ -98,7 +98,29 @@ class DictComplexTest {
     @Test
     fun testDictFixation() {
         val path = extractResource(dictFixation)
-        val results = funcCompileAndAnalyzeAllMethods(path)
+        val results = funcCompileAndAnalyzeAllMethods(path, tvmOptions = TvmOptions(turnOffIntBlasting = false))
+
+        assertEquals(1, results.size)
+
+        val tests = results.single()
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
+            )
+        )
+
+        TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
+    }
+
+    @Test
+    fun testDictFixationNoIntBlasting() {
+        val path = extractResource(dictFixation)
+        val results = funcCompileAndAnalyzeAllMethods(path, tvmOptions = TvmOptions(turnOffIntBlasting = true))
 
         assertEquals(1, results.size)
 

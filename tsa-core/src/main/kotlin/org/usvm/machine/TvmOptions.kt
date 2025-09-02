@@ -27,6 +27,7 @@ data class TvmOptions(
     val analyzeBouncedMessaged: Boolean = false,
     val enableOutMessageAnalysis: Boolean = false,
     val alwaysUseSymbolicLengthInStoreCoins: Boolean = false,
+    val turnOffIntBlasting: Boolean = false,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {

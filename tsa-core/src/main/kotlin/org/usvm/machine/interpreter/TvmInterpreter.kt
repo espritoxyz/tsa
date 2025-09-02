@@ -562,14 +562,16 @@ class TvmInterpreter(
     }
 
     fun postProcessStates(states: Collection<TvmState>): List<TvmState> {
-        return states.filter { state ->
-            val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = true)
+        return states.mapNotNull { state ->
+            val newState = postProcessor.postProcessState(state)
+                ?: return@mapNotNull null
 
-            postProcessor.postProcessState(scope)
-                ?: return@filter false
+            val scope = TvmStepScopeManager(newState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = true)
 
             val globalStructuralConstraintsHolder = state.globalStructuralConstraintsHolder
-            globalStructuralConstraintsHolder.applyTo(scope) != null
+            globalStructuralConstraintsHolder.applyTo(scope)?.let {
+                newState
+            }
         }
     }
 
