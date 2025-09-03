@@ -1,0 +1,27 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+() main() impure {
+
+    tsa_forbid_failures();
+
+    ;; Initially, the contract has 0 in its flag field
+    slice ds = tsa_get_c4(1).begin_parse();
+    int flag_field = ds~load_uint(8);
+    ds.end_parse();
+    tsa_assert(flag_field == 0);
+
+    int count = 0;
+    int all_flags_are_102 = -1;
+
+    while(count < 3) {
+        tsa_send_internal_message(1, count);
+        int flag = tsa_call_1_0(1, 90);
+        count = count + 1;
+        all_flags_are_102 = all_flags_are_102 & (flag == 102);
+    }
+
+    tsa_allow_failures();
+
+    throw_if(256, all_flags_are_102);
+}

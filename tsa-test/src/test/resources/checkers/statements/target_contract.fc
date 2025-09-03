@@ -1,0 +1,58 @@
+#include "../../imports/stdlib.fc";
+
+global int ctx_flag;
+
+() load_data() impure {
+    var ds = get_data().begin_parse();
+    ctx_flag = ds~load_uint(8);
+    ds.end_parse();
+}
+
+() save_data() impure {
+    set_data(
+        begin_cell()
+            .store_uint(ctx_flag, 8)
+            .end_cell()
+    );
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+
+    ;; Observe that this contract does not load data when receiving a message
+
+    int op = in_msg_body~load_uint(32); ;; the first 32 bits of incoming message is the opcode
+
+    if (op == 101) {
+       ctx_flag = 101;
+       save_data();
+       return ();
+    }
+
+    if (op == 102) {
+       ctx_flag = 102;
+       save_data();
+       return ();
+    }
+
+    if (op == 103) {
+       ;; do nothing
+       return ();
+    }
+
+    throw(100);
+}
+
+int flag() method_id(90) {
+    load_data();
+    return ctx_flag;
+}
+
+int flagPlus(int v) method_id(91) {
+    load_data();
+    return (ctx_flag + v);
+}
+
+int flagDiv(int v) method_id(92) {
+    load_data();
+    return (ctx_flag / v);
+}
