@@ -8,11 +8,13 @@ import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.IntercontractOptions
+import org.usvm.machine.TactSourcesDescription
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
+import org.usvm.machine.getTactContract
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
@@ -38,6 +40,8 @@ class CheckersTest {
     private val remainingBalanceChecker = "/checkers/remaining_balance.fc"
     private val remainingValueContract = "/args/send_remaining_value.fc"
     private val remainingValueChecker = "/checkers/remaining_value.fc"
+    private val tactConfig = "/tact/tact.config.json"
+    private val intBlastOptimizationChecker = "/checkers/int_optimization.fc"
 
     @Test
     fun testConsistentBalanceThroughChecker() {
@@ -241,6 +245,44 @@ class CheckersTest {
         checkInvariants(
             tests,
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+        )
+    }
+
+    @Test
+    fun intBlastOptimizationTest() {
+        val pathTactConfig = extractResource(tactConfig)
+        val checkerPath = extractResource(intBlastOptimizationChecker)
+
+        val checkerContract = getFuncContract(
+            checkerPath,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val analyzedContract = getTactContract(TactSourcesDescription(pathTactConfig, "IntOptimization", "GuessGame"))
+
+        val tests = analyzeInterContract(
+            listOf(checkerContract, analyzedContract),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+        )
+
+        // There is at least one failed execution with exit code 257
+        propertiesFound(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+        )
+
+        // All executions are either failed executions with exit code 257, or successful
+        checkInvariants(
+            tests,
+            listOf { test ->
+                val result = test.result
+                if (result is TvmMethodFailure) {
+                    result.exitCode == 257
+                } else {
+                    result is TvmSuccessfulExecution
+                }
+            },
         )
     }
 }
