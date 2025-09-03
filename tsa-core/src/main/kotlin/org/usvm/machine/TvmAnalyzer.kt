@@ -269,7 +269,9 @@ class FiftAnalyzer(
 
     fun compileFiftToBoc(fiftPath: Path, bocFilePath: Path) {
         val fiftStdin = "\"$fiftPath\" include boc>B \"$bocFilePath\" B>file"
-        performFiftCommand("fift", bocFilePath, fiftStdin)
+
+        val fiftCommand = "$fiftExecutablePath"
+        performFiftCommand(fiftCommand, bocFilePath, fiftStdin)
     }
 
     /**
