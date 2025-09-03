@@ -5,6 +5,7 @@ import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmMethodFailure
@@ -12,6 +13,9 @@ import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestInput.RecvInternalInput
 import kotlin.test.Test
 import kotlin.test.assertTrue
+
+private const val LOOP_ITERATION_LIMIT = 2
+private const val EXIT_CODE = 256
 
 class Statements {
     private val targetContract = "/checkers/statements/target_contract.fc"
@@ -46,16 +50,17 @@ class Statements {
         val tests = analyzeInterContract(
             listOf(checkerContract, analyzedContract),
             startContractId = 0,
-            methodId = TvmContext.RECEIVE_INTERNAL_ID
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT),
         )
 
         checkInvariants(
             tests,
             listOf { test ->
                 val result = test.result
-                // The result must be a failure with exit code 256
+                // The result must be a failure with exit code EXIT_CODE
                 if (result is TvmMethodFailure) {
-                    if (result.exitCode != 256) {
+                    if (result.exitCode != EXIT_CODE) {
                         return@listOf false
                     }
                     val inputs = test.additionalInputs
@@ -69,10 +74,10 @@ class Statements {
             }
         )
 
-        // There must exist at least one test that produced error code 256
+        // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 256 },
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
         )
     }
 
@@ -90,7 +95,8 @@ class Statements {
         val tests = analyzeInterContract(
             listOf(checkerContract, analyzedContract),
             startContractId = 0,
-            methodId = TvmContext.RECEIVE_INTERNAL_ID
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT),
         )
 
         // There should not exist a test
