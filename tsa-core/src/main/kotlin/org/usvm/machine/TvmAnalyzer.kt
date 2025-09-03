@@ -554,6 +554,10 @@ fun getFuncContract(
     }
 }
 
+fun getTactContract(
+    srcDescription: TactSourcesDescription
+): TsaContractCode = TactAnalyzer().convertToTvmContractCode(srcDescription)
+
 class NoSelectedMethodsToAnalyze : RuntimeException() {
     override val message: String = "No selected methods can be extracted from this contract. Please specify a method to analyze."
 }
