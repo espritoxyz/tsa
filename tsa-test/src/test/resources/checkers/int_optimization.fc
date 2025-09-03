@@ -1,0 +1,48 @@
+#include "../imports/stdlib.fc";
+#include "../imports/tsa_functions.fc";
+
+() main() impure {
+    tsa_forbid_failures();
+
+    ;; Initialize C4 for contract
+    slice stateSlice = tsa_get_c4(1).begin_parse();
+    int loaded = stateSlice~load_int(1);
+    int consecutiveWins = stateSlice~load_int(257);
+    int triesCount = stateSlice~load_int(257);
+    tsa_assert(loaded == -1);                           ;; The contract should be loaded
+    tsa_assert(consecutiveWins == 0);                   ;; Initially, consecutiveWins is 0
+    tsa_assert(triesCount == 0);                        ;; Initially, triesCount is 0
+
+    ;; Send the messages
+    tsa_send_internal_message(1, -10);
+    tsa_assert(tsa_call_1_0(1, -10) == 1);      ;; Removing these assertions after sending each message, causes
+                                                ;; TSA to find the solution in around 10 minutes. The assertions
+                                                ;; cuts the execution time to around 12 seconds!!
+    tsa_send_internal_message(1, -20);
+    tsa_assert(tsa_call_1_0(1, -10) == 2);
+
+    tsa_send_internal_message(1, -30);
+    tsa_assert(tsa_call_1_0(1, -10) == 3);
+
+    tsa_send_internal_message(1, -40);
+    tsa_assert(tsa_call_1_0(1, -10) == 4);
+
+    tsa_send_internal_message(1, -50);
+    tsa_assert(tsa_call_1_0(1, -10) == 5);
+
+    tsa_send_internal_message(1, -60);
+    tsa_assert(tsa_call_1_0(1, -10) == 6);
+
+    tsa_send_internal_message(1, -70);
+    tsa_assert(tsa_call_1_0(1, -10) == 7);
+
+    tsa_send_internal_message(1, -80);
+
+    ;; Get the final count
+    int final_count = tsa_call_1_0(1, -10);
+
+    tsa_allow_failures();
+
+    ;; We should find some messages that would make winning in a row exactly 8 times
+    throw_if(257, final_count == 8);
+}

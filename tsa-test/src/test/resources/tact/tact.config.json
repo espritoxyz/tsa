@@ -4,6 +4,11 @@
       "name": "Divider",
       "path": "./divider.tact",
       "output": "./output"
+    },
+    {
+      "name": "IntOptimization",
+      "path": "./int_optimization.tact",
+      "output": "./output"
     }
   ]
 }
