@@ -1,0 +1,27 @@
+[
+  {
+    "id": 1,
+    "handlers": [
+      {
+        "op": "00000064",
+        "destinations": [2]
+      },
+      {
+        "op": "00000065",
+        "destinations": [2]
+      },
+      {
+        "op": "00000066",
+        "destinations": [2]
+      },
+      {
+        "op": "00000069",
+        "destinations": [2, 2, 2]
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "handlers": []
+  }
+]

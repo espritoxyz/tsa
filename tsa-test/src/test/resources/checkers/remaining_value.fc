@@ -2,6 +2,8 @@
 #include "../imports/tsa_functions.fc";
 
 () on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+
+    tsa_forbid_failures();
     
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
@@ -11,16 +13,15 @@
     tsa_assert(op == 100);
 
     tsa_assert(msg_value >= 1000000000);
+
+    tsa_allow_failures();
 }
 
 () main() impure {
-    tsa_forbid_failures();
 
     int balance_bfr_msg = tsa_call_1_0(1, 1650);
 
     tsa_send_internal_message(1, 0); ;; Send msg that invokes sending msg with sendRemainingValue mode
-
-    tsa_allow_failures();
 
     int balance_aft_msg = tsa_call_1_0(1, 1650);
 
