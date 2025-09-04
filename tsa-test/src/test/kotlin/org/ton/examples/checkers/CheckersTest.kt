@@ -45,6 +45,9 @@ class CheckersTest {
     private val ignoreErrorsContract = "/args/send_ignore_error_flag.fc"
     private val ignoreErrorsChecker = "/checkers/ignore_error.fc"
     private val ignoreErrorTestScheme = "/checkers/ignore_error_test_scheme.json"
+    private val bounceFormatContract = "/args/bounce_format_send.fc"
+    private val bounceFormatChecker = "/checkers/bounce_format.fc"
+    private val bounceFormatScheme = "/checkers/bounce_format_scheme.json"
 
     @Test
     fun testConsistentBalanceThroughChecker() {
@@ -189,6 +192,54 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+        )
+    }
+
+    @Ignore("Bounced messages in intercontracts communication are not supported")
+    @Test
+    fun bounceFormatTest() {
+        val pathSender = extractResource(bounceFormatContract)
+        val pathRecepient = extractResource(recepientBouncePath)
+        val checkerPath = extractResource(bounceCheckerPath)
+
+        val checkerContract = getFuncContract(
+            checkerPath,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
+        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
+
+        val communicationSchemePath = extractResource(bounceTestScheme)
+        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
+
+        val options = TvmOptions(
+            intercontractOptions = IntercontractOptions(
+                communicationScheme = communicationScheme,
+            ),
+            enableOutMessageAnalysis = true,
+        )
+
+        val tests = analyzeInterContract(
+            listOf(checkerContract, analyzedSender, analyzedRecepient),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = options,
+            concreteContractData = listOf(
+                TvmConcreteContractData(),
+                TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+                TvmConcreteContractData(),
+            )
+        )
+
+        propertiesFound(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 256 },
         )
 
         checkInvariants(
