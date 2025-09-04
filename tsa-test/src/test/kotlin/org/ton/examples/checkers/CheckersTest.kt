@@ -215,7 +215,7 @@ class CheckersTest {
         val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
         val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
 
-        val communicationSchemePath = extractResource(bounceTestScheme)
+        val communicationSchemePath = extractResource(bounceFormatScheme)
         val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
 
         val options = TvmOptions(
@@ -230,11 +230,6 @@ class CheckersTest {
             startContractId = 0,
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
             options = options,
-            concreteContractData = listOf(
-                TvmConcreteContractData(),
-                TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
-                TvmConcreteContractData(),
-            )
         )
 
         propertiesFound(
@@ -244,7 +239,12 @@ class CheckersTest {
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 258 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 259 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 260 },
+            )
         )
     }
 

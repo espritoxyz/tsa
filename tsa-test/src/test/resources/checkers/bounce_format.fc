@@ -11,11 +11,13 @@
 
     int op = msg_body~load_uint(32);
     tsa_assert(op == 100);
+
+    tsa_assert(msg_value >= 1000000000);
     
     tsa_allow_failures();
 }
 
 () main() impure {
     
-    tsa_send_internal_message(1, 0); ;; send msg without bounce flag
+    tsa_send_internal_message(1, 0);
 }
