@@ -47,6 +47,11 @@ typealias ContractId = Int
 
 fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
 
+data class ReceivedMessage(
+    val message: OutMessage,
+    val sender: ContractId,
+)
+
 class TvmState(
     ctx: TvmContext,
     ownership: MutabilityOwnership,
@@ -89,6 +94,7 @@ class TvmState(
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
     var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
+    var receivedMessage: ReceivedMessage? = null
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
