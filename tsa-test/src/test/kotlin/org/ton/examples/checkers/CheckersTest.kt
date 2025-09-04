@@ -328,10 +328,11 @@ class CheckersTest {
 
         checkInvariants(
             tests,
-            listOf ({test -> (test.result as? TvmMethodFailure)?.exitCode != 35},
-                    {test -> (test.result as? TvmMethodFailure)?.exitCode != 36},
-                    {test -> (test.result as? TvmMethodFailure)?.exitCode != 37},
-                    )
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 35 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 36 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 37 },
+            )
         )
     }
 }
