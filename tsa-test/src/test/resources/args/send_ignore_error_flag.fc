@@ -1,0 +1,124 @@
+#include "../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) {
+        set_data(begin_cell().store_uint(1, 1).end_cell());
+        return();
+    }
+
+    int op = msg_body~load_uint(32);
+    if (op == 100) {
+        ;; 35:Invalid source address in outbound message
+        cell msg = begin_cell()
+        .store_uint(0x12, 6) ;; Invalid source address at the last two bits: just begins with addr_std$10 but then faces 10 of the next address, which is not corresponded to TL-B.
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; the address of the recipient contract
+        .store_coins(100000)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg, 2); ;; sendIgnoreErrors
+
+        return();
+    }
+    if (op == 101) {
+        ;; 36:Invalid destination address in outbound message
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV"a) ;; the invalid destination address
+        .store_coins(0)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg, 2 + 128); ;; sendRemainingBalance + sendIgnoreErrors just for the combination check also
+
+        return();
+    }
+    if (op == 102) {
+        ;; 37:Not enough Toncoin
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) 
+        .store_coins(100000000000) ;; a lot of Toncoins, but on the balance and in inbound message there is only a small amount of Toncoins
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg, 2); ;; sendIgnoreErrors
+
+        return();
+    }
+    {-if (op == 103) {
+        ;; 38:Not enough extra currencies. Currently, extra currencies is supported really purely
+        cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) 
+        .store_coins(100000000000) ;; a lot of Toncoins, but on the balance and in inbound message there is only a small amount of Toncoins
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg, 2);
+
+        return();
+    -}
+    {-if (op == 104) {
+        ;; 39:Outbound message does not fit into a cell after rewriting. Currently that case cannnot be reached
+        cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) 
+        .store_coins(100000000000) ;; a lot of Toncoins, but on the balance and in inbound message there is only a small amount of Toncoins
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg, 2);
+
+        return();
+    }-}
+    if (op == 105) {
+        ;; Send two messages that cannot be processed, but between them there is a properly formed message
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV"a) ;; the invalid destination address
+        .store_coins(1000000)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg, 2); ;; sendIgnoreErrors
+        
+        cell msg1 = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) 
+        .store_coins(100000000)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg1, 0);
+
+        cell msg2 = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) 
+        .store_coins(0)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg2, 64 + 2); ;; sendRemainingValue + sendIgnoreErrors just for the combination check also
+
+        return();
+    }
+}
+
+int contract_balance() impure method_id(1650) {
+
+    var [balance, _] = get_balance();
+
+    return balance;
+}
