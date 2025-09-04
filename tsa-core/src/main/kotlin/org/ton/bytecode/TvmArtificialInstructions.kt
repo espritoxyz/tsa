@@ -46,6 +46,18 @@ data class TsaArtificialActionPhaseInst(
 }
 
 @Serializable
+data class TsaArtificialBouncePhaseInst(
+    val computePhaseResult: TvmMethodResult,
+    override val location: TvmInstLocation,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "artificial_bounce_phase"
+
+    init {
+        checkLocationInitialized()
+    }
+}
+
+@Serializable
 data class TsaArtificialExitInst(
     val result: TvmMethodResult,
     override val location: TvmInstLocation,
