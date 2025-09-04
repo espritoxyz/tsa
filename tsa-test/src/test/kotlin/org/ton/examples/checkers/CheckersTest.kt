@@ -291,7 +291,7 @@ class CheckersTest {
 
     @Ignore("SendIgnoreError flag is not supported")
     @Test
-    fun bounceTest() {
+    fun sendIgnoreErrorTest() {
         val pathSender = extractResource(ignoreErrorsContract)
         val pathRecepient = extractResource(recepientBouncePath)
         val checkerPath = extractResource(ignoreErrorsChecker)
@@ -328,9 +328,9 @@ class CheckersTest {
 
         checkInvariants(
             tests,
-            listOf (test -> (test.result as? TvmMethodFailure)?.exitCode != 35,
-                    test -> (test.result as? TvmMethodFailure)?.exitCode != 36,
-                    test -> (test.result as? TvmMethodFailure)?.exitCode != 37,
+            listOf ({test -> (test.result as? TvmMethodFailure)?.exitCode != 35},
+                    {test -> (test.result as? TvmMethodFailure)?.exitCode != 36},
+                    {test -> (test.result as? TvmMethodFailure)?.exitCode != 37},
                     )
         )
     }
