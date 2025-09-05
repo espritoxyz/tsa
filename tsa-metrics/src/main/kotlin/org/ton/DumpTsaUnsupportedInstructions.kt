@@ -27,7 +27,7 @@ fun main() {
     val reportPath = System.getenv("TSA_UNSUPPORTED_INSTRUCTIONS_REPORT_PATH")
         ?: DEFAULT_REPORT_PATH
 
-    TvmComponents(TvmMachine.defaultOptions).use { dummyComponents ->
+    TvmComponents(TvmOptions()).use { dummyComponents ->
         TvmContext(TvmOptions(), dummyComponents).use { ctx ->
             val dummyCodeCell = TvmCell(TvmCellData(""), emptyList())
 

@@ -35,7 +35,9 @@ sealed class ReceiverInput(
 
     abstract fun constructFullMessage(state: TvmState): UConcreteHeapRef
 
-    val msgBodySliceNonBounced = state.generateSymbolicSlice()
+    val msgBodySliceNonBounced =
+//        state.allocSliceFromData(state.makeSymbolicPrimitive(state.ctx.mkBvSort(33u)))
+        state.generateSymbolicSlice()
 
     val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_lt:uint64
     val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32

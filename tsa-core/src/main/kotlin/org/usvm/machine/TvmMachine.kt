@@ -35,7 +35,7 @@ class TvmMachine(
         loopIterationLimit = tvmOptions.loopIterationLimit,
     )
 
-    private val components = TvmComponents(options)
+    private val components = TvmComponents(tvmOptions)
     private val ctx = TvmContext(tvmOptions, components)
 
     fun analyze(

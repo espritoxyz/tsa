@@ -41,7 +41,7 @@ class CalculatedTlbLabelInfoTest {
 
     private val someCode = BocAnalyzer.loadContractFromBoc(bytecodeResourcePath)
 
-    private val dummyComponents = TvmComponents(TvmMachine.defaultOptions)
+    private val dummyComponents = TvmComponents(TvmOptions())
     private val ctx = TvmContext(TvmOptions(), dummyComponents)
 
     private val dummyInterpreter = TvmInterpreter(

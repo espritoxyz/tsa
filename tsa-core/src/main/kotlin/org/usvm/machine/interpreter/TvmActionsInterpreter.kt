@@ -29,6 +29,7 @@ import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.unsignedIntegerFitsBits
+import org.usvm.mkSizeExpr
 
 class TvmActionsInterpreter(private val ctx: TvmContext) {
     fun visitActionsStmt(scope: TvmStepScopeManager, stmt: TvmAppActionsInst) {
@@ -115,7 +116,7 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
 
             builderStoreNextRef(updatedActions, actions)
             builderStoreDataBits(updatedActions, reserveActionTag)
-            scope.builderStoreInt(updatedActions, mode, sizeBits = eightValue, isSigned = false) {
+            scope.builderStoreInt(updatedActions, mode, sizeBits = mkSizeExpr(8), isSigned = false) {
                 error("Unexpected cell overflow during RAWRESERVE instruction")
             } ?: return@doWithState
             scope.builderStoreGrams(updatedActions, grams) ?: return@doWithState
@@ -141,7 +142,7 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
 
             builderStoreNextRef(updatedActions, actions)
             builderStoreDataBits(updatedActions, sendMsgActionTag)
-            scope.builderStoreInt(updatedActions, mode, sizeBits = eightValue, isSigned = false) {
+            scope.builderStoreInt(updatedActions, mode, sizeBits = mkSizeExpr(8), isSigned = false) {
                 error("Unexpected cell overflow during $stmt instruction")
             } ?: return@doWithStateCtx
             builderStoreNextRef(updatedActions, msg)

@@ -7,7 +7,6 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentMap
 import mu.KLogging
 import org.ton.TlbBasicMsgAddrLabel
-import org.ton.TlbFullMsgAddrLabel
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo.CellInfo
 import org.ton.TvmParameterInfo.DataCellInfo
@@ -488,7 +487,7 @@ class TvmInterpreter(
 
                 val srcAddressCell = input.srcAddressCell
                 if (srcAddressCell != null) {
-                    newInputInfo[srcAddressCell] = DataCellInfo(TlbFullMsgAddrLabel)
+                    newInputInfo[srcAddressCell] = DataCellInfo(TlbBasicMsgAddrLabel)
                 }
 
                 val dataCellInfoStorage = TvmDataCellInfoStorage.build(
@@ -519,7 +518,7 @@ class TvmInterpreter(
                 val dataCellInfoStorage = TvmDataCellInfoStorage.build(
                     state,
                     inputInfo,
-                    additionalLabels = setOf(TlbFullMsgAddrLabel, TlbBasicMsgAddrLabel),
+                    additionalLabels = setOf(TlbBasicMsgAddrLabel),
                 )
                 setDataCellInfoStorageAndSetModel(state, dataCellInfoStorage)
             }
@@ -563,14 +562,16 @@ class TvmInterpreter(
     }
 
     fun postProcessStates(states: Collection<TvmState>): List<TvmState> {
-        return states.filter { state ->
-            val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = true)
+        return states.mapNotNull { state ->
+            val newState = postProcessor.postProcessState(state)
+                ?: return@mapNotNull null
 
-            postProcessor.postProcessState(scope)
-                ?: return@filter false
+            val scope = TvmStepScopeManager(newState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = true)
 
             val globalStructuralConstraintsHolder = state.globalStructuralConstraintsHolder
-            globalStructuralConstraintsHolder.applyTo(scope) != null
+            globalStructuralConstraintsHolder.applyTo(scope)?.let {
+                newState
+            }
         }
     }
 

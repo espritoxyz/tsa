@@ -19,13 +19,16 @@ import org.usvm.machine.intblast.Bv2IntExprFilter
 import org.usvm.machine.intblast.Bv2IntSolverWrapper
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
+import org.usvm.model.UModelBase
+import org.usvm.model.UModelDecoder
+import org.usvm.solver.UExprTranslator
 import org.usvm.solver.USolverBase
 import org.usvm.solver.UTypeSolver
 import org.usvm.types.UTypeSystem
 import kotlin.time.Duration
 
 class TvmComponents(
-    private val options: UMachineOptions,
+    private val options: TvmOptions,
 ) : UComponents<TvmType, TvmSizeSort>, AutoCloseable {
     private val closeableResources = mutableListOf<AutoCloseable>()
     override val useSolverForForks: Boolean
@@ -37,7 +40,7 @@ class TvmComponents(
 
     val typeSystem = TvmTypeSystem()
 
-    override fun <Context : UContext<TvmSizeSort>> mkSolver(ctx: Context): USolverBase<TvmType> {
+    override fun <Context : UContext<TvmSizeSort>> mkSolver(ctx: Context): SolverWithIntBlasting {
         val (translator, decoder) = buildTranslatorAndLazyDecoder(ctx)
 
         val bvSolver = KYicesSolver(ctx).apply {
@@ -50,31 +53,51 @@ class TvmComponents(
                 optimizeForTheories(setOf(KTheory.UF, KTheory.Array, KTheory.LIA, KTheory.NIA))
             }
         }
-        val solver = Bv2IntSolverWrapper(
-            bv2intSolver = KBv2IntSolver(
-                ctx,
-                intSolver,
-                KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED)
-            ),
-            regularSolver = bvSolver,
-            exprFilter = Bv2IntExprFilter(
-                ctx,
-                excludeNonConstBvand = true,
-                excludeNonConstShift = true,
-                excludeNonlinearArith = false
-            ),
-        )
+        val solver = if (!options.turnOffIntBlasting) {
+            Bv2IntSolverWrapper(
+                bv2intSolver = KBv2IntSolver(
+                    ctx,
+                    intSolver,
+                    KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED_LAZY_OVERFLOW)
+                ),
+                regularSolver = bvSolver,
+                exprFilter = Bv2IntExprFilter(
+                    ctx,
+                    excludeNonConstBvand = true,
+                    excludeNonConstShift = true,
+                    excludeNonlinearArith = false
+                ),
+            )
+        } else {
+            bvSolver
+        }
+
+        lateinit var intBlastingIsTurnedOff: (KSolver<*>) -> Boolean
 
         val wrappedSolver = if (logger.isDebugEnabled) {
+            intBlastingIsTurnedOff = {
+                ((it as? LoggingSolver<*>)?.internalSolver as? Bv2IntSolverWrapper<*, *>)?.intBlastingTurnedOff != false
+            }
             LoggingSolver(solver)
         } else {
+            intBlastingIsTurnedOff = {
+                (it as? Bv2IntSolverWrapper<*, *>)?.intBlastingTurnedOff != false
+            }
             solver
         }
 
         closeableResources += solver
 
         val typeSolver = UTypeSolver(typeSystem)
-        return USolverBase(ctx, wrappedSolver, typeSolver, translator, decoder, options.solverTimeout)
+        return SolverWithIntBlasting(
+            ctx,
+            wrappedSolver,
+            typeSolver,
+            translator,
+            decoder,
+            options.solverTimeout,
+            intBlastingIsTurnedOff,
+        )
     }
 
     override fun mkTypeSystem(ctx: UContext<TvmSizeSort>): UTypeSystem<TvmType> {
@@ -86,12 +109,26 @@ class TvmComponents(
     }
 
     class LoggingSolver<T : KSolverConfiguration>(
-        private val internalSolver: KSolver<T>,
+        val internalSolver: KSolver<T>,
     ) : KSolver<T> by internalSolver {
         override fun check(timeout: Duration): KSolverStatus {
             return internalSolver.check(timeout).also { status ->
                 logger.debug("Forked with status: {}", status)
             }
+        }
+    }
+
+    class SolverWithIntBlasting(
+        ctx: UContext<*>,
+        smtSolver: KSolver<*>,
+        typeSolver: UTypeSolver<TvmType>,
+        translator: UExprTranslator<TvmType, *>,
+        decoder: UModelDecoder<UModelBase<TvmType>>,
+        timeout: Duration,
+        private val intBlastingIsTurnedOff: (KSolver<*>) -> Boolean,
+    ) : USolverBase<TvmType>(ctx, smtSolver, typeSolver, translator, decoder, timeout) {
+        fun intBlastingIsTurnedOff(): Boolean {
+            return intBlastingIsTurnedOff(smtSolver)
         }
     }
 

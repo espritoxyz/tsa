@@ -9,13 +9,14 @@ import org.ton.test.utils.testConcreteOptions
 import org.usvm.machine.TvmComponents
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmMachine
+import org.usvm.machine.TvmOptions
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.addInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class StackComplexOperationsTest {
-    private val ctx = TvmContext(testConcreteOptions, TvmComponents(TvmMachine.defaultOptions))
+    private val ctx = TvmContext(testConcreteOptions, TvmComponents(TvmOptions()))
 
     private val stackComplexFiftPath: String = "/stack/StackComplex.fif"
     private val stackNullChecksFiftPath: String = "/stack/NullChecks.fif"

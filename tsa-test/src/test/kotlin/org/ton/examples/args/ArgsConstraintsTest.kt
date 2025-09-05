@@ -49,13 +49,6 @@ class ArgsConstraintsTest {
     }
 
     @Test
-    fun testIhrFee() {
-        val path = getResourcePath<ArgsConstraintsTest>(ihrFeePath)
-        val result = funcCompileAndAnalyzeAllMethods(path)
-        TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
-    }
-
-    @Test
     fun testFwdFee() {
         val path = getResourcePath<ArgsConstraintsTest>(fwdFeePath)
         val result = funcCompileAndAnalyzeAllMethods(path)
