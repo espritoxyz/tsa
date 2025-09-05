@@ -1,0 +1,156 @@
+#include "../../imports/stdlib.fc";
+
+const new_number = 1234;
+
+global int ctx_number;
+
+() load_data() impure {
+    var ds = get_data().begin_parse();
+
+    ctx_number = ds~load_uint(32);
+
+    ds.end_parse();
+}
+
+() save_data() impure {
+    set_data(
+        begin_cell()
+            .store_uint(ctx_number, 32)
+        .end_cell()
+    );
+}
+
+() send_number(slice receiver, int number) impure {
+   cell msg = begin_cell()
+              .store_uint(0x18, 6)
+              .store_slice(receiver)
+              .store_coins(100000000)
+              .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+              .store_uint(0x500, 32)   ;; opcode for the receiving contract
+              .store_uint(number, 32)
+              .end_cell();
+
+   send_raw_message(msg, 0);
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+
+    load_data();
+
+    int op = in_msg_body~load_uint(32);
+
+    ;; Opcodes in range 200-299 refer to tests with c4
+    ;; Opcodes in range 300-399 refer to tests with c5
+
+    ;; c4 tests
+
+    if (op == 200) {
+        ;; Acts as baseline test: no commit is executed. It attempts to update C4 but an exception happens afterwards
+        ctx_number = new_number;
+        save_data();
+        throw(200);
+    }
+
+    if (op == 201) {
+        ;; Updates C4. Executes a commit, and an exception happens afterwards
+        ctx_number = new_number;
+        save_data();
+        commit();
+        throw(201);
+    }
+
+    if (op == 202) {
+        ;; Updates C4. Executes a commit. Updates C4 again, but an exception happens afterwards
+        ctx_number = new_number;
+        save_data();
+        commit();
+        ctx_number = new_number + 10;
+        save_data();
+        throw(202);
+    }
+
+    if (op == 203) {
+        ;; Updates C4. Executes a commit. Updates C4 again. Executes a commit again, but an exception happens afterwards
+        ctx_number = new_number;
+        save_data();
+        commit();
+        ctx_number = new_number + 10;
+        save_data();
+        commit();
+        throw(203);
+    }
+
+    if (op == 204) {
+        ;; Updates C4. Executes a commit. Updates C4 again. Executes a commit again. Updates C4 again, but an exception happens afterwards
+        ctx_number = new_number;
+        save_data();
+        commit();
+        ctx_number = new_number + 10;
+        save_data();
+        commit();
+        ctx_number = new_number + 20;
+        save_data();
+        throw(204);
+    }
+
+
+    ;; c5 tests
+
+    if (op == 300) {
+        ;; Acts as baseline test: no commit is executed. It attempts to send one message but an exception happens afterwards
+        slice receiver = in_msg_body~load_msg_addr();
+        send_number(receiver, new_number);
+        throw(300);
+    }
+
+    if (op == 301) {
+        ;; Sends a message. Executes a commit, and an exception happens afterwards
+        slice receiver = in_msg_body~load_msg_addr();
+        send_number(receiver, new_number);
+        commit();
+        throw(301);
+    }
+
+    if (op == 302) {
+        ;; Sends a message. Executes a commit. Sends a message again, but an exception happens afterwards
+        slice receiver = in_msg_body~load_msg_addr();
+        send_number(receiver, new_number);
+        commit();
+        send_number(receiver, new_number + 10);
+        throw(302);
+    }
+
+    if (op == 303) {
+        ;; Sends a message. Executes a commit. Sends a message again. Executes a commit again, but an exception happens afterwards
+        slice receiver = in_msg_body~load_msg_addr();
+        send_number(receiver, new_number);
+        commit();
+        send_number(receiver, new_number + 10);
+        commit();
+        throw(303);
+    }
+
+    if (op == 304) {
+        ;; Sends a message. Executes a commit. Sends a message again. Executes a commit again. Sends a message again, but an exception happens afterwards
+        slice receiver = in_msg_body~load_msg_addr();
+        send_number(receiver, new_number);
+        commit();
+        send_number(receiver, new_number + 10);
+        commit();
+        send_number(receiver, new_number + 20);
+        throw(304);
+    }
+
+    ;; Unknown opcode
+
+    throw(0xffff);
+}
+
+int number() method_id(90) {
+    load_data();
+    return ctx_number;
+}
+
+slice peekMyAddress() method_id(91) {
+    return my_address();
+}
