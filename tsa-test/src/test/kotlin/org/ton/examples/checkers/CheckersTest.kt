@@ -149,12 +149,11 @@ class CheckersTest {
         )
     }
 
-    @Ignore("Bounced messages in intercontracts communication are not supported")
     @Test
     fun bounceTest() {
+        val checkerPath = extractResource(bounceCheckerPath)
         val pathSender = extractResource(senderBouncePath)
         val pathRecepient = extractResource(recepientBouncePath)
-        val checkerPath = extractResource(bounceCheckerPath)
 
         val checkerContract = getFuncContract(
             checkerPath,
@@ -172,6 +171,7 @@ class CheckersTest {
                 communicationScheme = communicationScheme,
             ),
             enableOutMessageAnalysis = true,
+            stopOnFirstError = false,
         )
 
         val tests = analyzeInterContract(

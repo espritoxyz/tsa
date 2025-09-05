@@ -47,6 +47,22 @@ typealias ContractId = Int
 
 fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
 
+
+sealed interface ReceivedMessage {
+    data class AnonymousInputMessage(val input: ReceiverInput) : ReceivedMessage
+    data class MessageFromOtherContract(
+        val message: OutMessage,
+        val sender: ContractId,
+        val receiver: ContractId
+    ) : ReceivedMessage
+}
+
+fun ReceivedMessage.getMsgBodySlice() = when (this) {
+    is ReceivedMessage.AnonymousInputMessage -> this.input.msgBodySliceMaybeBounced
+    is ReceivedMessage.MessageFromOtherContract -> this.message.msgBodySlice
+}
+
+
 class TvmState(
     ctx: TvmContext,
     ownership: MutabilityOwnership,
@@ -80,7 +96,6 @@ class TvmState(
     var unprocessedMessages: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
     // inter-contract fields
     var messageQueue: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
-    var lastMsgBodySlice: UHeapRef? = null,
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
     // post-process fields
     var addressToHash: PersistentMap<UHeapRef, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
@@ -89,6 +104,7 @@ class TvmState(
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
     var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
+    var receivedMessage: ReceivedMessage? = null
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
     ctx,
     ownership,
@@ -180,7 +196,6 @@ class TvmState(
             additionalFlags = additionalFlags,
             cellDataFieldManager = cellDataFieldManager.clone(),
             messageQueue = messageQueue,
-            lastMsgBodySlice = lastMsgBodySlice,
             intercontractPath = intercontractPath,
             phase = phase,
             analysisOfGetMethod = analysisOfGetMethod,
@@ -188,6 +203,7 @@ class TvmState(
             additionalInputs = additionalInputs,
             currentInput = currentInput,
             acceptedInputs = acceptedInputs,
+            receivedMessage = receivedMessage,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

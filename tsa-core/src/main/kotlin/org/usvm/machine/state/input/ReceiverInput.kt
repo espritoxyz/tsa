@@ -25,7 +25,7 @@ import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
 sealed class ReceiverInput(
-    protected val contractId: ContractId,
+    protected val receiverContractId: ContractId,
     private val concreteGeneralData: TvmConcreteGeneralData,
     state: TvmState,
 ) : TvmInput {
@@ -41,7 +41,7 @@ sealed class ReceiverInput(
     val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32
 
     val contractAddressCell: UConcreteHeapRef by lazy {
-        state.getContractInfoParamOf(ADDRESS_PARAMETER_IDX, contractId).cellValue as? UConcreteHeapRef
+        state.getContractInfoParamOf(ADDRESS_PARAMETER_IDX, receiverContractId).cellValue as? UConcreteHeapRef
             ?: error("Cannot extract contract address")
     }
 
@@ -81,7 +81,8 @@ sealed class ReceiverInput(
                 val msgBodyCellSize = scope.calcOnState {
                     memory.readField(msgBodyCell, TvmContext.cellDataLengthField, sizeSort)
                 }
-                val sizeConstraint = mkBvSignedGreaterOrEqualExpr(msgBodyCellSize, mkSizeExpr(TvmContext.OP_BITS.toInt()))
+                val sizeConstraint =
+                    mkBvSignedGreaterOrEqualExpr(msgBodyCellSize, mkSizeExpr(TvmContext.OP_BITS.toInt()))
 
                 // TODO: use TL-B?
                 val opcode = scope.slicePreloadDataBits(msgBodySliceNonBounced, TvmContext.OP_BITS.toInt())
@@ -116,7 +117,7 @@ sealed class ReceiverInput(
         scope: TvmStepScopeManager,
         minMessageCurrencyValue: UExpr<TvmInt257Sort>,
     ): UBoolExpr {
-        val balance = scope.calcOnState { getBalanceOf(contractId) }
+        val balance = scope.calcOnState { getBalanceOf(receiverContractId) }
             ?: error("Unexpected incorrect config balance value")
 
         val balanceConstraints = mkAnd(
