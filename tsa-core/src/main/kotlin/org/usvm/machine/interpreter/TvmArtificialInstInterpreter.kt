@@ -60,36 +60,43 @@ class TvmArtificialInstInterpreter(
                 scope.consumeDefaultGas(stmt)
                 scope.doWithState { newStmt(stmt.nextStmt()) }
             }
+
             is TsaArtificialImplicitRetInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.returnFromContinuation()
             }
+
             is TsaArtificialJmpToContInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.jumpToContinuation(stmt.cont)
             }
+
             is TsaArtificialExecuteContInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.callContinuation(stmt, stmt.cont)
             }
+
             is TsaArtificialActionPhaseInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 visitActionPhaseInst(scope, stmt)
             }
+
             is TsaArtificialBouncePhaseInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 visitBouncePhaseInst(scope, stmt)
             }
+
             is TsaArtificialExitInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 visitExitInst(scope, stmt)
             }
+
             is TsaArtificialCheckerReturn -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -140,10 +147,11 @@ class TvmArtificialInstInterpreter(
         scope.calcOnState {
             with(ctx) {
                 if (result.isExceptional()) {
-                    val (inputMessage, sender) = receivedMessage ?: run {
-                        newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
-                        return@calcOnState
-                    }
+                    val (inputMessage, sender, _) = receivedMessage as? ReceivedMessage.MessageFromOtherContract
+                        ?: run {
+                            newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                            return@calcOnState
+                        }
                     // if is bounceable, bounce back to sender
                     val fullMsgData = cellDataFieldManager.readCellData(scope, inputMessage.fullMsgCell)
                         ?: return@calcOnState
@@ -272,10 +280,8 @@ class TvmArtificialInstInterpreter(
         stack.addInt(message.msgValue)
         addOnStack(message.fullMsgCell, TvmCellType)
         addOnStack(message.msgBodySlice, TvmSliceType)
-
-        lastMsgBodySlice = message.msgBodySlice
         currentInput = null
-        receivedMessage = ReceivedMessage(message, prevContract)
+        receivedMessage = ReceivedMessage.MessageFromOtherContract(message, prevContract, currentContract)
         phase = COMPUTE_PHASE
         switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
     }
