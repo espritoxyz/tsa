@@ -89,6 +89,9 @@ class TvmState(
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
     var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
+    var builderLengthUpperBoundTracker: TvmBuilderLengthUpperBoundTracker = TvmBuilderLengthUpperBoundTracker(
+        persistentMapOf()
+    ),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
     ctx,
     ownership,
@@ -188,6 +191,7 @@ class TvmState(
             additionalInputs = additionalInputs,
             currentInput = currentInput,
             acceptedInputs = acceptedInputs,
+            builderLengthUpperBoundTracker = builderLengthUpperBoundTracker,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

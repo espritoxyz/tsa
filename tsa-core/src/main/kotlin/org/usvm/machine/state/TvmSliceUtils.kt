@@ -60,6 +60,7 @@ import org.usvm.mkSizeGeExpr
 import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
+import org.usvm.utils.extractAddresses
 
 private data class GuardedExpr(
     val expr: UExpr<TvmSizeSort>,
@@ -232,6 +233,51 @@ fun checkCellOverflow(
             ?: ctx.throwCellOverflowError(this)
     }
 )
+
+fun setBuilderLengthOrThrowCellOverflow(
+    scope: TvmStepScopeManager,
+    oldBuilder: UHeapRef,
+    newBuilder: UConcreteHeapRef,
+    writeSizeBits: UExpr<TvmSizeSort>,
+    writeSizeBitsUpperBound: Int?,
+    quietBlock: (TvmState.() -> Unit)? = null,
+): Unit? = with(scope.ctx) {
+    val oldBuilderUpperBound = scope.calcOnState {
+        val refs = extractAddresses(oldBuilder, extractAllocated = true, extractStatic = true)
+        refs.maxOf {
+            builderLengthUpperBoundTracker.builderRefToLengthUpperBound[it.second]
+                ?: return@calcOnState null
+        }
+    }
+
+    val newUpperBound = if (oldBuilderUpperBound != null && writeSizeBitsUpperBound != null) {
+        oldBuilderUpperBound + writeSizeBitsUpperBound
+    } else {
+        null
+    }
+
+    val newLength = scope.calcOnState {
+        mkBvAddExpr(memory.readField(oldBuilder, cellDataLengthField, sizeSort), writeSizeBits)
+    }
+
+    if (newUpperBound != null && newUpperBound <= MAX_DATA_LENGTH) {
+        scope.doWithState {
+            builderLengthUpperBoundTracker = TvmBuilderLengthUpperBoundTracker(
+                builderLengthUpperBoundTracker.builderRefToLengthUpperBound.put(newBuilder, newUpperBound)
+            )
+        }
+    } else {
+        checkCellOverflow(
+            mkBvSignedLessOrEqualExpr(newLength, mkSizeExpr(MAX_DATA_LENGTH)),
+            scope,
+            quietBlock,
+        ) ?: return@with null
+    }
+
+    scope.calcOnState {
+        memory.writeField(newBuilder, cellDataLengthField, sizeSort, newLength, guard = trueExpr)
+    }
+}
 
 fun TvmStepScopeManager.assertDataLengthConstraintWithoutError(
     cellDataLength: UExpr<TvmSizeSort>,
@@ -704,29 +750,36 @@ fun TvmState.builderStoreDataBits(builder: UConcreteHeapRef, bits: UExpr<UBvSort
 
 
 fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
+    oldBuilder: UHeapRef,
     builder: UConcreteHeapRef,
     bits: UExpr<S>,
     sizeBits: UExpr<TvmSizeSort>,
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? = with(ctx) {
 
-    val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
-    val builderDataLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
-    val newDataLength = mkSizeAddExpr(builderDataLength, sizeBits)
+    val oldBuilderDataLength = calcOnState { memory.readField(oldBuilder, cellDataLengthField, sizeSort) }
+    val newDataLength = mkSizeAddExpr(oldBuilderDataLength, sizeBits)
     val extendedBits = bits.zeroExtendToSort(cellDataSort)
 
-    val canWriteConstraint = mkSizeLeExpr(newDataLength, mkSizeExpr(MAX_DATA_LENGTH))
-    checkCellOverflow(canWriteConstraint, this@builderStoreDataBits, quietBlock)
-        ?: return null
+    val writeSizeBitsUpperBound = if (sizeBits is KInterpretedValue) sizeBits.intValue() else null
+
+    setBuilderLengthOrThrowCellOverflow(
+        this@builderStoreDataBits,
+        oldBuilder = oldBuilder,
+        newBuilder = builder,
+        writeSizeBits = sizeBits,
+        writeSizeBitsUpperBound = writeSizeBitsUpperBound,
+        quietBlock = quietBlock,
+    ) ?: return null
 
     val trashBits = mkSizeSubExpr(mkSizeExpr(MAX_DATA_LENGTH), sizeBits).zeroExtendToSort(cellDataSort)
     val normalizedBits = mkBvLogicalShiftRightExpr(mkBvShiftLeftExpr(extendedBits, trashBits), trashBits)
 
+    val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
     val updatedData = updateBuilderData(builderData, normalizedBits, newDataLength)
 
     return doWithState {
         cellDataFieldManager.writeCellData(this, builder, updatedData)
-        memory.writeField(builder, cellDataLengthField, sizeSort, newDataLength, guard = trueExpr)
     }
 }
 
