@@ -1,0 +1,46 @@
+#include "../../imports/stdlib.fc";
+
+global int ctx_number;
+
+() load_data() impure {
+    var ds = get_data().begin_parse();
+
+    ctx_number = ds~load_uint(32);
+
+    ds.end_parse();
+}
+
+() save_data() impure {
+    set_data(
+        begin_cell()
+            .store_uint(ctx_number, 32)
+        .end_cell()
+    );
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+
+    load_data();
+
+    int op = in_msg_body~load_uint(32);
+
+    if (op == 0x500) {
+        int to_add = in_msg_body~load_uint(32);
+        ctx_number = ctx_number + to_add;
+        save_data();
+        return ();
+    }
+
+    ;; Unknown opcode
+
+    throw(0xffff);
+}
+
+int number() method_id(90) {
+    load_data();
+    return ctx_number;
+}
+
+slice peekMyAddress() method_id(91) {
+    return my_address();
+}
