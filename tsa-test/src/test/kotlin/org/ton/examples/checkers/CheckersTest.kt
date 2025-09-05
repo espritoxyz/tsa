@@ -42,6 +42,9 @@ class CheckersTest {
     private val remainingValueChecker = "/checkers/remaining_value.fc"
     private val tactConfig = "/tact/tact.config.json"
     private val intBlastOptimizationChecker = "/checkers/int_optimization.fc"
+    private val ignoreErrorsContract = "/args/send_ignore_error_flag.fc"
+    private val ignoreErrorsChecker = "/checkers/ignore_error.fc"
+    private val ignoreErrorTestScheme = "/checkers/ignore_error_test_scheme.json"
 
     private object transactionRollBackTestData {
         const val sender = "/checkers/transaction-rollback/sender-checker.fc"
@@ -322,6 +325,53 @@ class CheckersTest {
                     result is TvmSuccessfulExecution
                 }
             },
+        )
+    }
+
+    @Ignore("SendIgnoreError flag is not supported")
+    @Test
+    fun sendIgnoreErrorTest() {
+        val pathSender = extractResource(ignoreErrorsContract)
+        val pathRecepient = extractResource(recepientBouncePath)
+        val checkerPath = extractResource(ignoreErrorsChecker)
+
+        val checkerContract = getFuncContract(
+            checkerPath,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
+        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
+
+        val communicationSchemePath = extractResource(ignoreErrorTestScheme)
+        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
+
+        val options = TvmOptions(
+            intercontractOptions = IntercontractOptions(
+                communicationScheme = communicationScheme,
+            ),
+            enableOutMessageAnalysis = true,
+        )
+
+        val tests = analyzeInterContract(
+            listOf(checkerContract, analyzedSender, analyzedRecepient),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = options,
+        )
+
+        propertiesFound(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
+        )
+
+        checkInvariants(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 35 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 36 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 37 },
+            )
         )
     }
 }

@@ -26,6 +26,7 @@ data class TvmOptions(
     val useMainMethodForInitialMethodJump: Boolean = true,
     val analyzeBouncedMessaged: Boolean = false,
     val enableOutMessageAnalysis: Boolean = false,
+    val useIntBlasting: Boolean = false,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {

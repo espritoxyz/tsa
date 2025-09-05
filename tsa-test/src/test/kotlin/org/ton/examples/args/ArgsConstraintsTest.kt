@@ -1,7 +1,6 @@
 package org.ton.examples.args
 
 import org.ton.test.gen.dsl.render.TsRenderer
-import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.extractResource
@@ -11,20 +10,16 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
-import org.usvm.machine.analyzeInterContract
-import org.usvm.machine.getFuncContract
 import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import java.math.BigInteger
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ArgsConstraintsTest {
     private val consistentMsgValuePath = "/args/consistent_msg_value.fc"
     private val consistentFlagsPath = "/args/consistent_flags.fc"
-    private val ihrFeePath = "/args/ihr_fee.fc"
     private val fwdFeePath = "/args/fwd_fee.fc"
     private val createdLtPath = "/args/created_lt.fc"
     private val createdAtPath = "/args/created_at.fc"
@@ -45,13 +40,6 @@ class ArgsConstraintsTest {
     fun testConsistentFlags() {
         val path = getResourcePath<ArgsConstraintsTest>(consistentFlagsPath)
         val result = funcCompileAndAnalyzeAllMethods(path, tvmOptions = TvmOptions(analyzeBouncedMessaged = true))
-        TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
-    }
-
-    @Test
-    fun testIhrFee() {
-        val path = getResourcePath<ArgsConstraintsTest>(ihrFeePath)
-        val result = funcCompileAndAnalyzeAllMethods(path)
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
     }
 

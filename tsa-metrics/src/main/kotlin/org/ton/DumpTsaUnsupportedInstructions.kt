@@ -12,7 +12,6 @@ import org.usvm.machine.TvmComponents
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
-import org.usvm.machine.TvmMachine
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.interpreter.TvmInterpreter
 import java.io.File
@@ -27,7 +26,7 @@ fun main() {
     val reportPath = System.getenv("TSA_UNSUPPORTED_INSTRUCTIONS_REPORT_PATH")
         ?: DEFAULT_REPORT_PATH
 
-    TvmComponents(TvmMachine.defaultOptions).use { dummyComponents ->
+    TvmComponents(TvmOptions()).use { dummyComponents ->
         TvmContext(TvmOptions(), dummyComponents).use { ctx ->
             val dummyCodeCell = TvmCell(TvmCellData(""), emptyList())
 
