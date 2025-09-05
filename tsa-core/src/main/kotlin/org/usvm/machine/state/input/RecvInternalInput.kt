@@ -94,8 +94,8 @@ class RecvInternalInput(
         bounced.not() and state.makeSymbolicPrimitive(state.ctx.boolSort)
     }
 
-    val ihrDisabled = state.makeSymbolicPrimitive(state.ctx.boolSort) // ihr_disabled:Bool
-    val ihrFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // ihr_fee:Grams
+    val ihrDisabled = state.ctx.trueExpr // ihr_disabled:Bool
+    val ihrFee = state.ctx.zeroValue // ihr_fee:Grams
     val fwdFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // fwd_fee:Grams
 
     override fun constructFullMessage(state: TvmState): UConcreteHeapRef = with(state.ctx) {
