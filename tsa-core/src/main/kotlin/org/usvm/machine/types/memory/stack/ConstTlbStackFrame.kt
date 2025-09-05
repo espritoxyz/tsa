@@ -133,7 +133,9 @@ data class ConstTlbStackFrame(
     }
 
     override fun readInModel(read: TlbStack.ConcreteReadInfo): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> {
-        check(read.leftBits >= data.length)
+        check(read.leftBits >= data.length) {
+            "Unexpected read. Reading ${read.leftBits}, but have only ${data.length} bits left."
+        }
         val newReadInfo = TlbStack.ConcreteReadInfo(
             read.address,
             read.resolver,

@@ -36,7 +36,7 @@ class TvmPostProcessor(val ctx: TvmContext) {
     private val publicKeyHex by lazy { publicKey.key.encodeHex() }
 
     fun postProcessState(state: TvmState): TvmState? = with(ctx) {
-        TODO()
+        return@with state
         /*
         assertConstraints(scope) { resolver ->
             val hashConstraint = generateHashConstraint(scope, resolver)

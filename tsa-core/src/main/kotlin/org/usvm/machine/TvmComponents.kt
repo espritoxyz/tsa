@@ -58,7 +58,7 @@ class TvmComponents(
                 bv2intSolver = KBv2IntSolver(
                     ctx,
                     intSolver,
-                    KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED)
+                    KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED_LAZY_OVERFLOW)
                 ),
                 regularSolver = bvSolver,
                 exprFilter = Bv2IntExprFilter(

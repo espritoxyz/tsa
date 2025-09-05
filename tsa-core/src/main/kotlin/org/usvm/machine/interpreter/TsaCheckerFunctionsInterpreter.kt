@@ -52,7 +52,7 @@ class TsaCheckerFunctionsInterpreter(
             stackOperations = stmt.checkerMemorySavelist.stackOperations,
             newInput = stmt.checkerMemorySavelist.newInput,
             nextContractId = stmt.checkerMemorySavelist.nextContractId,
-        ) ?: return
+        )
 
         scope.calcOnState {
             finishTsaCall(
@@ -214,7 +214,6 @@ class TsaCheckerFunctionsInterpreter(
         }
 
         prepareNewStack(scope, oldStack, stackOperations, receiverInput, nextContractId)
-            ?: return
 
         val oldMemory = scope.calcOnState {
             TvmContractExecutionMemory(
@@ -327,7 +326,7 @@ class TsaCheckerFunctionsInterpreter(
         stackOperations: StackOperations,
         newInput: ReceiverInput?,
         nextContractId: Int,
-    ): Unit? = with(scope.ctx) {
+    ): Unit =
         when (stackOperations) {
             is SimpleStackOperations -> {
                 scope.doWithState {
@@ -344,19 +343,6 @@ class TsaCheckerFunctionsInterpreter(
                     scope.calcOnState {
                         dataCellInfoStorage.mapper.addAddressSlice(it)
                     }
-                }
-                val addressConstraint = scope.calcOnState {
-                    newInput.srcAddressSlice?.let {
-                        dataCellInfoStorage.mapper.addAddressSliceAndGenerateConstraint(
-                            this,
-                            it,
-                        )
-                    }
-                }
-
-                if (addressConstraint != null) {
-                    scope.assert(addressConstraint)
-                        ?: return@with null
                 }
 
                 scope.doWithState {
@@ -378,7 +364,6 @@ class TsaCheckerFunctionsInterpreter(
                 }
             }
         }
-    }
 
     private fun performTsaAssert(scope: TvmStepScopeManager, stmt: TvmInst, invert: Boolean) {
         val flag = scope.takeLastIntOrThrowTypeError()

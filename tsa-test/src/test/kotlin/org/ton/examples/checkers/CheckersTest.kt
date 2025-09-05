@@ -264,6 +264,12 @@ class CheckersTest {
             listOf(checkerContract, analyzedContract),
             startContractId = 0,
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            concreteContractData = listOf(
+                TvmConcreteContractData(),
+                TvmConcreteContractData(
+                    contractC4 = Cell(BitString(listOf(true) + List(514) { false }))
+                ),
+            )
         )
 
         // There is at least one failed execution with exit code 257

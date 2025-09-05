@@ -733,20 +733,23 @@ fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
 fun TvmStepScopeManager.builderStoreInt(
     builder: UConcreteHeapRef,
     value: UExpr<TvmInt257Sort>,
-    sizeBits: UExpr<TvmInt257Sort>,
+    sizeBits: UExpr<TvmSizeSort>,
     isSigned: Boolean,
+    noOverflowCheck: Boolean = false,
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? = with(ctx) {
     val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
     val builderDataLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
     val updatedLength = mkSizeAddExpr(builderDataLength, sizeBits.extractToSizeSort())
 
-    val canWriteConstraint = mkSizeLeExpr(updatedLength, mkSizeExpr(MAX_DATA_LENGTH))
-    checkCellOverflow(canWriteConstraint, this@builderStoreInt, quietBlock)
-        ?: return null
+    if (!noOverflowCheck) {
+        val canWriteConstraint = mkSizeLeExpr(updatedLength, mkSizeExpr(MAX_DATA_LENGTH))
+        checkCellOverflow(canWriteConstraint, this@builderStoreInt, quietBlock)
+            ?: return null
+    }
 
     val normalizedValue = if (isSigned) {
-        val trashBits = mkBvSubExpr(intBitsValue, sizeBits)
+        val trashBits = mkBvSubExpr(intBitsValue, sizeBits.unsignedExtendToInteger())
         mkBvLogicalShiftRightExpr(mkBvShiftLeftExpr(value, trashBits), trashBits)
     } else {
         value
@@ -805,6 +808,7 @@ private fun TvmContext.coinPrefix(value: UExpr<TvmInt257Sort>): UExpr<UBvSort> {
 fun TvmStepScopeManager.builderStoreGrams(
     builder: UConcreteHeapRef,
     value: UExpr<TvmInt257Sort>,
+    noOverflowCheck: Boolean = false,
     quietBlock: (TvmState.() -> Unit)? = null
 ): UExpr<KBvSort>? = with(ctx) {
     // var_uint$_ {n:#} len:(#< 16) value:(uint (len * 8))
@@ -815,57 +819,28 @@ fun TvmStepScopeManager.builderStoreGrams(
     checkOutOfRange(notOutOfRangeValue, this@builderStoreGrams)
         ?: return null
 
-    val coinPrefix = if (!ctx.intBlastingTurnedOff() && !ctx.tvmOptions.alwaysUseSymbolicLengthInStoreCoins) {
-        coinPrefix(value)
+    val coinPrefix = coinPrefix(value)
 
-    } else {
-        // len:(#< 16)
-        val coinPrefix = calcOnState { makeSymbolicPrimitive(mkBvSort(lenSizeBits.toUInt())) }
-        val coinPrefixExtended = coinPrefix.unsignedExtendToInteger()
-
-        // (len * 8)
-        val valueBits = mkBvShiftLeftExpr(coinPrefixExtended, threeValue)
-        // ((len - 1) * 8)
-        val prevValueBits = mkBvShiftLeftExpr(mkBvSubExpr(coinPrefixExtended, oneValue), threeValue)
-        // (len = 0 /\ value = 0) \/
-        // (len > 0 /\ `value ufits in (len * 8) bits` /\ `value doesn't ufit in ((len - 1) * 8) bits`)
-        val lengthValueConstraint = mkOr(
-            (coinPrefixExtended eq zeroValue) and (value eq zeroValue),
-            mkAnd(
-                mkBvSignedGreaterExpr(coinPrefixExtended, zeroValue),
-                mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(valueBits)),
-                mkBvSignedGreaterExpr(value, bvMaxValueUnsignedExtended(prevValueBits)),
-            )
-        )
-
-        assert(
-            lengthValueConstraint,
-            unsatBlock = {
-                error("Cannot assert grams length constraints")
-            },
-        ) ?: return null
-
-        coinPrefix
-    }
-
-    val coinPrefixExtended = coinPrefix.unsignedExtendToInteger()
+    val coinPrefixExtended = coinPrefix.zeroExtendToSort(sizeSort)
 
     builderStoreInt(
         builder,
-        coinPrefixExtended,
-        lenSizeBits.toBv257(),
+        coinPrefixExtended.unsignedExtendToInteger(),
+        mkSizeExpr(lenSizeBits),
         isSigned = false,
+        noOverflowCheck,
         quietBlock
     ) ?: return null
 
     // (len * 8)
-    val valueBits = mkBvShiftLeftExpr(coinPrefixExtended, threeValue)
+    val valueBits = mkBvShiftLeftExpr(coinPrefixExtended, threeSizeExpr)
 
     builderStoreInt(
         builder,
         value,
         valueBits,
         isSigned = false,
+        noOverflowCheck,
         quietBlock
     ) ?: return null
 
@@ -1200,12 +1175,13 @@ fun builderStoreIntTlb(
     sizeBits: UExpr<TvmSizeSort>,
     isSigned: Boolean = false,
     endian: Endian,
+    noOverflowCheck: Boolean = false,
 ): Unit? = scope.doWithCtx {
     scope.doWithState {
         storeIntTlbLabelToBuilder(builder, updatedBuilder, sizeBits, value, isSigned, endian)
     }
 
-    scope.builderStoreInt(updatedBuilder, value, sizeBits.signedExtendToInteger(), isSigned)
+    scope.builderStoreInt(updatedBuilder, value, sizeBits, isSigned, noOverflowCheck)
 }
 
 
@@ -1227,8 +1203,9 @@ fun builderStoreGramsTlb(
     builder: UConcreteHeapRef,
     updatedBuilder: UConcreteHeapRef,
     grams: UExpr<TvmInt257Sort>,
+    noOverflowCheck: Boolean = false,
 ): Unit? = scope.doWithCtx {
-    val length = scope.builderStoreGrams(updatedBuilder, grams)
+    val length = scope.builderStoreGrams(updatedBuilder, grams, noOverflowCheck)
         ?: return@doWithCtx null
 
     scope.doWithState {

@@ -11,6 +11,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.isTrue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TvmAddressToLabelMapper
 import org.usvm.machine.types.TvmCellType
@@ -75,6 +76,9 @@ class TvmCellDataFieldManager(
         addressesWithRequestedCellDataField = addressesWithRequestedCellDataField.addAll(newRefs.map { it.address })
 
         val dataConstraint = generatedDataConstraint(scope, newRefs)
+        if (!dataConstraint.isTrue) {
+            println("here")
+        }
         scope.assert(dataConstraint)
             ?: return@with null
 
