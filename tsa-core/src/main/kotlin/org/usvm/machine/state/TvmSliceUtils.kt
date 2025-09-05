@@ -14,7 +14,6 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.UIteExpr
 import org.usvm.USort
-import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.isFalse
@@ -61,6 +60,7 @@ import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
 import org.usvm.utils.extractAddresses
+import org.usvm.utils.intValueOrNull
 
 private data class GuardedExpr(
     val expr: UExpr<TvmSizeSort>,
@@ -262,9 +262,7 @@ fun setBuilderLengthOrThrowCellOverflow(
 
     if (newUpperBound != null && newUpperBound <= MAX_DATA_LENGTH) {
         scope.doWithState {
-            builderLengthUpperBoundTracker = TvmBuilderLengthUpperBoundTracker(
-                builderLengthUpperBoundTracker.builderRefToLengthUpperBound.put(newBuilder, newUpperBound)
-            )
+            builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(newBuilder, newUpperBound)
         }
     } else {
         checkCellOverflow(
@@ -693,6 +691,7 @@ fun TvmState.allocEmptyBuilder(): UConcreteHeapRef =
     memory.allocConcrete(TvmBuilderType).also {
         builderCopyFromBuilder(emptyRefValue.emptyBuilder, it)
         dataCellInfoStorage.mapper.addTlbBuilder(it, TlbStructureBuilder.empty)
+        builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(it, 0)
     }
 
 fun TvmState.builderCopyFromBuilder(original: UConcreteHeapRef, result: UConcreteHeapRef) = with(ctx) {
@@ -784,19 +783,26 @@ fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
 }
 
 fun TvmStepScopeManager.builderStoreInt(
+    oldBuilder: UHeapRef,
     builder: UConcreteHeapRef,
     value: UExpr<TvmInt257Sort>,
     sizeBits: UExpr<TvmSizeSort>,
     isSigned: Boolean,
+    sizeBitsUpperBound: Int? = null,
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? = with(ctx) {
     val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
-    val builderDataLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
-    val updatedLength = mkSizeAddExpr(builderDataLength, sizeBits.extractToSizeSort())
 
-    val canWriteConstraint = mkSizeLeExpr(updatedLength, mkSizeExpr(MAX_DATA_LENGTH))
-    checkCellOverflow(canWriteConstraint, this@builderStoreInt, quietBlock)
-        ?: return null
+    setBuilderLengthOrThrowCellOverflow(
+        scope = this@builderStoreInt,
+        oldBuilder = oldBuilder,
+        newBuilder = builder,
+        writeSizeBits = sizeBits,
+        writeSizeBitsUpperBound = sizeBitsUpperBound ?: sizeBits.intValueOrNull,
+        quietBlock = quietBlock,
+    ) ?: return null
+
+    val updatedLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
 
     val normalizedValue = if (isSigned) {
         val trashBits = mkBvSubExpr(intBitsValue, sizeBits.unsignedExtendToInteger())
@@ -856,6 +862,7 @@ private fun TvmContext.coinPrefix(value: UExpr<TvmInt257Sort>): UExpr<UBvSort> {
  * Return coin prefix (value from 0 to 15 that specifies coin length) as 4-bit bitvector.
  * */
 fun TvmStepScopeManager.builderStoreGrams(
+    oldBuilder: UHeapRef,
     builder: UConcreteHeapRef,
     value: UExpr<TvmInt257Sort>,
     quietBlock: (TvmState.() -> Unit)? = null
@@ -872,21 +879,24 @@ fun TvmStepScopeManager.builderStoreGrams(
     val coinPrefixExtended = coinPrefix.zeroExtendToSort(sizeSort)
 
     builderStoreInt(
+        oldBuilder,
         builder,
         coinPrefix.unsignedExtendToInteger(),
         mkSizeExpr(lenSizeBits),
         isSigned = false,
-        quietBlock
+        quietBlock = quietBlock,
     ) ?: return null
 
     // (len * 8)
     val valueBits = mkBvShiftLeftExpr(coinPrefixExtended, threeSizeExpr)
 
     builderStoreInt(
+        oldBuilder,
         builder,
         value,
         valueBits,
         isSigned = false,
+        sizeBitsUpperBound = TvmContext.MAX_GRAMS_BITS.toInt(),
         quietBlock
     ) ?: return null
 
@@ -904,6 +914,7 @@ fun TvmState.builderStoreNextRef(builder: UHeapRef, ref: UHeapRef) = with(ctx) {
  * Return stored value
  * */
 fun TvmStepScopeManager.builderStoreSlice(
+    oldBuilder: UHeapRef,
     builder: UConcreteHeapRef,
     slice: UHeapRef,
     quietBlock: (TvmState.() -> Unit)? = null,
@@ -924,22 +935,22 @@ fun TvmStepScopeManager.builderStoreSlice(
 
     val cellRefsSize = calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
     val refsPosition = calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
-    val builderRefsSize = calcOnState { memory.readField(builder, cellRefsLengthField, sizeSort) }
+    val oldBuilderRefsSize = calcOnState { memory.readField(oldBuilder, cellRefsLengthField, sizeSort) }
 
     val refsToWriteSize = mkBvSubExpr(cellRefsSize, refsPosition)
-    val resultingRefsSize = mkBvAddExpr(builderRefsSize, refsToWriteSize)
+    val resultingRefsSize = mkBvAddExpr(oldBuilderRefsSize, refsToWriteSize)
     val canWriteRefsConstraint = mkSizeLeExpr(resultingRefsSize, maxRefsLengthSizeExpr)
 
     checkCellOverflow(canWriteRefsConstraint, this@builderStoreSlice, quietBlock)
         ?: return null
 
-    builderStoreDataBits(builder, cellData, bitsToWriteLength, quietBlock)
+    builderStoreDataBits(oldBuilder, builder, cellData, bitsToWriteLength, quietBlock)
         ?: return null
 
     doWithState {
         for (i in 0 until TvmContext.MAX_REFS_NUMBER) {
             val sliceRef = readCellRef(cell, mkSizeExpr(i))
-            writeCellRef(builder, mkSizeAddExpr(builderRefsSize, mkSizeExpr(i)), sliceRef)
+            writeCellRef(builder, mkSizeAddExpr(oldBuilderRefsSize, mkSizeExpr(i)), sliceRef)
         }
 
         memory.writeField(builder, cellRefsLengthField, sizeSort, resultingRefsSize, guard = trueExpr)
@@ -1022,6 +1033,7 @@ fun TvmState.allocEmptyCell() = with(ctx) {
         cellDataFieldManager.writeCellData(memory, cell, mkBv(0, cellDataSort))
         memory.writeField(cell, cellDataLengthField, sizeSort, zeroSizeExpr, trueExpr)
         memory.writeField(cell, cellRefsLengthField, sizeSort, zeroSizeExpr, trueExpr)
+        builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(cell, 0)
     }
 }
 
@@ -1226,9 +1238,8 @@ fun builderStoreIntTlb(
         storeIntTlbLabelToBuilder(builder, updatedBuilder, sizeBits, value, isSigned, endian)
     }
 
-    scope.builderStoreInt(updatedBuilder, value, sizeBits, isSigned)
+    scope.builderStoreInt(builder, updatedBuilder, value, sizeBits, isSigned)
 }
-
 
 fun builderStoreValueTlb(
     scope: TvmStepScopeManager,
@@ -1240,7 +1251,7 @@ fun builderStoreValueTlb(
     scope.doWithState {
         storeCellDataTlbLabelInBuilder(builder, updatedBuilder, value, sizeBits)
     }
-    scope.builderStoreDataBits(updatedBuilder, value, sizeBits.extractToSizeSort())
+    scope.builderStoreDataBits(builder, updatedBuilder, value, sizeBits)
 }
 
 fun builderStoreGramsTlb(
@@ -1249,7 +1260,7 @@ fun builderStoreGramsTlb(
     updatedBuilder: UConcreteHeapRef,
     grams: UExpr<TvmInt257Sort>,
 ): Unit? = scope.doWithCtx {
-    val length = scope.builderStoreGrams(updatedBuilder, grams)
+    val length = scope.builderStoreGrams(builder, updatedBuilder, grams)
         ?: return@doWithCtx null
 
     scope.doWithState {
@@ -1264,7 +1275,7 @@ fun builderStoreSliceTlb(
     slice: UHeapRef,
     quietBlock: (TvmState.() -> Unit)? = null,
 ): Unit? = scope.doWithCtx {
-    builderStoreSlice(updatedBuilder, slice, quietBlock)
+    builderStoreSlice(builder, updatedBuilder, slice, quietBlock)
         ?: return@doWithCtx null
 
     storeSliceTlbLabelInBuilder(builder, updatedBuilder, slice)

@@ -949,7 +949,7 @@ class TvmCellInterpreter(
                 val bits = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
                 val cell = calcOnState { allocEmptyCell() }
 
-                builderStoreDataBits(cell, bits, mkSizeExpr(bits.sort.sizeBits.toInt())) ?: return@makeSliceTypeLoad
+                builderStoreDataBits(cell, cell, bits, mkSizeExpr(bits.sort.sizeBits.toInt())) ?: return@makeSliceTypeLoad
 
                 calcOnState { allocSliceFromCell(cell) }
             }
@@ -998,7 +998,7 @@ class TvmCellInterpreter(
                     ) ?: return@makeSliceTypeLoad
 
                     val cell = calcOnState { allocEmptyCell() }
-                    builderStoreDataBits(cell, bits, sizeBits.extractToSizeSort())
+                    builderStoreDataBits(cell, cell, bits, sizeBits.extractToSizeSort())
                         ?: error("Cannot write $sizeBits bits to the empty builder")
 
                     calcOnState { allocSliceFromCell(cell) }
@@ -1661,7 +1661,7 @@ class TvmCellInterpreter(
         }
 
         val fromBuilderSlice = calcOnState { allocSliceFromCell(fromBuilder) }
-        builderStoreSlice(resultBuilder, fromBuilderSlice, quietBlock) ?: return
+        builderStoreSlice(toBuilder, resultBuilder, fromBuilderSlice, quietBlock) ?: return
 
         doWithState {
             addOnStack(resultBuilder, TvmBuilderType)
