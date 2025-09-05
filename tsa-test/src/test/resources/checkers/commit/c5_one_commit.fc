@@ -1,0 +1,47 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+
+    tsa_forbid_failures();
+
+    int op = msg_body~load_uint(32);
+    slice receiver = msg_body~load_msg_addr();
+    slice companion_addr = tsa_call_1_0(2, 91);
+
+    tsa_assert(op == 301);
+    tsa_assert(equal_slice_bits(receiver, companion_addr));
+
+    tsa_allow_failures();
+}
+
+() main() impure {
+
+    tsa_forbid_failures();
+
+    ;; Initially, both contracts have 0 in their number field
+    slice ds1 = tsa_get_c4(1).begin_parse();
+    int number_field1 = ds1~load_uint(32);
+    ds1.end_parse();
+
+    slice ds2 = tsa_get_c4(2).begin_parse();
+    int number_field2 = ds2~load_uint(32);
+    ds2.end_parse();
+
+    tsa_assert(number_field1 == 0);
+    tsa_assert(number_field2 == 0);
+
+    tsa_allow_failures();
+
+    ;; From here onwards, the code needs fixing. The intended semantics should be the following:
+    ;;
+    ;; if tsa_send_internal_message(1, 0) produces error code 301, then
+    ;; tsa_call_1_0(2, 90) should return 1234 (i.e., one commit occurred after sending the number to companion contract
+    ;; before the exception was thrown).
+
+    tsa_send_internal_message(1, 0);
+
+    int number = tsa_call_1_0(2, 90);
+
+    throw_if(256, number == 1234);
+}
