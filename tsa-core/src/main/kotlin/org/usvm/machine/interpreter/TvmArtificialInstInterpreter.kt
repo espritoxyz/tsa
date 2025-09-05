@@ -28,13 +28,15 @@ import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
-import org.usvm.machine.state.allocCellFromData
+import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.initializeContractExecutionMemory
+import org.usvm.machine.state.input.RecvInternalInput
+import org.usvm.machine.state.input.constructMessageFromContent
 import org.usvm.machine.state.isExceptional
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
@@ -187,28 +189,21 @@ class TvmArtificialInstInterpreter(
         fullMsg: UExpr<TvmContext.TvmCellDataSort>,
         scope: TvmStepScopeManager
     ): UHeapRef {
-        val bounceRelatedMask = mkBvNegationExpr(mkBvShiftLeftExpr(0b0011.toCellSort(), 1019.toCellSort()))
-
-        val bouncedBitSet = mkBvShiftLeftExpr(0b0001.toCellSort(), 1019.toCellSort())
-
-        /**
-         * When we shift the `1` by n, it gets a one-based index of (n+1)
-         * Flags layout in cell
-         * ```
-         * |0   |ihr_dis|bounce |bounced|...|    ---  flags (see tlb)
-         * |1023|1022   |1021   |1020   |        --- one-based indices in cell
-         * |0   |0      |0      |1      |0|0|... --- bouncedBitSet
-         * |1   |1      |0      |0      |1|1|... --- bounceRelated mask
-         * ```
-         */
-        val msgBodyWithUpdatedFlags =
-            mkBvXorExpr(
-                mkBvAndExpr(fullMsg, bounceRelatedMask),
-                bouncedBitSet
+        val msgCell = scope.calcOnState {
+            val content = RecvInternalInput.MessageContent(
+                flags = 0b0001.toBv257(),
+                srcAddressSlice = allocSliceFromData(0b00.toBv(2u)),
+                dstAddressSlice = allocSliceFromData(0b00.toBv(2u)),
+                msgValue = zeroValue,
+                ihrFee = zeroValue,
+                fwdFee = zeroValue,
+                createdLt = zeroValue,
+                createdAt = zeroValue,
+                bodyDataSlice = allocSliceFromData(0xFFFFFFFF.toBv(32u))
             )
-
-        val updatedCell = scope.allocCellFromData(msgBodyWithUpdatedFlags, 1023.toBv())
-        return updatedCell
+            constructMessageFromContent(this, content)
+        }
+        return msgCell
     }
 
     private fun visitExitInst(scope: TvmStepScopeManager, stmt: TsaArtificialExitInst) {
