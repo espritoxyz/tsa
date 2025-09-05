@@ -49,6 +49,7 @@ class CheckersTest {
     private val bounceFormatChecker = "/checkers/bounce_format.fc"
     private val bounceFormatScheme = "/checkers/bounce_format_scheme.json"
 
+
     @Test
     fun testConsistentBalanceThroughChecker() {
         runTestConsistentBalanceThroughChecker(internalCallChecker, fetchedKeys = emptySet(), balancePath)
