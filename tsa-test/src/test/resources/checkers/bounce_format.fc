@@ -20,4 +20,9 @@
 () main() impure {
     
     tsa_send_internal_message(1, 0);
+
+    slice data = tsa_get_c4(1).begin_parse();
+    int rec_bounced? = data~load_uint(1);
+
+    throw_if(255, rec_bounced? == 1); ;; We should receive bounced message and hence the contract should change its persistent data
 }

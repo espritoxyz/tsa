@@ -231,20 +231,33 @@ class CheckersTest {
             startContractId = 0,
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
             options = options,
+            concreteContractData = listOf(
+                TvmConcreteContractData(),
+                TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+                TvmConcreteContractData(),
+            )
         )
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 256 },
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 256 }, // the recepient contract should fail and bounce the message
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 }, // the target contract should change its persistent data
+            ) 
         )
 
         checkInvariants(
             tests,
-            listOf(
+            listOf( // see bounce_format_send.fc
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 258 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 259 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 260 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 261 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 262 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 263 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 264 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 265 },
             )
         )
     }
