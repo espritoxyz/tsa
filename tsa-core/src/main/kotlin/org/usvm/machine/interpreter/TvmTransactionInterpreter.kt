@@ -24,6 +24,7 @@ import org.usvm.machine.state.builderStoreSliceTransaction
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.getCellContractInfoParam
+import org.usvm.machine.state.getMsgBodySlice
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.sliceLoadAddrTransaction
 import org.usvm.machine.state.sliceLoadGramsTransaction
@@ -67,7 +68,7 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
         val handlers = scheme[contractId]
             ?: error("Contract handlers are not found")
 
-        val msgBody = scope.calcOnState { lastMsgBodySlice }
+        val msgBody = scope.calcOnState { receivedMessage?.getMsgBodySlice() }
             ?: error("Unexpected null msg_body")
 
         // TODO possible underflow
@@ -115,11 +116,13 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
             when {
                 isReserveAction != null -> visitReserveAction(scope, actionBody)
                     ?: return null
+
                 isSendMsgAction != null -> {
                     val msg = visitSendMessageAction(scope, actionBody)
                         ?: return null
                     outMessages.add(msg)
                 }
+
                 else -> TODO()
             }
         }

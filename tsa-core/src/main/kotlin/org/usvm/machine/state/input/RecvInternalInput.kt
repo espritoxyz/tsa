@@ -30,13 +30,18 @@ import org.usvm.sizeSort
 class RecvInternalInput(
     state: TvmState,
     concreteGeneralData: TvmConcreteGeneralData,
-    contractId: ContractId,
-) : ReceiverInput(contractId, concreteGeneralData, state) {
+    receiverContractId: ContractId,
+) : ReceiverInput(receiverContractId, concreteGeneralData, state) {
     override val msgValue = state.makeSymbolicPrimitive(state.ctx.int257sort)
     override val srcAddressSlice = if (concreteGeneralData.initialSenderBits == null) {
         state.generateSymbolicSlice()
     } else {
-        state.allocSliceFromData(state.ctx.mkBv(concreteGeneralData.initialSenderBits, TvmContext.stdMsgAddrSize.toUInt()))
+        state.allocSliceFromData(
+            state.ctx.mkBv(
+                concreteGeneralData.initialSenderBits,
+                TvmContext.stdMsgAddrSize.toUInt()
+            )
+        )
     }
 
     // bounced:Bool
@@ -52,7 +57,15 @@ class RecvInternalInput(
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
 
             val builder = state.allocEmptyBuilder()
-            builderStoreIntTlb(scope, builder, builder, bouncedMessageTagLong.toBv257(), sizeBits = sizeExpr32, isSigned = false, endian = Endian.BigEndian)
+            builderStoreIntTlb(
+                scope,
+                builder,
+                builder,
+                bouncedMessageTagLong.toBv257(),
+                sizeBits = sizeExpr32,
+                isSigned = false,
+                endian = Endian.BigEndian
+            )
                 ?: error("Cannot store bounced message prefix")
 
             // tail's length is up to 256 bits
@@ -107,7 +120,15 @@ class RecvInternalInput(
 
         val flags = generateFlags(this)
 
-        builderStoreIntTlb(scope, resultBuilder, resultBuilder, flags, sizeBits = fourSizeExpr, isSigned = false, endian = Endian.BigEndian)
+        builderStoreIntTlb(
+            scope,
+            resultBuilder,
+            resultBuilder,
+            flags,
+            sizeBits = fourSizeExpr,
+            isSigned = false,
+            endian = Endian.BigEndian
+        )
             ?: error("Cannot store flags")
 
         // src:MsgAddressInt
@@ -124,7 +145,15 @@ class RecvInternalInput(
             ?: error("Cannot store message value")
 
         // extra currency collection
-        builderStoreIntTlb(scope, resultBuilder, resultBuilder, zeroValue, sizeBits = oneSizeExpr, isSigned = false, endian = Endian.BigEndian)
+        builderStoreIntTlb(
+            scope,
+            resultBuilder,
+            resultBuilder,
+            zeroValue,
+            sizeBits = oneSizeExpr,
+            isSigned = false,
+            endian = Endian.BigEndian
+        )
             ?: error("Cannot store extra currency collection")
 
         // ihr_fee:Grams
@@ -136,21 +165,53 @@ class RecvInternalInput(
             ?: error("Cannot store fwd fee")
 
         // created_lt:uint64
-        builderStoreIntTlb(scope, resultBuilder, resultBuilder, createdLt, sizeBits = mkSizeExpr(64), isSigned = false, endian = Endian.BigEndian)
+        builderStoreIntTlb(
+            scope,
+            resultBuilder,
+            resultBuilder,
+            createdLt,
+            sizeBits = mkSizeExpr(64),
+            isSigned = false,
+            endian = Endian.BigEndian
+        )
             ?: error("Cannot store created_lt")
 
         // created_at:uint32
-        builderStoreIntTlb(scope, resultBuilder, resultBuilder, createdAt, sizeBits = mkSizeExpr(32), isSigned = false, endian = Endian.BigEndian)
+        builderStoreIntTlb(
+            scope,
+            resultBuilder,
+            resultBuilder,
+            createdAt,
+            sizeBits = mkSizeExpr(32),
+            isSigned = false,
+            endian = Endian.BigEndian
+        )
             ?: error("Cannot store created_at")
 
         // init:(Maybe (Either StateInit ^StateInit))
         // TODO: support StateInit?
-        builderStoreIntTlb(scope, resultBuilder, resultBuilder, zeroValue, sizeBits = oneSizeExpr, isSigned = false, endian = Endian.BigEndian)
+        builderStoreIntTlb(
+            scope,
+            resultBuilder,
+            resultBuilder,
+            zeroValue,
+            sizeBits = oneSizeExpr,
+            isSigned = false,
+            endian = Endian.BigEndian
+        )
             ?: error("Cannot store init")
 
         // body:(Either X ^X)
         // TODO: support both formats?
-        builderStoreIntTlb(scope, resultBuilder, resultBuilder, oneValue, sizeBits = oneSizeExpr, isSigned = false, endian = Endian.BigEndian)
+        builderStoreIntTlb(
+            scope,
+            resultBuilder,
+            resultBuilder,
+            oneValue,
+            sizeBits = oneSizeExpr,
+            isSigned = false,
+            endian = Endian.BigEndian
+        )
             ?: error("Cannot store body")
 
         scope.doWithState {

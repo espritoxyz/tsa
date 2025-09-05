@@ -238,6 +238,7 @@ import org.usvm.machine.state.C4Register
 import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.C7Register
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.ReceivedMessage
 import org.usvm.machine.state.TvmInitialStateData
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
@@ -511,7 +512,7 @@ class TvmInterpreter(
 
                 // Save msgBody for inter-contract
                 if (ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-                    state.lastMsgBodySlice = input.msgBodySliceMaybeBounced
+                    state.receivedMessage = ReceivedMessage.AnonymousInputMessage(input)
                 }
             }
 
@@ -1285,7 +1286,7 @@ class TvmInterpreter(
                 val value = scope.takeLastIntOrThrowTypeError() ?: return
                 val notOutOfRangeExpr = unsignedIntegerFitsBits(sizeBits, 10u)
                 checkOutOfRange(notOutOfRangeExpr, scope) ?: return
-                
+
                 val sizeBitsUpperBound = mkBvSubExpr(intBitsValue, oneValue)
 
                 val notNegativeValue = mkBvSignedGreaterOrEqualExpr(value, zeroValue)

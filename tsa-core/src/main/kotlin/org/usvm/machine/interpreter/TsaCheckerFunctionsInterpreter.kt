@@ -9,6 +9,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.ReceivedMessage
 import org.usvm.machine.state.TvmContractExecutionMemory
 import org.usvm.machine.state.TvmContractPosition
 import org.usvm.machine.state.TvmRegisters
@@ -314,7 +315,7 @@ class TsaCheckerFunctionsInterpreter(
         if (stackOperations is NewReceiverInput) {
             val input = state.additionalInputs[stackOperations.inputId]
                 ?: error("Input with id ${stackOperations.inputId} not found")
-            lastMsgBodySlice = input.msgBodySliceMaybeBounced
+            receivedMessage = ReceivedMessage.AnonymousInputMessage(input)
             currentInput = input
         }
 
