@@ -58,7 +58,7 @@ class TvmState(
     var gasUsage: PersistentList<UExpr<UBv32Sort>>,
     // TODO codepage
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
-    pathConstraints: UPathConstraints<TvmType>,
+    override val pathConstraints: TvmPathConstraints,
     memory: UMemory<TvmType, TvmCodeBlock>,
     models: List<UModelBase<TvmType>> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),
@@ -142,6 +142,10 @@ class TvmState(
         }
 
     override fun clone(newConstraints: UPathConstraints<TvmType>?): TvmState {
+        require(newConstraints is TvmPathConstraints?) {
+            "Unexpected path constraints: $newConstraints"
+        }
+
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()
         val newPathConstraints = newConstraints?.also {
