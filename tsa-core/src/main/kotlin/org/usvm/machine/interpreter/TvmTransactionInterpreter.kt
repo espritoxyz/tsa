@@ -253,7 +253,7 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
 
         TODO("External messages are not supported")
 
-        scope.builderStoreSlice(msgFull, ptr.slice)
+        scope.builderStoreSlice(msgFull, msgFull, ptr.slice)
             ?: return null
 
         val externalTag = scope.slicePreloadDataBits(ptr.slice, 2)

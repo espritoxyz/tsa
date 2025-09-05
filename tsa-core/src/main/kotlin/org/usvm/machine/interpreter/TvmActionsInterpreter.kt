@@ -115,10 +115,10 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
 
             builderStoreNextRef(updatedActions, actions)
             builderStoreDataBits(updatedActions, reserveActionTag)
-            scope.builderStoreInt(updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
+            scope.builderStoreInt(updatedActions, updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
                 error("Unexpected cell overflow during RAWRESERVE instruction")
             } ?: return@doWithState
-            scope.builderStoreGrams(updatedActions, grams) ?: return@doWithState
+            scope.builderStoreGrams(updatedActions, updatedActions, grams) ?: return@doWithState
             // empty ExtraCurrencyCollection
             builderStoreDataBits(updatedActions, zeroBit)
 
@@ -141,7 +141,7 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
 
             builderStoreNextRef(updatedActions, actions)
             builderStoreDataBits(updatedActions, sendMsgActionTag)
-            scope.builderStoreInt(updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
+            scope.builderStoreInt(updatedActions, updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
                 error("Unexpected cell overflow during $stmt instruction")
             } ?: return@doWithStateCtx
             builderStoreNextRef(updatedActions, msg)
