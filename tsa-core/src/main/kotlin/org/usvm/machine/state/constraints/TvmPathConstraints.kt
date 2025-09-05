@@ -1,4 +1,4 @@
-package org.usvm.machine.state
+package org.usvm.machine.state.constraints
 
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
