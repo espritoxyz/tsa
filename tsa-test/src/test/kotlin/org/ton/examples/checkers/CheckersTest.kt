@@ -206,7 +206,7 @@ class CheckersTest {
     fun bounceFormatTest() {
         val pathSender = extractResource(bounceFormatContract)
         val pathRecepient = extractResource(recepientBouncePath)
-        val checkerPath = extractResource(bounceCheckerPath)
+        val checkerPath = extractResource(bounceFormatChecker)
 
         val checkerContract = getFuncContract(
             checkerPath,

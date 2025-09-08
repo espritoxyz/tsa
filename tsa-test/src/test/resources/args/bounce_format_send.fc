@@ -34,7 +34,7 @@
         throw_if(264, ~equal_slice_bits(src, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a)); ;; Source of the message should be written correctly
 
         slice dest = cs1~load_msg_addr();
-        throw_if(265, ~equal_slice_bits(dest, my_address())); ;; Вуыештфешщт of the message should be written correctly
+        throw_if(265, ~equal_slice_bits(dest, my_address())); ;; Destination of the message should be written correctly
     }
 
     int op = msg_body~load_uint(32);
