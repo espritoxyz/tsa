@@ -815,7 +815,6 @@ fun TvmStepScopeManager.builderStoreInt(
 
     return doWithState {
         cellDataFieldManager.writeCellData(this, builder, updatedData)
-        memory.writeField(builder, cellDataLengthField, sizeSort, updatedLength, guard = trueExpr)
     }
 }
 
@@ -890,13 +889,15 @@ fun TvmStepScopeManager.builderStoreGrams(
     // (len * 8)
     val valueBits = mkBvShiftLeftExpr(coinPrefixExtended, threeSizeExpr)
 
+    val sizeBitsUpperBound = valueBits.intValueOrNull ?: TvmContext.MAX_GRAMS_BITS.toInt()
+
     builderStoreInt(
-        oldBuilder,
+        builder,
         builder,
         value,
         valueBits,
         isSigned = false,
-        sizeBitsUpperBound = TvmContext.MAX_GRAMS_BITS.toInt(),
+        sizeBitsUpperBound = sizeBitsUpperBound,
         quietBlock
     ) ?: return null
 
