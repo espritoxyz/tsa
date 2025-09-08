@@ -27,12 +27,13 @@ import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
 import org.usvm.machine.TvmCellDataFieldManager
 import org.usvm.machine.TvmContext
-import org.usvm.machine.interpreter.OutMessage
+import org.usvm.machine.state.messages.OutMessage
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.types.GlobalStructuralConstraintsHolder
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -46,21 +47,6 @@ import org.usvm.targets.UTargetsSet
 typealias ContractId = Int
 
 fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
-
-
-sealed interface ReceivedMessage {
-    data class AnonymousInputMessage(val input: ReceiverInput) : ReceivedMessage
-    data class MessageFromOtherContract(
-        val message: OutMessage,
-        val sender: ContractId,
-        val receiver: ContractId
-    ) : ReceivedMessage
-}
-
-fun ReceivedMessage.getMsgBodySlice() = when (this) {
-    is ReceivedMessage.AnonymousInputMessage -> this.input.msgBodySliceMaybeBounced
-    is ReceivedMessage.MessageFromOtherContract -> this.message.msgBodySlice
-}
 
 
 class TvmState(
@@ -95,7 +81,7 @@ class TvmState(
     var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
     var unprocessedMessages: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
     // inter-contract fields
-    var messageQueue: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
+    var messageQueue: PersistentList<ReceivedMessage.MessageFromOtherContract> = persistentListOf(),
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
     // post-process fields
     var addressToHash: PersistentMap<UHeapRef, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
@@ -242,6 +228,7 @@ class TvmState(
 enum class TvmPhase {
     COMPUTE_PHASE,
     ACTION_PHASE,
+    BOUNCE_PHASE,
     EXIT_PHASE,
     TERMINATED,
 }

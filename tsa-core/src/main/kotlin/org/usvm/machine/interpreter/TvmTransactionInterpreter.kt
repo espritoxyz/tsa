@@ -24,8 +24,9 @@ import org.usvm.machine.state.builderStoreSliceTransaction
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.getCellContractInfoParam
-import org.usvm.machine.state.getMsgBodySlice
+import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.getSliceRemainingRefsCount
+import org.usvm.machine.state.messages.OutMessage
 import org.usvm.machine.state.sliceLoadAddrTransaction
 import org.usvm.machine.state.sliceLoadGramsTransaction
 import org.usvm.machine.state.sliceLoadIntTransaction
@@ -443,9 +444,3 @@ class TvmTransactionInterpreter(val ctx: TvmContext) {
     )
 }
 
-data class OutMessage(
-    val msgValue: UExpr<TvmInt257Sort>,
-    val fullMsgCell: UHeapRef,
-    val msgBodySlice: UHeapRef,
-    val destAddrSlice: UHeapRef,
-)
