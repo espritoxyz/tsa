@@ -45,6 +45,15 @@ class CheckersTest {
     private val ignoreErrorsContract = "/args/send_ignore_error_flag.fc"
     private val ignoreErrorsChecker = "/checkers/ignore_error.fc"
     private val ignoreErrorTestScheme = "/checkers/ignore_error_test_scheme.json"
+    private val bounceFormatContract = "/args/bounce_format_send.fc"
+    private val bounceFormatChecker = "/checkers/bounce_format.fc"
+    private val bounceFormatScheme = "/checkers/bounce_format_scheme.json"
+
+
+    private object transactionRollBackTestData {
+        const val sender = "/checkers/transaction-rollback/sender-checker.fc"
+        const val receiver = "/checkers/transaction-rollback/receiver.fc"
+    }
 
     @Test
     fun testConsistentBalanceThroughChecker() {
@@ -149,6 +158,40 @@ class CheckersTest {
         )
     }
 
+    @Ignore("Transactions rollback is not supported")
+    @Test
+    fun transactionRollBackTest() {
+        val sender = extractResource(transactionRollBackTestData.sender)
+        val receiver = extractResource(transactionRollBackTestData.receiver)
+        val senderContract = getFuncContract(
+            sender,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val receiverContract = getFuncContract(receiver, FIFT_STDLIB_RESOURCE)
+        val options = TvmOptions()
+        val tests = analyzeInterContract(
+            listOf(senderContract, receiverContract),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = options,
+            concreteContractData = listOf(
+                TvmConcreteContractData(),
+                TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+            )
+        )
+
+        propertiesFound(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+        )
+    }
+
     @Ignore("Bounced messages in intercontracts communication are not supported")
     @Test
     fun bounceTest() {
@@ -194,6 +237,68 @@ class CheckersTest {
         checkInvariants(
             tests,
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+        )
+    }
+
+    @Ignore("Bounced messages in intercontracts communication are not supported")
+    @Test
+    fun bounceFormatTest() {
+        val pathSender = extractResource(bounceFormatContract)
+        val pathRecepient = extractResource(recepientBouncePath)
+        val checkerPath = extractResource(bounceFormatChecker)
+
+        val checkerContract = getFuncContract(
+            checkerPath,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
+        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
+
+        val communicationSchemePath = extractResource(bounceFormatScheme)
+        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
+
+        val options = TvmOptions(
+            intercontractOptions = IntercontractOptions(
+                communicationScheme = communicationScheme,
+            ),
+            enableOutMessageAnalysis = true,
+        )
+
+        val tests = analyzeInterContract(
+            listOf(checkerContract, analyzedSender, analyzedRecepient),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = options,
+            concreteContractData = listOf(
+                TvmConcreteContractData(),
+                TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+                TvmConcreteContractData(),
+            )
+        )
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 256 }, // the recepient contract should fail and bounce the message
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 }, // the target contract should change its persistent data
+            ) 
+        )
+        // TODO: adjust the test to disallow the given intermediate exit codes
+        // when event logging will be supported
+        checkInvariants(
+            tests,
+            listOf( // see bounce_format_send.fc
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 258 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 259 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 260 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 261 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 262 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 263 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 264 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 265 },
+            )
         )
     }
 
