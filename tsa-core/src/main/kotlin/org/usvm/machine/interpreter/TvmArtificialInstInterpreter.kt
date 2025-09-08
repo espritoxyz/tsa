@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialActionPhaseInst
 import org.ton.bytecode.TsaArtificialBouncePhaseInst
 import org.ton.bytecode.TsaArtificialCheckerReturn
@@ -29,7 +30,6 @@ import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
-import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.callContinuation
@@ -37,6 +37,7 @@ import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getBalance
+import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.constructMessageFromContent
@@ -172,7 +173,7 @@ class TvmArtificialInstInterpreter(
                         mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort())
                     )
 
-                    val bouncedMessage = constructBouncedMessage(scope, receivedMsgData)
+                    val bouncedMessage = constructBouncedMessage(scope, receivedMsgData, sender)
                     scope.fork(
                         isBounceable.neq(zeroCellValue), falseStateIsExceptional = true,
                         blockOnTrueState = {
@@ -201,6 +202,7 @@ class TvmArtificialInstInterpreter(
     private fun constructBouncedMessage(
         scope: TvmStepScopeManager,
         oldMessage: OutMessage,
+        sender: ContractId,
     ): OutMessage {
         val (msgCell, bodySlice) = scope.calcOnState {
             with(ctx) {
@@ -215,10 +217,12 @@ class TvmArtificialInstInterpreter(
                 val leftData = scope.slicePreloadDataBits(oldMessage.msgBodySlice, leftLength)
                 scope.builderStoreDataBits(builder, leftData!!, leftLength, null)
                 val bodySlice = allocSliceFromCell(builderToCell(builder))
+                val destinationCell =
+                    getContractInfoParamOf(ADDRESS_PARAMETER_IDX, sender).cellValue ?: error("no destination :(")
                 val content = RecvInternalInput.MessageContent(
                     flags = 0b0101.toBv257(),
-                    srcAddressSlice = allocSliceFromData(0b00.toBv(2u)),
-                    dstAddressSlice = allocSliceFromData(0b00.toBv(2u)),
+                    srcAddressSlice = oldMessage.destAddrSlice,
+                    dstAddressSlice = allocSliceFromCell(destinationCell),
                     msgValue = zeroValue,
                     ihrFee = zeroValue,
                     fwdFee = zeroValue,

@@ -57,7 +57,8 @@ class ContractsTest {
     private val walletV3FiftPath: String = "/contracts/wallet-v3/wallet-v3-code.fif"
 
     private val pumpersPath: String = "/contracts/EQCV_FsDSymN83YeKZKj_7sgwQHV0jJhCTvX5SkPHHxVOi0D.boc"
-    private val jettonWalletWithConfigInstsPath: String = "/contracts/EQCnKexvdRR56OpxG2jpSUk0Dn6XpcgwHqE5A5plDz3TOQOt.boc"
+    private val jettonWalletWithConfigInstsPath: String =
+        "/contracts/EQCnKexvdRR56OpxG2jpSUk0Dn6XpcgwHqE5A5plDz3TOQOt.boc"
 
     @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
@@ -89,7 +90,7 @@ class ContractsTest {
         analyzeFuncContract(walletV5Path, methodsNumber = 7, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    //    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
     @Test
     fun nftItem() {
         analyzeFuncContract(nftItemPath, methodsNumber = 15, enableTestGeneration = true)
