@@ -50,6 +50,11 @@ class CheckersTest {
     private val bounceFormatScheme = "/checkers/bounce_format_scheme.json"
 
 
+    private object transactionRollBackTestData {
+        const val sender = "/checkers/transaction-rollback/sender-checker.fc"
+        const val receiver = "/checkers/transaction-rollback/receiver.fc"
+    }
+
     @Test
     fun testConsistentBalanceThroughChecker() {
         runTestConsistentBalanceThroughChecker(internalCallChecker, fetchedKeys = emptySet(), balancePath)
@@ -150,6 +155,40 @@ class CheckersTest {
         checkInvariants(
             tests,
             listOf { test -> test.result is TvmSuccessfulExecution }
+        )
+    }
+
+    @Ignore("Transactions rollback is not supported")
+    @Test
+    fun transactionRollBackTest() {
+        val sender = extractResource(transactionRollBackTestData.sender)
+        val receiver = extractResource(transactionRollBackTestData.receiver)
+        val senderContract = getFuncContract(
+            sender,
+            FIFT_STDLIB_RESOURCE,
+            isTSAChecker = true
+        )
+        val receiverContract = getFuncContract(receiver, FIFT_STDLIB_RESOURCE)
+        val options = TvmOptions()
+        val tests = analyzeInterContract(
+            listOf(senderContract, receiverContract),
+            startContractId = 0,
+            methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            options = options,
+            concreteContractData = listOf(
+                TvmConcreteContractData(),
+                TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+            )
+        )
+
+        propertiesFound(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
         )
     }
 

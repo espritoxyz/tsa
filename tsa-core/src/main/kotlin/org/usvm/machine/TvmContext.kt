@@ -105,6 +105,7 @@ class TvmContext(
     val threeSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(3)
     val fourSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(4)
     val sixSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(6)
+    val eightSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(8)
     val sizeExpr32: UExpr<TvmSizeSort> = mkSizeExpr(32)
     val maxDataLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_DATA_LENGTH)
     val maxRefsLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_REFS_NUMBER)

@@ -25,7 +25,7 @@ import org.usvm.types.UTypeSystem
 import kotlin.time.Duration
 
 class TvmComponents(
-    private val options: UMachineOptions,
+    private val options: TvmOptions,
 ) : UComponents<TvmType, TvmSizeSort>, AutoCloseable {
     private val closeableResources = mutableListOf<AutoCloseable>()
     override val useSolverForForks: Boolean
@@ -51,6 +51,7 @@ class TvmComponents(
             }
         }
         val solver = Bv2IntSolverWrapper(
+            options = options,
             bv2intSolver = KBv2IntSolver(
                 ctx,
                 intSolver,

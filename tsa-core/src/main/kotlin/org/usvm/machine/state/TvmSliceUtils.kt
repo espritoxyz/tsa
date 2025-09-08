@@ -733,7 +733,7 @@ fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
 fun TvmStepScopeManager.builderStoreInt(
     builder: UConcreteHeapRef,
     value: UExpr<TvmInt257Sort>,
-    sizeBits: UExpr<TvmInt257Sort>,
+    sizeBits: UExpr<TvmSizeSort>,
     isSigned: Boolean,
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? = with(ctx) {
@@ -746,7 +746,7 @@ fun TvmStepScopeManager.builderStoreInt(
         ?: return null
 
     val normalizedValue = if (isSigned) {
-        val trashBits = mkBvSubExpr(intBitsValue, sizeBits)
+        val trashBits = mkBvSubExpr(intBitsValue, sizeBits.unsignedExtendToInteger())
         mkBvLogicalShiftRightExpr(mkBvShiftLeftExpr(value, trashBits), trashBits)
     } else {
         value
@@ -782,8 +782,25 @@ private fun TvmContext.updateBuilderData(
     return mkBvOrExpr(builderData, shiftedBits)
 }
 
+private fun TvmContext.coinPrefix(value: UExpr<TvmInt257Sort>): UExpr<UBvSort> {
+    val sort = mkBvSort(GRAMS_LENGTH_BITS)
+    return (1..<16).fold(mkBv(0, sort) as UExpr<UBvSort>) { acc, cur ->
+        val curBv = mkBv(cur, sort)
+        val curBvExtended = curBv.unsignedExtendToInteger()
+
+        // ((len - 1) * 8)
+        val prevValueBits = mkBvShiftLeftExpr(mkBvSubExpr(curBvExtended, oneValue), threeValue)
+
+        mkIte(
+            mkBvSignedGreaterExpr(value, bvMaxValueUnsignedExtended(prevValueBits)),
+            trueBranch = curBv,
+            falseBranch = acc,
+        )
+    }
+}
+
 /**
- * Return lengthValue
+ * Return coin prefix (value from 0 to 15 that specifies coin length) as 4-bit bitvector.
  * */
 fun TvmStepScopeManager.builderStoreGrams(
     builder: UConcreteHeapRef,
@@ -795,41 +812,22 @@ fun TvmStepScopeManager.builderStoreGrams(
     val maxValue = 8 * ((1 shl lenSizeBits) - 1)
 
     val notOutOfRangeValue = unsignedIntegerFitsBits(value, maxValue.toUInt())
-    checkOutOfRange(notOutOfRangeValue, this@builderStoreGrams) ?: return null
+    checkOutOfRange(notOutOfRangeValue, this@builderStoreGrams)
+        ?: return null
 
-    // len:(#< 16)
-    val lengthValue = calcOnState { makeSymbolicPrimitive(mkBvSort(lenSizeBits.toUInt())) }
-    val lengthValueExtended = lengthValue.unsignedExtendToInteger()
-
-    // (len * 8)
-    val valueBits = mkBvShiftLeftExpr(lengthValueExtended, threeValue)
-    // ((len - 1) * 8)
-    val prevValueBits = mkBvShiftLeftExpr(mkBvSubExpr(lengthValueExtended, oneValue), threeValue)
-    // (len = 0 /\ value = 0) \/
-    // (len > 0 /\ `value ufits in (len * 8) bits` /\ `value doesn't ufit in ((len - 1) * 8) bits`)
-    val lengthValueConstraint = mkOr(
-        (lengthValueExtended eq zeroValue) and (value eq zeroValue),
-        mkAnd(
-            mkBvSignedGreaterExpr(lengthValueExtended, zeroValue),
-            mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(valueBits)),
-            mkBvSignedGreaterExpr(value, bvMaxValueUnsignedExtended(prevValueBits)),
-        )
-    )
-
-    assert(
-        lengthValueConstraint,
-        unsatBlock = {
-            error("Cannot assert grams length constraints")
-        },
-    ) ?: return null
+    val coinPrefix = coinPrefix(value)
+    val coinPrefixExtended = coinPrefix.zeroExtendToSort(sizeSort)
 
     builderStoreInt(
         builder,
-        lengthValueExtended,
-        lenSizeBits.toBv257(),
+        coinPrefix.unsignedExtendToInteger(),
+        mkSizeExpr(lenSizeBits),
         isSigned = false,
         quietBlock
     ) ?: return null
+
+    // (len * 8)
+    val valueBits = mkBvShiftLeftExpr(coinPrefixExtended, threeSizeExpr)
 
     builderStoreInt(
         builder,
@@ -839,7 +837,7 @@ fun TvmStepScopeManager.builderStoreGrams(
         quietBlock
     ) ?: return null
 
-    return lengthValue
+    return coinPrefix
 }
 
 fun TvmState.builderStoreNextRef(builder: UHeapRef, ref: UHeapRef) = with(ctx) {
@@ -1175,7 +1173,7 @@ fun builderStoreIntTlb(
         storeIntTlbLabelToBuilder(builder, updatedBuilder, sizeBits, value, isSigned, endian)
     }
 
-    scope.builderStoreInt(updatedBuilder, value, sizeBits.signedExtendToInteger(), isSigned)
+    scope.builderStoreInt(updatedBuilder, value, sizeBits, isSigned)
 }
 
 

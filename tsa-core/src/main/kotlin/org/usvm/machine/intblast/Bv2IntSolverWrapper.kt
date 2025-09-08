@@ -8,9 +8,11 @@ import io.ksmt.solver.KSolverConfiguration
 import io.ksmt.solver.KSolverStatus
 import io.ksmt.solver.wrapper.bv2int.KBv2IntSolver
 import io.ksmt.sort.KBoolSort
+import org.usvm.machine.TvmOptions
 import kotlin.time.Duration
 
 class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
+    private val options: TvmOptions,
     private val bv2intSolver: KBv2IntSolver<C1>,
     private val regularSolver: KSolver<C2>,
     private val exprFilter: KNonRecursiveVisitor<Boolean>,
@@ -115,9 +117,11 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
             return check()
         }
 
-        val bv2intRes = check()
-        if (bv2intRes != KSolverStatus.UNKNOWN) {
-            return bv2intRes
+        if (options.useIntBlasting) {
+            val bv2intRes = check()
+            if (bv2intRes != KSolverStatus.UNKNOWN) {
+                return bv2intRes
+            }
         }
 
         reassertExprs()
