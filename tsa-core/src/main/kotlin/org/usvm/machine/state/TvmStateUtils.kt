@@ -50,6 +50,7 @@ import org.usvm.machine.intValue
 import org.usvm.machine.maxUnsignedValue
 import org.usvm.machine.state.TvmPhase.ACTION_PHASE
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
+import org.usvm.machine.state.TvmPhase.BOUNCE_PHASE
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.toTvmCell
 import org.usvm.machine.types.TvmDictCellType
@@ -98,6 +99,7 @@ fun TvmState.setExit(methodResult: TvmMethodResult) =
     when (phase) {
         COMPUTE_PHASE -> newStmt(TsaArtificialActionPhaseInst(methodResult, lastStmt.location))
         ACTION_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
+        BOUNCE_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
         else -> error("Unexpected exit on phase: $phase")
     }
 
@@ -114,7 +116,8 @@ fun TvmStepScopeManager.doWithStateCtx(block: context(TvmContext) TvmState.() ->
     block(ctx, this)
 }
 
-fun TvmState.generateSymbolicCell(): UConcreteHeapRef = generateSymbolicRef(TvmCellType).also { initializeSymbolicCell(it) }
+fun TvmState.generateSymbolicCell(): UConcreteHeapRef =
+    generateSymbolicRef(TvmCellType).also { initializeSymbolicCell(it) }
 
 fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) =
     ensureSymbolicRefInitialized(ref, TvmCellType) { initializeSymbolicCell(it) }
@@ -273,7 +276,7 @@ private fun TvmState.getRefLeaves(value: UHeapRef): List<RefInfo> {
         collapseHeapRefs = false,
         staticIsConcrete = true,
         blockOnConcrete = refHandler,
-        blockOnSymbolic =  { _, ref -> error("Unexpected symbolic ref ${ref.expr}") }
+        blockOnSymbolic = { _, ref -> error("Unexpected symbolic ref ${ref.expr}") }
     )
 }
 
@@ -401,11 +404,21 @@ fun TvmStepScopeManager.assertDictType(value: UHeapRef, keyLength: Int): Unit? {
             calcOnState { transformToConcreteDictIfPossible(info.ref, keyLength) }
         }
     }
-    return assertConcreteCellType(value, newType = TvmDictCellType, badType = TvmDataCellType, TvmDictOperationOnDataCell)
+    return assertConcreteCellType(
+        value,
+        newType = TvmDictCellType,
+        badType = TvmDataCellType,
+        TvmDictOperationOnDataCell
+    )
 }
 
 fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? {
-    return assertConcreteCellType(value, newType = TvmDataCellType, badType = TvmDictCellType, TvmDataCellOperationOnDict)
+    return assertConcreteCellType(
+        value,
+        newType = TvmDataCellType,
+        badType = TvmDictCellType,
+        TvmDataCellOperationOnDict
+    )
 }
 
 fun TvmStepScopeManager.killCurrentState() = doWithCtx {

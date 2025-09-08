@@ -1216,3 +1216,7 @@ fun builderStoreSliceTlb(
 
     storeSliceTlbLabelInBuilder(builder, updatedBuilder, slice)
 }
+
+fun TvmState.readSliceDataPos(slice: UHeapRef) = memory.readField(slice, sliceDataPosField, ctx.sizeSort)
+fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellField, ctx.addressSort)
+fun TvmState.readCellLength(cell: UHeapRef) = memory.readField(cell, cellDataLengthField, ctx.sizeSort)

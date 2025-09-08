@@ -11,8 +11,6 @@ import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TsaArtificialLoopEntranceInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
-import org.usvm.UExpr
-import org.usvm.UHeapRef
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
@@ -29,7 +27,11 @@ import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.allocEmptyBuilder
+import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocSliceFromData
+import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
@@ -44,10 +46,15 @@ import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.OutMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
+import org.usvm.machine.state.readCellLength
+import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.returnFromContinuation
+import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
+import org.usvm.sizeSort
 
 class TvmArtificialInstInterpreter(
     val ctx: TvmContext,
@@ -152,20 +159,20 @@ class TvmArtificialInstInterpreter(
         scope.calcOnState {
             with(ctx) {
                 if (result.isExceptional()) {
-                    val (sender, _, inputMessage) = receivedMessage as? ReceivedMessage.MessageFromOtherContract
+                    val (sender, _, receivedMsgData) = receivedMessage as? ReceivedMessage.MessageFromOtherContract
                         ?: run {
                             newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
                             return@calcOnState
                         }
                     // if is bounceable, bounce back to sender
-                    val fullMsgData = cellDataFieldManager.readCellData(scope, inputMessage.fullMsgCell)
+                    val fullMsgData = cellDataFieldManager.readCellData(scope, receivedMsgData.fullMsgCell)
                         ?: return@calcOnState
                     val isBounceable = mkBvAndExpr(
                         fullMsgData,
                         mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort())
                     )
 
-                    val bouncedMessageCell = constructBouncedMessage(fullMsgData, scope)
+                    val bouncedMessage = constructBouncedMessage(scope, receivedMsgData)
                     scope.fork(
                         isBounceable.neq(zeroCellValue), falseStateIsExceptional = true,
                         blockOnTrueState = {
@@ -173,14 +180,13 @@ class TvmArtificialInstInterpreter(
                                 ReceivedMessage.MessageFromOtherContract(
                                     sender = currentContract,
                                     receiver = sender,
-                                    message = inputMessage.copy(fullMsgCell = bouncedMessageCell)
+                                    message = bouncedMessage
                                 )
                             )
                             newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
                         },
                         blockOnFalseState = {
                             newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
-
                         }
                     )
                 } else {
@@ -192,26 +198,43 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun TvmContext.constructBouncedMessage(
-        @Suppress("Unused") // tests on bounced message structure are required
-        fullMsg: UExpr<TvmContext.TvmCellDataSort>,
-        scope: TvmStepScopeManager
-    ): UHeapRef {
-        val msgCell = scope.calcOnState {
-            val content = RecvInternalInput.MessageContent(
-                flags = 0b0001.toBv257(),
-                srcAddressSlice = allocSliceFromData(0b00.toBv(2u)),
-                dstAddressSlice = allocSliceFromData(0b00.toBv(2u)),
-                msgValue = zeroValue,
-                ihrFee = zeroValue,
-                fwdFee = zeroValue,
-                createdLt = zeroValue,
-                createdAt = zeroValue,
-                bodyDataSlice = allocSliceFromData(bouncedMessageTagLong.toBv(32u))
-            )
-            constructMessageFromContent(this, content)
+    private fun constructBouncedMessage(
+        scope: TvmStepScopeManager,
+        oldMessage: OutMessage,
+    ): OutMessage {
+        val (msgCell, bodySlice) = scope.calcOnState {
+            with(ctx) {
+                val builder = allocEmptyBuilder()
+                builderStoreDataBits(builder, bouncedMessageTagLong.toBv(32u))
+                val dataPos = readSliceDataPos(oldMessage.msgBodySlice)
+                val cellLength = readCellLength(readSliceCell(oldMessage.msgBodySlice))
+                val length = mkBvSubExpr(cellLength, dataPos)
+                val leftLength = mkIte(
+                    mkBvSignedGreaterExpr(length, 256.toBv()), 256.toBv(ctx.sizeSort), length
+                )
+                val leftData = scope.slicePreloadDataBits(oldMessage.msgBodySlice, leftLength)
+                scope.builderStoreDataBits(builder, leftData!!, leftLength, null)
+                val bodySlice = allocSliceFromCell(builderToCell(builder))
+                val content = RecvInternalInput.MessageContent(
+                    flags = 0b0101.toBv257(),
+                    srcAddressSlice = allocSliceFromData(0b00.toBv(2u)),
+                    dstAddressSlice = allocSliceFromData(0b00.toBv(2u)),
+                    msgValue = zeroValue,
+                    ihrFee = zeroValue,
+                    fwdFee = zeroValue,
+                    createdLt = zeroValue,
+                    createdAt = zeroValue,
+                    bodyDataSlice = bodySlice
+                )
+                constructMessageFromContent(this@calcOnState, content) to bodySlice
+            }
         }
-        return msgCell
+        return OutMessage(
+            msgValue = oldMessage.msgValue,
+            fullMsgCell = msgCell,
+            msgBodySlice = bodySlice,
+            destAddrSlice = oldMessage.destAddrSlice,
+        )
     }
 
     private fun visitExitInst(scope: TvmStepScopeManager, stmt: TsaArtificialExitInst) {
