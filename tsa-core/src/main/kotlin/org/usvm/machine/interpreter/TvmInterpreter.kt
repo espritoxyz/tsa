@@ -239,7 +239,7 @@ import org.usvm.machine.state.C4Register
 import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.C7Register
 import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.ReceivedMessage
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.TvmInitialStateData
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
@@ -515,7 +515,7 @@ class TvmInterpreter(
 
                 // Save msgBody for inter-contract
                 if (ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-                    state.receivedMessage = ReceivedMessage.AnonymousInputMessage(input)
+                    state.receivedMessage = ReceivedMessage.InputMessage(input)
                 }
             }
 
