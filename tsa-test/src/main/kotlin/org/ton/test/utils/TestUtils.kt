@@ -202,6 +202,11 @@ fun runFiftCodeBlock(fiftWorkDir: Path, codeBlock: String): FiftInterpreterResul
         fiftStdlibPath = FIFT_STDLIB_RESOURCE,
     ).runFiftCodeBlock(fiftWorkDir, codeBlock)
 
+fun getAddressBits(addressInRawForm: String): String {
+    val hexPart = addressInRawForm.drop(2)
+    return "1" + "0".repeat(10) + BigInteger(hexPart, 16).toString(2).padStart(256, '0')
+}
+
 internal fun TvmStack.loadIntegers(n: Int) = List(n) {
     takeLast(TvmIntegerType) { error("Impossible") }.intValue?.intValue()
         ?: error("Unexpected entry type")

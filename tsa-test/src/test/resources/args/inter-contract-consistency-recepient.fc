@@ -1,0 +1,14 @@
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    
+    int op = msg_body~load_uint(32);
+    if (op == 200) {
+        
+    slice cs = in_msg_full.begin_parse();
+    cs~skip_bits(4);
+    slice _ = cs~load_msg_addr(); ;; Skip the scr address
+    slice dest = cs~load_msg_addr(); ;; Load the dst address
+
+    throw_if(257, equal_slice_bits(dest, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a)); ;; Dest should be equal to the hardcoded adrress of this contract
+                                                                                                ;; (which is not its actual address)
+    }
+}
