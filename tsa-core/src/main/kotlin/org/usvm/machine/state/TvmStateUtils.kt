@@ -8,16 +8,12 @@ import kotlinx.collections.immutable.toPersistentList
 import org.ton.bitstring.BitString
 import org.ton.bytecode.BALANCE_PARAMETER_IDX
 import org.ton.bytecode.MethodId
-import org.ton.bytecode.TsaArtificialActionPhaseInst
-import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TsaArtificialJmpToContInst
-import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCellValue
+import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmExceptionContinuation
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmOrdContinuation
-import org.ton.cell.Cell
-import org.ton.hashmap.HashMapE
 import org.usvm.NULL_ADDRESS
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
@@ -25,23 +21,13 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.writeField
-import org.usvm.isAllocated
 import org.usvm.machine.TvmContext
-import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.intValue
-import org.usvm.machine.maxUnsignedValue
-import org.usvm.machine.state.TvmPhase.ACTION_PHASE
-import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
-import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
-import org.usvm.machine.toTvmCell
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmDataCellType
-import org.usvm.machine.types.TvmDictCellType
-import org.usvm.machine.types.TvmFinalReferenceType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
@@ -52,19 +38,32 @@ import org.usvm.mkSizeExpr
 import org.usvm.mkSizeGeExpr
 import org.usvm.mkSizeLeExpr
 import org.usvm.sizeSort
-import org.usvm.test.resolver.HashMapESerializer
 import org.usvm.types.USingleTypeStream
 import java.math.BigInteger
+import org.ton.bytecode.TsaArtificialActionPhaseInst
+import org.ton.bytecode.TsaArtificialExitInst
+import org.ton.cell.Cell
+import org.ton.hashmap.HashMapE
+import org.usvm.isAllocated
+import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
+import org.usvm.machine.intValue
+import org.usvm.machine.maxUnsignedValue
+import org.usvm.machine.state.TvmPhase.ACTION_PHASE
+import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
+import org.usvm.machine.state.TvmPhase.BOUNCE_PHASE
+import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.toTvmCell
+import org.usvm.machine.types.TvmDictCellType
+import org.usvm.machine.types.TvmFinalReferenceType
+import org.usvm.test.resolver.HashMapESerializer
 
 val TvmState.lastStmt get() = pathNode.statement
-
 fun TvmState.newStmt(stmt: TvmInst) {
     pathNode += stmt
 }
 
-fun TvmInst.nextStmt(): TvmInst =
-    location.codeBlock.instList.getOrNull(location.index + 1)
-        ?: error("Unexpected end of the code block ${location.codeBlock}")
+fun TvmInst.nextStmt(): TvmInst = location.codeBlock.instList.getOrNull(location.index + 1)
+    ?: error("Unexpected end of the code block ${location.codeBlock}")
 
 fun TvmState.c2IsDefault(): Boolean {
     val c2 = registersOfCurrentContract.c2.value
@@ -76,53 +75,49 @@ fun TvmContext.setFailure(
     level: TvmFailureType = TvmFailureType.UnknownError,
     param: UExpr<TvmInt257Sort> = zeroValue,
     implicitThrow: Boolean = true,
-): (TvmState) -> Unit =
-    { state ->
-        if (implicitThrow) {
-            state.consumeGas(IMPLICIT_EXCEPTION_THROW_GAS)
-        }
-
-        // Throwing exception clears the current stack and pushes its parameter and exit code
-        state.stack.clear()
-        state.stack.addInt(param)
-        with(state.ctx) {
-            state.stack.addInt(failure.exitCode.toBv257())
-        }
-
-        val c2 = state.registersOfCurrentContract.c2.value
-        if (state.c2IsDefault()) {
-            state.setExit(TvmMethodResult.TvmFailure(failure, level, state.phase))
-        } else {
-            state.newStmt(TsaArtificialJmpToContInst(c2, state.lastStmt.location))
-        }
+): (TvmState) -> Unit = { state ->
+    if (implicitThrow) {
+        state.consumeGas(IMPLICIT_EXCEPTION_THROW_GAS)
     }
+
+    // Throwing exception clears the current stack and pushes its parameter and exit code
+    state.stack.clear()
+    state.stack.addInt(param)
+    with(state.ctx) {
+        state.stack.addInt(failure.exitCode.toBv257())
+    }
+
+    val c2 = state.registersOfCurrentContract.c2.value
+    if (state.c2IsDefault()) {
+        state.setExit(TvmMethodResult.TvmFailure(failure, level, state.phase))
+    } else {
+        state.newStmt(TsaArtificialJmpToContInst(c2, state.lastStmt.location))
+    }
+}
 
 fun TvmState.setExit(methodResult: TvmMethodResult) =
     when (phase) {
         COMPUTE_PHASE -> newStmt(TsaArtificialActionPhaseInst(methodResult, lastStmt.location))
         ACTION_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
+        BOUNCE_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
         else -> error("Unexpected exit on phase: $phase")
     }
 
-fun <R> TvmStepScopeManager.calcOnStateCtx(block: context(TvmContext) TvmState.() -> R): R =
-    calcOnState {
-        block(ctx, this)
-    }
+fun <R> TvmStepScopeManager.calcOnStateCtx(block: context(TvmContext) TvmState.() -> R): R = calcOnState {
+    block(ctx, this)
+}
 
 fun <R> TvmStepScopeManager.doWithCtx(block: context(TvmContext) TvmStepScopeManager.() -> R): R {
     val ctx = calcOnState { ctx }
     return block(ctx, this)
 }
 
-fun TvmStepScopeManager.doWithStateCtx(block: context(TvmContext) TvmState.() -> Unit) =
-    doWithState {
-        block(ctx, this)
-    }
+fun TvmStepScopeManager.doWithStateCtx(block: context(TvmContext) TvmState.() -> Unit) = doWithState {
+    block(ctx, this)
+}
 
 fun TvmState.generateSymbolicCell(): UConcreteHeapRef =
-    generateSymbolicRef(TvmCellType).also {
-        initializeSymbolicCell(it)
-    }
+    generateSymbolicRef(TvmCellType).also { initializeSymbolicCell(it) }
 
 fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) =
     ensureSymbolicRefInitialized(ref, TvmCellType) { initializeSymbolicCell(it) }
@@ -133,33 +128,31 @@ fun TvmState.generateSymbolicSlice(): UConcreteHeapRef =
 fun TvmState.ensureSymbolicSliceInitialized(ref: UHeapRef) =
     ensureSymbolicRefInitialized(ref, TvmSliceType) { initializeSymbolicSlice(it) }
 
-fun TvmState.initializeSymbolicCell(cell: UConcreteHeapRef) =
-    with(ctx) {
-        val dataLength =
-            fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@initializeSymbolicCell, cell)
-        val refsLength = memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort)
+fun TvmState.initializeSymbolicCell(cell: UConcreteHeapRef) = with(ctx) {
+    val dataLength =
+        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@initializeSymbolicCell, cell)
+    val refsLength = memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort)
 
-        // We can add these constraints manually to path constraints because default values (0) in models are valid
-        // for these fields
+    // We can add these constraints manually to path constraints because default values (0) in models are valid
+    // for these fields
 
-        pathConstraints += mkSizeLeExpr(dataLength, maxDataLengthSizeExpr)
-        pathConstraints += mkSizeGeExpr(dataLength, zeroSizeExpr)
+    pathConstraints += mkSizeLeExpr(dataLength, maxDataLengthSizeExpr)
+    pathConstraints += mkSizeGeExpr(dataLength, zeroSizeExpr)
 
-        pathConstraints += mkSizeLeExpr(refsLength, maxRefsLengthSizeExpr)
-        pathConstraints += mkSizeGeExpr(refsLength, zeroSizeExpr)
-    }
+    pathConstraints += mkSizeLeExpr(refsLength, maxRefsLengthSizeExpr)
+    pathConstraints += mkSizeGeExpr(refsLength, zeroSizeExpr)
+}
 
-fun TvmState.initializeSymbolicSlice(ref: UConcreteHeapRef) =
-    with(ctx) {
-        // TODO hack! Assume that all input slices were not read, that means dataPos == 0 and refsPos == 0
-        memory.writeField(ref, TvmContext.sliceDataPosField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-        memory.writeField(ref, TvmContext.sliceRefPosField, sizeSort, mkSizeExpr(0), guard = trueExpr)
+fun TvmState.initializeSymbolicSlice(ref: UConcreteHeapRef) = with(ctx) {
+    // TODO hack! Assume that all input slices were not read, that means dataPos == 0 and refsPos == 0
+    memory.writeField(ref, TvmContext.sliceDataPosField, sizeSort, mkSizeExpr(0), guard = trueExpr)
+    memory.writeField(ref, TvmContext.sliceRefPosField, sizeSort, mkSizeExpr(0), guard = trueExpr)
 
-        // Cell in input slices must be represented with static refs to be correctly processed in TvmCellRefsRegion
-        val cell = generateSymbolicCell()
-        memory.writeField(ref, TvmContext.sliceCellField, addressSort, cell, guard = trueExpr)
-        memory.types.allocate(cell.address, TvmDataCellType)
-    }
+    // Cell in input slices must be represented with static refs to be correctly processed in TvmCellRefsRegion
+    val cell = generateSymbolicCell()
+    memory.writeField(ref, TvmContext.sliceCellField, addressSort, cell, guard = trueExpr)
+    memory.types.allocate(cell.address, TvmDataCellType)
+}
 
 fun TvmState.generateSymbolicBuilder(): UConcreteHeapRef =
     generateSymbolicRef(TvmBuilderType).also { initializeSymbolicBuilder(it) }
@@ -167,75 +160,64 @@ fun TvmState.generateSymbolicBuilder(): UConcreteHeapRef =
 fun TvmState.ensureSymbolicBuilderInitialized(ref: UHeapRef) =
     ensureSymbolicRefInitialized(ref, TvmBuilderType) { initializeSymbolicBuilder(it) }
 
-fun TvmState.initializeSymbolicBuilder(ref: UConcreteHeapRef) =
-    with(ctx) {
+fun TvmState.initializeSymbolicBuilder(ref: UConcreteHeapRef) = with(ctx) {
 //    // TODO hack! Assume that all input builder were not written, that means dataLength == 0 and refsLength == 0
 //    memory.writeField(ref, TvmContext.cellDataLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
 //    memory.writeField(ref, TvmContext.cellRefsLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-    }
+}
 
-fun TvmStepScopeManager.assertIfSat(constraint: UBoolExpr): Boolean {
+fun TvmStepScopeManager.assertIfSat(
+    constraint: UBoolExpr
+): Boolean {
     val originalState = calcOnState { this }
     val (stateWithConstraint) = originalState.ctx.statesForkProvider.forkMulti(originalState, listOf(constraint))
     return stateWithConstraint != null
 }
 
-fun TvmContext.signedIntegerFitsBits(
-    value: UExpr<TvmInt257Sort>,
-    bits: UInt,
-): UBoolExpr =
+fun TvmContext.signedIntegerFitsBits(value: UExpr<TvmInt257Sort>, bits: UInt): UBoolExpr =
     when {
         bits == 0u -> value eq zeroValue
         bits >= TvmContext.INT_BITS -> trueExpr
-        else ->
-            mkAnd(
-                mkBvSignedLessOrEqualExpr(value, powerOfTwo(bits - 1u).minus(BigInteger.ONE).toBv257()),
-                mkBvSignedGreaterOrEqualExpr(value, powerOfTwo(bits - 1u).negate().toBv257())
-            )
+        else -> mkAnd(
+            mkBvSignedLessOrEqualExpr(value, powerOfTwo(bits - 1u).minus(BigInteger.ONE).toBv257()),
+            mkBvSignedGreaterOrEqualExpr(value, powerOfTwo(bits - 1u).negate().toBv257()),
+        )
     }
 
 /**
  * Since TVM integers have a signed representation only, every non-negative integer fits in 256 bits
  */
-fun TvmContext.unsignedIntegerFitsBits(
-    value: UExpr<TvmInt257Sort>,
-    bits: UInt,
-): UBoolExpr =
+fun TvmContext.unsignedIntegerFitsBits(value: UExpr<TvmInt257Sort>, bits: UInt): UBoolExpr =
     when {
         bits == 0u -> value eq zeroValue
         bits >= TvmContext.INT_BITS - 1u -> mkBvSignedGreaterOrEqualExpr(value, zeroValue)
-        else ->
-            mkAnd(
-                mkBvSignedLessOrEqualExpr(value, maxUnsignedValue(bits).toBv257()),
-                mkBvSignedGreaterOrEqualExpr(value, zeroValue)
-            )
+        else -> mkAnd(
+            mkBvSignedLessOrEqualExpr(value, maxUnsignedValue(bits).toBv257()),
+            mkBvSignedGreaterOrEqualExpr(value, zeroValue),
+        )
     }
 
 /**
  * 0 <= [sizeBits] <= 257
  */
-fun TvmContext.signedIntegerFitsBits(
-    value: UExpr<TvmInt257Sort>,
-    bits: UExpr<TvmInt257Sort>,
-): UBoolExpr =
+fun TvmContext.signedIntegerFitsBits(value: UExpr<TvmInt257Sort>, bits: UExpr<TvmInt257Sort>): UBoolExpr =
     mkAnd(
         mkBvSignedLessOrEqualExpr(bvMinValueSignedExtended(bits), value),
-        mkBvSignedLessOrEqualExpr(value, bvMaxValueSignedExtended(bits))
+        mkBvSignedLessOrEqualExpr(value, bvMaxValueSignedExtended(bits)),
     )
+
 
 /**
  * 0 <= [sizeBits] <= 256
  *
  * @see unsignedIntegerFitsBits
  */
-fun TvmContext.unsignedIntegerFitsBits(
-    value: UExpr<TvmInt257Sort>,
-    bits: UExpr<TvmInt257Sort>,
-): UBoolExpr =
+fun TvmContext.unsignedIntegerFitsBits(value: UExpr<TvmInt257Sort>, bits: UExpr<TvmInt257Sort>): UBoolExpr =
     mkAnd(
         mkBvSignedLessOrEqualExpr(zeroValue, value),
-        mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(bits))
+        mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(bits)),
     )
+
 
 /**
  * 0 <= [sizeBits] <= 257
@@ -274,10 +256,11 @@ fun TvmContext.bvMaxValueUnsignedExtended(sizeBits: UExpr<TvmInt257Sort>): UExpr
 fun TvmState.calcConsumedGas(): UExpr<TvmSizeSort> =
     gasUsage.fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value) }
 
+
 private data class RefInfo(
     val type: TvmType,
     val ref: UConcreteHeapRef,
-    val guard: UBoolExpr,
+    val guard: UBoolExpr
 )
 
 private fun TvmState.getRefLeaves(value: UHeapRef): List<RefInfo> {
@@ -298,10 +281,7 @@ private fun TvmState.getRefLeaves(value: UHeapRef): List<RefInfo> {
     )
 }
 
-fun TvmState.assertType(
-    value: UHeapRef,
-    type: TvmType,
-) {
+fun TvmState.assertType(value: UHeapRef, type: TvmType) {
     check(type !is TvmDictCellType && type !is TvmDataCellType) {
         "For asserting TvmDictCellType or TvmDataCellType, use special methods"
     }
@@ -320,78 +300,66 @@ fun TvmState.assertType(
     }
 }
 
-private fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell? =
-    with(ctx) {
-        if (!ref.isAllocated) {
-            return null
-        }
-
-        val data =
-            fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(
-                this@extractFullCellIfItIsConcrete,
-                ref
-            )
-        val dataLength =
-            fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@extractFullCellIfItIsConcrete, ref)
-        val refsLength = memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort)
-
-        if (data !is KInterpretedValue || dataLength !is KInterpretedValue || refsLength !is KInterpretedValue) {
-            return null
-        }
-
-        val children =
-            List(refsLength.intValue()) { i ->
-                val child = readCellRef(ref, i.toBv()) as UConcreteHeapRef
-                extractFullCellIfItIsConcrete(child)
-                    ?: return@with null
-            }
-
-        val dataStr = (data as KBitVecValue).stringValue.take(dataLength.intValue()).map { it == '1' }
-
-        return Cell(BitString.of(dataStr), *children.toTypedArray())
+private fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell? = with(ctx) {
+    if (!ref.isAllocated) {
+        return null
     }
+
+    val data =
+        fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@extractFullCellIfItIsConcrete, ref)
+    val dataLength =
+        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@extractFullCellIfItIsConcrete, ref)
+    val refsLength = memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort)
+
+    if (data !is KInterpretedValue || dataLength !is KInterpretedValue || refsLength !is KInterpretedValue) {
+        return null
+    }
+
+    val children = List(refsLength.intValue()) { i ->
+        val child = readCellRef(ref, i.toBv()) as UConcreteHeapRef
+        extractFullCellIfItIsConcrete(child)
+            ?: return@with null
+    }
+
+    val dataStr = (data as KBitVecValue).stringValue.take(dataLength.intValue()).map { it == '1' }
+
+    return Cell(BitString.of(dataStr), *children.toTypedArray())
+}
+
 
 /**
  * Return true if transformed.
  * */
-private fun TvmState.transformToConcreteDictIfPossible(
-    ref: UConcreteHeapRef,
-    keyLength: Int,
-): Boolean =
-    with(ctx) {
-        val oldType = getRefLeaves(ref).single().type
-        check(oldType is TvmDataCellType) {
-            "Unexpected type in transformToConcreteDictIfPossible: $oldType"
-        }
-
-        val cell =
-            extractFullCellIfItIsConcrete(ref)
-                ?: return false
-
-        val codec = HashMapE.tlbCodec(keyLength, HashMapESerializer)
-        val parsedDict =
-            kotlin
-                .runCatching {
-                    codec.loadTlb(Cell(BitString(true), cell))
-                }.getOrElse {
-                    return false
-                }
-
-        memory.types.allocate(ref.address, TvmDictCellType)
-        memory.writeField(ref, dictKeyLengthField, sizeSort, mkSizeExpr(keyLength), guard = trueExpr)
-
-        val content =
-            parsedDict.map { (keyBitString, valueCell) ->
-                val cellRef = allocateCell(valueCell.toTvmCell())
-                val sliceValue = allocSliceFromCell(cellRef)
-                val key = mkBv(keyBitString.toBinary(), keyLength.toUInt())
-                key to sliceValue
-            }
-
-        initializeConcreteDict(ref, DictId(keyLength), content, mkBvSort(keyLength.toUInt()))
-
-        return true
+private fun TvmState.transformToConcreteDictIfPossible(ref: UConcreteHeapRef, keyLength: Int): Boolean = with(ctx) {
+    val oldType = getRefLeaves(ref).single().type
+    check(oldType is TvmDataCellType) {
+        "Unexpected type in transformToConcreteDictIfPossible: $oldType"
     }
+
+    val cell = extractFullCellIfItIsConcrete(ref)
+        ?: return false
+
+    val codec = HashMapE.tlbCodec(keyLength, HashMapESerializer)
+    val parsedDict = kotlin.runCatching {
+        codec.loadTlb(Cell(BitString(true), cell))
+    }.getOrElse {
+        return false
+    }
+
+    memory.types.allocate(ref.address, TvmDictCellType)
+    memory.writeField(ref, dictKeyLengthField, sizeSort, mkSizeExpr(keyLength), guard = trueExpr)
+
+    val content = parsedDict.map { (keyBitString, valueCell) ->
+        val cellRef = allocateCell(valueCell.toTvmCell())
+        val sliceValue = allocSliceFromCell(cellRef)
+        val key = mkBv(keyBitString.toBinary(), keyLength.toUInt())
+        key to sliceValue
+    }
+
+    initializeConcreteDict(ref, DictId(keyLength), content, mkBvSort(keyLength.toUInt()))
+
+    return true
+}
 
 private fun TvmStepScopeManager.assertConcreteCellType(
     value: UHeapRef,
@@ -400,16 +368,15 @@ private fun TvmStepScopeManager.assertConcreteCellType(
     exit: TvmMethodResult.TvmSoftFailureExit,
 ): Unit? {
     val refOldTypes = calcOnState { getRefLeaves(value) }
-    val badCellTypeGuard =
-        doWithCtx {
-            refOldTypes.fold(falseExpr as UBoolExpr) { acc, info ->
-                if (info.type != badType) {
-                    acc
-                } else {
-                    acc or info.guard
-                }
+    val badCellTypeGuard = doWithCtx {
+        refOldTypes.fold(falseExpr as UBoolExpr) { acc, info ->
+            if (info.type != badType) {
+                acc
+            } else {
+                acc or info.guard
             }
         }
+    }
     fork(
         ctx.mkNot(badCellTypeGuard),
         falseStateIsExceptional = true,
@@ -433,10 +400,7 @@ private fun TvmStepScopeManager.assertConcreteCellType(
     return Unit
 }
 
-fun TvmStepScopeManager.assertDictType(
-    value: UHeapRef,
-    keyLength: Int,
-): Unit? {
+fun TvmStepScopeManager.assertDictType(value: UHeapRef, keyLength: Int): Unit? {
     val refs = calcOnState { getRefLeaves(value) }
     refs.forEach { info ->
         if (info.type == TvmDataCellType) {
@@ -451,17 +415,22 @@ fun TvmStepScopeManager.assertDictType(
     )
 }
 
-fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? =
-    assertConcreteCellType(value, newType = TvmDataCellType, badType = TvmDictCellType, TvmDataCellOperationOnDict)
+fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? {
+    return assertConcreteCellType(
+        value,
+        newType = TvmDataCellType,
+        badType = TvmDictCellType,
+        TvmDataCellOperationOnDict
+    )
+}
 
-fun TvmStepScopeManager.killCurrentState() =
-    doWithCtx {
-        assert(falseExpr).also {
-            check(it == null) {
-                "Unexpected not null [assert(falseExpr)] result"
-            }
+fun TvmStepScopeManager.killCurrentState() = doWithCtx {
+    assert(falseExpr).also {
+        check(it == null) {
+            "Unexpected not null [assert(falseExpr)] result"
         }
     }
+}
 
 fun initializeContractExecutionMemory(
     contractsCode: List<TsaContractCode>,
@@ -472,44 +441,34 @@ fun initializeContractExecutionMemory(
 ): TvmContractExecutionMemory {
     val contractCode = contractsCode[contractId]
     val ctx = state.ctx
-    val c4 =
-        state.contractIdToC4Register[contractId]
-            ?: error("c4 for contract $contractId is not found")
+    val c4 = state.contractIdToC4Register[contractId]
+        ?: error("c4 for contract $contractId is not found")
 
     val stack = TvmStack(ctx, allowInputValues = allowInputStackValues)
 
-    val firstElementOfC7 =
-        with(ctx) {
-            val oldFirstElementOfC7 =
-                state.contractIdToFirstElementOfC7[contractId]
-                    ?: error("First element of c7 for contract $contractId not found")
+    val firstElementOfC7 = with(ctx) {
+        val oldFirstElementOfC7 = state.contractIdToFirstElementOfC7[contractId]
+            ?: error("First element of c7 for contract $contractId not found")
 
-            if (newMsgValue != null) {
-                val oldBalance =
-                    oldFirstElementOfC7[BALANCE_PARAMETER_IDX, stack]
-                        .cell(stack)
-                        ?.tupleValue
-                        ?.get(0, stack)
-                        ?.cell(stack)
-                        ?.intValue
-                        ?: error("Cannot extract old balance from oldFirstElementOfC7")
-                val newBalance = mkBvAddExpr(oldBalance, newMsgValue)
-                val newEntries =
-                    oldFirstElementOfC7.entries.mapIndexed { index, entry ->
-                        if (index == BALANCE_PARAMETER_IDX) {
-                            TvmStack.TvmConcreteStackEntry(makeBalanceEntry(ctx, newBalance))
-                        } else {
-                            entry
-                        }
-                    }
-                val newFirstElementOfC7 = TvmStackTupleValueConcreteNew(ctx, newEntries.toPersistentList())
-                state.contractIdToFirstElementOfC7 =
-                    state.contractIdToFirstElementOfC7.put(contractId, newFirstElementOfC7)
-                newFirstElementOfC7
-            } else {
-                oldFirstElementOfC7
+        if (newMsgValue != null) {
+            val oldBalance = oldFirstElementOfC7[BALANCE_PARAMETER_IDX, stack].cell(stack)?.tupleValue
+                ?.get(0, stack)?.cell(stack)?.intValue
+                ?: error("Cannot extract old balance from oldFirstElementOfC7")
+            val newBalance = mkBvAddExpr(oldBalance, newMsgValue)
+            val newEntries = oldFirstElementOfC7.entries.mapIndexed { index, entry ->
+                if (index == BALANCE_PARAMETER_IDX) {
+                    TvmStack.TvmConcreteStackEntry(makeBalanceEntry(ctx, newBalance))
+                } else {
+                    entry
+                }
             }
+            val newFirstElementOfC7 = TvmStackTupleValueConcreteNew(ctx, newEntries.toPersistentList())
+            state.contractIdToFirstElementOfC7 = state.contractIdToFirstElementOfC7.put(contractId, newFirstElementOfC7)
+            newFirstElementOfC7
+        } else {
+            oldFirstElementOfC7
         }
+    }
 
     return TvmContractExecutionMemory(
         stack,
@@ -521,39 +480,33 @@ fun initializeContractExecutionMemory(
             C3Register(TvmOrdContinuation(contractCode.mainMethod, contractCode.codeCell), contractCode),
             c4,
             C5Register(TvmCellValue(state.allocEmptyCell())),
-            C7Register(state.initC7(firstElementOfC7))
+            C7Register(state.initC7(firstElementOfC7)),
         )
     )
 }
 
 fun TvmState.contractEpilogue() {
-    contractIdToFirstElementOfC7 =
-        contractIdToFirstElementOfC7.put(
-            currentContract,
-            registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew
-        )
+    contractIdToFirstElementOfC7 = contractIdToFirstElementOfC7.put(
+        currentContract,
+        registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew
+    )
 
-    val commitedState =
-        lastCommitedStateOfContracts[currentContract]
-            ?: return
+    val commitedState = lastCommitedStateOfContracts[currentContract]
+        ?: return
 
     contractIdToC4Register = contractIdToC4Register.put(currentContract, commitedState.c4)
     // last commited state is cleared, as [currentContract] can be visited multiple times
     lastCommitedStateOfContracts = lastCommitedStateOfContracts.remove(currentContract)
 }
 
-fun TvmState.switchToFirstMethodInContract(
-    contractCode: TsaContractCode,
-    methodId: MethodId,
-) = with(ctx) {
+fun TvmState.switchToFirstMethodInContract(contractCode: TsaContractCode, methodId: MethodId) = with(ctx) {
     if (tvmOptions.useMainMethodForInitialMethodJump) {
         val methodIdAsInt = methodId.toBv257()
         stack.addInt(methodIdAsInt)
         newStmt(contractCode.mainMethod.instList.first())
     } else {
-        val method =
-            contractCode.methods[methodId]
-                ?: error("Method $methodId not found")
+        val method = contractCode.methods[methodId]
+            ?: error("Method $methodId not found")
         newStmt(method.instList.first())
     }
 }

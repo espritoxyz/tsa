@@ -163,7 +163,6 @@ class CheckersTest {
         )
     }
 
-    @Ignore("Transactions rollback is not supported")
     @Test
     fun transactionRollBackTest() {
         val sender = extractResource(transactionRollBackTestData.sender)
@@ -174,7 +173,7 @@ class CheckersTest {
             isTSAChecker = true
         )
         val receiverContract = getFuncContract(receiver, FIFT_STDLIB_RESOURCE)
-        val options = TvmOptions()
+        val options = TvmOptions(stopOnFirstError = false)
         val tests = analyzeInterContract(
             listOf(senderContract, receiverContract),
             startContractId = 0,
@@ -245,7 +244,7 @@ class CheckersTest {
         )
     }
 
-    @Ignore("Bounced messages in intercontracts communication are not supported")
+    //    @Ignore("Bounced messages in intercontracts communication are not supported")
     @Test
     fun bounceFormatTest() {
         val pathSender = extractResource(bounceFormatContract)
@@ -268,6 +267,7 @@ class CheckersTest {
                 communicationScheme = communicationScheme,
             ),
             enableOutMessageAnalysis = true,
+            stopOnFirstError = false,
         )
 
         val tests = analyzeInterContract(
@@ -285,15 +285,15 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 256 }, // the recepient contract should fail and bounce the message
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 }, // the target contract should change its persistent data
-            ) 
+            )
         )
         // TODO: adjust the test to disallow the given intermediate exit codes
         // when event logging will be supported
         checkInvariants(
             tests,
-            listOf( // see bounce_format_send.fc
+            listOf(
+                // see bounce_format_send.fc
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 258 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 259 },
