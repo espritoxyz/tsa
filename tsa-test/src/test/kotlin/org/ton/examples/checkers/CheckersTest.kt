@@ -245,7 +245,8 @@ class CheckersTest {
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 }, // the target contract should change its persistent data
             ) 
         )
-
+        // TODO: adjust the test to disallow the given intermediate exit codes
+        // when event logging will be supported
         checkInvariants(
             tests,
             listOf( // see bounce_format_send.fc
