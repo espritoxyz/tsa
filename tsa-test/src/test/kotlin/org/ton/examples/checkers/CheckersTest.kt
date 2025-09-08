@@ -49,10 +49,10 @@ class CheckersTest {
     private val bounceFormatContract = "/args/bounce_format_send.fc"
     private val bounceFormatChecker = "/checkers/bounce_format.fc"
     private val bounceFormatScheme = "/checkers/bounce_format_scheme.json"
-    private val intercontractConsistencySender = "/args/inter-contact-consistency.fc"
-    private val intercontractConsistencyRecepient = "/args/inter-contact-consistency-recepient.fc"
-    private val intercontractConsistencyChecker = "/checkers/inter-contact-consistency-checker.fc"
-    private val intercontractConsistencyScheme = "/checkers/inter-contact-consistency.json"
+    private val intercontractConsistencySender = "/args/inter-contract-consistency.fc"
+    private val intercontractConsistencyRecepient = "/args/inter-contract-consistency-recepient.fc"
+    private val intercontractConsistencyChecker = "/checkers/inter-contract-consistency-checker.fc"
+    private val intercontractConsistencyScheme = "/checkers/inter-contract-consistency.json"
 
 
     private object transactionRollBackTestData {
