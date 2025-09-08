@@ -114,8 +114,8 @@ class RecvInternalInput(
 
     data class MessageContent(
         val flags: UExpr<TvmInt257Sort>, // 4 bits
-        val srcAddressSlice: UConcreteHeapRef,
-        val dstAddressSlice: UConcreteHeapRef,
+        val srcAddressSlice: UHeapRef,
+        val dstAddressSlice: UHeapRef,
         val msgValue: UExpr<TvmInt257Sort>, //
         // assume currency collection is an empty dict (1 bit of zero)
         val ihrFee: UExpr<TvmInt257Sort>,

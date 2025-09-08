@@ -9,14 +9,6 @@ import org.usvm.machine.state.ContractId
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/**
- * @param stopOnFirstError must be set to `false` when analyzing bounced messages.
- * When set to `true`, the analysis terminates at the first unhandled exception handled;
- * in this case, the `result` will contain the first thrown error code.
- * When set to false, the `result` of the state will contain the error code of the last
- * executed contract (the order of contract executions not bound by happens-before relationship
- * is unspecified).
- */
 data class TvmOptions(
     val quietMode: Boolean = false,
     val enableExternalAddress: Boolean = false,
@@ -34,6 +26,14 @@ data class TvmOptions(
     val useMainMethodForInitialMethodJump: Boolean = true,
     val analyzeBouncedMessaged: Boolean = false,
     val enableOutMessageAnalysis: Boolean = false,
+    /**
+     * Must be set to `false` when analyzing bounced messages.
+     * When set to `true`, the analysis terminates at the first unhandled exception handled;
+     * in this case, the `result` will contain the first thrown error code.
+     * When set to false, the `result` of the state will contain the error code of the last
+     * executed contract (the order of contract executions not bound by happens-before relationship
+     * is unspecified).
+     */
     val stopOnFirstError: Boolean = true,
     val useIntBlasting: Boolean = false,
 ) {
