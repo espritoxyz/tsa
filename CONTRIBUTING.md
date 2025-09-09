@@ -29,6 +29,10 @@ Running tests requires some special environment.
 
 4. Run tests with `./gradlew test` (for Unix) or `./gradlew.bat test` (for Windows) from the root of the repo.
 
+### Hard tests
+
+By default, only quick tests are run. Such check takes around 10 minutes. To run all tests, set environment variable `TSA_RUN_HARD_TESTS` to non-empty value. Full check takes more than an hour to execute.
+
 ## Linter and formatter
 
 Before contributing, you must run formatter and linter with `./gradlew formatAndLintAll` (for Unix) or `./gradlew.bat formatAndLintAll` (for Windows) from the root of the repo.
