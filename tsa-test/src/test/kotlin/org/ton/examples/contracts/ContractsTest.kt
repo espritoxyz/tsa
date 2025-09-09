@@ -1,9 +1,9 @@
 package org.ton.examples.contracts
 
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
+import org.ton.RUN_HARD_TESTS_REGEX
+import org.ton.RUN_HARD_TESTS_VAR
 import org.ton.bytecode.MethodId
-import org.ton.runHardTestsRegex
-import org.ton.runHardTestsVar
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.TvmTestExecutor
@@ -20,7 +20,6 @@ import kotlin.io.path.deleteIfExists
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
-
 
 class ContractsTest {
     private val nftItemPath: String = "/contracts/nft-item/nft-item.fc"
@@ -60,37 +59,37 @@ class ContractsTest {
     private val jettonWalletWithConfigInstsPath: String =
         "/contracts/EQCnKexvdRR56OpxG2jpSUk0Dn6XpcgwHqE5A5plDz3TOQOt.boc"
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testPumpersMaster() {
         analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testJettonWalletWithConfigInsts() {
         analyzeSpecificMethodBoc(jettonWalletWithConfigInstsPath, MethodId.ZERO, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testStocks() {
         analyzeFuncContract(stocksPath, methodsNumber = 6, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testWalletV4() {
         analyzeFuncContract(walletV4Path, methodsNumber = 7, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testWalletV5() {
         analyzeFuncContract(walletV5Path, methodsNumber = 7, enableTestGeneration = true)
     }
 
-    //    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    //    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun nftItem() {
         analyzeFuncContract(nftItemPath, methodsNumber = 15, enableTestGeneration = true)
@@ -101,7 +100,7 @@ class ContractsTest {
         analyzeFuncContract(jettonMinterPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun jettonWallet() {
         analyzeFuncContract(jettonWalletPath, methodsNumber = 3, enableTestGeneration = true)
@@ -117,31 +116,31 @@ class ContractsTest {
         analyzeFuncContract(storagePath, methodsNumber = 7, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun vestingLockupWallet() {
         analyzeFuncContract(vestingLockupWalletPath, methodsNumber = 6, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testSubscriptionPlugin() {
         analyzeFuncContract(subscriptionPluginPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun bridge() {
         analyzeFuncContract(bridgePath, methodsNumber = 8, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun bridgeVotesCollector() {
         analyzeFuncContract(bridgeVotesCollectorPath, methodsNumber = 5, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun nominatorPool() {
         // long test execution (4 min)
@@ -165,7 +164,7 @@ class ContractsTest {
         analyzeFuncContract(storageProviderPath, methodsNumber = 10, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun vesting() {
         analyzeFuncContract(vestingPath, methodsNumber = 9, enableTestGeneration = true)
@@ -262,12 +261,11 @@ class ContractsTest {
         analyzeFuncContract(restrictedWalletV3Path, methodsNumber = 7, enableTestGeneration = true)
     }
 
-
     private fun analyzeFuncContract(
         contractPath: String,
         methodsNumber: Int,
         methodsBlackList: Set<MethodId> = hashSetOf(),
-        enableTestGeneration: Boolean
+        enableTestGeneration: Boolean,
     ) {
         val funcResourcePath = extractResource(contractPath)
 
@@ -314,10 +312,11 @@ class ContractsTest {
         enableTestGeneration: Boolean,
     ) {
         val bocPath = getResourcePath<ContractsTest>(contractPath)
-        val tests = BocAnalyzer.analyzeSpecificMethod(
-            bocPath,
-            methodId
-        )
+        val tests =
+            BocAnalyzer.analyzeSpecificMethod(
+                bocPath,
+                methodId
+            )
         assertTrue { tests.isNotEmpty() }
 
         if (enableTestGeneration) {

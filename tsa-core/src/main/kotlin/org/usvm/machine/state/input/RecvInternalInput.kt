@@ -34,23 +34,25 @@ class RecvInternalInput(
     receiverContractId: ContractId,
 ) : ReceiverInput(receiverContractId, concreteGeneralData, state) {
     override val msgValue = state.makeSymbolicPrimitive(state.ctx.int257sort)
-    override val srcAddressSlice = if (concreteGeneralData.initialSenderBits == null) {
-        state.generateSymbolicSlice()
-    } else {
-        state.allocSliceFromData(
-            state.ctx.mkBv(
-                concreteGeneralData.initialSenderBits,
-                TvmContext.stdMsgAddrSize.toUInt()
+    override val srcAddressSlice =
+        if (concreteGeneralData.initialSenderBits == null) {
+            state.generateSymbolicSlice()
+        } else {
+            state.allocSliceFromData(
+                state.ctx.mkBv(
+                    concreteGeneralData.initialSenderBits,
+                    TvmContext.stdMsgAddrSize.toUInt()
+                )
             )
-        )
-    }
+        }
 
     // bounced:Bool
-    val bounced = if (state.ctx.tvmOptions.analyzeBouncedMessaged) {
-        state.makeSymbolicPrimitive(state.ctx.boolSort)
-    } else {
-        state.ctx.falseExpr
-    }
+    val bounced =
+        if (state.ctx.tvmOptions.analyzeBouncedMessaged) {
+            state.makeSymbolicPrimitive(state.ctx.boolSort)
+        } else {
+            state.ctx.falseExpr
+        }
 
     private val msgBodyCellBounced: UConcreteHeapRef by lazy {
         with(state.ctx) {
@@ -73,7 +75,12 @@ class RecvInternalInput(
             val tailSize = state.makeSymbolicPrimitive(mkBvSort(8u)).zeroExtendToSort(sizeSort)
             val tail = state.generateSymbolicSlice()
             val tailCell = state.memory.readField(tail, TvmContext.sliceCellField, addressSort) as UConcreteHeapRef
-            state.fieldManagers.cellDataLengthFieldManager.writeCellDataLength(state, tailCell, tailSize, upperBound = 256)
+            state.fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
+                state,
+                tailCell,
+                tailSize,
+                upperBound = 256
+            )
             state.memory.writeField(tailCell, TvmContext.cellRefsLengthField, sizeSort, zeroSizeExpr, guard = trueExpr)
             builderStoreSliceTlb(scope, builder, builder, tail)
                 ?: error("Cannot store bounced message tail")
@@ -98,15 +105,16 @@ class RecvInternalInput(
         state.ctx.mkIte(
             condition = bounced,
             trueBranch = { msgBodySliceBounced },
-            falseBranch = { msgBodySliceNonBounced },
+            falseBranch = { msgBodySliceNonBounced }
         )
     }
 
     // bounce:Bool
     // If bounced=true, then bounce must be false
-    val bounce = with(state.ctx) {
-        bounced.not() and state.makeSymbolicPrimitive(state.ctx.boolSort)
-    }
+    val bounce =
+        with(state.ctx) {
+            bounced.not() and state.makeSymbolicPrimitive(state.ctx.boolSort)
+        }
 
     val ihrDisabled = state.ctx.trueExpr // ihr_disabled:Bool
     val ihrFee = state.ctx.zeroValue // ihr_fee:Grams
@@ -126,53 +134,57 @@ class RecvInternalInput(
         val bodyDataSlice: UHeapRef, // assume body is (Either X ^X).left, prefix is 1 bit of one
     )
 
+    override fun constructFullMessage(state: TvmState): UConcreteHeapRef =
+        with(state.ctx) {
+            val resultBuilder = state.allocEmptyBuilder()
 
-    override fun constructFullMessage(state: TvmState): UConcreteHeapRef = with(state.ctx) {
-        val resultBuilder = state.allocEmptyBuilder()
+            // hack for using builder operations
+            val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+            assertArgConstraints(scope, minMessageCurrencyValue = minMessageCurrencyValue)
 
-        // hack for using builder operations
-        val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
-        assertArgConstraints(scope, minMessageCurrencyValue = minMessageCurrencyValue)
+            val flags = generateFlags(this)
 
-        val flags = generateFlags(this)
+            val messageContent =
+                MessageContent(
+                    flags = flags,
+                    srcAddressSlice = srcAddressSlice,
+                    dstAddressSlice = contractAddressSlice,
+                    msgValue = msgValue,
+                    ihrFee = ihrFee,
+                    fwdFee = fwdFee,
+                    createdLt = createdLt,
+                    createdAt = createdAt,
+                    bodyDataSlice = msgBodySliceMaybeBounced
+                )
 
-        val messageContent = MessageContent(
-            flags = flags,
-            srcAddressSlice = srcAddressSlice,
-            dstAddressSlice = contractAddressSlice,
-            msgValue = msgValue,
-            ihrFee = ihrFee,
-            fwdFee = fwdFee,
-            createdLt = createdLt,
-            createdAt = createdAt,
-            bodyDataSlice = msgBodySliceMaybeBounced
-        )
+            return@with constructMessageFromContent(state, messageContent)
+        }
 
-        return@with constructMessageFromContent(state, messageContent)
-    }
+    private fun generateFlags(ctx: TvmContext): UExpr<TvmInt257Sort> =
+        with(ctx) {
+            // int_msg_info$0
+            var flags: UExpr<TvmInt257Sort> = zeroValue
 
-    private fun generateFlags(ctx: TvmContext): UExpr<TvmInt257Sort> = with(ctx) {
-        // int_msg_info$0
-        var flags: UExpr<TvmInt257Sort> = zeroValue
+            // ihr_disabled:Bool
+            flags = mkBvShiftLeftExpr(flags, oneValue)
+            flags = mkBvAddExpr(flags, ihrDisabled.asIntValue())
 
-        // ihr_disabled:Bool
-        flags = mkBvShiftLeftExpr(flags, oneValue)
-        flags = mkBvAddExpr(flags, ihrDisabled.asIntValue())
+            // bounce:Bool
+            flags = mkBvShiftLeftExpr(flags, oneValue)
+            flags = mkBvAddExpr(flags, bounce.asIntValue())
 
-        // bounce:Bool
-        flags = mkBvShiftLeftExpr(flags, oneValue)
-        flags = mkBvAddExpr(flags, bounce.asIntValue())
+            // bounced:Bool
+            flags = mkBvShiftLeftExpr(flags, oneValue)
+            flags = mkBvAddExpr(flags, bounced.asIntValue())
 
-        // bounced:Bool
-        flags = mkBvShiftLeftExpr(flags, oneValue)
-        flags = mkBvAddExpr(flags, bounced.asIntValue())
-
-        return flags
-    }
+            return flags
+        }
 }
 
-
-fun constructMessageFromContent(state: TvmState, content: MessageContent): UConcreteHeapRef =
+fun constructMessageFromContent(
+    state: TvmState,
+    content: MessageContent,
+): UConcreteHeapRef =
     with(state.ctx) {
         val resultBuilder = state.allocEmptyBuilder()
 
