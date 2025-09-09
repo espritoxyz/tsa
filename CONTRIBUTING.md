@@ -33,4 +33,4 @@ Running tests requires some special environment.
 
 Before contributing, you must run formatter and linter with `./gradlew formatAndLintAll` (for Unix) or `./gradlew.bat formatAndLintAll` (for Windows) from the root of the repo.
 
-Some format issue will be fixed automatically, some will require manual fixes.
+Some format issues will be fixed automatically, some will require manual fixes.
