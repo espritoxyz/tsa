@@ -58,7 +58,6 @@ import org.usvm.mkSizeGeExpr
 import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
-import org.usvm.utils.extractAddresses
 import org.usvm.utils.intValueOrNull
 
 private data class GuardedExpr(
@@ -709,7 +708,7 @@ fun TvmStepScopeManager.builderCopy(original: UHeapRef, result: UConcreteHeapRef
     }
 }
 
-fun TvmState.builderStoreDataBitsNoOverflowCheck(builder: UConcreteHeapRef, bits: UExpr<UBvSort>) = with(ctx) {
+private fun TvmState.builderStoreDataBitsNoOverflowCheck(builder: UConcreteHeapRef, bits: UExpr<UBvSort>) = with(ctx) {
     val builderData =
         fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderStoreDataBitsNoOverflowCheck, builder)
     val builderDataLength =
@@ -750,6 +749,26 @@ fun TvmState.builderStoreDataBitsNoOverflowCheck(builder: UConcreteHeapRef, bits
         value = updatedLength,
         upperBound = updatedLengthUpperBound,
     )
+}
+
+fun TvmStepScopeManager.builderStoreDataBits(
+    builder: UConcreteHeapRef,
+    bits: UExpr<UBvSort>,
+): Unit? = with(ctx) {
+
+    val sizeBits = bits.sort.sizeBits.toInt()
+
+    setBuilderLengthOrThrowCellOverflow(
+        this@builderStoreDataBits,
+        oldBuilder = builder,
+        newBuilder = builder,
+        writeSizeBits = mkSizeExpr(sizeBits),
+        writeSizeBitsUpperBound = sizeBits,
+    ) ?: return null
+
+    calcOnState {
+        builderStoreDataBitsNoOverflowCheck(builder, bits)
+    }
 }
 
 fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
@@ -914,7 +933,7 @@ fun TvmStepScopeManager.builderStoreGrams(
     return coinPrefix
 }
 
-fun TvmState.builderStoreNextRef(builder: UHeapRef, ref: UHeapRef) = with(ctx) {
+fun TvmState.builderStoreNextRefNoOverflowCheck(builder: UHeapRef, ref: UHeapRef) = with(ctx) {
     val builderRefsLength = memory.readField(builder, cellRefsLengthField, sizeSort)
     writeCellRef(builder, builderRefsLength, ref)
     val updatedLength = mkSizeAddExpr(builderRefsLength, mkSizeExpr(1))
@@ -1033,7 +1052,7 @@ fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef = with(ctx) {
     cellValue.refs.forEach { refValue ->
         val ref = allocateCell(refValue)
 
-        builderStoreNextRef(cell, ref)
+        builderStoreNextRefNoOverflowCheck(cell, ref)
     }
 
     cell

@@ -156,9 +156,10 @@ import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.assertDictType
 import org.usvm.machine.state.assertIfSat
 import org.usvm.machine.state.builderCopyFromBuilder
-import org.usvm.machine.state.builderStoreDataBitsNoOverflowCheck
-import org.usvm.machine.state.builderStoreNextRef
+import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.calcOnStateCtx
+import org.usvm.machine.state.checkCellOverflow
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.copyDict
@@ -431,7 +432,7 @@ class TvmDictOperationInterpreter(
         }
     }
 
-    private fun doStoreDictToBuilder(inst: TvmDictSerialInst, scope: TvmStepScopeManager) {
+    private fun doStoreDictToBuilder(inst: TvmDictSerialInst, scope: TvmStepScopeManager) = with(scope.ctx) {
         val builder = scope.calcOnStateCtx { takeLastBuilder() }
         if (builder == null) {
             scope.doWithState(ctx.throwTypeCheckError)
@@ -445,12 +446,24 @@ class TvmDictOperationInterpreter(
         val resultBuilder = scope.calcOnStateCtx { memory.allocConcrete(TvmBuilderType) }
         scope.doWithStateCtx { builderCopyFromBuilder(builder, resultBuilder) }
 
-        scope.doWithStateCtx {
-            if (dictCellRef == null) {
-                builderStoreDataBitsNoOverflowCheck(resultBuilder, mkBv(value = 0, sizeBits = 1u))
-            } else {
-                builderStoreDataBitsNoOverflowCheck(resultBuilder, mkBv(value = 1, sizeBits = 1u))
-                builderStoreNextRef(resultBuilder, dictCellRef)
+        if (dictCellRef == null) {
+            scope.builderStoreDataBits(resultBuilder, mkBv(value = 0, sizeBits = 1u))
+                ?: return
+        } else {
+            scope.builderStoreDataBits(resultBuilder, mkBv(value = 1, sizeBits = 1u))
+                ?: return
+
+            val refs = scope.calcOnState {
+                memory.readField(resultBuilder, TvmContext.cellRefsLengthField, sizeSort)
+            }
+
+            checkCellOverflow(
+                mkBvSignedLessOrEqualExpr(refs, mkSizeExpr(TvmContext.MAX_REFS_NUMBER)),
+                scope
+            ) ?: return
+
+            scope.calcOnState {
+                builderStoreNextRefNoOverflowCheck(resultBuilder, dictCellRef)
             }
         }
 
@@ -1115,7 +1128,7 @@ class TvmDictOperationInterpreter(
                 val cell = takeLastCell() ?: return@calcOnState null
                 val builder = allocEmptyCell()
 
-                builderStoreNextRef(builder, cell)
+                builderStoreNextRefNoOverflowCheck(builder, cell)
                 allocSliceFromCell(builder)
             }
             DictValueType.BUILDER -> {

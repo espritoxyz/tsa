@@ -122,7 +122,7 @@ import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderStoreIntTlb
-import org.usvm.machine.state.builderStoreNextRef
+import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSlice
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderStoreValueTlb
@@ -1598,7 +1598,7 @@ class TvmCellInterpreter(
 
             scope.doWithState {
                 val updatedBuilder = memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
-                builderStoreNextRef(updatedBuilder, cell)
+                builderStoreNextRefNoOverflowCheck(updatedBuilder, cell)
 
                 // In this case, new builder has the same data structure as the old builder (only refs are changed).
                 // Thus, we just copy tlb structure builder.
