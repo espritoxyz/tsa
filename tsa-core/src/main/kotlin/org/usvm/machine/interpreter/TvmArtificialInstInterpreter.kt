@@ -16,7 +16,6 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
@@ -45,9 +44,9 @@ import org.usvm.machine.state.isExceptional
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.OutMessage
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
-import org.usvm.machine.state.readCellLength
 import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.returnFromContinuation
@@ -166,7 +165,7 @@ class TvmArtificialInstInterpreter(
                             return@calcOnState
                         }
                     // if is bounceable, bounce back to sender
-                    val fullMsgData = cellDataFieldManager.readCellData(scope, receivedMsgData.fullMsgCell)
+                    val fullMsgData = fieldManagers.cellDataFieldManager.readCellData(scope, receivedMsgData.fullMsgCell)
                         ?: return@calcOnState
                     val isBounceable = mkBvAndExpr(
                         fullMsgData,
@@ -204,25 +203,33 @@ class TvmArtificialInstInterpreter(
         oldMessage: OutMessage,
         sender: ContractId,
     ): OutMessage {
-        val (msgCell, bodySlice) = scope.calcOnState {
-            with(ctx) {
-                val builder = allocEmptyBuilder()
-                builderStoreDataBits(builder, bouncedMessageTagLong.toBv(32u))
-                val dataPos = readSliceDataPos(oldMessage.msgBodySlice)
-                val cellLength = readCellLength(readSliceCell(oldMessage.msgBodySlice))
+        val (msgCell, bodySlice) = with(ctx) {
+                val builder = scope.calcOnState { allocEmptyBuilder() }
+                scope.builderStoreDataBits(builder, bouncedMessageTagLong.toBv(32u))
+                    ?: error("Unexpected cell overflow")
+                val dataPos = scope.calcOnState {
+                    readSliceDataPos(oldMessage.msgBodySlice)
+                }
+                val cellLength = scope.calcOnState {
+                    fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, readSliceCell(oldMessage.msgBodySlice))
+                }
                 val length = mkBvSubExpr(cellLength, dataPos)
                 val leftLength = mkIte(
                     mkBvSignedGreaterExpr(length, 256.toBv()), 256.toBv(ctx.sizeSort), length
                 )
                 val leftData = scope.slicePreloadDataBits(oldMessage.msgBodySlice, leftLength)
-                scope.builderStoreDataBits(builder, leftData!!, leftLength, null)
-                val bodySlice = allocSliceFromCell(builderToCell(builder))
-                val destinationCell =
+                    ?: error("Unexpected cell underflow")
+                scope.builderStoreDataBits(builder, builder, leftData, leftLength, null)
+                val bodySlice = scope.calcOnState {
+                    allocSliceFromCell(builderToCell(builder))
+                }
+                val destinationCell = scope.calcOnState {
                     getContractInfoParamOf(ADDRESS_PARAMETER_IDX, sender).cellValue ?: error("no destination :(")
+                }
                 val content = RecvInternalInput.MessageContent(
                     flags = 0b0101.toBv257(),
                     srcAddressSlice = oldMessage.destAddrSlice,
-                    dstAddressSlice = allocSliceFromCell(destinationCell),
+                    dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationCell) },
                     msgValue = zeroValue,
                     ihrFee = zeroValue,
                     fwdFee = zeroValue,
@@ -230,9 +237,8 @@ class TvmArtificialInstInterpreter(
                     createdAt = zeroValue,
                     bodyDataSlice = bodySlice
                 )
-                constructMessageFromContent(this@calcOnState, content) to bodySlice
+                constructMessageFromContent(scope.calcOnState { this }, content) to bodySlice
             }
-        }
         return OutMessage(
             msgValue = oldMessage.msgValue,
             fullMsgCell = msgCell,
