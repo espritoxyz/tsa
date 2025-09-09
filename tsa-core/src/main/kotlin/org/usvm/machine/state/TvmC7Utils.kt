@@ -687,7 +687,7 @@ private fun TvmState.getConfig() =
     getContractInfo()[9, stack].cell(stack)?.cellValue
         ?: error("Unexpected config value")
 
-private fun PersistentList<TvmStackEntry>.extendToSize(newSize: Int): PersistentList<TvmStackEntry> {  // sdddddddddddddddddddddd
+private fun PersistentList<TvmStackEntry>.extendToSize(newSize: Int): PersistentList<TvmStackEntry> {
     if (size >= newSize) {
         return this
     }
