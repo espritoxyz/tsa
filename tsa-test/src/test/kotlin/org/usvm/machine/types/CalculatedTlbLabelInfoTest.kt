@@ -23,7 +23,6 @@ import org.usvm.machine.TvmComponents
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
-import org.usvm.machine.TvmMachine
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
@@ -44,38 +43,41 @@ class CalculatedTlbLabelInfoTest {
     private val dummyComponents = TvmComponents(TvmOptions())
     private val ctx = TvmContext(TvmOptions(), dummyComponents)
 
-    private val dummyInterpreter = TvmInterpreter(
-        ctx,
-        listOf(someCode),
-        dummyComponents.typeSystem,
-        TvmInputInfo(),
-    )
-    private val dummyState = dummyInterpreter.getInitialState(
-        startContractId = 0,
-        concreteGeneralData = TvmConcreteGeneralData(),
-        concreteContractData = listOf(TvmConcreteContractData()),
-        methodId = BigInteger.ZERO
-    )
+    private val dummyInterpreter =
+        TvmInterpreter(
+            ctx,
+            listOf(someCode),
+            dummyComponents.typeSystem,
+            TvmInputInfo()
+        )
+    private val dummyState =
+        dummyInterpreter.getInitialState(
+            startContractId = 0,
+            concreteGeneralData = TvmConcreteGeneralData(),
+            concreteContractData = listOf(TvmConcreteContractData()),
+            methodId = BigInteger.ZERO
+        )
     private val cellDataFieldManager = dummyState.fieldManagers.cellDataFieldManager
 
-    val info = CalculatedTlbLabelInfo(
-        ctx,
-        listOf(
-            maybeStructure,
-            prefixInt64Structure,
-            intSwitchStructure,
-            structureX,
-            structureY,
-            recursiveStructure,
-            recursiveWithRefStructure,
-            refAfterRecursiveStructure,
-            longDataStructure,
-            wrappedMsgStructure,
-            customVarInteger,
-            doubleCustomVarInteger,
+    val info =
+        CalculatedTlbLabelInfo(
+            ctx,
+            listOf(
+                maybeStructure,
+                prefixInt64Structure,
+                intSwitchStructure,
+                structureX,
+                structureY,
+                recursiveStructure,
+                recursiveWithRefStructure,
+                refAfterRecursiveStructure,
+                longDataStructure,
+                wrappedMsgStructure,
+                customVarInteger,
+                doubleCustomVarInteger
+            )
         )
-    )
-    
+
     private val maxTlbDepth = ctx.tvmOptions.tlbOptions.maxTlbDepth
 
     @Test
@@ -90,7 +92,7 @@ class CalculatedTlbLabelInfoTest {
         val size = info.getDataCellSize(dummyState, address, maybeStructure)
         assertEquals(1, size?.intValue())
 
-        val child = info.getLabelChildStructure(dummyState, address, maybeStructure,  childIdx = 0)!!
+        val child = info.getLabelChildStructure(dummyState, address, maybeStructure, childIdx = 0)!!
         assertEquals(1, child.size)
 
         val guard = child.values.first()
@@ -115,10 +117,14 @@ class CalculatedTlbLabelInfoTest {
 
         val size = info.getDataCellSize(dummyState, address, intSwitchStructure)
         assertTrue(size !is KInterpretedValue<*>)
-        val evaluated = dummyState.models.first().eval(size as UExpr<TvmSizeSort>).intValue()
+        val evaluated =
+            dummyState.models
+                .first()
+                .eval(size as UExpr<TvmSizeSort>)
+                .intValue()
         assertTrue(evaluated == 34 || evaluated == 66)
 
-        val child = info.getLabelChildStructure(dummyState, address, intSwitchStructure,  childIdx = 0)!!
+        val child = info.getLabelChildStructure(dummyState, address, intSwitchStructure, childIdx = 0)!!
         assertEquals(0, child.size)
 
         val cell = info.getDefaultCell(intSwitchStructure)
@@ -168,7 +174,7 @@ class CalculatedTlbLabelInfoTest {
         val size = info.getDataCellSize(dummyState, address, structureX)
         assertEquals(16, size?.intValue())
 
-        val child = info.getLabelChildStructure(dummyState, address, structureX,  childIdx = 0)!!
+        val child = info.getLabelChildStructure(dummyState, address, structureX, childIdx = 0)!!
         assertEquals(0, child.size)
 
         assertTrue { address.address !in cellDataFieldManager.getCellsWithRequestedCellDataField() }
@@ -189,7 +195,7 @@ class CalculatedTlbLabelInfoTest {
         val size = info.getDataCellSize(dummyState, address, structureY)
         assertEquals(16 * 3, size?.intValue())
 
-        val child = info.getLabelChildStructure(dummyState, address, structureY,  childIdx = 0)!!
+        val child = info.getLabelChildStructure(dummyState, address, structureY, childIdx = 0)!!
         assertEquals(0, child.size)
 
         assertTrue { address.address !in cellDataFieldManager.getCellsWithRequestedCellDataField() }
@@ -217,17 +223,25 @@ class CalculatedTlbLabelInfoTest {
 
         val size1 = info.getDataCellSize(dummyState, address, recursiveStructure, maxDepth = 1)
         assertTrue(size1 !is KInterpretedValue)
-        val evaluated1 = dummyState.models.first().eval(size1 as UExpr<TvmSizeSort>).intValue()
+        val evaluated1 =
+            dummyState.models
+                .first()
+                .eval(size1 as UExpr<TvmSizeSort>)
+                .intValue()
         assertEquals(10, evaluated1)
         val switchVariants2 = info.getPossibleSwitchVariants(switchStructure, maxDepth = 1)
         assertTrue { switchVariants2.size == 2 }
 
         val size3 = info.getDataCellSize(dummyState, address, recursiveStructure, maxDepth = 3)
         assertTrue(size3 !is KInterpretedValue)
-        val evaluated3 = dummyState.models.first().eval(size3 as UExpr<TvmSizeSort>).intValue()
+        val evaluated3 =
+            dummyState.models
+                .first()
+                .eval(size3 as UExpr<TvmSizeSort>)
+                .intValue()
         assertEquals(28, evaluated3)
 
-        val child = info.getLabelChildStructure(dummyState, address, recursiveStructure,  childIdx = 0)!!
+        val child = info.getLabelChildStructure(dummyState, address, recursiveStructure, childIdx = 0)!!
         assertEquals(0, child.size)
 
         assertTrue { address.address !in cellDataFieldManager.getCellsWithRequestedCellDataField() }
@@ -252,23 +266,31 @@ class CalculatedTlbLabelInfoTest {
 
         val size1 = info.getDataCellSize(dummyState, address, recursiveWithRefStructure, maxDepth = 1)
         assertTrue(size1 !is KInterpretedValue)
-        val evaluated1 = dummyState.models.first().eval(size1 as UExpr<TvmSizeSort>).intValue()
+        val evaluated1 =
+            dummyState.models
+                .first()
+                .eval(size1 as UExpr<TvmSizeSort>)
+                .intValue()
         assertEquals(2, evaluated1)
 
         val size3 = info.getDataCellSize(dummyState, address, recursiveWithRefStructure, maxDepth = 3)
         assertTrue(size3 !is KInterpretedValue)
-        val evaluated3 = dummyState.models.first().eval(size3 as UExpr<TvmSizeSort>).intValue()
+        val evaluated3 =
+            dummyState.models
+                .first()
+                .eval(size3 as UExpr<TvmSizeSort>)
+                .intValue()
         assertEquals(4, evaluated3)
 
-        val child0 = info.getLabelChildStructure(dummyState, address, recursiveWithRefStructure,  childIdx = 0)!!
+        val child0 = info.getLabelChildStructure(dummyState, address, recursiveWithRefStructure, childIdx = 0)!!
         assertEquals(1, child0.size)
         assertTrue(child0.values.first() !is KInterpretedValue)
 
-        val child1 = info.getLabelChildStructure(dummyState, address, recursiveWithRefStructure,  childIdx = 1)!!
+        val child1 = info.getLabelChildStructure(dummyState, address, recursiveWithRefStructure, childIdx = 1)!!
         assertEquals(1, child1.size)
         assertTrue(child1.values.first() !is KInterpretedValue)
 
-        val child3 = info.getLabelChildStructure(dummyState, address, recursiveWithRefStructure,  childIdx = 3)!!
+        val child3 = info.getLabelChildStructure(dummyState, address, recursiveWithRefStructure, childIdx = 3)!!
         assertEquals(1, child1.size)
         assertTrue(child3.values.first() !is KInterpretedValue)
 
@@ -292,11 +314,11 @@ class CalculatedTlbLabelInfoTest {
 
         val address = dummyState.generateSymbolicCell()
 
-        val child0 = info.getLabelChildStructure(dummyState, address, refAfterRecursiveStructure,  childIdx = 0)!!
+        val child0 = info.getLabelChildStructure(dummyState, address, refAfterRecursiveStructure, childIdx = 0)!!
         assertEquals(1, child0.size)
         assertEquals(ctx.trueExpr, child0.values.first())
 
-        val child1 = info.getLabelChildStructure(dummyState, address, refAfterRecursiveStructure,  childIdx = 1)!!
+        val child1 = info.getLabelChildStructure(dummyState, address, refAfterRecursiveStructure, childIdx = 1)!!
         assertEquals(1, child1.size)
         assertTrue(child1.values.first() !is KInterpretedValue)
 

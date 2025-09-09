@@ -26,6 +26,9 @@ jobs:
 #          java-version: '17'
 #          cache: 'gradle'
 
+      - name: "Linter check"
+        run: ./gradlew clean lintKotlin
+
       - name: 'Build and run test'
         run: ./gradlew clean build
         env:

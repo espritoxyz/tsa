@@ -419,9 +419,10 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
 ) = doWithCtx {
     val cellRef = calcOnState { memory.readField(slice, TvmContext.sliceCellField, addressSort) }
     val dataPos = calcOnState { memory.readField(slice, TvmContext.sliceDataPosField, sizeSort) }
-    val cellLength = calcOnState {
-        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
-    }
+    val cellLength =
+        calcOnState {
+            fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
+        }
     val sliceLength = mkSizeSubExpr(cellLength, dataPos)
 
     val leafAddresses = extractAddresses(slice, extractAllocated = true, extractStatic = true)

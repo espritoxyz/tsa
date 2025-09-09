@@ -7,7 +7,10 @@ import org.usvm.UConcreteHeapRef
 value class TvmBuilderLengthUpperBoundTracker(
     val builderRefToLengthUpperBound: PersistentMap<UConcreteHeapRef, Int>,
 ) {
-    fun setUpperBound(ref: UConcreteHeapRef, bound: Int) = TvmBuilderLengthUpperBoundTracker(
+    fun setUpperBound(
+        ref: UConcreteHeapRef,
+        bound: Int,
+    ) = TvmBuilderLengthUpperBoundTracker(
         builderRefToLengthUpperBound.put(ref, bound)
     )
 }

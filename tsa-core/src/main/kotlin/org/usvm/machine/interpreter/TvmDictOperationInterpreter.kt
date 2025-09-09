@@ -197,7 +197,10 @@ import org.usvm.sizeSort
 class TvmDictOperationInterpreter(
     private val ctx: TvmContext,
 ) {
-    fun visitTvmDictInst(scope: TvmStepScopeManager, inst: TvmDictInst) {
+    fun visitTvmDictInst(
+        scope: TvmStepScopeManager,
+        inst: TvmDictInst,
+    ) {
         scope.consumeDefaultGas(inst)
 
         when (inst) {
@@ -215,105 +218,681 @@ class TvmDictOperationInterpreter(
         }
     }
 
-    private fun visitDictSet(scope: TvmStepScopeManager, inst: TvmDictSetInst) {
+    private fun visitDictSet(
+        scope: TvmStepScopeManager,
+        inst: TvmDictSetInst,
+    ) {
         when (inst) {
-            is TvmDictSetDictaddInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetDictaddgetInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetDictaddrefInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.CELL, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetDictaddgetrefInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.CELL, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetDictreplaceInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetDictreplacegetInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetDictreplacerefInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.CELL, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetDictreplacegetrefInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.CELL, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetDictsetInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetDictsetgetInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, getOldValue = true, DictSetMode.SET)
-            is TvmDictSetDictsetrefInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.CELL, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetDictsetgetrefInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.CELL, getOldValue = true, DictSetMode.SET)
-            is TvmDictSetDictiaddInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetDictiaddgetInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetDictiaddrefInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetDictiaddgetrefInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetDictireplaceInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetDictireplacegetInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetDictireplacerefInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetDictireplacegetrefInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetDictisetInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetDictisetgetInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, getOldValue = true, DictSetMode.SET)
-            is TvmDictSetDictisetrefInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetDictisetgetrefInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, getOldValue = true, DictSetMode.SET)
-            is TvmDictSetDictuaddInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetDictuaddgetInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetDictuaddrefInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetDictuaddgetrefInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetDictureplaceInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetDictureplacegetInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetDictureplacerefInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetDictureplacegetrefInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetDictusetInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetDictusetgetInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, getOldValue = true, DictSetMode.SET)
-            is TvmDictSetDictusetrefInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetDictusetgetrefInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, getOldValue = true, DictSetMode.SET)
+            is TvmDictSetDictaddInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictaddgetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictaddrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictaddgetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictreplaceInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictreplacegetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictreplacerefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictreplacegetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictsetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictsetgetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictsetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictsetgetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictiaddInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictiaddgetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictiaddrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictiaddgetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictireplaceInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictireplacegetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictireplacerefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictireplacegetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictisetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictisetgetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictisetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictisetgetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictuaddInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictuaddgetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictuaddrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictuaddgetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetDictureplaceInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictureplacegetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictureplacerefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictureplacegetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetDictusetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictusetgetInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictusetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetDictusetgetrefInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
         }
     }
 
-    private fun visitDictSetBuilder(scope: TvmStepScopeManager, inst: TvmDictSetBuilderInst) {
+    private fun visitDictSetBuilder(
+        scope: TvmStepScopeManager,
+        inst: TvmDictSetBuilderInst,
+    ) {
         when (inst) {
-            is TvmDictSetBuilderDictaddbInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.BUILDER, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetBuilderDictaddgetbInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.BUILDER, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetBuilderDictreplacebInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.BUILDER, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetBuilderDictreplacegetbInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.BUILDER, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetBuilderDictsetbInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.BUILDER, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetBuilderDictsetgetbInst -> doDictSet(inst, scope, DictKeyType.SLICE, DictValueType.BUILDER, getOldValue = true, DictSetMode.SET)
-            is TvmDictSetBuilderDictiaddbInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.BUILDER, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetBuilderDictiaddgetbInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.BUILDER, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetBuilderDictireplacebInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.BUILDER, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetBuilderDictireplacegetbInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.BUILDER, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetBuilderDictisetbInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.BUILDER, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetBuilderDictisetgetbInst -> doDictSet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.BUILDER, getOldValue = true, DictSetMode.SET)
-            is TvmDictSetBuilderDictuaddbInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.BUILDER, getOldValue = false, DictSetMode.ADD)
-            is TvmDictSetBuilderDictuaddgetbInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.BUILDER, getOldValue = true, DictSetMode.ADD)
-            is TvmDictSetBuilderDictureplacebInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.BUILDER, getOldValue = false, DictSetMode.REPLACE)
-            is TvmDictSetBuilderDictureplacegetbInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.BUILDER, getOldValue = true, DictSetMode.REPLACE)
-            is TvmDictSetBuilderDictusetbInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.BUILDER, getOldValue = false, DictSetMode.SET)
-            is TvmDictSetBuilderDictusetgetbInst -> doDictSet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.BUILDER, getOldValue = true, DictSetMode.SET)
+            is TvmDictSetBuilderDictaddbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetBuilderDictaddgetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetBuilderDictreplacebInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetBuilderDictreplacegetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetBuilderDictsetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetBuilderDictsetgetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
+            is TvmDictSetBuilderDictiaddbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetBuilderDictiaddgetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetBuilderDictireplacebInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetBuilderDictireplacegetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetBuilderDictisetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetBuilderDictisetgetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
+            is TvmDictSetBuilderDictuaddbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetBuilderDictuaddgetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.ADD
+                )
+            is TvmDictSetBuilderDictureplacebInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetBuilderDictureplacegetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.REPLACE
+                )
+            is TvmDictSetBuilderDictusetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = false,
+                    DictSetMode.SET
+                )
+            is TvmDictSetBuilderDictusetgetbInst ->
+                doDictSet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.BUILDER,
+                    getOldValue = true,
+                    DictSetMode.SET
+                )
         }
     }
 
-    private fun visitDictGet(scope: TvmStepScopeManager, inst: TvmDictGetInst) {
+    private fun visitDictGet(
+        scope: TvmStepScopeManager,
+        inst: TvmDictGetInst,
+    ) {
         when (inst) {
-            is TvmDictGetDictgetInst -> doDictGet(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, nullDefaultValue = false)
-            is TvmDictGetDictgetrefInst -> doDictGet(inst, scope, DictKeyType.SLICE, DictValueType.CELL, nullDefaultValue = false)
-            is TvmDictGetDictigetInst -> doDictGet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, nullDefaultValue = false)
-            is TvmDictGetDictigetrefInst -> doDictGet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, nullDefaultValue = false)
-            is TvmDictGetDictugetInst -> doDictGet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, nullDefaultValue = false)
-            is TvmDictGetDictugetrefInst -> doDictGet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, nullDefaultValue = false)
+            is TvmDictGetDictgetInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    nullDefaultValue = false
+                )
+            is TvmDictGetDictgetrefInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    nullDefaultValue = false
+                )
+            is TvmDictGetDictigetInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    nullDefaultValue = false
+                )
+            is TvmDictGetDictigetrefInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    nullDefaultValue = false
+                )
+            is TvmDictGetDictugetInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    nullDefaultValue = false
+                )
+            is TvmDictGetDictugetrefInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    nullDefaultValue = false
+                )
         }
     }
 
-    private fun visitDictMaybeRef(scope: TvmStepScopeManager, inst: TvmDictMayberefInst) {
+    private fun visitDictMaybeRef(
+        scope: TvmStepScopeManager,
+        inst: TvmDictMayberefInst,
+    ) {
         when (inst) {
-            is TvmDictMayberefDictgetoptrefInst -> doDictGet(inst, scope, DictKeyType.SLICE, DictValueType.CELL, nullDefaultValue = true)
-            is TvmDictMayberefDictigetoptrefInst -> doDictGet(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, nullDefaultValue = true)
-            is TvmDictMayberefDictugetoptrefInst -> doDictGet(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, nullDefaultValue = true)
+            is TvmDictMayberefDictgetoptrefInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    nullDefaultValue = true
+                )
+            is TvmDictMayberefDictigetoptrefInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    nullDefaultValue = true
+                )
+            is TvmDictMayberefDictugetoptrefInst ->
+                doDictGet(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    nullDefaultValue = true
+                )
             else -> TODO("Unknown stmt: $inst")
         }
     }
 
-    private fun visitDictDelete(scope: TvmStepScopeManager, inst: TvmDictDeleteInst) {
+    private fun visitDictDelete(
+        scope: TvmStepScopeManager,
+        inst: TvmDictDeleteInst,
+    ) {
         when (inst) {
-            is TvmDictDeleteDictdelInst -> doDictDelete(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, getOldValue = false)
-            is TvmDictDeleteDictdelgetInst -> doDictDelete(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, getOldValue = true)
-            is TvmDictDeleteDictdelgetrefInst -> doDictDelete(inst, scope, DictKeyType.SLICE, DictValueType.CELL, getOldValue = true)
-            is TvmDictDeleteDictidelInst -> doDictDelete(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, getOldValue = false)
-            is TvmDictDeleteDictidelgetInst -> doDictDelete(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, getOldValue = true)
-            is TvmDictDeleteDictidelgetrefInst -> doDictDelete(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, getOldValue = true)
-            is TvmDictDeleteDictudelInst -> doDictDelete(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, getOldValue = false)
-            is TvmDictDeleteDictudelgetInst -> doDictDelete(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, getOldValue = true)
-            is TvmDictDeleteDictudelgetrefInst -> doDictDelete(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, getOldValue = true)
+            is TvmDictDeleteDictdelInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    getOldValue = false
+                )
+            is TvmDictDeleteDictdelgetInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    getOldValue = true
+                )
+            is TvmDictDeleteDictdelgetrefInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    getOldValue = true
+                )
+            is TvmDictDeleteDictidelInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = false
+                )
+            is TvmDictDeleteDictidelgetInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = true
+                )
+            is TvmDictDeleteDictidelgetrefInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = true
+                )
+            is TvmDictDeleteDictudelInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = false
+                )
+            is TvmDictDeleteDictudelgetInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    getOldValue = true
+                )
+            is TvmDictDeleteDictudelgetrefInst ->
+                doDictDelete(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    getOldValue = true
+                )
         }
     }
 
-    private fun visitDictSerial(scope: TvmStepScopeManager, inst: TvmDictSerialInst) {
+    private fun visitDictSerial(
+        scope: TvmStepScopeManager,
+        inst: TvmDictSerialInst,
+    ) {
         when (inst) {
             is TvmDictSerialLddictInst -> doLoadDict(inst, scope, returnUpdatedSlice = true)
             is TvmDictSerialLddictqInst -> TODO()
@@ -326,49 +905,343 @@ class TvmDictOperationInterpreter(
         }
     }
 
-    private fun visitDictMin(scope: TvmStepScopeManager, inst: TvmDictMinInst) {
+    private fun visitDictMin(
+        scope: TvmStepScopeManager,
+        inst: TvmDictMinInst,
+    ) {
         when (inst) {
-            is TvmDictMinDictimaxInst -> doDictMinMax(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, DictMinMaxMode.MAX, removeKey = false)
-            is TvmDictMinDictimaxrefInst -> doDictMinMax(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, DictMinMaxMode.MAX, removeKey = false)
-            is TvmDictMinDictiminInst -> doDictMinMax(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, DictMinMaxMode.MIN, removeKey = false)
-            is TvmDictMinDictiminrefInst -> doDictMinMax(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, DictMinMaxMode.MIN, removeKey = false)
-            is TvmDictMinDictiremmaxInst -> doDictMinMax(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, DictMinMaxMode.MAX, removeKey = true)
-            is TvmDictMinDictiremmaxrefInst -> doDictMinMax(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, DictMinMaxMode.MAX, removeKey = true)
-            is TvmDictMinDictiremminInst -> doDictMinMax(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, DictMinMaxMode.MIN, removeKey = true)
-            is TvmDictMinDictiremminrefInst -> doDictMinMax(inst, scope, DictKeyType.SIGNED_INT, DictValueType.CELL, DictMinMaxMode.MIN, removeKey = true)
-            is TvmDictMinDictmaxInst -> doDictMinMax(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, DictMinMaxMode.MAX, removeKey = false)
-            is TvmDictMinDictmaxrefInst -> doDictMinMax(inst, scope, DictKeyType.SLICE, DictValueType.CELL, DictMinMaxMode.MAX, removeKey = false)
-            is TvmDictMinDictminInst -> doDictMinMax(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, DictMinMaxMode.MIN, removeKey = false)
-            is TvmDictMinDictminrefInst -> doDictMinMax(inst, scope, DictKeyType.SLICE, DictValueType.CELL, DictMinMaxMode.MIN, removeKey = false)
-            is TvmDictMinDictremmaxInst -> doDictMinMax(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, DictMinMaxMode.MAX, removeKey = true)
-            is TvmDictMinDictremmaxrefInst -> doDictMinMax(inst, scope, DictKeyType.SLICE, DictValueType.CELL, DictMinMaxMode.MAX, removeKey = true)
-            is TvmDictMinDictremminInst -> doDictMinMax(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, DictMinMaxMode.MIN, removeKey = true)
-            is TvmDictMinDictremminrefInst -> doDictMinMax(inst, scope, DictKeyType.SLICE, DictValueType.CELL, DictMinMaxMode.MIN, removeKey = true)
-            is TvmDictMinDictumaxInst -> doDictMinMax(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, DictMinMaxMode.MAX, removeKey = false)
-            is TvmDictMinDictumaxrefInst -> doDictMinMax(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, DictMinMaxMode.MAX, removeKey = false)
-            is TvmDictMinDictuminInst -> doDictMinMax(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, DictMinMaxMode.MIN, removeKey = false)
-            is TvmDictMinDictuminrefInst -> doDictMinMax(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, DictMinMaxMode.MIN, removeKey = false)
-            is TvmDictMinDicturemmaxInst -> doDictMinMax(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, DictMinMaxMode.MAX, removeKey = true)
-            is TvmDictMinDicturemmaxrefInst -> doDictMinMax(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, DictMinMaxMode.MAX, removeKey = true)
-            is TvmDictMinDicturemminInst -> doDictMinMax(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, DictMinMaxMode.MIN, removeKey = true)
-            is TvmDictMinDicturemminrefInst -> doDictMinMax(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.CELL, DictMinMaxMode.MIN, removeKey = true)
+            is TvmDictMinDictimaxInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MAX,
+                    removeKey = false
+                )
+            is TvmDictMinDictimaxrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MAX,
+                    removeKey = false
+                )
+            is TvmDictMinDictiminInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MIN,
+                    removeKey = false
+                )
+            is TvmDictMinDictiminrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MIN,
+                    removeKey = false
+                )
+            is TvmDictMinDictiremmaxInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MAX,
+                    removeKey = true
+                )
+            is TvmDictMinDictiremmaxrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MAX,
+                    removeKey = true
+                )
+            is TvmDictMinDictiremminInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MIN,
+                    removeKey = true
+                )
+            is TvmDictMinDictiremminrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MIN,
+                    removeKey = true
+                )
+            is TvmDictMinDictmaxInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MAX,
+                    removeKey = false
+                )
+            is TvmDictMinDictmaxrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MAX,
+                    removeKey = false
+                )
+            is TvmDictMinDictminInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MIN,
+                    removeKey = false
+                )
+            is TvmDictMinDictminrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MIN,
+                    removeKey = false
+                )
+            is TvmDictMinDictremmaxInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MAX,
+                    removeKey = true
+                )
+            is TvmDictMinDictremmaxrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MAX,
+                    removeKey = true
+                )
+            is TvmDictMinDictremminInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MIN,
+                    removeKey = true
+                )
+            is TvmDictMinDictremminrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MIN,
+                    removeKey = true
+                )
+            is TvmDictMinDictumaxInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MAX,
+                    removeKey = false
+                )
+            is TvmDictMinDictumaxrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MAX,
+                    removeKey = false
+                )
+            is TvmDictMinDictuminInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MIN,
+                    removeKey = false
+                )
+            is TvmDictMinDictuminrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MIN,
+                    removeKey = false
+                )
+            is TvmDictMinDicturemmaxInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MAX,
+                    removeKey = true
+                )
+            is TvmDictMinDicturemmaxrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MAX,
+                    removeKey = true
+                )
+            is TvmDictMinDicturemminInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    DictMinMaxMode.MIN,
+                    removeKey = true
+                )
+            is TvmDictMinDicturemminrefInst ->
+                doDictMinMax(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.CELL,
+                    DictMinMaxMode.MIN,
+                    removeKey = true
+                )
         }
     }
 
-    private fun visitDictNext(scope: TvmStepScopeManager, inst: TvmDictNextInst) {
+    private fun visitDictNext(
+        scope: TvmStepScopeManager,
+        inst: TvmDictNextInst,
+    ) {
         when (inst) {
-            is TvmDictNextDictgetnextInst -> doDictNextPrev(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, DictNextPrevMode.NEXT, allowEq = false)
-            is TvmDictNextDictgetnexteqInst -> doDictNextPrev(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, DictNextPrevMode.NEXT, allowEq = true)
-            is TvmDictNextDictgetprevInst -> doDictNextPrev(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, DictNextPrevMode.PREV, allowEq = false)
-            is TvmDictNextDictgetpreveqInst -> doDictNextPrev(inst, scope, DictKeyType.SLICE, DictValueType.SLICE, DictNextPrevMode.PREV, allowEq = true)
-            is TvmDictNextDictigetnextInst -> doDictNextPrev(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, DictNextPrevMode.NEXT, allowEq = false)
-            is TvmDictNextDictigetnexteqInst -> doDictNextPrev(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, DictNextPrevMode.NEXT, allowEq = true)
-            is TvmDictNextDictigetprevInst -> doDictNextPrev(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, DictNextPrevMode.PREV, allowEq = false)
-            is TvmDictNextDictigetpreveqInst -> doDictNextPrev(inst, scope, DictKeyType.SIGNED_INT, DictValueType.SLICE, DictNextPrevMode.PREV, allowEq = true)
-            is TvmDictNextDictugetnextInst -> doDictNextPrev(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, DictNextPrevMode.NEXT, allowEq = false)
-            is TvmDictNextDictugetnexteqInst -> doDictNextPrev(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, DictNextPrevMode.NEXT, allowEq = true)
-            is TvmDictNextDictugetprevInst -> doDictNextPrev(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, DictNextPrevMode.PREV, allowEq = false)
-            is TvmDictNextDictugetpreveqInst -> doDictNextPrev(inst, scope, DictKeyType.UNSIGNED_INT, DictValueType.SLICE, DictNextPrevMode.PREV, allowEq = true)
+            is TvmDictNextDictgetnextInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.NEXT,
+                    allowEq = false
+                )
+            is TvmDictNextDictgetnexteqInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.NEXT,
+                    allowEq = true
+                )
+            is TvmDictNextDictgetprevInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.PREV,
+                    allowEq = false
+                )
+            is TvmDictNextDictgetpreveqInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.SLICE,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.PREV,
+                    allowEq = true
+                )
+            is TvmDictNextDictigetnextInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.NEXT,
+                    allowEq = false
+                )
+            is TvmDictNextDictigetnexteqInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.NEXT,
+                    allowEq = true
+                )
+            is TvmDictNextDictigetprevInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.PREV,
+                    allowEq = false
+                )
+            is TvmDictNextDictigetpreveqInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.SIGNED_INT,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.PREV,
+                    allowEq = true
+                )
+            is TvmDictNextDictugetnextInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.NEXT,
+                    allowEq = false
+                )
+            is TvmDictNextDictugetnexteqInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.NEXT,
+                    allowEq = true
+                )
+            is TvmDictNextDictugetprevInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.PREV,
+                    allowEq = false
+                )
+            is TvmDictNextDictugetpreveqInst ->
+                doDictNextPrev(
+                    inst,
+                    scope,
+                    DictKeyType.UNSIGNED_INT,
+                    DictValueType.SLICE,
+                    DictNextPrevMode.PREV,
+                    allowEq = true
+                )
         }
     }
 
@@ -387,11 +1260,13 @@ class TvmDictOperationInterpreter(
 
         val updatedSlice = scope.calcOnState { memory.allocConcrete(TvmSliceType) }
         scope.makeSliceTypeLoad(slice, TvmCellMaybeConstructorBitRead(ctx), updatedSlice) { isNotEmptyValueFromTlb ->
-            val isNotEmpty = isNotEmptyValueFromTlb?.expr ?: let {
-                val maybeConstructorTypeBit = slicePreloadDataBits(slice, bits = 1)
-                    ?: return@makeSliceTypeLoad
-                calcOnStateCtx { mkEq(maybeConstructorTypeBit, mkBv(value = 1, sizeBits = 1u)) }
-            }
+            val isNotEmpty =
+                isNotEmptyValueFromTlb?.expr ?: let {
+                    val maybeConstructorTypeBit =
+                        slicePreloadDataBits(slice, bits = 1)
+                            ?: return@makeSliceTypeLoad
+                    calcOnStateCtx { mkEq(maybeConstructorTypeBit, mkBv(value = 1, sizeBits = 1u)) }
+                }
 
             fork(
                 isNotEmpty,
@@ -408,7 +1283,7 @@ class TvmDictOperationInterpreter(
                     }
 
                     newStmt(inst.nextStmt())
-                },
+                }
             ) ?: return@makeSliceTypeLoad
 
             // Hack: here newSlice is just to copy tlb stack from the old one.
@@ -432,7 +1307,10 @@ class TvmDictOperationInterpreter(
         }
     }
 
-    private fun doStoreDictToBuilder(inst: TvmDictSerialInst, scope: TvmStepScopeManager) = with(scope.ctx) {
+    private fun doStoreDictToBuilder(
+        inst: TvmDictSerialInst,
+        scope: TvmStepScopeManager,
+    ) = with(scope.ctx) {
         val builder = scope.calcOnStateCtx { takeLastBuilder() }
         if (builder == null) {
             scope.doWithState(ctx.throwTypeCheckError)
@@ -453,9 +1331,10 @@ class TvmDictOperationInterpreter(
             scope.builderStoreDataBits(resultBuilder, mkBv(value = 1, sizeBits = 1u))
                 ?: return
 
-            val refs = scope.calcOnState {
-                memory.readField(resultBuilder, TvmContext.cellRefsLengthField, sizeSort)
-            }
+            val refs =
+                scope.calcOnState {
+                    memory.readField(resultBuilder, TvmContext.cellRefsLengthField, sizeSort)
+                }
 
             checkCellOverflow(
                 mkBvSignedLessOrEqualExpr(refs, mkSizeExpr(TvmContext.MAX_REFS_NUMBER)),
@@ -479,10 +1358,11 @@ class TvmDictOperationInterpreter(
         keyType: DictKeyType,
         valueType: DictValueType,
         getOldValue: Boolean,
-        mode: DictSetMode
+        mode: DictSetMode,
     ) {
-        val keyLength = loadKeyLength(scope)
-            ?: return
+        val keyLength =
+            loadKeyLength(scope)
+                ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
         val key = loadKey(scope, keyType, keyLength) ?: return
@@ -496,13 +1376,15 @@ class TvmDictOperationInterpreter(
         val dictId = DictId(keyLength)
         val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
 
-        val dictContainsKey = dictCellRef?.let {
-            scope.calcOnState { dictContainsKey(dictCellRef, dictId, key) }
-        } ?: ctx.falseExpr
+        val dictContainsKey =
+            dictCellRef?.let {
+                scope.calcOnState { dictContainsKey(dictCellRef, dictId, key) }
+            } ?: ctx.falseExpr
 
-        val oldValue = dictCellRef?.let {
-            scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
-        }
+        val oldValue =
+            dictCellRef?.let {
+                scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
+            }
 
         if (dictCellRef != null) {
             assertDictKeyLength(scope, dictCellRef, keyLength)
@@ -526,7 +1408,15 @@ class TvmDictOperationInterpreter(
             dictContainsKey,
             falseStateIsExceptional = false,
             blockOnFalseState = {
-                dictSetResultStack(dictCellRef, resultDict, oldValue = null, valueType, mode, getOldValue, keyContains = false)
+                dictSetResultStack(
+                    dictCellRef,
+                    resultDict,
+                    oldValue = null,
+                    valueType,
+                    mode,
+                    getOldValue,
+                    keyContains = false
+                )
                 newStmt(inst.nextStmt())
             }
         ) ?: return
@@ -538,12 +1428,21 @@ class TvmDictOperationInterpreter(
         assertDictValueDoesNotOverflow(scope, dictId, oldValue)
             ?: return
 
-        val unwrappedOldValue = oldValue.takeIf { getOldValue }?.let {
-            unwrapDictValue(scope, it, valueType)
-                ?: return
-        }
+        val unwrappedOldValue =
+            oldValue.takeIf { getOldValue }?.let {
+                unwrapDictValue(scope, it, valueType)
+                    ?: return
+            }
         scope.doWithState {
-            dictSetResultStack(dictCellRef, resultDict, unwrappedOldValue, valueType, mode, getOldValue, keyContains = true)
+            dictSetResultStack(
+                dictCellRef,
+                resultDict,
+                unwrappedOldValue,
+                valueType,
+                mode,
+                getOldValue,
+                keyContains = true
+            )
             newStmt(inst.nextStmt())
         }
     }
@@ -555,7 +1454,7 @@ class TvmDictOperationInterpreter(
         oldValueType: DictValueType,
         mode: DictSetMode,
         getOldValue: Boolean,
-        keyContains: Boolean
+        keyContains: Boolean,
     ) {
         val returnOldDict = keyContains && mode == DictSetMode.ADD || !keyContains && mode == DictSetMode.REPLACE
         if (returnOldDict) {
@@ -575,11 +1474,12 @@ class TvmDictOperationInterpreter(
             storeValue(oldValueType, oldValue)
         }
 
-        val status = when (mode) {
-            DictSetMode.SET -> if (getOldValue) keyContains else null
-            DictSetMode.ADD -> !keyContains
-            DictSetMode.REPLACE -> keyContains
-        }
+        val status =
+            when (mode) {
+                DictSetMode.SET -> if (getOldValue) keyContains else null
+                DictSetMode.ADD -> !keyContains
+                DictSetMode.REPLACE -> keyContains
+            }
 
         if (status != null) {
             val statusValue = if (status) ctx.trueValue else ctx.falseValue
@@ -594,8 +1494,9 @@ class TvmDictOperationInterpreter(
         valueType: DictValueType,
         nullDefaultValue: Boolean,
     ) = with(ctx) {
-        val keyLength = loadKeyLength(scope)
-            ?: return
+        val keyLength =
+            loadKeyLength(scope)
+                ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
         val key = loadKey(scope, keyType, keyLength) ?: return
@@ -615,9 +1516,10 @@ class TvmDictOperationInterpreter(
         assertDictIsNotEmpty(scope, dictCellRef, dictId)
             ?: return
 
-        val dictContainsKey = scope.calcOnState {
-            dictContainsKey(dictCellRef, dictId, key)
-        }
+        val dictContainsKey =
+            scope.calcOnState {
+                dictContainsKey(dictCellRef, dictId, key)
+            }
 
         scope.fork(
             dictContainsKey,
@@ -634,8 +1536,9 @@ class TvmDictOperationInterpreter(
 
         val sliceValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
 
-        val unwrappedValue = unwrapDictValue(scope, sliceValue, valueType)
-            ?: return
+        val unwrappedValue =
+            unwrapDictValue(scope, sliceValue, valueType)
+                ?: return
 
         assertDictValueDoesNotOverflow(scope, dictId, sliceValue)
             ?: return
@@ -654,10 +1557,11 @@ class TvmDictOperationInterpreter(
         scope: TvmStepScopeManager,
         keyType: DictKeyType,
         valueType: DictValueType,
-        getOldValue: Boolean
+        getOldValue: Boolean,
     ) {
-        val keyLength = loadKeyLength(scope)
-            ?: return
+        val keyLength =
+            loadKeyLength(scope)
+                ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
         val key = loadKey(scope, keyType, keyLength) ?: return
@@ -691,13 +1595,18 @@ class TvmDictOperationInterpreter(
         ) ?: return
 
         val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
-        val unwrappedValue = unwrapDictValue(scope, value, valueType)
-            ?: return
+        val unwrappedValue =
+            unwrapDictValue(scope, value, valueType)
+                ?: return
 
         assertDictValueDoesNotOverflow(scope, dictId, value)
             ?: return
 
-        handleDictRemoveKey(scope, dictCellRef, dictId, key,
+        handleDictRemoveKey(
+            scope,
+            dictCellRef,
+            dictId,
+            key,
             originalDictContainsKeyEmptyResult = {
                 addOnStack(ctx.nullValue, TvmNullType)
 
@@ -727,10 +1636,11 @@ class TvmDictOperationInterpreter(
         keyType: DictKeyType,
         valueType: DictValueType,
         mode: DictMinMaxMode,
-        removeKey: Boolean
+        removeKey: Boolean,
     ) = with(ctx) {
-        val keyLength = loadKeyLength(scope, rangeOpMaxKeyLength(keyType))
-            ?: return
+        val keyLength =
+            loadKeyLength(scope, rangeOpMaxKeyLength(keyType))
+                ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
 
@@ -756,37 +1666,44 @@ class TvmDictOperationInterpreter(
         val resultElementExtended = extendDictKey(resultElement, keyType)
 
         // since these entries were stored during execution, value overflow constraints have already been asserted
-        val allSetEntries = scope.calcOnState {
-            memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
-        }
-
-        val storedKeys = scope.calcOnState {
-            allSetEntries.entries.map { entry ->
-                val setContainsEntry = dictContainsKey(dictCellRef, dictId, entry.setElement)
-                entry.setElement to setContainsEntry
+        val allSetEntries =
+            scope.calcOnState {
+                memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
             }
-        }
 
-        val dictContainsResultElement = scope.calcOnState {
-            dictContainsKey(dictCellRef, dictId, resultElement)
-        }
-
-        val resultIsMinMax = scope.calcOnState {
-            storedKeys.map { (storeKey, storedKeyContains) ->
-                val compareLessThan = when (mode) {
-                    DictMinMaxMode.MIN -> true
-                    DictMinMaxMode.MAX -> false
+        val storedKeys =
+            scope.calcOnState {
+                allSetEntries.entries.map { entry ->
+                    val setContainsEntry = dictContainsKey(dictCellRef, dictId, entry.setElement)
+                    entry.setElement to setContainsEntry
                 }
-                val cmp = compareKeys(
-                    keyType,
-                    compareLessThan,
-                    allowEq = true,
-                    resultElementExtended,
-                    extendDictKey(storeKey, keyType)
-                )
-                mkImplies(storedKeyContains, cmp)
-            }.let { mkAnd(it) }
-        }
+            }
+
+        val dictContainsResultElement =
+            scope.calcOnState {
+                dictContainsKey(dictCellRef, dictId, resultElement)
+            }
+
+        val resultIsMinMax =
+            scope.calcOnState {
+                storedKeys
+                    .map { (storeKey, storedKeyContains) ->
+                        val compareLessThan =
+                            when (mode) {
+                                DictMinMaxMode.MIN -> true
+                                DictMinMaxMode.MAX -> false
+                            }
+                        val cmp =
+                            compareKeys(
+                                keyType,
+                                compareLessThan,
+                                allowEq = true,
+                                resultElementExtended,
+                                extendDictKey(storeKey, keyType)
+                            )
+                        mkImplies(storedKeyContains, cmp)
+                    }.let { mkAnd(it) }
+            }
 
         scope.assert(
             ctx.mkAnd(dictContainsResultElement, resultIsMinMax),
@@ -794,8 +1711,9 @@ class TvmDictOperationInterpreter(
         ) ?: return
 
         val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, resultElement) }
-        val unwrappedValue = unwrapDictValue(scope, value, valueType)
-            ?: return
+        val unwrappedValue =
+            unwrapDictValue(scope, value, valueType)
+                ?: return
 
         assertDictValueDoesNotOverflow(scope, dictId, value)
             ?: return
@@ -810,7 +1728,11 @@ class TvmDictOperationInterpreter(
             return
         }
 
-        handleDictRemoveKey(scope, dictCellRef, dictId, resultElement,
+        handleDictRemoveKey(
+            scope,
+            dictCellRef,
+            dictId,
+            resultElement,
             originalDictContainsKeyEmptyResult = {
                 addOnStack(ctx.nullValue, TvmNullType)
 
@@ -836,30 +1758,34 @@ class TvmDictOperationInterpreter(
         keyType: DictKeyType,
         valueType: DictValueType,
         mode: DictNextPrevMode,
-        allowEq: Boolean
+        allowEq: Boolean,
     ) = with(ctx) {
-        val keyLength = loadKeyLength(scope, rangeOpMaxKeyLength(keyType))
-            ?: return
+        val keyLength =
+            loadKeyLength(scope, rangeOpMaxKeyLength(keyType))
+                ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
 
-        val key = when (keyType) {
-            DictKeyType.SIGNED_INT,
-            DictKeyType.UNSIGNED_INT-> {
-                // key does not necessarily fit into [keyLength] bits
-                // and in case of unsigned key is not necessarily non-negative
-                scope.takeLastIntOrThrowTypeError()?.signExtendToSort(cellDataSort)
-                    ?: return
-            }
+        val key =
+            when (keyType) {
+                DictKeyType.SIGNED_INT,
+                DictKeyType.UNSIGNED_INT,
+                -> {
+                    // key does not necessarily fit into [keyLength] bits
+                    // and in case of unsigned key is not necessarily non-negative
+                    scope.takeLastIntOrThrowTypeError()?.signExtendToSort(cellDataSort)
+                        ?: return
+                }
 
-            DictKeyType.SLICE -> {
-                val slice = scope.calcOnState { takeLastSlice() }
-                    ?: return scope.doWithState(throwTypeCheckError)
+                DictKeyType.SLICE -> {
+                    val slice =
+                        scope.calcOnState { takeLastSlice() }
+                            ?: return scope.doWithState(throwTypeCheckError)
 
-                scope.slicePreloadDataBits(slice, keyLength)?.zeroExtendToSort(cellDataSort)
-                    ?: return
+                    scope.slicePreloadDataBits(slice, keyLength)?.zeroExtendToSort(cellDataSort)
+                        ?: return
+                }
             }
-        }
 
         if (dictCellRef == null) {
             scope.doWithStateCtx {
@@ -881,50 +1807,64 @@ class TvmDictOperationInterpreter(
         val resultElementExtended = extendDictKey(resultElement, keyType)
 
         // since these entries were stored during execution, value overflow constraints have already been asserted
-        val allSetEntries = scope.calcOnStateCtx {
-            memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
-        }
+        val allSetEntries =
+            scope.calcOnStateCtx {
+                memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
+            }
 
         // TODO input keys are not considered
-        val storedKeys = scope.calcOnStateCtx {
-            allSetEntries.entries.map { entry ->
-                val setContainsEntry = dictContainsKey(dictCellRef, dictId, entry.setElement)
-                entry.setElement to setContainsEntry
-            }
-        }
-
-        val dictContainsResultElement = scope.calcOnStateCtx {
-            dictContainsKey(dictCellRef, dictId, resultElement)
-        }
-
-        val resultIsNextPrev = scope.calcOnStateCtx {
-            val compareLessThan = when (mode) {
-                DictNextPrevMode.NEXT -> false
-                DictNextPrevMode.PREV -> true
-            }
-            compareKeys(keyType, compareLessThan, allowEq, resultElementExtended, key)
-        }
-
-        val resultIsClosest = scope.calcOnStateCtx {
-            storedKeys.map { (storeKey, storedKeyContains) ->
-                val storeKeyExtended = extendDictKey(storeKey, keyType)
-                val compareLessThan = when (mode) {
-                    DictNextPrevMode.NEXT -> false
-                    DictNextPrevMode.PREV -> true
+        val storedKeys =
+            scope.calcOnStateCtx {
+                allSetEntries.entries.map { entry ->
+                    val setContainsEntry = dictContainsKey(dictCellRef, dictId, entry.setElement)
+                    entry.setElement to setContainsEntry
                 }
-                val storedKeyRelevant = compareKeys(keyType, compareLessThan, allowEq, storeKeyExtended, key)
+            }
 
-                val compareClosestLessThan = when (mode) {
-                    DictNextPrevMode.NEXT -> true
-                    DictNextPrevMode.PREV -> false
-                }
-                val resultIsClosest = compareKeys(
-                    keyType, compareClosestLessThan, allowEq = true, resultElementExtended, storeKeyExtended
-                )
+        val dictContainsResultElement =
+            scope.calcOnStateCtx {
+                dictContainsKey(dictCellRef, dictId, resultElement)
+            }
 
-                mkImplies(storedKeyContains and storedKeyRelevant, resultIsClosest)
-            }.let { mkAnd(it) }
-        }
+        val resultIsNextPrev =
+            scope.calcOnStateCtx {
+                val compareLessThan =
+                    when (mode) {
+                        DictNextPrevMode.NEXT -> false
+                        DictNextPrevMode.PREV -> true
+                    }
+                compareKeys(keyType, compareLessThan, allowEq, resultElementExtended, key)
+            }
+
+        val resultIsClosest =
+            scope.calcOnStateCtx {
+                storedKeys
+                    .map { (storeKey, storedKeyContains) ->
+                        val storeKeyExtended = extendDictKey(storeKey, keyType)
+                        val compareLessThan =
+                            when (mode) {
+                                DictNextPrevMode.NEXT -> false
+                                DictNextPrevMode.PREV -> true
+                            }
+                        val storedKeyRelevant = compareKeys(keyType, compareLessThan, allowEq, storeKeyExtended, key)
+
+                        val compareClosestLessThan =
+                            when (mode) {
+                                DictNextPrevMode.NEXT -> true
+                                DictNextPrevMode.PREV -> false
+                            }
+                        val resultIsClosest =
+                            compareKeys(
+                                keyType,
+                                compareClosestLessThan,
+                                allowEq = true,
+                                resultElementExtended,
+                                storeKeyExtended
+                            )
+
+                        mkImplies(storedKeyContains and storedKeyRelevant, resultIsClosest)
+                    }.let { mkAnd(it) }
+            }
 
         val dictHasNextKeyConstraint = ctx.mkAnd(dictContainsResultElement, resultIsNextPrev, resultIsClosest)
 
@@ -945,8 +1885,9 @@ class TvmDictOperationInterpreter(
         }
 
         val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, resultElement) }
-        val unwrappedValue = unwrapDictValue(scope, value, valueType)
-            ?: return
+        val unwrappedValue =
+            unwrapDictValue(scope, value, valueType)
+                ?: return
 
         assertDictValueDoesNotOverflow(scope, dictId, value)
             ?: return@with
@@ -965,62 +1906,75 @@ class TvmDictOperationInterpreter(
      * @see [doDictMinMax]
      * @see [doDictNextPrev]
      */
-    private fun rangeOpMaxKeyLength(keyType: DictKeyType): Int = when (keyType) {
-        DictKeyType.UNSIGNED_INT -> 256
-        DictKeyType.SIGNED_INT -> 257
-        DictKeyType.SLICE -> TvmContext.MAX_DATA_LENGTH
-    }
+    private fun rangeOpMaxKeyLength(keyType: DictKeyType): Int =
+        when (keyType) {
+            DictKeyType.UNSIGNED_INT -> 256
+            DictKeyType.SIGNED_INT -> 257
+            DictKeyType.SLICE -> TvmContext.MAX_DATA_LENGTH
+        }
 
     private fun TvmContext.extendDictKey(
         value: UExpr<UBvSort>,
-        keyType: DictKeyType
-    ): UExpr<TvmCellDataSort> = when (keyType) {
-        DictKeyType.SIGNED_INT -> value.signExtendToSort(cellDataSort)
+        keyType: DictKeyType,
+    ): UExpr<TvmCellDataSort> =
+        when (keyType) {
+            DictKeyType.SIGNED_INT -> value.signExtendToSort(cellDataSort)
 
-        DictKeyType.UNSIGNED_INT,
-        DictKeyType.SLICE -> value.zeroExtendToSort(cellDataSort)
-    }
+            DictKeyType.UNSIGNED_INT,
+            DictKeyType.SLICE,
+            -> value.zeroExtendToSort(cellDataSort)
+        }
 
     private fun TvmContext.compareKeys(
         keyType: DictKeyType,
         compareLessThan: Boolean,
         allowEq: Boolean,
         left: UExpr<TvmCellDataSort>,
-        right: UExpr<TvmCellDataSort>
-    ): UBoolExpr = when (keyType) {
-        DictKeyType.UNSIGNED_INT,
-        DictKeyType.SIGNED_INT -> when {
-            compareLessThan && allowEq -> mkBvSignedLessOrEqualExpr(left, right)
-            compareLessThan && !allowEq -> mkBvSignedLessExpr(left, right)
-            !compareLessThan && allowEq -> mkBvSignedGreaterOrEqualExpr(left, right)
-            else -> mkBvSignedGreaterExpr(left, right)
+        right: UExpr<TvmCellDataSort>,
+    ): UBoolExpr =
+        when (keyType) {
+            DictKeyType.UNSIGNED_INT,
+            DictKeyType.SIGNED_INT,
+            ->
+                when {
+                    compareLessThan && allowEq -> mkBvSignedLessOrEqualExpr(left, right)
+                    compareLessThan && !allowEq -> mkBvSignedLessExpr(left, right)
+                    !compareLessThan && allowEq -> mkBvSignedGreaterOrEqualExpr(left, right)
+                    else -> mkBvSignedGreaterExpr(left, right)
+                }
+            DictKeyType.SLICE ->
+                when {
+                    compareLessThan && allowEq -> mkBvUnsignedLessOrEqualExpr(left, right)
+                    compareLessThan && !allowEq -> mkBvUnsignedLessExpr(left, right)
+                    !compareLessThan && allowEq -> mkBvUnsignedGreaterOrEqualExpr(left, right)
+                    else -> mkBvUnsignedGreaterExpr(left, right)
+                }
         }
-        DictKeyType.SLICE -> when {
-            compareLessThan && allowEq -> mkBvUnsignedLessOrEqualExpr(left, right)
-            compareLessThan && !allowEq -> mkBvUnsignedLessExpr(left, right)
-            !compareLessThan && allowEq -> mkBvUnsignedGreaterOrEqualExpr(left, right)
-            else -> mkBvUnsignedGreaterExpr(left, right)
-        }
-    }
 
-    private fun assertDictKeyLength(scope: TvmStepScopeManager, dict: UHeapRef, keyLength: Int): Unit? = scope.calcOnStateCtx {
-        val dictKeyLength = scope.calcOnState { memory.readField(dict, dictKeyLengthField, sizeSort) }
+    private fun assertDictKeyLength(
+        scope: TvmStepScopeManager,
+        dict: UHeapRef,
+        keyLength: Int,
+    ): Unit? =
+        scope.calcOnStateCtx {
+            val dictKeyLength = scope.calcOnState { memory.readField(dict, dictKeyLengthField, sizeSort) }
 
-        scope.assert(
-            constraint = dictKeyLength eq mkSizeExpr(keyLength),
-            unsatBlock = { throwRealDictError(this) },
-        ) ?: run {
-            logger.warn { "Cannot assert dict key length constraint" }
-            null
+            scope.assert(
+                constraint = dictKeyLength eq mkSizeExpr(keyLength),
+                unsatBlock = { throwRealDictError(this) }
+            ) ?: run {
+                logger.warn { "Cannot assert dict key length constraint" }
+                null
+            }
         }
-    }
 
     private fun loadKeyLength(
         scope: TvmStepScopeManager,
         maxKeyLength: Int = TvmContext.MAX_DATA_LENGTH,
     ): Int? {
-        val keyLengthExpr = scope.takeLastIntOrThrowTypeError()
-            ?: return null
+        val keyLengthExpr =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return null
 
         if (keyLengthExpr !is KBitVecValue<*>) {
             TODO("Non-concrete key length: $keyLengthExpr")
@@ -1042,18 +1996,19 @@ class TvmDictOperationInterpreter(
     private fun loadDict(
         scope: TvmStepScopeManager,
         keyLengthForAssertingDictType: Int?,
-    ): Pair<UHeapRef?, Unit?> {
-        return scope.calcOnState {
+    ): Pair<UHeapRef?, Unit?> =
+        scope.calcOnState {
             if (stack.lastIsNull()) {
                 stack.pop(0)
                 null to Unit
             } else {
                 takeLastCell()?.let {
-                    val status = if (keyLengthForAssertingDictType != null) {
-                        scope.assertDictType(it, keyLengthForAssertingDictType)
-                    } else {
-                        Unit
-                    }
+                    val status =
+                        if (keyLengthForAssertingDictType != null) {
+                            scope.assertDictType(it, keyLengthForAssertingDictType)
+                        } else {
+                            Unit
+                        }
                     it to status
                 } ?: run {
                     scope.doWithState {
@@ -1063,14 +2018,18 @@ class TvmDictOperationInterpreter(
                 }
             }
         }
-    }
 
-    private fun assertDictIsNotEmpty(scope: TvmStepScopeManager, dict: UHeapRef, dictId: DictId): Unit? {
-        val constraint = scope.calcOnStateCtx {
-            val symbolicKey = makeSymbolicPrimitive(mkBvSort(dictId.keyLength.toUInt()))
+    private fun assertDictIsNotEmpty(
+        scope: TvmStepScopeManager,
+        dict: UHeapRef,
+        dictId: DictId,
+    ): Unit? {
+        val constraint =
+            scope.calcOnStateCtx {
+                val symbolicKey = makeSymbolicPrimitive(mkBvSort(dictId.keyLength.toUInt()))
 
-            dictContainsKey(dict, dictId, symbolicKey)
-        }
+                dictContainsKey(dict, dictId, symbolicKey)
+            }
 
         return scope.assert(constraint)
             ?: run {
@@ -1082,27 +2041,35 @@ class TvmDictOperationInterpreter(
     private fun loadKey(
         scope: TvmStepScopeManager,
         keyType: DictKeyType,
-        keyLength: Int
-    ): UExpr<UBvSort>? = with(ctx) {
-        // todo: handle keyLength errors
-        when (keyType) {
-            DictKeyType.SIGNED_INT -> scope.takeLastIntOrThrowTypeError()
-                ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
-            DictKeyType.UNSIGNED_INT -> scope.takeLastIntOrThrowTypeError()
-                ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
-            DictKeyType.SLICE -> {
-                val slice = scope.calcOnState { takeLastSlice() }
-                if (slice == null) {
-                    scope.doWithState(throwTypeCheckError)
-                    return null
-                }
+        keyLength: Int,
+    ): UExpr<UBvSort>? =
+        with(ctx) {
+            // todo: handle keyLength errors
+            when (keyType) {
+                DictKeyType.SIGNED_INT ->
+                    scope
+                        .takeLastIntOrThrowTypeError()
+                        ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
+                DictKeyType.UNSIGNED_INT ->
+                    scope
+                        .takeLastIntOrThrowTypeError()
+                        ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
+                DictKeyType.SLICE -> {
+                    val slice = scope.calcOnState { takeLastSlice() }
+                    if (slice == null) {
+                        scope.doWithState(throwTypeCheckError)
+                        return null
+                    }
 
-                scope.slicePreloadDataBits(slice, keyLength)
+                    scope.slicePreloadDataBits(slice, keyLength)
+                }
             }
         }
-    }
 
-    private fun TvmState.storeKey(keyType: DictKeyType, key: UExpr<UBvSort>) = with(ctx) {
+    private fun TvmState.storeKey(
+        keyType: DictKeyType,
+        key: UExpr<UBvSort>,
+    ) = with(ctx) {
         when (keyType) {
             DictKeyType.SIGNED_INT -> {
                 val keyValue = key.signedExtendToInteger()
@@ -1121,7 +2088,10 @@ class TvmDictOperationInterpreter(
         }
     }
 
-    private fun loadValue(scope: TvmStepScopeManager, valueType: DictValueType) = scope.calcOnState {
+    private fun loadValue(
+        scope: TvmStepScopeManager,
+        valueType: DictValueType,
+    ) = scope.calcOnState {
         when (valueType) {
             DictValueType.SLICE -> takeLastSlice()
             DictValueType.CELL -> {
@@ -1140,14 +2110,21 @@ class TvmDictOperationInterpreter(
         }
     }
 
-    private fun unwrapDictValue(scope: TvmStepScopeManager, sliceValue: UHeapRef, valueType: DictValueType): UHeapRef? =
+    private fun unwrapDictValue(
+        scope: TvmStepScopeManager,
+        sliceValue: UHeapRef,
+        valueType: DictValueType,
+    ): UHeapRef? =
         when (valueType) {
             DictValueType.SLICE -> sliceValue
             DictValueType.CELL -> scope.slicePreloadNextRef(sliceValue)
             DictValueType.BUILDER -> error("Unexpected dict value type: $valueType")
         }
 
-    private fun TvmState.storeValue(valueType: DictValueType, value: UHeapRef) {
+    private fun TvmState.storeValue(
+        valueType: DictValueType,
+        value: UHeapRef,
+    ) {
         when (valueType) {
             DictValueType.SLICE -> addOnStack(value, TvmSliceType)
             DictValueType.CELL -> addOnStack(value, TvmCellType)
@@ -1170,15 +2147,18 @@ class TvmDictOperationInterpreter(
             dictRemoveKey(resultDict, dictId, key)
         }
 
-        val resultSetEntries = scope.calcOnStateCtx {
-            memory.setEntries(resultDict, dictId, key.sort, DictKeyInfo)
-        }
+        val resultSetEntries =
+            scope.calcOnStateCtx {
+                memory.setEntries(resultDict, dictId, key.sort, DictKeyInfo)
+            }
 
-        val resultSetContainsAnyStoredKey = scope.calcOnStateCtx {
-            resultSetEntries.entries.map { entry ->
-                dictContainsKey(resultDict, dictId, entry.setElement)
-            }.let { mkOr(it) }
-        }
+        val resultSetContainsAnyStoredKey =
+            scope.calcOnStateCtx {
+                resultSetEntries.entries
+                    .map { entry ->
+                        dictContainsKey(resultDict, dictId, entry.setElement)
+                    }.let { mkOr(it) }
+            }
 
         val resultSetContainsNoStoredKey = ctx.mkNot(resultSetContainsAnyStoredKey)
 
@@ -1188,14 +2168,14 @@ class TvmDictOperationInterpreter(
                     caseIsExceptional = false,
                     condition = resultSetContainsNoStoredKey,
                     paramForDoForAllBlock = 1,
-                    action = {},
+                    action = {}
                 ),
                 TvmStepScopeManager.ActionOnCondition(
                     caseIsExceptional = false,
                     condition = ctx.mkNot(resultSetContainsNoStoredKey),
                     paramForDoForAllBlock = 2,
-                    action = {},
-                ),
+                    action = {}
+                )
             )
         ) { caseId ->
             when (caseId) {
@@ -1206,13 +2186,15 @@ class TvmDictOperationInterpreter(
                         }
                     } else {
                         // todo: empty input dict
-                        val leftKey = calcOnStateCtx {
-                            makeSymbolicPrimitive(mkBvSort(dictId.keyLength.toUInt()))
-                        }
+                        val leftKey =
+                            calcOnStateCtx {
+                                makeSymbolicPrimitive(mkBvSort(dictId.keyLength.toUInt()))
+                            }
 
-                        val condition = calcOnStateCtx {
-                            (leftKey neq key) and dictContainsKey(dictCellRef, dictId, leftKey)
-                        }
+                        val condition =
+                            calcOnStateCtx {
+                                (leftKey neq key) and dictContainsKey(dictCellRef, dictId, leftKey)
+                            }
                         assert(condition)
                             ?: return@doWithConditions
 
@@ -1240,17 +2222,22 @@ class TvmDictOperationInterpreter(
 
     private fun TvmState.dictValueDoesNotOverflowConstraint(
         keyLength: Int,
-        value: UHeapRef
-    ): UBoolExpr = with(ctx) {
-        // hml_short$0 {m:#} {n:#} len:(Unary ~n) {n <= m} s:(n * Bit) = HmLabel ~n m;
-        val maxLabelBits = 1 + (keyLength + 1) + keyLength
-        val valueBitsLeft = getSliceRemainingBitsCount(value)
-        val maxDictLeafBits = mkBvAddExpr(valueBitsLeft, mkSizeExpr(maxLabelBits))
+        value: UHeapRef,
+    ): UBoolExpr =
+        with(ctx) {
+            // hml_short$0 {m:#} {n:#} len:(Unary ~n) {n <= m} s:(n * Bit) = HmLabel ~n m;
+            val maxLabelBits = 1 + (keyLength + 1) + keyLength
+            val valueBitsLeft = getSliceRemainingBitsCount(value)
+            val maxDictLeafBits = mkBvAddExpr(valueBitsLeft, mkSizeExpr(maxLabelBits))
 
-        mkBvSignedLessOrEqualExpr(maxDictLeafBits, maxDataLengthSizeExpr)
-    }
+            mkBvSignedLessOrEqualExpr(maxDictLeafBits, maxDataLengthSizeExpr)
+        }
 
-    private fun assertDictValueDoesNotOverflow(scope: TvmStepScopeManager, dictId: DictId, value: UHeapRef): Unit? {
+    private fun assertDictValueDoesNotOverflow(
+        scope: TvmStepScopeManager,
+        dictId: DictId,
+        value: UHeapRef,
+    ): Unit? {
         val constraint = scope.calcOnState { dictValueDoesNotOverflowConstraint(dictId.keyLength, value) }
 
         return scope.assert(constraint)
@@ -1261,24 +2248,30 @@ class TvmDictOperationInterpreter(
     }
 
     private enum class DictKeyType {
-        SIGNED_INT, UNSIGNED_INT, SLICE
+        SIGNED_INT,
+        UNSIGNED_INT,
+        SLICE,
     }
 
     private enum class DictSetMode {
         SET, // always set
         ADD, // set only if absent
-        REPLACE // set only if present
+        REPLACE, // set only if present
     }
 
     private enum class DictMinMaxMode {
-        MIN, MAX
+        MIN,
+        MAX,
     }
 
     private enum class DictNextPrevMode {
-        NEXT, PREV
+        NEXT,
+        PREV,
     }
 
     private enum class DictValueType {
-        SLICE, CELL, BUILDER
+        SLICE,
+        CELL,
+        BUILDER,
     }
 }

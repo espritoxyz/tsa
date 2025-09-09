@@ -15,10 +15,15 @@ import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmStructuralExit
 
 data object TvmTestResolver {
-    fun resolve(method: TvmMethod, state: TvmState): TvmSymbolicTest =
-        resolve(method.id, state)
+    fun resolve(
+        method: TvmMethod,
+        state: TvmState,
+    ): TvmSymbolicTest = resolve(method.id, state)
 
-    fun resolve(methodId: MethodId, state: TvmState): TvmSymbolicTest {
+    fun resolve(
+        methodId: MethodId,
+        state: TvmState,
+    ): TvmSymbolicTest {
         val model = state.models.first()
         val ctx = state.ctx
         val stateResolver =
@@ -36,7 +41,9 @@ data object TvmTestResolver {
         val additionalInputs = stateResolver.resolveAdditionalInputs()
         val contractStatesBefore = state.contractIds.associateWith { stateResolver.resolveInitialContractState(it) }
         val numberOfAddressesWithAssertedDataConstraints =
-            state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData().size
+            state.fieldManagers.cellDataFieldManager
+                .getCellsWithAssertedCellData()
+                .size
 
         return TvmSymbolicTest(
             methodId = methodId,
@@ -56,39 +63,41 @@ data object TvmTestResolver {
             outMessages = outMessages,
             rootContract = state.rootContractId,
             contractStatesBefore = contractStatesBefore,
-            additionalInputs = additionalInputs,
+            additionalInputs = additionalInputs
         )
     }
 
     fun groupTestSuites(
         testSuites: List<TvmSymbolicTestSuite>,
         takeEmptyTests: Boolean = false,
-    ): TvmContractSymbolicTestResult = TvmContractSymbolicTestResult(
-        testSuites.mapNotNull {
-            it.takeIf { takeEmptyTests || it.tests.isNotEmpty() }
-        }
-    )
+    ): TvmContractSymbolicTestResult =
+        TvmContractSymbolicTestResult(
+            testSuites.mapNotNull {
+                it.takeIf { takeEmptyTests || it.tests.isNotEmpty() }
+            }
+        )
 
     fun resolveSingleMethod(
         methodId: MethodId,
         states: List<TvmState>,
         coverage: TvmMethodCoverage,
     ): TvmSymbolicTestSuite {
-        val tests = states.mapNotNull { state ->
-            tryCatchIf(
-                condition = state.ctx.tvmOptions.quietMode,
-                body = { resolve(methodId, state) },
-                exceptionHandler = { exception ->
-                    logger.warn(exception) { "Exception is thrown during the resolve of state $state" }
-                    null
-                }
-            )
-        }
+        val tests =
+            states.mapNotNull { state ->
+                tryCatchIf(
+                    condition = state.ctx.tvmOptions.quietMode,
+                    body = { resolve(methodId, state) },
+                    exceptionHandler = { exception ->
+                        logger.warn(exception) { "Exception is thrown during the resolve of state $state" }
+                        null
+                    }
+                )
+            }
 
         return TvmSymbolicTestSuite(
             methodId,
             coverage,
-            tests,
+            tests
         )
     }
 
@@ -96,11 +105,11 @@ data object TvmTestResolver {
         state.pathNode.allStatements
             .filterNot { it is TvmArtificialInst }
             .reversed()
-
 }
 
-data class TvmContractSymbolicTestResult(val testSuites: List<TvmSymbolicTestSuite>) :
-    List<TvmSymbolicTestSuite> by testSuites
+data class TvmContractSymbolicTestResult(
+    val testSuites: List<TvmSymbolicTestSuite>,
+) : List<TvmSymbolicTestSuite> by testSuites
 
 data class TvmSymbolicTestSuite(
     val methodId: MethodId,
@@ -134,11 +143,12 @@ data class TvmSymbolicTest(
     val outMessages: List<Pair<ContractId, TvmTestOutMessage>>,
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
-    val numberOfAddressesWithAssertedDataConstraints: Int,  // for testing
+    val numberOfAddressesWithAssertedDataConstraints: Int, // for testing
 ) {
     val initialRootContractState: TvmContractState
-        get() = contractStatesBefore[rootContract]
-            ?: error("Contract state for root contract not found")
+        get() =
+            contractStatesBefore[rootContract]
+                ?: error("Contract state for root contract not found")
 
     val rootInitialData: TvmTestCellValue
         get() = initialRootContractState.data
@@ -170,7 +180,7 @@ data class TvmMethodFailure(
     val failure: TvmFailure,
     val lastStmt: TvmInst,
     override val exitCode: Int,
-    override val stack: List<TvmTestValue>
+    override val stack: List<TvmTestValue>,
 ) : TvmTerminalMethodSymbolicResult
 
 data class TvmSuccessfulExecution(
