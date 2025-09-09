@@ -52,7 +52,7 @@ fun generateTests(
     sourceRelativePath: Path,
     contractType: TsRenderer.ContractType,
     generateRecvExternalTests: Boolean = false, // TODO: make `true` default (after fixes for recv_external)
-    useMinimization: Boolean = false
+    useMinimization: Boolean = false,
 ): String? {
     val entryTests = analysisResult.testSuites.flatten()
 
@@ -72,7 +72,7 @@ fun generateTests(
     sourceRelativePath: Path,
     contractType: TsRenderer.ContractType,
     generateRecvExternalTests: Boolean = false, // TODO: make `true` default (after fixes for recv_external)
-    useMinimization: Boolean = false
+    useMinimization: Boolean = false,
 ): String? {
     val name = extractContractName(sourceRelativePath)
 
@@ -97,7 +97,7 @@ private fun TsContext.constructTests(
     tests: List<TvmSymbolicTest>,
     sourcePath: String,
     generateRecvExternalTests: Boolean,
-    useMinimization: Boolean
+    useMinimization: Boolean,
 ): TsTestFile? {
     val recvInternalTests =
         tests
@@ -145,7 +145,7 @@ private data class TestCaseContext(
     val testName: String,
     val test: TvmSymbolicTest,
     val code: TsVariable<TsCell>,
-    val blockchain: TsVariable<TsBlockchain>
+    val blockchain: TsVariable<TsBlockchain>,
 )
 
 private fun TsTestFileBuilder.registerTestsForMethod(
@@ -153,7 +153,7 @@ private fun TsTestFileBuilder.registerTestsForMethod(
     tests: List<TvmSymbolicTest>,
     code: TsVariable<TsCell>,
     blockchain: TsVariable<TsBlockchain>,
-    registerTestBlock: TsTestBlockBuilder.(TestCaseContext) -> Unit
+    registerTestBlock: TsTestBlockBuilder.(TestCaseContext) -> Unit,
 ) {
     if (tests.isEmpty()) {
         return
@@ -173,7 +173,7 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
     wrapperDescriptor: TsBasicWrapperDescriptor,
     tests: List<TvmSymbolicTest>,
     code: TsVariable<TsCell>,
-    blockchain: TsVariable<TsBlockchain>
+    blockchain: TsVariable<TsBlockchain>,
 ) {
     registerTestsForMethod(
         "tsa-tests-recv-internal",
@@ -256,7 +256,7 @@ private fun TsTestFileBuilder.registerRecvExternalTests(
     wrapperDescriptor: TsBasicWrapperDescriptor,
     tests: List<TvmSymbolicTest>,
     code: TsVariable<TsCell>,
-    blockchain: TsVariable<TsBlockchain>
+    blockchain: TsVariable<TsBlockchain>,
 ) {
     registerTestsForMethod(
         "tsa-tests-recv-external",
@@ -346,7 +346,7 @@ private data class TvmReceiveInternalInput(
     val address: String,
     val srcAddress: String,
     val input: RecvInternalInput,
-    val exitCode: Int
+    val exitCode: Int,
 )
 
 private fun resolveReceiveExternalInput(test: TvmSymbolicTest): TvmReceiveExternalInput {
@@ -395,7 +395,7 @@ private data class TvmReceiveExternalInput(
     val address: String,
     val initialBalance: TvmTestIntegerValue,
     val time: TvmTestIntegerValue,
-    val exitCode: Int
+    val exitCode: Int,
 )
 
 private fun generateTestNames(tests: List<TvmSymbolicTest>): List<String> {

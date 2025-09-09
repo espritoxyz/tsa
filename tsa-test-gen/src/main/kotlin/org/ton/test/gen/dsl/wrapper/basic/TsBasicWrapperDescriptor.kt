@@ -5,7 +5,7 @@ import org.ton.test.gen.dsl.wrapper.TsWrapperDescriptor
 
 class TsBasicWrapperDescriptor(
     override val ctx: TsContext,
-    override val name: String
+    override val name: String,
 ) : TsWrapperDescriptor<TsBasicWrapper> {
     override val wrapperType: TsBasicWrapper = TsBasicWrapper(name)
 

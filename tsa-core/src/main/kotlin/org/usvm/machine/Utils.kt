@@ -33,7 +33,7 @@ fun TvmCodeBlock.extractMethodIdOrNull(): MethodId? = (this as? TvmMethod)?.id
 inline fun <T> tryCatchIf(
     condition: Boolean,
     body: () -> T,
-    exceptionHandler: (Throwable) -> T
+    exceptionHandler: (Throwable) -> T,
 ): T {
     if (!condition) {
         return body()
@@ -48,7 +48,7 @@ inline fun <reified T> getResourcePath(path: String): Path = getResourcePath(T::
 
 fun getResourcePath(
     cls: Class<*>,
-    path: String
+    path: String,
 ): Path =
     cls.getResource(path)?.let {
         // This way paths are parsed correctly on Windows.

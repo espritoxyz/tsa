@@ -28,11 +28,11 @@ import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.TvmSliceType
 
 class TvmCryptoInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     fun visitCryptoStmt(
         scope: TvmStepScopeManager,
-        stmt: TvmAppCryptoInst
+        stmt: TvmAppCryptoInst,
     ) {
         when (stmt) {
             is TvmAppCryptoHashsuInst -> visitSingleHashInst(scope, stmt, operandType = TvmSliceType)
@@ -46,7 +46,7 @@ class TvmCryptoInterpreter(
     private fun visitSingleHashInst(
         scope: TvmStepScopeManager,
         stmt: TvmAppCryptoInst,
-        operandType: TvmRealReferenceType
+        operandType: TvmRealReferenceType,
     ) {
         require(operandType != TvmBuilderType) {
             "A single hash function for builders does not exist"
@@ -79,7 +79,7 @@ class TvmCryptoInterpreter(
 
     private fun visitCheckSignatureInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppCryptoChksignuInst
+        stmt: TvmAppCryptoChksignuInst,
     ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
@@ -133,7 +133,7 @@ class TvmCryptoInterpreter(
 
     private fun visitHashExtSha256Inst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppCryptoHashextSha256Inst
+        stmt: TvmAppCryptoHashextSha256Inst,
     ) = with(ctx) {
         // TODO fix gas
         scope.doWithState { consumeGas(256) }

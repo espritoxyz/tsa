@@ -6,7 +6,7 @@ import java.math.BigInteger
 
 data class TvmConcreteGeneralData(
     val initialSenderBits: String? = null,
-    val initialOpcode: UInt? = null
+    val initialOpcode: UInt? = null,
 ) {
     init {
         checkAddressBits(initialSenderBits)
@@ -16,7 +16,7 @@ data class TvmConcreteGeneralData(
 data class TvmConcreteContractData(
     val contractC4: Cell? = null,
     val initialBalance: BigInteger? = null,
-    val addressBits: String? = null
+    val addressBits: String? = null,
 ) {
     init {
         checkAddressBits(addressBits)

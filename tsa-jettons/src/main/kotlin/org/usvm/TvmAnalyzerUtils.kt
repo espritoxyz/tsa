@@ -35,7 +35,7 @@ class FirstFailureTerminator :
 
     override fun onStateTerminated(
         state: TvmState,
-        stateReachable: Boolean
+        stateReachable: Boolean,
     ) {
         if (!stateReachable) {
             return

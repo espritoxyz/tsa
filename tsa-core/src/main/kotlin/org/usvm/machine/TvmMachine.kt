@@ -27,7 +27,7 @@ import java.math.BigInteger
 import kotlin.time.Duration.Companion.INFINITE
 
 class TvmMachine(
-    tvmOptions: TvmOptions = TvmOptions()
+    tvmOptions: TvmOptions = TvmOptions(),
 ) : UMachine<TvmState>() {
     override val options: UMachineOptions =
         defaultOptions.copy(
@@ -46,7 +46,7 @@ class TvmMachine(
         coverageStatistics: TvmCoverageStatistics,
         methodId: BigInteger,
         inputInfo: TvmInputInfo = TvmInputInfo(),
-        manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor()
+        manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
     ): List<TvmState> =
         analyze(
             listOf(contractCode),
@@ -69,7 +69,7 @@ class TvmMachine(
         inputInfo: TvmInputInfo = TvmInputInfo(),
         additionalStopStrategy: StopStrategy = StopStrategy { false },
         additionalObserver: UMachineObserver<TvmState>? = null,
-        manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor()
+        manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
     ): List<TvmState> {
         val interpreter =
             TvmInterpreter(

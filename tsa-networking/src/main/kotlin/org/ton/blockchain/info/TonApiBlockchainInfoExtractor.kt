@@ -17,7 +17,7 @@ import java.math.BigInteger
 
 class TonApiBlockchainInfoExtractor(
     private val tonApiProvider: String,
-    pauseBetweenRequestsMillies: Long
+    pauseBetweenRequestsMillies: Long,
 ) : TonBlockchainInfoExtractorWithRequestPause(pauseBetweenRequestsMillies),
     TonBlockchainExtendedInfoExtractor {
     override fun getContractState(address: String): ContractState? {
@@ -97,7 +97,7 @@ class TonApiBlockchainInfoExtractor(
 
     override fun getJettonAddresses(
         limit: Int,
-        offset: Int
+        offset: Int,
     ): List<String> {
         val (_, resp) =
             runCatching {
@@ -128,7 +128,7 @@ class TonApiBlockchainInfoExtractor(
     override fun getJettonWallets(
         masterAddress: String,
         limit: Int,
-        offset: Int
+        offset: Int,
     ): List<JettonWalletInfo> {
         val (_, response) =
             runCatching {
@@ -161,7 +161,7 @@ class TonApiBlockchainInfoExtractor(
 
     override fun getJettonBalanceAndAddress(
         holderAddress: String,
-        tokenAddress: String
+        tokenAddress: String,
     ): Pair<String, BigInteger>? {
         val query = "$tonApiProvider/v2/accounts/${holderAddress.toUrlAddress()}/jettons/${tokenAddress.toUrlAddress()}"
         val (code, resp) =
@@ -195,7 +195,7 @@ class TonApiBlockchainInfoExtractor(
 
     override fun getLastTransactions(
         address: String,
-        limit: Int
+        limit: Int,
     ): List<TonBlockchainExtendedInfoExtractor.TransactionInfo> {
         val query =
             "$tonApiProvider/v2/blockchain/accounts/${address.toUrlAddress()}/transactions?limit=$limit&sort_order=desc"
@@ -243,7 +243,7 @@ class TonApiBlockchainInfoExtractor(
 
     override fun runGetWalletAddressOnJettonMaster(
         masterAddress: String,
-        holderAddress: String
+        holderAddress: String,
     ): String {
         val query =
             "$tonApiProvider/v2/blockchain/accounts/${masterAddress.toUrlAddress()}/" +

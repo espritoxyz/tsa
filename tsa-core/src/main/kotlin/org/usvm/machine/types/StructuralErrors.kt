@@ -11,7 +11,7 @@ sealed interface TvmStructuralExit<out DataCellType, out ExpectedCellType : TlbB
 }
 
 data class TvmUnexpectedDataReading<DataCellType>(
-    val readingType: DataCellType
+    val readingType: DataCellType,
 ) : TvmStructuralExit<DataCellType, Nothing> {
     override val ruleId: String
         get() = "unexpected-data-reading"
@@ -20,7 +20,7 @@ data class TvmUnexpectedDataReading<DataCellType>(
 }
 
 data class TvmReadingOutOfSwitchBounds<DataCellType>(
-    val readingType: DataCellType
+    val readingType: DataCellType,
 ) : TvmStructuralExit<DataCellType, Nothing> {
     override val ruleId: String
         get() = "out-of-switch-bounds"
@@ -29,7 +29,7 @@ data class TvmReadingOutOfSwitchBounds<DataCellType>(
 }
 
 data class TvmReadingSwitchWithUnexpectedType<DataCellType>(
-    val readingType: DataCellType
+    val readingType: DataCellType,
 ) : TvmStructuralExit<DataCellType, Nothing> {
     override val ruleId: String
         get() = "unexpected-type-for-switch"
@@ -54,7 +54,7 @@ object TvmUnexpectedEndOfReading : TvmStructuralExit<Nothing, Nothing> {
 data class TvmReadingOfUnexpectedType<DataCellType, ExpectedCellType : TlbBuiltinLabel>(
     val expectedLabel: ExpectedCellType,
     val typeArgs: List<UExpr<TvmSizeSort>>,
-    val actualType: DataCellType
+    val actualType: DataCellType,
 ) : TvmStructuralExit<DataCellType, ExpectedCellType> {
     override val ruleId: String
         get() = "unexpected-cell-type"

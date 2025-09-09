@@ -16,7 +16,7 @@ import org.usvm.test.resolver.TvmTestDataCellValue
 
 class CalculatedTlbLabelInfo(
     private val ctx: TvmContext,
-    givenCompositeLabels: Collection<TlbCompositeLabel>
+    givenCompositeLabels: Collection<TlbCompositeLabel>,
 ) {
     private val compositeLabels = calculateClosure(givenCompositeLabels)
 
@@ -29,7 +29,7 @@ class CalculatedTlbLabelInfo(
 
     fun maxRefSize(
         label: TlbCompositeLabel,
-        maxDepth: Int = maxTlbDepth
+        maxDepth: Int = maxTlbDepth,
     ): Int? {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate maxRefSize for depth $maxDepth"
@@ -41,7 +41,7 @@ class CalculatedTlbLabelInfo(
         state: TvmState,
         address: UConcreteHeapRef,
         label: TlbCompositeLabel,
-        maxDepth: Int = maxTlbDepth
+        maxDepth: Int = maxTlbDepth,
     ): UExpr<TvmSizeSort>? {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate dataCellSize for depth $maxDepth"
@@ -55,7 +55,7 @@ class CalculatedTlbLabelInfo(
         address: UConcreteHeapRef,
         parentLabel: TlbCompositeLabel,
         childIdx: Int,
-        maxDepth: Int = maxTlbDepth
+        maxDepth: Int = maxTlbDepth,
     ): Map<TvmParameterInfo.CellInfo, UBoolExpr>? {
         require(childIdx in 0..<TvmContext.MAX_REFS_NUMBER) {
             "childIdx $childIdx is out of range"
@@ -76,7 +76,7 @@ class CalculatedTlbLabelInfo(
         state: TvmState,
         address: UConcreteHeapRef,
         parentLabel: TlbCompositeLabel,
-        maxDepth: Int = maxTlbDepth
+        maxDepth: Int = maxTlbDepth,
     ): UBoolExpr? {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate conditionForNumberOfChildrenExceeded for depth $maxDepth"
@@ -93,7 +93,7 @@ class CalculatedTlbLabelInfo(
         state: TvmState,
         address: UConcreteHeapRef,
         label: TlbCompositeLabel,
-        maxDepth: Int = maxTlbDepth
+        maxDepth: Int = maxTlbDepth,
     ): UBoolExpr? {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate switch constraints for depth $maxDepth"
@@ -110,7 +110,7 @@ class CalculatedTlbLabelInfo(
         state: TvmState,
         address: UConcreteHeapRef,
         label: TlbCompositeLabel,
-        maxDepth: Int = maxTlbDepth
+        maxDepth: Int = maxTlbDepth,
     ): UBoolExpr {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate switch constraints for depth $maxDepth"
@@ -126,7 +126,7 @@ class CalculatedTlbLabelInfo(
         state: TvmState,
         address: UConcreteHeapRef,
         label: TlbCompositeLabel,
-        maxDepth: Int = maxTlbDepth
+        maxDepth: Int = maxTlbDepth,
     ): UBoolExpr? {
         require(maxDepth in 1..maxTlbDepth) {
             "Cannot calculate size constraints for depth $maxDepth"
@@ -148,7 +148,7 @@ class CalculatedTlbLabelInfo(
         state: TvmState,
         address: UConcreteHeapRef,
         label: TlbCompositeLabel,
-        maxDepth: Int = maxTlbDepth
+        maxDepth: Int = maxTlbDepth,
     ): List<Pair<TlbStructure.Leaf, VertexCalculatedSize>>? {
         require(maxDepth in 1..maxTlbDepth) {
             "Cannot calculate information about sizes for depth $maxDepth"
@@ -168,7 +168,7 @@ class CalculatedTlbLabelInfo(
 
     fun getPossibleSwitchVariants(
         switch: TlbStructure.SwitchPrefix,
-        maxDepth: Int
+        maxDepth: Int,
     ): List<TlbStructure.SwitchPrefix.SwitchVariant> {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate possible switch variants for depth $maxDepth"

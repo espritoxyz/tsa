@@ -15,13 +15,13 @@ import org.ton.test.gen.dsl.models.TsVoid
 import org.ton.test.gen.dsl.models.TsWrapper
 
 data class TsBasicWrapper(
-    override val name: String
+    override val name: String,
 ) : TsWrapper
 
 fun TsBasicWrapperDescriptor.constructor(
     address: TsExpression<TsAddress>,
     code: TsExpression<TsCell>,
-    data: TsExpression<TsCell>
+    data: TsExpression<TsCell>,
 ): TsExpression<TsBasicWrapper> =
     TsConstructorCall(
         executableName = name,
@@ -40,7 +40,7 @@ fun TsExpression<TsSandboxContract<TsBasicWrapper>>.internal(
     ihrFee: TsExpression<TsBigint>,
     forwardFee: TsExpression<TsBigint>,
     createdLt: TsExpression<TsBigint>,
-    createdAt: TsExpression<TsInt>
+    createdAt: TsExpression<TsInt>,
 ): TsExpression<TsSendMessageResult> =
     TsMethodCall(
         caller = this,
@@ -65,7 +65,7 @@ fun TsExpression<TsSandboxContract<TsBasicWrapper>>.internal(
 
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.external(
     blockchain: TsExpression<TsBlockchain>,
-    body: TsExpression<TsCell>
+    body: TsExpression<TsCell>,
 ): TsExpression<TsSendMessageResult> =
     TsMethodCall(
         caller = this,
@@ -77,7 +77,7 @@ fun TsExpression<TsSandboxContract<TsBasicWrapper>>.external(
 
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.initializeContract(
     blockchain: TsExpression<TsBlockchain>,
-    balance: TsExpression<TsBigint>
+    balance: TsExpression<TsBigint>,
 ): TsExpression<TsVoid> =
     TsMethodCall(
         caller = this,

@@ -17,7 +17,7 @@ fun runAnalysisAndExtractFailingExecutions(
     stopWhenFoundOneConflictingExecution: Boolean,
     inputInfo: TvmInputInfo?,
     useRecvInternalInput: Boolean = true,
-    manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) }
+    manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
 ): List<TvmSymbolicTest> {
     val postProcessor =
         object : TvmManualStateProcessor() {

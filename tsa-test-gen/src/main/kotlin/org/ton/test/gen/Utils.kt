@@ -27,7 +27,7 @@ fun String.binaryToSignedDecimal(): String {
 
 fun writeRenderedTest(
     projectPath: Path,
-    test: TsRenderedTest
+    test: TsRenderedTest,
 ): List<File> {
     val wrapperFolder = projectPath.resolve(TsRenderer.WRAPPERS_DIR_NAME)
     val testsFolder = projectPath.resolve(TsRenderer.TESTS_DIR_NAME)

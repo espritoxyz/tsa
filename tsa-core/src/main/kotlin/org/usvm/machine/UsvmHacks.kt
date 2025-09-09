@@ -40,7 +40,7 @@ internal inline fun <Sort : USort> UHeapRef.map(
     concreteMapper: (UConcreteHeapRef) -> UExpr<Sort>,
     staticMapper: (UConcreteHeapRef) -> UExpr<Sort>,
     symbolicMapper: (USymbolicHeapRef) -> UExpr<Sort>,
-    ignoreNullRefs: Boolean = true
+    ignoreNullRefs: Boolean = true,
 ): UExpr<Sort> =
     when {
         isStaticHeapRef(this) -> staticMapper(this)
@@ -115,7 +115,7 @@ internal inline fun <Sort : USort> UHeapRef.map(
 internal inline fun <Sort : USort> UHeapRef.mapWithStaticAsConcrete(
     concreteMapper: (UConcreteHeapRef) -> UExpr<Sort>,
     symbolicMapper: (USymbolicHeapRef) -> UExpr<Sort>,
-    ignoreNullRefs: Boolean = true
+    ignoreNullRefs: Boolean = true,
 ): UExpr<Sort> =
     map(
         concreteMapper,
@@ -131,7 +131,7 @@ internal fun <SetType, KeySort : USort, Reg : Region<Reg>> UWritableMemory<*>.se
     keySort: KeySort,
     keyInfo: USymbolicCollectionKeyInfo<UExpr<KeySort>, Reg>,
     guard: UBoolExpr,
-    ownership: MutabilityOwnership
+    ownership: MutabilityOwnership,
 ) {
     val regionId = USetRegionId(keySort, type, keyInfo)
     val region = getRegion(regionId)
@@ -153,7 +153,7 @@ internal fun <MapType, KeySort : USort, ValueSort : USort, Reg : Region<Reg>> UW
     keyInfo: USymbolicCollectionKeyInfo<UExpr<KeySort>, Reg>,
     keySet: USetRegionId<MapType, KeySort, Nothing>,
     guard: UBoolExpr,
-    ownership: MutabilityOwnership
+    ownership: MutabilityOwnership,
 ) {
     val regionId = UMapRegionId(keySort, sort, mapType, keyInfo)
     val region = getRegion(regionId)

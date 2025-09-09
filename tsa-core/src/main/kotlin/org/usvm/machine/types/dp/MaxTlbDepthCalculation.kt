@@ -12,7 +12,7 @@ import kotlin.math.min
  * */
 fun calculateMaxCellTlbDepths(
     maxTlbDepth: Int,
-    labels: Collection<TlbCompositeLabel>
+    labels: Collection<TlbCompositeLabel>,
 ): Map<TlbCompositeLabel, Int> {
     val result = hashMapOf<TlbCompositeLabel, Int>()
 
@@ -43,7 +43,7 @@ fun calculateMaxCellTlbDepths(
 
 private fun getMaxCellLength(
     struct: TlbStructure,
-    maxLengthFromPreviousDepth: Map<TlbCompositeLabel, Int>
+    maxLengthFromPreviousDepth: Map<TlbCompositeLabel, Int>,
 ): Int? {
     return when (struct) {
         is TlbStructure.Unknown, is TlbStructure.Empty -> {

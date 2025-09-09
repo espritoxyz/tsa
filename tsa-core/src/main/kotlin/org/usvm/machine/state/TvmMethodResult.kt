@@ -24,7 +24,7 @@ sealed interface TvmMethodResult {
      */
     data class TvmSuccess(
         val exit: TvmSuccessfulExit,
-        val stack: TvmStack
+        val stack: TvmStack,
     ) : TvmMethodResult
 
     /**
@@ -34,7 +34,7 @@ sealed interface TvmMethodResult {
     data class TvmFailure(
         val exit: TvmErrorExit,
         val type: TvmFailureType,
-        val phase: TvmPhase
+        val phase: TvmPhase,
     ) : TvmMethodResult {
         override fun toString(): String =
             if (type == TvmFailureType.UnknownError) {
@@ -62,7 +62,7 @@ sealed interface TvmMethodResult {
 
     data class TvmSoftFailure(
         val exit: TvmSoftFailureExit,
-        override val phase: TvmPhase
+        override val phase: TvmPhase,
     ) : TvmAbstractSoftFailure
 
     sealed interface TvmSoftFailureExit {
@@ -72,7 +72,7 @@ sealed interface TvmMethodResult {
 
 data class TvmStructuralError(
     val exit: TvmStructuralExit<TvmCellDataTypeRead<*>, TlbBuiltinLabel>,
-    override val phase: TvmPhase
+    override val phase: TvmPhase,
 ) : TvmAbstractSoftFailure
 
 data object TvmUsageOfAnycastAddress : TvmMethodResult.TvmSoftFailureExit {
@@ -137,7 +137,7 @@ enum class TvmFailureType {
     /**
      * Extra failure information couldn't be inferred.
      */
-    UnknownError
+    UnknownError,
 }
 
 @Serializable
@@ -210,7 +210,7 @@ object TvmDictError : TvmErrorExit {
 
 data class TvmOutOfGas(
     val consumedGas: UExpr<UBv32Sort>,
-    val gasLimit: UExpr<UBv32Sort>
+    val gasLimit: UExpr<UBv32Sort>,
 ) : TvmErrorExit {
     override val exitCode: Int = 13
     override val ruleName: String = "out-of-gas"
@@ -221,7 +221,7 @@ data class TvmOutOfGas(
 
 @Serializable
 data class TvmUserDefinedFailure(
-    override val exitCode: Int
+    override val exitCode: Int,
 ) : TvmErrorExit {
     override val ruleName: String = "user-defined-error"
 

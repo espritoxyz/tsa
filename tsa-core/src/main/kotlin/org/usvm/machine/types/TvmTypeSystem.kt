@@ -14,7 +14,7 @@ class TvmTypeSystem : UTypeSystem<TvmType> {
 
     override fun hasCommonSubtype(
         type: TvmType,
-        types: Collection<TvmType>
+        types: Collection<TvmType>,
     ): Boolean = TODO()
 
     override fun isFinal(type: TvmType): Boolean = type in allFinalTypes
@@ -23,7 +23,7 @@ class TvmTypeSystem : UTypeSystem<TvmType> {
 
     override fun isSupertype(
         supertype: TvmType,
-        type: TvmType
+        type: TvmType,
     ): Boolean =
         foldOnTvmType(type, false) { acc, curType ->
             acc || curType == supertype

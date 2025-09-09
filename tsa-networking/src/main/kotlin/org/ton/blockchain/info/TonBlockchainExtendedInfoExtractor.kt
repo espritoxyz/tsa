@@ -8,30 +8,30 @@ interface TonBlockchainExtendedInfoExtractor : TonBlockchainInfoExtractorWithHol
 
     fun getJettonAddresses(
         limit: Int,
-        offset: Int
+        offset: Int,
     ): List<String>
 
     fun getJettonBalanceAndAddress(
         holderAddress: String,
-        tokenAddress: String
+        tokenAddress: String,
     ): Pair<String, BigInteger>?
 
     fun getLastTransactions(
         address: String,
-        limit: Int
+        limit: Int,
     ): List<TransactionInfo>
 
     fun convertAddressToRawForm(address: String): String
 
     fun runGetWalletAddressOnJettonMaster(
         masterAddress: String,
-        holderAddress: String
+        holderAddress: String,
     ): String
 
     data class TransactionInfo(
         val isSuccess: Boolean,
         val opcode: UInt?,
         // null for external messages
-        val sender: String?
+        val sender: String?,
     )
 }

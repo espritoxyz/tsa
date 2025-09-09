@@ -40,7 +40,7 @@ sealed interface TvmAnalyzer<SourcesDescription> {
         methodsWhiteList: Set<MethodId>? = null,
         inputInfo: Map<BigInteger, TvmInputInfo> = emptyMap(),
         tvmOptions: TvmOptions = TvmOptions(quietMode = true, timeout = 10.minutes),
-        takeEmptyTests: Boolean = false
+        takeEmptyTests: Boolean = false,
     ): TvmContractSymbolicTestResult {
         val contract = convertToTvmContractCode(sources)
         return analyzeAllMethods(
@@ -60,7 +60,7 @@ sealed interface TvmAnalyzer<SourcesDescription> {
         concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
         concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
         inputInfo: TvmInputInfo = TvmInputInfo(),
-        tvmOptions: TvmOptions = TvmOptions(quietMode = true, timeout = 10.minutes)
+        tvmOptions: TvmOptions = TvmOptions(quietMode = true, timeout = 10.minutes),
     ): TvmSymbolicTestSuite {
         val contract = convertToTvmContractCode(sources)
         return analyzeSpecificMethod(
@@ -79,11 +79,11 @@ sealed interface TvmAnalyzer<SourcesDescription> {
 data class TactSourcesDescription(
     val configPath: Path,
     val projectName: String,
-    val contractName: String
+    val contractName: String,
 )
 
 class TactAnalyzer(
-    private val tactExecutable: String = DEFAULT_TACT_EXECUTABLE
+    private val tactExecutable: String = DEFAULT_TACT_EXECUTABLE,
 ) : TvmAnalyzer<TactSourcesDescription> {
     override fun convertToTvmContractCode(sources: TactSourcesDescription): TsaContractCode {
         compileTact(sources.configPath)
@@ -133,14 +133,14 @@ class TactAnalyzer(
 
     @Serializable
     private data class TactConfig(
-        val projects: List<TactProject>
+        val projects: List<TactProject>,
     )
 
     @Serializable
     private data class TactProject(
         val name: String,
         val path: String,
-        val output: String
+        val output: String,
     )
 
     companion object {
@@ -149,7 +149,7 @@ class TactAnalyzer(
 }
 
 class FuncAnalyzer(
-    fiftStdlibPath: Path
+    fiftStdlibPath: Path,
 ) : TvmAnalyzer<Path> {
     private val funcExecutablePath: Path = Paths.get(FUNC_EXECUTABLE)
 
@@ -167,7 +167,7 @@ class FuncAnalyzer(
 
     fun compileFuncSourceToFift(
         funcSourcesPath: Path,
-        fiftFilePath: Path
+        fiftFilePath: Path,
     ) {
         val funcCommand = "$funcExecutablePath -AP ${funcSourcesPath.absolutePathString()}"
         val (exitValue, completedInTime, output, errors) =
@@ -192,7 +192,7 @@ class FuncAnalyzer(
 
     fun compileFuncSourceToBoc(
         funcSourcesPath: Path,
-        bocFilePath: Path
+        bocFilePath: Path,
     ) {
         val funcCommand =
             "$funcExecutablePath -W ${bocFilePath.absolutePathString()} ${funcSourcesPath.absolutePathString()}"
@@ -234,7 +234,7 @@ class FuncAnalyzer(
 }
 
 class FiftAnalyzer(
-    private val fiftStdlibPath: Path
+    private val fiftStdlibPath: Path,
 ) : TvmAnalyzer<Path> {
     private val fiftExecutablePath: Path = Paths.get(FIFT_EXECUTABLE)
 
@@ -253,7 +253,7 @@ class FiftAnalyzer(
      * */
     fun compileFiftCodeBlocksContract(
         fiftWorkDir: Path,
-        codeBlocks: List<String>
+        codeBlocks: List<String>,
     ): TsaContractCode {
         val tmpBocFile = createTempFile(suffix = ".boc")
         try {
@@ -271,7 +271,7 @@ class FiftAnalyzer(
      * */
     fun runFiftMethod(
         fiftPath: Path,
-        methodId: Int
+        methodId: Int,
     ): FiftInterpreterResult {
         val fiftTextWithOutputCommand =
             """
@@ -287,7 +287,7 @@ class FiftAnalyzer(
      * */
     fun runFiftCodeBlock(
         fiftWorkDir: Path,
-        codeBlock: String
+        codeBlock: String,
     ): FiftInterpreterResult {
         check(fiftWorkDir.resolve("Asm.fif").exists()) { "No Asm.fif" }
         check(fiftWorkDir.resolve("Fift.fif").exists()) { "No Fift.fif" }
@@ -305,7 +305,7 @@ class FiftAnalyzer(
 
     fun compileFiftToBoc(
         fiftPath: Path,
-        bocFilePath: Path
+        bocFilePath: Path,
     ) {
         val fiftStdin = "\"$fiftPath\" include boc>B \"$bocFilePath\" B>file"
 
@@ -319,7 +319,7 @@ class FiftAnalyzer(
     private fun compileFiftCodeBlocks(
         fiftWorkDir: Path,
         codeBlocks: List<String>,
-        bocFilePath: Path
+        bocFilePath: Path,
     ) {
         check(fiftWorkDir.resolve("Asm.fif").exists()) { "No Asm.fif" }
         check(fiftWorkDir.resolve("Fift.fif").exists()) { "No Fift.fif" }
@@ -344,7 +344,7 @@ class FiftAnalyzer(
 
     private fun compileFiftCodeToBoc(
         fiftCode: String,
-        bocFilePath: Path
+        bocFilePath: Path,
     ) {
         val fiftTextWithOutputCommand =
             """
@@ -359,7 +359,7 @@ class FiftAnalyzer(
     private fun performFiftCommand(
         fiftCommand: String,
         bocFilePath: Path,
-        stdinContent: String
+        stdinContent: String,
     ) {
         val tmpStdinFile = createTempFile(".txt")
         try {
@@ -394,7 +394,7 @@ class FiftAnalyzer(
 
     private fun runFiftInterpreter(
         fiftWorkDir: Path,
-        fiftInterpreterCommand: String
+        fiftInterpreterCommand: String,
     ): FiftInterpreterResult {
         val tmpStdinFile = createTempFile(suffix = ".txt")
         val (exitValue, completedInTime, output, errors) =
@@ -463,7 +463,7 @@ private fun runAnalysisInCatchingBlock(
     methodId: MethodId,
     logInfoAboutAnalysis: Boolean = true,
     throwNotImplementedError: Boolean = false,
-    analysisRun: (TvmCoverageStatistics) -> List<TvmState>
+    analysisRun: (TvmCoverageStatistics) -> List<TvmState>,
 ): Pair<List<TvmState>, TvmMethodCoverage> =
     runCatching {
         val coverageStatistics = TvmCoverageStatistics(contractIdForCoverageStats, contractForCoverageStats.mainMethod)
@@ -511,7 +511,7 @@ fun analyzeInterContract(
     options: TvmOptions = TvmOptions(),
     throwNotImplementedError: Boolean = false,
     manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
-    concreteContractData: List<TvmConcreteContractData> = contracts.map { TvmConcreteContractData() }
+    concreteContractData: List<TvmConcreteContractData> = contracts.map { TvmConcreteContractData() },
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
     val startContractCode = contracts[startContractId]
@@ -549,7 +549,7 @@ fun analyzeAllMethods(
     concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     inputInfo: Map<BigInteger, TvmInputInfo> = emptyMap(),
     tvmOptions: TvmOptions = TvmOptions(),
-    takeEmptyTests: Boolean = false
+    takeEmptyTests: Boolean = false,
 ): TvmContractSymbolicTestResult {
     if (contract.methods.isEmpty()) {
         throw NoSelectedMethodsToAnalyze()
@@ -581,7 +581,7 @@ fun analyzeSpecificMethod(
     concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     inputInfo: TvmInputInfo = TvmInputInfo(),
     tvmOptions: TvmOptions = TvmOptions(),
-    manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor()
+    manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = tvmOptions)
     val (states, coverage) =
@@ -609,7 +609,7 @@ fun analyzeSpecificMethod(
 fun getFuncContract(
     path: Path,
     fiftStdlibPath: Path,
-    isTSAChecker: Boolean = false
+    isTSAChecker: Boolean = false,
 ): TsaContractCode =
     FuncAnalyzer(fiftStdlibPath).convertToTvmContractCode(path).also {
         if (isTSAChecker) {
@@ -629,7 +629,7 @@ data class FiftInterpreterResult(
     val exitCode: Int,
     val gasUsage: Int,
     val steps: Int,
-    val stack: List<String>
+    val stack: List<String>,
 )
 
 private const val COMPILER_TIMEOUT = 30.toLong() // seconds

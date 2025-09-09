@@ -8,7 +8,7 @@ data class ProcessExecutionResult(
     val exitValue: Int?, // null if not completed in time
     val completedInTime: Boolean,
     val output: List<String>,
-    val errors: List<String>
+    val errors: List<String>,
 )
 
 fun executeCommandWithTimeout(
@@ -16,7 +16,7 @@ fun executeCommandWithTimeout(
     timeoutSeconds: Long,
     processWorkingDirectory: File? = null,
     additionalEnvironment: Map<String, String> = emptyMap(),
-    inputFile: File? = null
+    inputFile: File? = null,
 ): ProcessExecutionResult =
     executeCommandWithTimeout(
         command.split(" "),
@@ -31,7 +31,7 @@ fun executeCommandWithTimeout(
     timeoutSeconds: Long,
     processWorkingDirectory: File? = null,
     additionalEnvironment: Map<String, String> = emptyMap(),
-    inputFile: File? = null
+    inputFile: File? = null,
 ): ProcessExecutionResult {
     val processBuilder =
         ProcessBuilder(command)

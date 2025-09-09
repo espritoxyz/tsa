@@ -84,7 +84,7 @@ data class TsTestFile(
     val name: String,
     val wrappers: List<TsWrapperDescriptor<*>>,
     val globalStatements: List<TsStatement>,
-    val testBlocks: List<TsTestBlock>
+    val testBlocks: List<TsTestBlock>,
 ) : TsBlock {
     override val statements: List<TsStatement>
         get() = globalStatements
@@ -98,19 +98,19 @@ data object TsEmptyLine : TsStatement
 
 data class TsAssignment<T : TsType>(
     val assigned: TsLValue<T>,
-    val assignment: TsExpression<T>
+    val assignment: TsExpression<T>,
 ) : TsStatement
 
 data class TsDeclaration<T : TsType>(
     val name: String,
     val type: T,
-    val initializer: TsExpression<T>? = null
+    val initializer: TsExpression<T>? = null,
 ) : TsStatement {
     val reference: TsVariable<T> = TsVariable(name, type)
 }
 
 data class TsStatementExpression<T : TsType>(
-    val expr: TsExpression<T>
+    val expr: TsExpression<T>,
 ) : TsStatement
 
 // expressions
@@ -123,7 +123,7 @@ sealed interface TsLValue<T : TsType> : TsExpression<T>
 
 class TsVariable<T : TsType> internal constructor(
     val name: String,
-    override val type: T
+    override val type: T,
 ) : TsLValue<T> {
     override fun equals(other: Any?): Boolean {
         if (other !is TsVariable<*>) {
@@ -142,60 +142,60 @@ class TsVariable<T : TsType> internal constructor(
 data class TsFieldAccess<R : TsType, T : TsType>(
     val receiver: TsExpression<R>,
     val fieldName: String,
-    override val type: T
+    override val type: T,
 ) : TsLValue<T>
 
 data class TsBooleanValue(
-    val value: Boolean
+    val value: Boolean,
 ) : TsExpression<TsBoolean> {
     override val type: TsBoolean
         get() = TsBoolean
 }
 
 data class TsIntValue(
-    val value: BigInteger
+    val value: BigInteger,
 ) : TsExpression<TsInt> {
     override val type: TsInt
         get() = TsInt
 }
 
 data class TsBigintValue(
-    val value: TvmTestIntegerValue
+    val value: TvmTestIntegerValue,
 ) : TsExpression<TsBigint> {
     override val type: TsBigint
         get() = TsBigint
 }
 
 data class TsStringValue(
-    val value: String
+    val value: String,
 ) : TsExpression<TsString> {
     override val type: TsString
         get() = TsString
 }
 
 data class TsDataCellValue(
-    val value: TvmTestDataCellValue
+    val value: TvmTestDataCellValue,
 ) : TsExpression<TsCell> {
     override val type: TsCell
         get() = TsCell
 }
 
 data class TsDictValue(
-    val value: TvmTestDictCellValue
+    val value: TvmTestDictCellValue,
 ) : TsExpression<TsCell> {
     override val type: TsCell
         get() = TsCell
 }
 
 data class TsSliceValue(
-    val value: TvmTestSliceValue
+    val value: TvmTestSliceValue,
 ) : TsExpression<TsSlice> {
     override val type: TsSlice
         get() = TsSlice
 }
 
 data class TsBuilderValue(
-    val value: TvmTestBuilderValue
+    val value: TvmTestBuilderValue,
 ) : TsExpression<TsBuilder> {
     override val type: TsBuilder
         get() = TsBuilder
@@ -203,7 +203,7 @@ data class TsBuilderValue(
 
 data class TsEquals<T : TsType>(
     val lhs: TsExpression<T>,
-    val rhs: TsExpression<T>
+    val rhs: TsExpression<T>,
 ) : TsExpression<T> {
     override val type: T
         get() = lhs.type
@@ -211,7 +211,7 @@ data class TsEquals<T : TsType>(
 
 data class TsObjectInit<T : TsObject>(
     val args: List<TsExpression<*>>,
-    override val type: T
+    override val type: T,
 ) : TsExpression<T> {
     init {
         require(args.size == type.properties.size) {
@@ -228,7 +228,7 @@ data class TsObjectInit<T : TsObject>(
 
 data class TsGreater<T : TsType>(
     val lhs: TsExpression<T>,
-    val rhs: TsExpression<T>
+    val rhs: TsExpression<T>,
 ) : TsExpression<TsBoolean> {
     override val type = TsBoolean
 }
@@ -236,7 +236,7 @@ data class TsGreater<T : TsType>(
 data class TsLambdaPredicate<T : TsType>(
     val argName: String,
     val argType: T,
-    val body: (TsVariable<T>) -> TsExpression<TsBoolean>
+    val body: (TsVariable<T>) -> TsExpression<TsBoolean>,
 ) : TsExpression<TsPredicate<T>> {
     val arg = TsVariable(argName, argType)
     override val type: TsPredicate<T> = TsPredicate(arg.type)
@@ -246,7 +246,7 @@ data class TsLambdaPredicate<T : TsType>(
 
 data class TsNumAdd<T : TsNum>(
     val lhs: TsExpression<T>,
-    val rhs: TsExpression<T>
+    val rhs: TsExpression<T>,
 ) : TsExpression<T> {
     override val type: T
         get() = lhs.type
@@ -254,7 +254,7 @@ data class TsNumAdd<T : TsNum>(
 
 data class TsNumSub<T : TsNum>(
     val lhs: TsExpression<T>,
-    val rhs: TsExpression<T>
+    val rhs: TsExpression<T>,
 ) : TsExpression<T> {
     override val type: T
         get() = lhs.type
@@ -262,7 +262,7 @@ data class TsNumSub<T : TsNum>(
 
 data class TsNumDiv<T : TsNum>(
     val lhs: TsExpression<T>,
-    val rhs: TsExpression<T>
+    val rhs: TsExpression<T>,
 ) : TsExpression<T> {
     override val type: T
         get() = lhs.type
@@ -270,7 +270,7 @@ data class TsNumDiv<T : TsNum>(
 
 data class TsNumPow<T : TsNum>(
     val lhs: TsExpression<T>,
-    val rhs: TsExpression<T>
+    val rhs: TsExpression<T>,
 ) : TsExpression<T> {
     override val type: T
         get() = lhs.type
@@ -279,13 +279,13 @@ data class TsNumPow<T : TsNum>(
 // test-utils
 
 sealed class TsExpectStatement(
-    open val message: String?
+    open val message: String?,
 ) : TsStatement
 
 data class TsExpectToEqual<T : TsType>(
     val actual: TsExpression<T>,
     val expected: TsExpression<T>,
-    override val message: String? = null
+    override val message: String? = null,
 ) : TsExpectStatement(message)
 
 data class TsExpectToHaveTransaction(
@@ -298,7 +298,7 @@ data class TsExpectToHaveTransaction(
     val successful: TsExpression<TsBoolean>?,
     val aborted: TsExpression<TsBoolean>?,
     val deploy: TsExpression<TsBoolean>?,
-    override val message: String? = null
+    override val message: String? = null,
 ) : TsExpectStatement(message)
 
 // executable
@@ -314,13 +314,13 @@ data class TsMethodCall<T : TsType>(
     override val executableName: String,
     override val arguments: List<TsExpression<*>>,
     override val async: Boolean,
-    override val type: T
+    override val type: T,
 ) : TsExecutableCall<T>
 
 data class TsConstructorCall<T : TsType>(
     override val executableName: String,
     override val arguments: List<TsExpression<*>>,
-    override val type: T
+    override val type: T,
 ) : TsExecutableCall<T> {
     override val async: Boolean
         get() = false

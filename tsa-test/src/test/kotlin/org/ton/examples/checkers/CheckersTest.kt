@@ -91,7 +91,7 @@ class CheckersTest {
         checkerPathStr: String,
         fetchedKeys: Set<Int>,
         contractPath: String,
-        additionalCheck: (TvmSymbolicTest) -> Boolean = { true }
+        additionalCheck: (TvmSymbolicTest) -> Boolean = { true },
     ) {
         val path = extractResource(contractPath)
         val checkerPath = extractResource(checkerPathStr)

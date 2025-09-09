@@ -10,7 +10,7 @@ fun calculateChildrenStructures(
     labelsWithoutUnknowns: Collection<TlbCompositeLabel>,
     dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>>,
     individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
-    possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>
+    possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
 ): List<Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>> =
     calculateMapsByTlbDepth(
         ctx.tvmOptions.tlbOptions.maxTlbDepth,
@@ -39,7 +39,7 @@ private fun getChildrenStructure(
     struct: TlbStructure,
     structuresFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
     dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
-    possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>
+    possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): ChildrenStructure<SimpleAbstractionForUExpr>? =
     with(ctx) {
         when (struct) {

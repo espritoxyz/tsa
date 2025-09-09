@@ -18,7 +18,7 @@ interface TsPrinter {
 
 class TsPrinterImpl(
     private var tabsAmount: Int = 0,
-    private val builder: StringBuilder = StringBuilder()
+    private val builder: StringBuilder = StringBuilder(),
 ) : TsPrinter,
     Appendable by builder {
     private var atLineStart: Boolean = true

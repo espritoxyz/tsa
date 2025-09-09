@@ -55,7 +55,7 @@ class DictComplexTest {
 
     private fun runTestWithBigConcreteDict(
         codePath: String,
-        dataPath: String
+        dataPath: String,
     ) {
         val resourcePath = getResourcePath<DictComplexTest>(codePath)
         val dataResourcePath = getResourcePath<DictComplexTest>(dataPath)

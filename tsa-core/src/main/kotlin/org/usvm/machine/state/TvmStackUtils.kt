@@ -23,14 +23,14 @@ import org.usvm.machine.types.TvmType
 
 data class TypeCastException(
     val oldType: TvmType,
-    val newType: TvmType
+    val newType: TvmType,
 ) : RuntimeException() {
     override val message: String = "Trying to cast $oldType value to $newType"
 }
 
 private fun TvmStack.add(
     value: UExpr<out USort>,
-    type: TvmRealType
+    type: TvmRealType,
 ) {
     // TODO check size 256?
     addStackEntry(value.toStackValue(type).toStackEntry())
@@ -38,7 +38,7 @@ private fun TvmStack.add(
 
 fun TvmState.addOnStack(
     value: UExpr<out USort>,
-    type: TvmRealType
+    type: TvmRealType,
 ) {
     stack.add(value, type)
     if (value.sort is UAddressSort) {
@@ -49,7 +49,7 @@ fun TvmState.addOnStack(
 
 fun TvmStepScopeManager.addOnStack(
     value: UExpr<out USort>,
-    type: TvmRealType
+    type: TvmRealType,
 ) = calcOnState { addOnStack(value, type) }
 
 fun TvmStack.addInt(value: UExpr<TvmInt257Sort>) {
@@ -164,7 +164,7 @@ fun TvmStack.takeLastContinuation(): TvmContinuation? {
 private fun <Ref : UHeapRef> TvmState.takeLastRef(
     referenceType: TvmRealReferenceType,
     extractValue: TvmStackValue.() -> Ref?,
-    generateSymbolicRef: (Int) -> UHeapRef
+    generateSymbolicRef: (Int) -> UHeapRef,
 ): Ref? {
     val lastRefValue = stack.takeLast(referenceType, generateSymbolicRef)
     return lastRefValue.extractValue()?.also { assertType(it, referenceType) }
@@ -173,7 +173,7 @@ private fun <Ref : UHeapRef> TvmState.takeLastRef(
 fun doXchg(
     scope: TvmStepScopeManager,
     first: Int,
-    second: Int
+    second: Int,
 ) {
     scope.doWithState {
         stack.swap(first, second)
@@ -184,7 +184,7 @@ fun doSwap(scope: TvmStepScopeManager) = doXchg(scope, first = 0, second = 1)
 
 fun doPop(
     scope: TvmStepScopeManager,
-    i: Int
+    i: Int,
 ) {
     scope.doWithState {
         stack.pop(i)
@@ -193,7 +193,7 @@ fun doPop(
 
 fun doPush(
     scope: TvmStepScopeManager,
-    i: Int
+    i: Int,
 ) {
     scope.doWithState {
         stack.push(i)
@@ -202,7 +202,7 @@ fun doPush(
 
 fun TvmStack.doBlkSwap(
     i: Int,
-    j: Int
+    j: Int,
 ) {
     reverse(i + 1, j + 1)
     reverse(j + 1, 0)
@@ -211,7 +211,7 @@ fun TvmStack.doBlkSwap(
 
 fun TvmStack.doPuxc(
     i: Int,
-    j: Int
+    j: Int,
 ) {
     push(i)
     swap(0, 1)
@@ -220,7 +220,7 @@ fun TvmStack.doPuxc(
 
 fun TvmStack.doXchg2(
     i: Int,
-    j: Int
+    j: Int,
 ) {
     swap(1, i)
     swap(0, j)
@@ -229,7 +229,7 @@ fun TvmStack.doXchg2(
 fun TvmStack.doXchg3(
     i: Int,
     j: Int,
-    k: Int
+    k: Int,
 ) {
     swap(2, i)
     swap(1, j)

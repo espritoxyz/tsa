@@ -5,7 +5,7 @@ import org.ton.TlbStructure
 
 fun calculateMinTlbDepth(
     maxTlbDepth: Int,
-    compositeLabels: Collection<TlbCompositeLabel>
+    compositeLabels: Collection<TlbCompositeLabel>,
 ): Map<TlbCompositeLabel, Int> {
     val result = hashMapOf<TlbCompositeLabel, Int>()
     compositeLabels.forEach { label ->
@@ -35,7 +35,7 @@ private fun zeroDepthIsPossible(struct: TlbStructure): Boolean = constructionIsP
 
 fun constructionIsPossible(
     struct: TlbStructure,
-    possibleCompositeLabel: (TlbCompositeLabel) -> Boolean
+    possibleCompositeLabel: (TlbCompositeLabel) -> Boolean,
 ): Boolean =
     when (struct) {
         is TlbStructure.Unknown, is TlbStructure.Empty -> {

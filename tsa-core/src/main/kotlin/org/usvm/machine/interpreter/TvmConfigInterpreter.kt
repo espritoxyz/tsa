@@ -65,11 +65,11 @@ import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 
 class TvmConfigInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     fun visitConfigInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppConfigInst
+        stmt: TvmAppConfigInst,
     ) {
         scope.consumeDefaultGas(stmt)
 
@@ -88,7 +88,7 @@ class TvmConfigInterpreter(
 
     private fun visitGetParamInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppConfigGetparamInst
+        stmt: TvmAppConfigGetparamInst,
     ) {
         scope.doWithStateCtx {
             when (val i = stmt.i) {
@@ -193,7 +193,7 @@ class TvmConfigInterpreter(
 
     private fun visitConfigParamInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppConfigConfigoptparamInst
+        stmt: TvmAppConfigConfigoptparamInst,
     ) = with(ctx) {
         val idx = scope.takeLastIntOrThrowTypeError() ?: return@with
 
@@ -219,7 +219,7 @@ class TvmConfigInterpreter(
         scope: TvmStepScopeManager,
         value: UExpr<TvmContext.TvmInt257Sort>,
         min: ULong?,
-        max: ULong?
+        max: ULong?,
     ): Unit? =
         with(ctx) {
             var cond: UBoolExpr = trueExpr
@@ -239,7 +239,7 @@ class TvmConfigInterpreter(
 
     private fun visitGetoriginalfwdfeeInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppConfigGetoriginalfwdfeeInst
+        stmt: TvmAppConfigGetoriginalfwdfeeInst,
     ) = with(ctx) {
         // in case [firstFrac] and [firstFracMasterchain] become different at some point
         check(FIRST_FRAC == FIRST_FRAC_MASTERCHAIN) {
@@ -275,7 +275,7 @@ class TvmConfigInterpreter(
 
     private fun visitGetprecompiledgasInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppConfigGetprecompiledgasInst
+        stmt: TvmAppConfigGetprecompiledgasInst,
     ) {
         // TODO: honest implementation (with config)
         scope.doWithState {
@@ -287,7 +287,7 @@ class TvmConfigInterpreter(
     private fun forkOnMasterchain(
         scope: TvmStepScopeManager,
         isMasterchainInt: UExpr<TvmContext.TvmInt257Sort>,
-        performAction: TvmStepScopeManager.(Boolean) -> Unit
+        performAction: TvmStepScopeManager.(Boolean) -> Unit,
     ) = with(ctx) {
         val isMasterchainSymbolic = (isMasterchainInt eq zeroValue).not()
         scope.doWithConditions(
@@ -314,7 +314,7 @@ class TvmConfigInterpreter(
     private fun visitGetforwardfeeInst(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
-        isSimple: Boolean
+        isSimple: Boolean,
     ) = with(ctx) {
         val isMasterchainInt =
             scope.takeLastIntOrThrowTypeError()
@@ -378,7 +378,7 @@ class TvmConfigInterpreter(
     // https://github.com/ton-blockchain/ton/blob/050a984163a53df16fb03f66cc445c34bfed48ed/crypto/vm/tonops.cpp#L2137
     private fun visitGetstoragefeeInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppConfigGetstoragefeeInst
+        stmt: TvmAppConfigGetstoragefeeInst,
     ) = with(ctx) {
         val isMasterchainInt =
             scope.takeLastIntOrThrowTypeError()
@@ -440,7 +440,7 @@ class TvmConfigInterpreter(
     // formula: https://github.com/ton-blockchain/ton/blob/050a984163a53df16fb03f66cc445c34bfed48ed/crypto/block/mc-config.h#L354
     private fun visitConfigGetgasfeeInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppConfigGetgasfeeInst
+        stmt: TvmAppConfigGetgasfeeInst,
     ) = with(ctx) {
         val isMasterchainInt =
             scope.takeLastIntOrThrowTypeError()

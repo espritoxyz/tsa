@@ -4,7 +4,7 @@ sealed interface TvmParameterInfo {
     data object NoInfo : TvmParameterInfo
 
     data class SliceInfo(
-        val cellInfo: DataCellInfo
+        val cellInfo: DataCellInfo,
     ) : TvmParameterInfo
 
     sealed interface CellInfo : TvmParameterInfo
@@ -12,10 +12,10 @@ sealed interface TvmParameterInfo {
     data object UnknownCellInfo : CellInfo
 
     data class DataCellInfo(
-        val dataCellStructure: TlbCompositeLabel
+        val dataCellStructure: TlbCompositeLabel,
     ) : CellInfo
 
     data class DictCellInfo(
-        val keySize: Int
+        val keySize: Int,
     ) : CellInfo
 }

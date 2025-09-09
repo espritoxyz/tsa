@@ -16,7 +16,7 @@ private data class DPParamsForDefaultCellCalculation(
     val maxRefs: Int,
     val maxTlbDepth: Int,
     val maxCellDepth: Int,
-    val label: TlbCompositeLabel
+    val label: TlbCompositeLabel,
 )
 
 fun getDefaultDict(keyLength: Int): TvmTestDictCellValue { // dict mustn't be empty
@@ -31,7 +31,7 @@ fun getDefaultDict(keyLength: Int): TvmTestDictCellValue { // dict mustn't be em
 fun calculateDefaultCells(
     ctx: TvmContext,
     labels: Collection<TlbCompositeLabel>,
-    individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>
+    individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
 ): Map<TlbCompositeLabel, TvmTestDataCellValue> {
     val generalMaxTlbDepth = ctx.tvmOptions.tlbOptions.maxTlbDepth
     val maxCellDepthForDefault = ctx.tvmOptions.tlbOptions.maxCellDepthForDefaultCellsConsistentWithTlb
@@ -89,7 +89,7 @@ private fun getDefaultCell(
     maxTlbDepth: Int,
     maxCellDepth: Int,
     generalMaxTlbDepth: Int,
-    calculatedValues: Map<DPParamsForDefaultCellCalculation, TvmTestDataCellValue?>
+    calculatedValues: Map<DPParamsForDefaultCellCalculation, TvmTestDataCellValue?>,
 ): TvmTestDataCellValue? {
     return when (struct) {
         is TlbStructure.Unknown, is TlbStructure.Empty -> {

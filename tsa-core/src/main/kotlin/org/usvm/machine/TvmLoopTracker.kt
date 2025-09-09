@@ -10,6 +10,6 @@ class TvmLoopTracker : StateLoopTracker<UInt, TvmInst, TvmState> {
 
     override fun isLoopIterationFork(
         loop: UInt,
-        forkPoint: TvmInst
+        forkPoint: TvmInst,
     ): Boolean = true
 }

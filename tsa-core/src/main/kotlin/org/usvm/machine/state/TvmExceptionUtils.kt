@@ -7,7 +7,7 @@ import org.usvm.machine.TvmStepScopeManager
 
 fun checkOutOfRange(
     notOutOfRangeExpr: UBoolExpr,
-    scope: TvmStepScopeManager
+    scope: TvmStepScopeManager,
 ): Unit? =
     scope.fork(
         condition = notOutOfRangeExpr,
@@ -21,7 +21,7 @@ fun checkOutOfRange(
     expr: UExpr<TvmInt257Sort>,
     scope: TvmStepScopeManager,
     min: Int,
-    max: Int
+    max: Int,
 ) = scope.doWithCtx {
     val cond = mkBvSignedLessOrEqualExpr(min.toBv257(), expr) and mkBvSignedLessOrEqualExpr(expr, max.toBv257())
 
@@ -34,7 +34,7 @@ fun checkOutOfRange(
 
 fun checkOverflow(
     noOverflowExpr: UBoolExpr,
-    scope: TvmStepScopeManager
+    scope: TvmStepScopeManager,
 ): Unit? =
     scope.fork(
         noOverflowExpr,
@@ -44,7 +44,7 @@ fun checkOverflow(
 
 fun checkUnderflow(
     noUnderflowExpr: UBoolExpr,
-    scope: TvmStepScopeManager
+    scope: TvmStepScopeManager,
 ): Unit? =
     scope.fork(
         noUnderflowExpr,

@@ -24,7 +24,7 @@ import org.usvm.types.UTypeSystem
 import kotlin.time.Duration
 
 class TvmComponents(
-    private val options: TvmOptions
+    private val options: TvmOptions,
 ) : UComponents<TvmType, TvmSizeSort>,
     AutoCloseable {
     private val closeableResources = mutableListOf<AutoCloseable>()
@@ -90,7 +90,7 @@ class TvmComponents(
     }
 
     class LoggingSolver<T : KSolverConfiguration>(
-        private val internalSolver: KSolver<T>
+        private val internalSolver: KSolver<T>,
     ) : KSolver<T> by internalSolver {
         override fun check(timeout: Duration): KSolverStatus =
             internalSolver.check(timeout).also { status ->

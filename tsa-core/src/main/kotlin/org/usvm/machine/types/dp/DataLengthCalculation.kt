@@ -11,7 +11,7 @@ fun calculateDataLengths(
     ctx: TvmContext,
     labelsWithoutUnknowns: Collection<TlbCompositeLabel>,
     individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
-    possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>
+    possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
 ): List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>> =
     calculateMapsByTlbDepth(
         ctx.tvmOptions.tlbOptions.maxTlbDepth,
@@ -35,7 +35,7 @@ private fun getDataLength(
     ctx: TvmContext,
     struct: TlbStructure,
     lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
-    possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>
+    possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): AbstractSizeExpr<SimpleAbstractionForUExpr>? =
     with(ctx) {
         when (struct) {

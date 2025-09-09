@@ -64,11 +64,11 @@ import org.usvm.machine.types.TvmNullType
 import java.math.BigInteger
 
 class TvmTupleInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     fun visitTvmTupleInst(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleInst
+        stmt: TvmTupleInst,
     ) {
         if (stmt.gasConsumption !is TvmComplexGas) {
             scope.consumeDefaultGas(stmt)
@@ -211,7 +211,7 @@ class TvmTupleInterpreter(
 
     private fun visitTPushInst(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleTpushInst
+        stmt: TvmTupleTpushInst,
     ) {
         val value = scope.calcOnState { stack.takeLastEntry() }
 
@@ -242,7 +242,7 @@ class TvmTupleInterpreter(
 
     private fun visitTPopInst(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleTpopInst
+        stmt: TvmTupleTpopInst,
     ) {
         val tuple = scope.takeLastTuple()
         if (tuple == null) {
@@ -276,7 +276,7 @@ class TvmTupleInterpreter(
 
     private fun visitMakeTupleInst(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleTupleInst
+        stmt: TvmTupleTupleInst,
     ) {
         val size = stmt.n
         check(size in 0..15) {
@@ -298,7 +298,7 @@ class TvmTupleInterpreter(
 
     private fun visitUntupleInst(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleUntupleInst
+        stmt: TvmTupleUntupleInst,
     ) {
         val size = stmt.n
         check(size in 0..15) {
@@ -353,7 +353,7 @@ class TvmTupleInterpreter(
     private fun visitGetTupleLenInst(
         scope: TvmStepScopeManager,
         stmt: TvmTupleInst,
-        quiet: Boolean
+        quiet: Boolean,
     ) {
         val tuple = scope.takeLastTuple()
         if (tuple == null) {
@@ -379,7 +379,7 @@ class TvmTupleInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
         index: Int,
-        quiet: Boolean
+        quiet: Boolean,
     ): Unit? {
         check(index in 0..15) {
             "Unexpected tuple index $index"
@@ -428,7 +428,7 @@ class TvmTupleInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
         index: Int,
-        quiet: Boolean
+        quiet: Boolean,
     ) {
         check(index in 0..15) {
             "Unexpected tuple index $index"
@@ -491,7 +491,7 @@ class TvmTupleInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmTupleInst,
         i: Int,
-        j: Int
+        j: Int,
     ): Unit? {
         check(i in 0..3) {
             "Unexpected index $i in $stmt"
@@ -507,7 +507,7 @@ class TvmTupleInterpreter(
 
     private fun doIndex3(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleIndex3Inst
+        stmt: TvmTupleIndex3Inst,
     ): Unit? {
         val k = stmt.k
         check(k in 0..3) {
@@ -522,7 +522,7 @@ class TvmTupleInterpreter(
 
     private fun visitIsNull(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleIsnullInst
+        stmt: TvmTupleIsnullInst,
     ) = scope.doWithStateCtx {
         val isNull = stack.lastIsNull()
         stack.pop(0)
@@ -532,7 +532,7 @@ class TvmTupleInterpreter(
 
     private fun visitIsTupleInst(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleIstupleInst
+        stmt: TvmTupleIstupleInst,
     ) = scope.doWithStateCtx {
         val lastTuple = scope.takeLastTuple()
         stack.addInt(if (lastTuple != null) trueValue else falseValue)
@@ -541,7 +541,7 @@ class TvmTupleInterpreter(
 
     private fun visitNullInst(
         scope: TvmStepScopeManager,
-        stmt: TvmTupleNullInst
+        stmt: TvmTupleNullInst,
     ) = scope.doWithStateCtx {
         scope.addOnStack(nullValue, TvmNullType)
         newStmt(stmt.nextStmt())
@@ -552,7 +552,7 @@ class TvmTupleInterpreter(
         stmt: TvmTupleInst,
         swapIfZero: Boolean,
         nullsCount: Int,
-        skipOneEntryUnderTop: Boolean
+        skipOneEntryUnderTop: Boolean,
     ) {
         val value = scope.takeLastIntOrThrowTypeError() ?: return
         val condition =

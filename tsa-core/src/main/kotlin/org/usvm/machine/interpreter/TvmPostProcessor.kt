@@ -26,7 +26,7 @@ import java.math.BigInteger
 import kotlin.random.Random
 
 class TvmPostProcessor(
-    val ctx: TvmContext
+    val ctx: TvmContext,
 ) {
     private val signatureKeySize = 32
     private val privateKey by lazy {
@@ -52,7 +52,7 @@ class TvmPostProcessor(
 
     private inline fun assertConstraints(
         scope: TvmStepScopeManager,
-        constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr
+        constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr,
     ): Unit? {
         val resolver = scope.calcOnState { TvmTestStateResolver(ctx, models.first(), this) }
         val constraints = constraintsBuilder(resolver)
@@ -62,7 +62,7 @@ class TvmPostProcessor(
 
     private fun generateSignatureConstraints(
         scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver
+        resolver: TvmTestStateResolver,
     ): UBoolExpr =
         with(ctx) {
             val signatureChecks = scope.calcOnState { signatureChecks }
@@ -76,7 +76,7 @@ class TvmPostProcessor(
 
     private fun generateDepthConstraint(
         scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver
+        resolver: TvmTestStateResolver,
     ): UBoolExpr =
         with(ctx) {
             val addressToDepth = scope.calcOnState { addressToDepth }
@@ -91,7 +91,7 @@ class TvmPostProcessor(
 
     private fun generateHashConstraint(
         scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver
+        resolver: TvmTestStateResolver,
     ): UBoolExpr =
         with(ctx) {
             val addressToHash = scope.calcOnState { addressToHash }
@@ -107,7 +107,7 @@ class TvmPostProcessor(
     @OptIn(ExperimentalStdlibApi::class)
     private fun fixateSignatureCheck(
         signatureCheck: TvmSignatureCheck,
-        resolver: TvmTestStateResolver
+        resolver: TvmTestStateResolver,
     ): UBoolExpr =
         with(ctx) {
             val hash = resolver.resolveInt257(signatureCheck.hash)
@@ -141,7 +141,7 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         hash: UExpr<TvmInt257Sort>,
-        resolver: TvmTestStateResolver
+        resolver: TvmTestStateResolver,
     ): UBoolExpr? =
         with(ctx) {
             val value = resolver.resolveRef(ref)
@@ -182,7 +182,7 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         depth: UExpr<TvmInt257Sort>,
-        resolver: TvmTestStateResolver
+        resolver: TvmTestStateResolver,
     ): UBoolExpr? =
         with(ctx) {
             val value = resolver.resolveRef(ref)

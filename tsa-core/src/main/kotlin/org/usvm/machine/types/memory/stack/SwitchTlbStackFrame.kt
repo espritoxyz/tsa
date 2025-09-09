@@ -21,7 +21,7 @@ import org.usvm.mkSizeLtExpr
 data class SwitchTlbStackFrame(
     private val struct: TlbStructure.SwitchPrefix,
     override val path: PersistentList<Int>,
-    override val leftTlbDepth: Int
+    override val leftTlbDepth: Int,
 ) : TlbStackFrame {
     init {
         check(struct.variants.size > 1) {
@@ -31,7 +31,7 @@ data class SwitchTlbStackFrame(
 
     override fun <ReadResult : TvmCellDataTypeReadValue> step(
         state: TvmState,
-        loadData: LimitedLoadData<ReadResult>
+        loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
         with(state.ctx) {
             val possibleVariants =
@@ -112,7 +112,7 @@ data class SwitchTlbStackFrame(
     override fun skipLabel(ctx: TvmContext): TlbStackFrame? = null
 
     override fun readInModel(
-        read: TlbStack.ConcreteReadInfo
+        read: TlbStack.ConcreteReadInfo,
     ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
         with(read.resolver.state.ctx) {
             check(read.leftBits >= struct.switchSize)

@@ -37,7 +37,7 @@ sealed interface TlbResolvedBuiltinLabel : TlbBuiltinLabel
  * */
 open class TlbCompositeLabel(
     val name: String, // TODO: proper id
-    var definitelyHasAny: Boolean = false
+    var definitelyHasAny: Boolean = false,
 ) : TlbLabel {
     // this is lateinit for supporting recursive structure
     lateinit var internalStructure: TlbStructure
@@ -59,7 +59,7 @@ sealed interface FixedSizeDataLabel {
 }
 
 class TlbBitArrayOfConcreteSize(
-    override val concreteSize: Int
+    override val concreteSize: Int,
 ) : TlbAtomicLabel(),
     TlbResolvedBuiltinLabel,
     FixedSizeDataLabel {
@@ -72,7 +72,7 @@ class TlbBitArrayOfConcreteSize(
 
 // only for builders
 class TlbBitArrayByRef(
-    val sizeBits: UExpr<TvmSizeSort>
+    val sizeBits: UExpr<TvmSizeSort>,
 ) : TlbAtomicLabel(),
     TlbBuiltinLabel {
     override val arity: Int = 0
@@ -81,7 +81,7 @@ class TlbBitArrayByRef(
 class TlbIntegerLabelOfConcreteSize(
     override val concreteSize: Int,
     override val isSigned: Boolean,
-    override val endian: Endian
+    override val endian: Endian,
 ) : TlbIntegerLabel(),
     TlbResolvedBuiltinLabel,
     FixedSizeDataLabel {
@@ -100,7 +100,7 @@ class TlbIntegerLabelOfSymbolicSize(
     override val endian: Endian,
     override val arity: Int,
     override val lengthUpperBound: Int = if (isSigned) 257 else 256,
-    override val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort>
+    override val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort>,
 ) : TlbIntegerLabel()
 
 data object TlbEmptyLabel : TlbCompositeLabel("") {
@@ -113,7 +113,7 @@ sealed interface TlbMsgAddrLabel : TlbResolvedBuiltinLabel
 
 // only for builders
 class TlbAddressByRef(
-    val sizeBits: UExpr<TvmSizeSort>
+    val sizeBits: UExpr<TvmSizeSort>,
 ) : TlbAtomicLabel(),
     TlbBuiltinLabel,
     TlbMsgAddrLabel {
@@ -165,7 +165,7 @@ data object TlbBasicMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel("MsgAddr")
 }
 
 class TlbMaybeRefLabel(
-    val refInfo: TvmParameterInfo.CellInfo
+    val refInfo: TvmParameterInfo.CellInfo,
 ) : TlbCompositeLabel("Maybe"),
     TlbResolvedBuiltinLabel {
     init {
@@ -239,5 +239,5 @@ data object TlbCoinsLabel : TlbResolvedBuiltinLabel, TlbCompositeLabel("Coins") 
 
 enum class Endian {
     LittleEndian,
-    BigEndian
+    BigEndian,
 }

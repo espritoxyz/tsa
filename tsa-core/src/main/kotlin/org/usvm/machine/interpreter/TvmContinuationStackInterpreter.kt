@@ -15,11 +15,11 @@ import org.usvm.machine.state.takeLastContinuation
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 
 class TvmContinuationStackInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     fun visitContStackInst(
         scope: TvmStepScopeManager,
-        stmt: TvmContStackInst
+        stmt: TvmContStackInst,
     ) {
         when (stmt) {
             is TvmContStackSetcontvarargsInst -> visitSetContVarargs(scope, stmt)
@@ -29,7 +29,7 @@ class TvmContinuationStackInterpreter(
 
     private fun visitSetContVarargs(
         scope: TvmStepScopeManager,
-        stmt: TvmContStackSetcontvarargsInst
+        stmt: TvmContStackSetcontvarargsInst,
     ) {
         // TODO consume correct amount of gas
         scope.doWithState { consumeGas(26) }

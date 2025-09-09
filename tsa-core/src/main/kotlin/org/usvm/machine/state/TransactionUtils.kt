@@ -15,26 +15,26 @@ fun builderStoreIntTransaction(
     builder: UConcreteHeapRef,
     value: UExpr<TvmInt257Sort>,
     sizeBits: UExpr<TvmSizeSort>,
-    isSigned: Boolean = false
+    isSigned: Boolean = false,
 ): Unit? = builderStoreIntTlb(scope, builder, builder, value, sizeBits, isSigned, Endian.BigEndian)
 
 fun builderStoreGramsTransaction(
     scope: TvmStepScopeManager,
     builder: UConcreteHeapRef,
-    grams: UExpr<TvmInt257Sort>
+    grams: UExpr<TvmInt257Sort>,
 ): Unit? = builderStoreGramsTlb(scope, builder, builder, grams)
 
 fun builderStoreSliceTransaction(
     scope: TvmStepScopeManager,
     builder: UConcreteHeapRef,
-    slice: UHeapRef
+    slice: UHeapRef,
 ): Unit? = builderStoreSliceTlb(scope, builder, builder, slice)
 
 fun sliceLoadIntTransaction(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     sizeBits: Int,
-    isSigned: Boolean = false
+    isSigned: Boolean = false,
 ): Pair<UHeapRef, UExpr<TvmInt257Sort>>? =
     scope.doWithCtx {
         var result: UExpr<TvmInt257Sort>? = null
@@ -56,7 +56,7 @@ fun sliceLoadIntTransaction(
 
 fun sliceLoadAddrTransaction(
     scope: TvmStepScopeManager,
-    slice: UHeapRef
+    slice: UHeapRef,
 ): Pair<UHeapRef, UHeapRef>? =
     scope.doWithCtx {
         var result: UHeapRef? = null
@@ -81,7 +81,7 @@ fun sliceLoadAddrTransaction(
 
 fun sliceLoadGramsTransaction(
     scope: TvmStepScopeManager,
-    slice: UHeapRef
+    slice: UHeapRef,
 ): Pair<UHeapRef, UExpr<TvmInt257Sort>>? {
     var resGrams: UExpr<TvmInt257Sort>? = null
     val originalStateId = scope.calcOnState { id }
@@ -105,7 +105,7 @@ fun sliceLoadGramsTransaction(
 
 fun sliceLoadRefTransaction(
     scope: TvmStepScopeManager,
-    slice: UHeapRef
+    slice: UHeapRef,
 ): Pair<UHeapRef, UHeapRef>? {
     var result: UHeapRef? = null
     val originalStateId = scope.calcOnState { id }

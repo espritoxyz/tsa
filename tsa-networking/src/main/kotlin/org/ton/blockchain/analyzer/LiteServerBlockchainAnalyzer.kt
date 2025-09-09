@@ -9,7 +9,7 @@ import org.ton.blockchain.info.LiteServerBlockchainInfoExtractor
 class LiteServerBlockchainAnalyzer(
     pathToTonLibJson: String,
     pathToConfig: String,
-    emulatorLibPath: String
+    emulatorLibPath: String,
 ) : TvmBlockchainAnalyzerBase(emulatorLibPath) {
     override val infoExtractor: LiteServerBlockchainInfoExtractor =
         LiteServerBlockchainInfoExtractor(

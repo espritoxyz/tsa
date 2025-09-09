@@ -18,7 +18,7 @@ data object HashMapESerializer : TlbCodec<Cell> {
 
     override fun storeTlb(
         cellBuilder: CellBuilder,
-        value: Cell
+        value: Cell,
     ) {
         cellBuilder.storeBits(value.bits)
         cellBuilder.storeRefs(value.refs)
@@ -39,7 +39,7 @@ fun transformTestDataCellIntoCell(value: TvmTestDataCellValue): Cell {
 
 fun transformMapIntoHashMapE(
     keyLength: Int,
-    map: Map<BigInteger, Cell>
+    map: Map<BigInteger, Cell>,
 ): HashMapE<Cell> {
     val patchedContent =
         map.entries.associate { (key, entryValue) ->

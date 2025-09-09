@@ -8,5 +8,5 @@ interface TvmField {
 
 data class TvmFieldImpl(
     val enclosingType: TvmType,
-    override val name: String
+    override val name: String,
 ) : TvmField

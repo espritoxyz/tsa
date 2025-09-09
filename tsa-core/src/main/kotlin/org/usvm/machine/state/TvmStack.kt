@@ -28,7 +28,7 @@ class TvmStack(
     private var stack: PersistentList<TvmStackEntry> = persistentListOf(), // [n n-1 n-2 ... 2 1 0]
     private var inputElements: PersistentList<TvmInputStackEntry> = persistentListOf(),
     private var inputEntryIdToStackValue: PersistentMap<Int, TvmStackValue> = persistentMapOf(),
-    val allowInputValues: Boolean = true
+    val allowInputValues: Boolean = true,
 ) {
     private inline val size: Int get() = stack.size
 
@@ -40,7 +40,7 @@ class TvmStack(
 
     fun takeValuesFromOtherStack(
         otherStack: TvmStack,
-        numberOfItems: Int
+        numberOfItems: Int,
     ) {
         val entries =
             List(numberOfItems) {
@@ -62,7 +62,7 @@ class TvmStack(
 
     fun takeLast(
         expectedType: TvmRealType,
-        createEntry: (Int) -> UExpr<out USort>
+        createEntry: (Int) -> UExpr<out USort>,
     ): TvmStackValue {
         val lastEntry = takeLastEntry()
 
@@ -99,7 +99,7 @@ class TvmStack(
 
     fun swap(
         first: Int,
-        second: Int
+        second: Int,
     ) {
         val maxDepth = max(first, second)
         val newSize = maxDepth + 1
@@ -113,7 +113,7 @@ class TvmStack(
      */
     fun blkDrop2(
         i: Int,
-        j: Int
+        j: Int,
     ) {
         val newSize = i + j
         extendStack(newSize)
@@ -137,7 +137,7 @@ class TvmStack(
      * */
     fun reverse(
         i: Int,
-        j: Int
+        j: Int,
     ) {
         extendStack(i + j)
         stack =
@@ -201,7 +201,7 @@ class TvmStack(
 
     private fun swapImpl(
         first: Int,
-        second: Int
+        second: Int,
     ) {
         val tmp = stack[first]
         stack = stack.set(first, stack[second])
@@ -234,11 +234,11 @@ class TvmStack(
     }
 
     data class TvmStackContinuationValue(
-        override val continuationValue: TvmContinuation
+        override val continuationValue: TvmContinuation,
     ) : TvmStackValue
 
     data class TvmStackIntValue(
-        override val intValue: UExpr<TvmInt257Sort>
+        override val intValue: UExpr<TvmInt257Sort>,
     ) : TvmStackValue
 
     sealed interface TvmStackTupleValue : TvmStackValue {
@@ -247,18 +247,18 @@ class TvmStack(
 
         operator fun get(
             idx: Int,
-            stack: TvmStack
+            stack: TvmStack,
         ): TvmStackEntry
 
         operator fun set(
             idx: Int,
-            value: TvmStackEntry
+            value: TvmStackEntry,
         ): TvmStackTupleValue
     }
 
     data class TvmStackTupleValueConcreteNew(
         val ctx: TvmContext,
-        val entries: PersistentList<TvmStackEntry>
+        val entries: PersistentList<TvmStackEntry>,
     ) : TvmStackTupleValue {
         val concreteSize: Int = entries.size
 
@@ -266,12 +266,12 @@ class TvmStack(
 
         override operator fun get(
             idx: Int,
-            stack: TvmStack
+            stack: TvmStack,
         ): TvmStackEntry = entries[idx]
 
         override operator fun set(
             idx: Int,
-            value: TvmStackEntry
+            value: TvmStackEntry,
         ): TvmStackTupleValueConcreteNew = copy(entries = entries.set(idx, value))
     }
 
@@ -280,11 +280,11 @@ class TvmStack(
     data class TvmStackTupleValueInputNew(
         val entries: MutableMap<Int, TvmInputStackEntry> = mutableMapOf(),
         // id -> ctx.mkRegisterReading(id, ctx.int257sort)
-        override val size: UExpr<TvmInt257Sort>
+        override val size: UExpr<TvmInt257Sort>,
     ) : TvmStackTupleValueInputValue {
         override operator fun get(
             idx: Int,
-            stack: TvmStack
+            stack: TvmStack,
         ): TvmInputStackEntry =
             entries.getOrPut(idx) {
                 TvmInputStackEntry(id = stack.ctx.nextInputStackEntryId()).also {
@@ -294,7 +294,7 @@ class TvmStack(
 
         override operator fun set(
             idx: Int,
-            value: TvmStackEntry
+            value: TvmStackEntry,
         ): TvmStackTupleValueModifiedInputNew {
             // TODO should we increase size?
             return TvmStackTupleValueModifiedInputNew(
@@ -306,13 +306,13 @@ class TvmStack(
 
     data class TvmStackTupleValueModifiedInputNew(
         var entries: PersistentMap<Int, TvmStackEntry>,
-        val original: TvmStackTupleValueInputNew
+        val original: TvmStackTupleValueInputNew,
     ) : TvmStackTupleValueInputValue {
         override val size: UExpr<TvmInt257Sort> = original.size
 
         override operator fun get(
             idx: Int,
-            stack: TvmStack
+            stack: TvmStack,
         ): TvmStackEntry {
             entries[idx]?.let { return it }
 
@@ -325,7 +325,7 @@ class TvmStack(
 
         override operator fun set(
             idx: Int,
-            value: TvmStackEntry
+            value: TvmStackEntry,
         ): TvmStackTupleValueModifiedInputNew {
             // TODO should we increase size?
             return copy(entries = entries.put(idx, value))
@@ -333,7 +333,7 @@ class TvmStack(
     }
 
     data class TvmStackCellValue(
-        override val cellValue: UHeapRef
+        override val cellValue: UHeapRef,
     ) : TvmStackValue
 
     data object TvmStackNullValue : TvmStackValue {
@@ -343,11 +343,11 @@ class TvmStack(
     }
 
     data class TvmStackSliceValue(
-        override val sliceValue: UHeapRef
+        override val sliceValue: UHeapRef,
     ) : TvmStackValue
 
     data class TvmStackBuilderValue(
-        override val builderValue: UConcreteHeapRef
+        override val builderValue: UConcreteHeapRef,
     ) : TvmStackValue
 // /...
 
@@ -356,20 +356,20 @@ class TvmStack(
     }
 
     data class TvmConcreteStackEntry(
-        val concreteCell: TvmStackValue
+        val concreteCell: TvmStackValue,
     ) : TvmStackEntry {
         override fun cell(stack: TvmStack): TvmStackValue = concreteCell
     }
 
     data class TvmInputStackEntry(
-        val id: Int
+        val id: Int,
     ) : TvmStackEntry {
         override fun cell(stack: TvmStack): TvmStackValue? = stack.inputEntryIdToStackValue[id]
     }
 
     fun putInputEntryValue(
         entry: TvmInputStackEntry,
-        value: TvmStackValue
+        value: TvmStackValue,
     ) {
         require(entry.id !in inputEntryIdToStackValue || value == inputEntryIdToStackValue[entry.id]) {
             "Contradicting values for TvmInputStackEntry $entry"
@@ -380,7 +380,7 @@ class TvmStack(
     fun getStackValue(
         entry: TvmStackEntry,
         expectedType: TvmRealType,
-        createEntry: (Int) -> UExpr<out USort>
+        createEntry: (Int) -> UExpr<out USort>,
     ): TvmStackValue {
         require(expectedType !is TvmNullType) {
             "Unexpected reading NULL from the stack"

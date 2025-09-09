@@ -42,11 +42,11 @@ import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.utils.intValueOrNull
 
 class TvmExceptionsInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     fun visitExceptionInst(
         scope: TvmStepScopeManager,
-        stmt: TvmExceptionsInst
+        stmt: TvmExceptionsInst,
     ) {
         when (stmt) {
             is TvmExceptionsThrowargInst ->
@@ -195,7 +195,7 @@ class TvmExceptionsInterpreter(
     private fun TvmState.throwException(
         code: Int,
         level: TvmFailureType = TvmFailureType.UnknownError,
-        param: UExpr<TvmInt257Sort> = ctx.zeroValue
+        param: UExpr<TvmInt257Sort> = ctx.zeroValue,
     ) = ctx.setFailure(TvmUserDefinedFailure(code), level, param, implicitThrow = false)(this)
 
     private fun doThrowIfInst(
@@ -203,7 +203,7 @@ class TvmExceptionsInterpreter(
         stmt: TvmExceptionsInst,
         exceptionCodeExtractor: ExceptionCodeExtractor,
         invertCondition: Boolean,
-        takeParameterFromStack: Boolean = false
+        takeParameterFromStack: Boolean = false,
     ) {
         with(ctx) {
             val flag = scope.takeLastIntOrThrowTypeError() ?: return
@@ -236,7 +236,7 @@ class TvmExceptionsInterpreter(
     }
 
     private data class EmbeddedCodeExtractor(
-        val code: Int
+        val code: Int,
     ) : ExceptionCodeExtractor {
         override fun code(state: TvmState): Int = code
     }

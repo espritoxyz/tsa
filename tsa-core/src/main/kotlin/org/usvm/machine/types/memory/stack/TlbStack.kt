@@ -15,14 +15,14 @@ import org.usvm.test.resolver.TvmTestStateResolver
 
 data class TlbStack(
     private val frames: List<TlbStackFrame>,
-    private val deepestError: TvmStructuralError? = null
+    private val deepestError: TvmStructuralError? = null,
 ) {
     val isEmpty: Boolean
         get() = frames.isEmpty()
 
     fun <ReadResult : TvmCellDataTypeReadValue> step(
         state: TvmState,
-        loadData: LimitedLoadData<ReadResult>
+        loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
         with(state.ctx) {
             val ctx = state.ctx
@@ -154,7 +154,7 @@ data class TlbStack(
 
     private fun popFrames(
         ctx: TvmContext,
-        framesToPop: List<TlbStackFrame>
+        framesToPop: List<TlbStackFrame>,
     ): List<TlbStackFrame> {
         if (framesToPop.isEmpty()) {
             return framesToPop
@@ -174,29 +174,29 @@ data class TlbStack(
     sealed interface StepResult
 
     data class Error(
-        val error: TvmStructuralError
+        val error: TvmStructuralError,
     ) : StepResult
 
     data class NewStack(
-        val stack: TlbStack
+        val stack: TlbStack,
     ) : StepResult
 
     data class ConcreteReadInfo(
         val address: UConcreteHeapRef,
         val resolver: TvmTestStateResolver,
-        val leftBits: Int
+        val leftBits: Int,
     )
 
     data class GuardedResult<ReadResult : TvmCellDataTypeReadValue>(
         val guard: UBoolExpr,
         val result: StepResult,
-        val value: ReadResult?
+        val value: ReadResult?,
     )
 
     companion object {
         fun new(
             ctx: TvmContext,
-            label: TlbCompositeLabel
+            label: TlbCompositeLabel,
         ): TlbStack {
             val struct = label.internalStructure
             val frame = buildFrameForStructure(ctx, struct, persistentListOf(), ctx.tvmOptions.tlbOptions.maxTlbDepth)

@@ -19,7 +19,7 @@ import kotlin.io.path.extension
 data class JettonWalletPropertiesReport(
     val analyzedAddress: String,
     val jettonWalletCodeHashBase64: String,
-    val blacklistedAddresses: Set<String>
+    val blacklistedAddresses: Set<String>,
 )
 
 fun runAnalysisAndCreateReport(address: String): JettonWalletPropertiesReport {

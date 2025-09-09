@@ -33,11 +33,11 @@ import org.usvm.test.resolver.TvmTestSliceValue
 data class KnownTypeTlbStackFrame(
     val struct: TlbStructure.KnownTypePrefix,
     override val path: PersistentList<Int>,
-    override val leftTlbDepth: Int
+    override val leftTlbDepth: Int,
 ) : TlbStackFrame {
     override fun <ReadResult : TvmCellDataTypeReadValue> step(
         state: TvmState,
-        loadData: LimitedLoadData<ReadResult>
+        loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
         with(state.ctx) {
             if (struct.typeLabel !is TlbBuiltinLabel) {
@@ -140,7 +140,7 @@ data class KnownTypeTlbStackFrame(
     override fun skipLabel(ctx: TvmContext) = buildFrameForStructure(ctx, struct.rest, path, leftTlbDepth)
 
     override fun readInModel(
-        read: TlbStack.ConcreteReadInfo
+        read: TlbStack.ConcreteReadInfo,
     ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
         with(read.resolver.state.ctx) {
             val state = read.resolver.state

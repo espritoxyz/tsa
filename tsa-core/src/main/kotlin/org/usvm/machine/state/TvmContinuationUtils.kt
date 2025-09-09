@@ -30,7 +30,7 @@ fun TvmState.extractCurrentContinuation(
     stmt: TvmInst,
     saveC0: Boolean = false,
     saveC1: Boolean = false,
-    saveC2: Boolean = false
+    saveC2: Boolean = false,
 ): TvmOrdContinuation =
     with(ctx) {
         var c0: C0Register? = null
@@ -63,7 +63,7 @@ fun TvmState.extractCurrentContinuation(
 fun TvmStepScopeManager.callMethod(
     stmt: TvmInst,
     methodToCall: TvmMethod,
-    checkerMemorySavelist: TsaCheckerFunctionsInterpreter.CheckerMemorySavelist? = null
+    checkerMemorySavelist: TsaCheckerFunctionsInterpreter.CheckerMemorySavelist? = null,
 ) {
     val nextContinuation = TvmOrdContinuation(methodToCall, sourceCell = null)
 
@@ -107,7 +107,7 @@ fun TvmStepScopeManager.jumpToContinuation(cont: TvmContinuation) {
 
 fun TvmStepScopeManager.jumpToContinuationComplex(
     cont: TvmContinuation,
-    passArgs: UInt? = null
+    passArgs: UInt? = null,
 ) = doWithStateCtx {
     // TODO stack depth checks ?
 
@@ -141,7 +141,7 @@ fun TvmStepScopeManager.jumpToContinuationComplex(
 
 fun TvmStepScopeManager.callContinuation(
     stmt: TvmInst,
-    continuation: TvmContinuation
+    continuation: TvmContinuation,
 ) = doWithState {
     if (continuation.savelist.c0 != null) {
         // call reduces to a jump
@@ -166,7 +166,7 @@ fun TvmStepScopeManager.callContinuationComplex(
     stmt: TvmInst,
     continuation: TvmContinuation,
     passArgs: UInt? = null,
-    returnArgs: UInt? = null
+    returnArgs: UInt? = null,
 ) = doWithStateCtx {
     if (continuation.savelist.c0 != null) {
         // call reduces to a jump

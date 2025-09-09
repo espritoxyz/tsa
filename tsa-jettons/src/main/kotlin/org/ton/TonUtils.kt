@@ -49,7 +49,7 @@ fun makeRequest(query: String): String {
 
 data class JettonContractInfo(
     val contractBytesHex: String,
-    val jettonWalletCodeHashBase64: String
+    val jettonWalletCodeHashBase64: String,
 ) {
     @OptIn(ExperimentalStdlibApi::class)
     val contractBytes: ByteArray

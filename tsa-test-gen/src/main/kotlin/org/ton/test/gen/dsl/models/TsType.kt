@@ -23,11 +23,11 @@ data object TsSendMessageResult : TsType
 data object TsTransaction : TsType
 
 data class TsArray<T : TsType>(
-    val elementType: T
+    val elementType: T,
 ) : TsType
 
 data class TsPredicate<T : TsType>(
-    val argType: T
+    val argType: T,
 ) : TsType
 
 sealed interface TsNum : TsType
@@ -41,7 +41,7 @@ interface TsWrapper : TsType {
 }
 
 data class TsSandboxContract<T : TsWrapper>(
-    val wrapperType: T
+    val wrapperType: T,
 ) : TsType
 
 interface TsObject : TsType {

@@ -39,13 +39,13 @@ import org.usvm.machine.state.takeLastContinuation
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 
 class TvmLoopsInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     private var loopIdx = 0u
 
     fun visitTvmContLoopsInst(
         scope: TvmStepScopeManager,
-        stmt: TvmContLoopsInst
+        stmt: TvmContLoopsInst,
     ) {
         scope.consumeDefaultGas(stmt)
 
@@ -74,7 +74,7 @@ class TvmLoopsInterpreter(
      */
     private fun TvmState.registerBreakpoint(
         cont: TvmContinuation,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ): TvmContinuation {
         if (!hasBreak) {
             return cont
@@ -91,7 +91,7 @@ class TvmLoopsInterpreter(
     private fun visitRepeatInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = doRepeat(
         scope = scope,
         extractBody = { stack.takeLastContinuation() },
@@ -103,7 +103,7 @@ class TvmLoopsInterpreter(
     private fun visitRepeatEndInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = doRepeat(
         scope = scope,
         extractBody = { extractCurrentContinuation(stmt) },
@@ -117,7 +117,7 @@ class TvmLoopsInterpreter(
         parentLocation: TvmInstLocation,
         crossinline extractBody: TvmState.() -> TvmContinuation?,
         crossinline extractAfter: TvmState.() -> TvmContinuation,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = with(ctx) {
         val body =
             scope.calcOnState { extractBody() }
@@ -142,7 +142,7 @@ class TvmLoopsInterpreter(
     private fun visitUntilInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = doUntil(
         scope = scope,
         extractBody = { stack.takeLastContinuation() },
@@ -154,7 +154,7 @@ class TvmLoopsInterpreter(
     private fun visitUntilEndInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = doUntil(
         scope = scope,
         extractBody = { extractCurrentContinuation(stmt) },
@@ -168,7 +168,7 @@ class TvmLoopsInterpreter(
         crossinline extractBody: TvmState.() -> TvmContinuation?,
         crossinline extractAfter: TvmState.() -> TvmContinuation,
         hasBreak: Boolean,
-        parentLocation: TvmInstLocation
+        parentLocation: TvmInstLocation,
     ) {
         val body =
             scope.calcOnState { extractBody() }
@@ -188,7 +188,7 @@ class TvmLoopsInterpreter(
     private fun visitWhileInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = doWhile(
         scope = scope,
         extractBody = { stack.takeLastContinuation() },
@@ -200,7 +200,7 @@ class TvmLoopsInterpreter(
     private fun visitWhileEndInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = doWhile(
         scope = scope,
         extractBody = { extractCurrentContinuation(stmt) },
@@ -214,7 +214,7 @@ class TvmLoopsInterpreter(
         crossinline extractBody: TvmState.() -> TvmContinuation?,
         crossinline extractAfter: TvmState.() -> TvmContinuation,
         hasBreak: Boolean,
-        parentLocation: TvmInstLocation
+        parentLocation: TvmInstLocation,
     ) {
         val body =
             scope.calcOnState { extractBody() }
@@ -237,7 +237,7 @@ class TvmLoopsInterpreter(
     private fun visitAgainInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) {
         val body =
             scope.calcOnState { stack.takeLastContinuation() }
@@ -259,7 +259,7 @@ class TvmLoopsInterpreter(
     private fun visitAgainEndInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) {
         val body = scope.calcOnState { extractCurrentContinuation(stmt) }
         val wrappedBody = TvmLoopEntranceContinuation(body, loopIdx++, stmt.location)

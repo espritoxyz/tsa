@@ -22,11 +22,11 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmSliceType
 
 class TvmCurrencyInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     fun visitCurrencyInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppCurrencyInst
+        stmt: TvmAppCurrencyInst,
     ) {
         scope.consumeDefaultGas(stmt)
 
@@ -39,7 +39,7 @@ class TvmCurrencyInterpreter(
 
     private fun visitLoadGramsInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppCurrencyLdgramsInst
+        stmt: TvmAppCurrencyLdgramsInst,
     ) {
         scope.doWithStateCtx {
             val slice = takeLastSlice()
@@ -60,7 +60,7 @@ class TvmCurrencyInterpreter(
 
     private fun visitStoreGrams(
         scope: TvmStepScopeManager,
-        stmt: TvmAppCurrencyStgramsInst
+        stmt: TvmAppCurrencyStgramsInst,
     ) = with(ctx) {
         val grams =
             scope.takeLastIntOrThrowTypeError()

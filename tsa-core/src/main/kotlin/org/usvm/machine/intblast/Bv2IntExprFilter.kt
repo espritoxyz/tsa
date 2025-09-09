@@ -30,16 +30,16 @@ class Bv2IntExprFilter(
     ctx: KContext,
     private val excludeNonConstShift: Boolean = true,
     private val excludeNonConstBvand: Boolean = true,
-    private val excludeNonlinearArith: Boolean = false
+    private val excludeNonlinearArith: Boolean = false,
 ) : KNonRecursiveVisitor<Boolean>(ctx) {
     private inline fun filter(
         enabled: Boolean,
-        body: () -> Boolean
+        body: () -> Boolean,
     ): Boolean = if (enabled) body() else true
 
     private fun filterNonConstBitwiseOp(
         lhs: KExpr<*>,
-        rhs: KExpr<*>
+        rhs: KExpr<*>,
     ) = filter(excludeNonConstBvand) {
         lhs is KInterpretedValue || rhs is KInterpretedValue
     }
@@ -47,14 +47,14 @@ class Bv2IntExprFilter(
     @Suppress("UnusedPrivateMember")
     private fun filterNonConstShift(
         arg: KExpr<*>,
-        shift: KExpr<*>
+        shift: KExpr<*>,
     ) = filter(excludeNonConstShift) {
         shift is KInterpretedValue
     }
 
     private fun filterNonlinearArith(
         lhs: KExpr<*>,
-        rhs: KExpr<*>
+        rhs: KExpr<*>,
     ) = filter(excludeNonlinearArith) {
         lhs is KInterpretedValue || rhs is KInterpretedValue
     }
@@ -63,7 +63,7 @@ class Bv2IntExprFilter(
 
     override fun mergeResults(
         left: Boolean,
-        right: Boolean
+        right: Boolean,
     ): Boolean = left && right
 
     override fun <T : KBvSort> visit(expr: KBvAndExpr<T>): KExprVisitResult<Boolean> {

@@ -29,15 +29,15 @@ sealed interface StackOperations
 
 data class SimpleStackOperations(
     val putOnNewStack: Int,
-    val takeFromNewStack: Int
+    val takeFromNewStack: Int,
 ) : StackOperations
 
 data class NewReceiverInput(
     val inputId: Int,
-    val type: ReceiverType
+    val type: ReceiverType,
 ) : StackOperations
 
 enum class ReceiverType {
     Internal,
-    External
+    External,
 }

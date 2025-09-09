@@ -31,7 +31,7 @@ sealed interface AbstractionForUExpr<NewAbstraction> {
 data class SimpleAbstractionForUExpr(
     override val address: UConcreteHeapRef,
     override val path: PersistentList<Int>,
-    override val state: TvmState
+    override val state: TvmState,
 ) : AbstractionForUExpr<SimpleAbstractionForUExpr> {
     override fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
         SimpleAbstractionForUExpr(
@@ -45,7 +45,7 @@ data class AbstractionForUExprWithCellDataPrefix(
     override val address: UConcreteHeapRef,
     val prefixSize: UExpr<TvmSizeSort>,
     override val path: PersistentList<Int>,
-    override val state: TvmState
+    override val state: TvmState,
 ) : AbstractionForUExpr<AbstractionForUExprWithCellDataPrefix> {
     override fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
         AbstractionForUExprWithCellDataPrefix(address, prefixSize, path.add(0, struct.id), state)
@@ -53,7 +53,7 @@ data class AbstractionForUExprWithCellDataPrefix(
 
 @JvmInline
 value class AbstractGuard<Abstraction : AbstractionForUExpr<Abstraction>>(
-    val apply: (Abstraction) -> UBoolExpr
+    val apply: (Abstraction) -> UBoolExpr,
 ) {
     infix fun or(other: AbstractGuard<Abstraction>) =
         AbstractGuard<Abstraction> {
@@ -92,7 +92,7 @@ value class AbstractGuard<Abstraction : AbstractionForUExpr<Abstraction>>(
 }
 
 fun AbstractGuard<AbstractionForUExprWithCellDataPrefix>.shift(
-    numOfBits: AbstractSizeExpr<AbstractionForUExprWithCellDataPrefix>
+    numOfBits: AbstractSizeExpr<AbstractionForUExprWithCellDataPrefix>,
 ) = AbstractGuard<AbstractionForUExprWithCellDataPrefix> { param ->
     val offset = numOfBits.apply(param)
     val (address, prefixSize, path, state) = param
@@ -101,7 +101,7 @@ fun AbstractGuard<AbstractionForUExprWithCellDataPrefix>.shift(
 
 @JvmInline
 value class AbstractSizeExpr<Abstraction : AbstractionForUExpr<Abstraction>>(
-    val apply: (Abstraction) -> UExpr<TvmSizeSort>
+    val apply: (Abstraction) -> UExpr<TvmSizeSort>,
 ) {
     fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
         AbstractSizeExpr<Abstraction> { param ->
@@ -123,7 +123,7 @@ fun AbstractSizeExpr<SimpleAbstractionForUExpr>.convert(): AbstractSizeExpr<Abst
 
 class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
     val children: List<ChildStructure<Abstraction>>,
-    val numberOfChildrenExceeded: AbstractGuard<Abstraction>
+    val numberOfChildrenExceeded: AbstractGuard<Abstraction>,
 ) {
     init {
         require(children.size == TvmContext.MAX_REFS_NUMBER)
@@ -131,7 +131,7 @@ class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
 
     fun exactNumberOfChildren(
         ctx: TvmContext,
-        num: Int
+        num: Int,
     ): AbstractGuard<Abstraction> =
         with(ctx) {
             require(num in 0..TvmContext.MAX_REFS_NUMBER)
@@ -185,7 +185,7 @@ class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
 }
 
 class ChildStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
-    val variants: Map<TvmParameterInfo.CellInfo, AbstractGuard<Abstraction>>
+    val variants: Map<TvmParameterInfo.CellInfo, AbstractGuard<Abstraction>>,
 ) {
     fun exists(): AbstractGuard<Abstraction> =
         variants.values.fold(AbstractGuard.abstractFalse()) { acc, guard ->
@@ -218,7 +218,7 @@ class ChildStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
 
 fun <Abstraction : AbstractionForUExpr<Abstraction>> getKnownTypePrefixDataLength(
     struct: TlbStructure.KnownTypePrefix,
-    lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<Abstraction>>
+    lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<Abstraction>>,
 ): AbstractSizeExpr<Abstraction>? =
     when (struct.typeLabel) {
         is TlbAtomicLabel -> {
@@ -235,7 +235,7 @@ fun <Abstraction : AbstractionForUExpr<Abstraction>> getKnownTypePrefixDataLengt
 fun <Key, Value> calculateMapsByTlbDepth(
     maxTlbDepth: Int,
     keys: Iterable<Key>,
-    makeCalculation: (Key, Int, Map<Key, Value>) -> Value?
+    makeCalculation: (Key, Int, Map<Key, Value>) -> Value?,
 ): List<Map<Key, Value>> {
     var cur = mapOf<Key, Value>()
     val result = mutableListOf<Map<Key, Value>>()

@@ -39,12 +39,12 @@ import org.usvm.uctx
 import usvm.hack.UModelBaseAccess
 
 data class DictId(
-    val keyLength: Int
+    val keyLength: Int,
 )
 
 data class TvmDictValueRegionLValue<KeySort : USort>(
     val dictId: DictId,
-    val keySort: KeySort
+    val keySort: KeySort,
 ) : ULValue<TvmDictValueRegionLValue<KeySort>, Nothing> {
     override val key: TvmDictValueRegionLValue<KeySort>
         get() = this
@@ -58,7 +58,7 @@ data class TvmDictValueRegionLValue<KeySort : USort>(
 
 data class TvmDictValueRegionId<KeySort : USort>(
     val dictId: DictId,
-    val keySort: KeySort
+    val keySort: KeySort,
 ) : UMemoryRegionId<TvmDictValueRegionLValue<KeySort>, Nothing> {
     override fun emptyRegion(): UMemoryRegion<TvmDictValueRegionLValue<KeySort>, Nothing> =
         TvmRefsMemoryRegion<TvmDictValueRegionLValue<KeySort>, KeySort, UAddressSort>()
@@ -69,13 +69,13 @@ data class TvmDictValueRegionId<KeySort : USort>(
 
 @Suppress("UNCHECKED_CAST")
 fun <KeySort : USort> UReadOnlyMemory<*>.dictValueRegion(
-    regionId: TvmDictValueRegionId<KeySort>
+    regionId: TvmDictValueRegionId<KeySort>,
 ): TvmRefsMemoryRegion<TvmDictValueRegionLValue<KeySort>, KeySort, UAddressSort> =
     getRegion(regionId) as TvmRefsMemoryRegion<TvmDictValueRegionLValue<KeySort>, KeySort, UAddressSort>
 
 class TvmDictValueRegionValueInfo<ValueSort : USort>(
     private val state: TvmState,
-    private val valueSort: ValueSort
+    private val valueSort: ValueSort,
 ) : TvmRefsMemoryRegion.TvmRefsRegionValueInfo<ValueSort> {
     override fun mkDefaultValue(): UExpr<ValueSort> = state.emptyRefValue.emptySlice.asExpr(valueSort)
 
@@ -90,29 +90,29 @@ class TvmDictValueRegionValueInfo<ValueSort : USort>(
 object DictKeyInfo : USymbolicCollectionKeyInfo<UExpr<UBvSort>, SetRegion<UExpr<UBvSort>>> {
     override fun mapKey(
         key: UExpr<UBvSort>,
-        transformer: UTransformer<*, *>?
+        transformer: UTransformer<*, *>?,
     ): UExpr<UBvSort> = transformer.apply(key)
 
     override fun eqSymbolic(
         ctx: UContext<*>,
         key1: UExpr<UBvSort>,
-        key2: UExpr<UBvSort>
+        key2: UExpr<UBvSort>,
     ): UBoolExpr = ctx.mkEq(key1, key2)
 
     override fun eqConcrete(
         key1: UExpr<UBvSort>,
-        key2: UExpr<UBvSort>
+        key2: UExpr<UBvSort>,
     ): Boolean = key1 == key2
 
     override fun cmpSymbolicLe(
         ctx: UContext<*>,
         key1: UExpr<UBvSort>,
-        key2: UExpr<UBvSort>
+        key2: UExpr<UBvSort>,
     ): UBoolExpr = error("Dict keys should not be compared!")
 
     override fun cmpConcreteLe(
         key1: UExpr<UBvSort>,
-        key2: UExpr<UBvSort>
+        key2: UExpr<UBvSort>,
     ): Boolean = error("Dict keys should not be compared!")
 
     override fun keyToRegion(key: UExpr<UBvSort>) =
@@ -124,7 +124,7 @@ object DictKeyInfo : USymbolicCollectionKeyInfo<UExpr<UBvSort>, SetRegion<UExpr<
 
     override fun keyRangeRegion(
         from: UExpr<UBvSort>,
-        to: UExpr<UBvSort>
+        to: UExpr<UBvSort>,
     ) = error("This should not be called!")
 
     override fun topRegion() = SetRegion.universe<UExpr<UBvSort>>()
@@ -136,7 +136,7 @@ fun TvmState.dictAddKeyValue(
     dictRef: UHeapRef,
     dictId: DictId,
     key: UExpr<UBvSort>,
-    value: UExpr<*>
+    value: UExpr<*>,
 ) = with(ctx) {
     val keyContainsLValue = USetEntryLValue(key.sort, dictRef, key, dictId, DictKeyInfo)
     memory.write(keyContainsLValue, rvalue = trueExpr, guard = trueExpr)
@@ -153,7 +153,7 @@ fun TvmState.initializeConcreteDict(
     dictRef: UConcreteHeapRef,
     dictId: DictId,
     values: List<Pair<UExpr<UBvSort>, UExpr<*>>>,
-    keySort: UBvSort
+    keySort: UBvSort,
 ): Unit =
     with(ctx) {
         val setRegionId = USetRegionId(keySort, dictId, DictKeyInfo)
@@ -185,7 +185,7 @@ fun TvmState.initializeConcreteDict(
 fun TvmState.dictGetValue(
     dictRef: UHeapRef,
     dictId: DictId,
-    key: UExpr<UBvSort>
+    key: UExpr<UBvSort>,
 ): UHeapRef =
     with(ctx) {
         val valueSort = addressSort
@@ -201,7 +201,7 @@ fun TvmState.dictGetValue(
 fun TvmState.dictContainsKey(
     dictRef: UHeapRef,
     dictId: DictId,
-    key: UExpr<UBvSort>
+    key: UExpr<UBvSort>,
 ): UBoolExpr {
     val keyContainsLValue = USetEntryLValue(key.sort, dictRef, key, dictId, DictKeyInfo)
     return memory.read(keyContainsLValue)
@@ -210,7 +210,7 @@ fun TvmState.dictContainsKey(
 fun TvmState.dictRemoveKey(
     dictRef: UHeapRef,
     dictId: DictId,
-    key: UExpr<UBvSort>
+    key: UExpr<UBvSort>,
 ) = with(ctx) {
     val resultKeyContainsLValue = USetEntryLValue(key.sort, dictRef, key, dictId, DictKeyInfo)
     memory.write(resultKeyContainsLValue, rvalue = falseExpr, guard = trueExpr)
@@ -222,7 +222,7 @@ fun TvmState.copyDict(
     originalDict: UHeapRef,
     resultDict: UConcreteHeapRef,
     dictId: DictId,
-    keySort: UBvSort
+    keySort: UBvSort,
 ) = with(ctx) {
     memory.setUnion(originalDict, resultDict, dictId, keySort, DictKeyInfo, guard = trueExpr, ownership)
 
@@ -241,7 +241,7 @@ fun dictKeyEntries(
     memory: UMemory<TvmType, TvmCodeBlock>,
     dict: UConcreteHeapRef,
     dictId: DictId,
-    keySort: UBvSort
+    keySort: UBvSort,
 ): Set<USetEntryLValue<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>> {
     // entries stored during execution
     val memoryEntries = memory.setEntries(dict, dictId, keySort, DictKeyInfo).entries
@@ -255,7 +255,7 @@ private fun dictModelKeyEntries(
     model: UModelBase<TvmType>,
     dict: UConcreteHeapRef,
     dictId: DictId,
-    keySort: UBvSort
+    keySort: UBvSort,
 ): Set<USetEntryLValue<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>> {
     if (dict.address <= INITIAL_INPUT_ADDRESS) {
         return model.setEntries(dict, dictId, keySort, DictKeyInfo).entries

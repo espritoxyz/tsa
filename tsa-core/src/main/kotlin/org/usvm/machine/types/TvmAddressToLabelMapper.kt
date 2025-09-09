@@ -20,7 +20,7 @@ import kotlin.math.max
 class TvmAddressToLabelMapper(
     state: TvmState,
     inputInfo: InputParametersStructure,
-    val calculatedTlbLabelInfo: CalculatedTlbLabelInfo
+    val calculatedTlbLabelInfo: CalculatedTlbLabelInfo,
 ) {
     private val inputAddressToLabels = hashMapOf<UConcreteHeapRef, LabelInfo>()
     private val grandchildrenOfAddressInitialized = hashSetOf<UConcreteHeapRef>()
@@ -46,7 +46,7 @@ class TvmAddressToLabelMapper(
 
     private fun getChildrenAddresses(
         state: TvmState,
-        ref: UConcreteHeapRef
+        ref: UConcreteHeapRef,
     ): List<UConcreteHeapRef> {
         val parentStruct = inputAddressToLabels[ref]
         check(parentStruct != null) {
@@ -69,7 +69,7 @@ class TvmAddressToLabelMapper(
 
     private fun generateLabelInfoForChildren(
         state: TvmState,
-        ref: UConcreteHeapRef
+        ref: UConcreteHeapRef,
     ) = with(state.ctx) {
         val parentStruct =
             inputAddressToLabels[ref]
@@ -120,7 +120,7 @@ class TvmAddressToLabelMapper(
 
     fun getLabelFromModel(
         model: UModelBase<TvmType>,
-        ref: UConcreteHeapRef
+        ref: UConcreteHeapRef,
     ): TvmParameterInfo.CellInfo {
         val labelInfo = inputAddressToLabels[ref]
         check(labelInfo != null) {
@@ -135,7 +135,7 @@ class TvmAddressToLabelMapper(
 
     fun initializeConstraintsForChildren(
         state: TvmState,
-        ref: UConcreteHeapRef
+        ref: UConcreteHeapRef,
     ) = with(state.ctx) {
         check(!state.isTerminated) {
             "initializeAddressChildren should be called only when the state is not terminated, but " +
@@ -167,7 +167,7 @@ class TvmAddressToLabelMapper(
     private fun generateProactiveStructuralConstraints(
         state: TvmState,
         ref: UConcreteHeapRef,
-        checkThatConstraintWasCalculatedOnce: Boolean = true
+        checkThatConstraintWasCalculatedOnce: Boolean = true,
     ): UBoolExpr {
         if (checkThatConstraintWasCalculatedOnce) {
             check(ref !in proactiveConstraintsCalculatedFor) {
@@ -187,7 +187,7 @@ class TvmAddressToLabelMapper(
 
     fun generateLazyDataConstraints(
         state: TvmState,
-        ref: UConcreteHeapRef
+        ref: UConcreteHeapRef,
     ): UBoolExpr =
         generateStructuralConstraints(
             state,
@@ -202,7 +202,7 @@ class TvmAddressToLabelMapper(
         ref: UConcreteHeapRef,
         generateSizeConstraints: Boolean,
         generateDataConstraints: Boolean,
-        generateTlbFieldConstraints: Boolean
+        generateTlbFieldConstraints: Boolean,
     ): UBoolExpr =
         with(state.ctx) {
             val labelInfo = inputAddressToLabels[ref]
@@ -243,7 +243,7 @@ class TvmAddressToLabelMapper(
 
     fun addTlbBuilder(
         builderRef: UConcreteHeapRef,
-        tlbStructureBuilder: TlbStructureBuilder
+        tlbStructureBuilder: TlbStructureBuilder,
     ) {
         builderLabels[builderRef] = tlbStructureBuilder
     }
@@ -253,7 +253,7 @@ class TvmAddressToLabelMapper(
     fun setCellInfoFromBuilder(
         builder: UConcreteHeapRef,
         cellRef: UConcreteHeapRef,
-        state: TvmState
+        state: TvmState,
     ) {
         check(cellRef.isAllocated) {
             "Unexpected ref: $cellRef"
@@ -269,7 +269,7 @@ class TvmAddressToLabelMapper(
 
     fun setAllocatedCellInfo(
         cellRef: UConcreteHeapRef,
-        cellInfo: TvmParameterInfo.CellInfo
+        cellInfo: TvmParameterInfo.CellInfo,
     ) {
         allocatedAddressToCellInfo[cellRef] = cellInfo
     }
@@ -280,7 +280,7 @@ class TvmAddressToLabelMapper(
 
     fun addAddressSliceAndGenerateConstraint(
         state: TvmState,
-        slice: UConcreteHeapRef
+        slice: UConcreteHeapRef,
     ): UBoolExpr =
         with(state.ctx) {
             addAddressSlice(slice)
@@ -311,5 +311,5 @@ class TvmAddressToLabelMapper(
 
 @JvmInline
 value class LabelInfo(
-    val variants: Map<TvmParameterInfo.CellInfo, UBoolExpr>
+    val variants: Map<TvmParameterInfo.CellInfo, UBoolExpr>,
 )

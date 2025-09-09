@@ -9,13 +9,13 @@ import org.usvm.machine.state.ContractId
 @Serializable
 data class TvmContractHandlers(
     val id: ContractId,
-    val handlers: List<TvmHandlerDestinations>
+    val handlers: List<TvmHandlerDestinations>,
 )
 
 @Serializable
 data class TvmHandlerDestinations(
     val op: String,
-    val destinations: List<ContractId>
+    val destinations: List<ContractId>,
 )
 
 fun communicationSchemeFromJson(json: String): Map<ContractId, TvmContractHandlers> =

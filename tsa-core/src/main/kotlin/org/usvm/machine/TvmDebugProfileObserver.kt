@@ -29,7 +29,7 @@ fun getTvmDebugProfileObserver(code: TsaContractCode) =
     )
 
 private class TvmStatementOperations(
-    private val code: TsaContractCode
+    private val code: TsaContractCode,
 ) : UDebugProfileObserver.StatementOperations<TvmInst, TvmCodeBlock, TvmState> {
     override fun getMethodOfStatement(statement: TvmInst): TvmCodeBlock = statement.getRootLocation().codeBlock
 

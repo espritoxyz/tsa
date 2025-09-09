@@ -15,7 +15,7 @@ fun buildFrameForStructure(
     ctx: TvmContext,
     struct: TlbStructure,
     path: PersistentList<Int>,
-    leftTlbDepth: Int
+    leftTlbDepth: Int,
 ): TlbStackFrame? {
     val tlbLevel = path.size
     return when (struct) {
@@ -60,7 +60,7 @@ sealed interface TlbStackFrame {
 
     fun <ReadResult : TvmCellDataTypeReadValue> step(
         state: TvmState,
-        loadData: LimitedLoadData<ReadResult>
+        loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>>
 
     fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame?
@@ -74,33 +74,33 @@ sealed interface TlbStackFrame {
     data class GuardedResult<ReadResult : TvmCellDataTypeReadValue>(
         val guard: UBoolExpr,
         val result: StackFrameStepResult<ReadResult>,
-        val value: ReadResult?
+        val value: ReadResult?,
     )
 }
 
 sealed interface StackFrameStepResult<out ReadResult>
 
 data class StepError(
-    val error: TvmStructuralError?
+    val error: TvmStructuralError?,
 ) : StackFrameStepResult<Nothing>
 
 data class NextFrame(
-    val frame: TlbStackFrame
+    val frame: TlbStackFrame,
 ) : StackFrameStepResult<Nothing>
 
 data object EndOfStackFrame : StackFrameStepResult<Nothing>
 
 data class PassLoadToNextFrame<ReadResult : TvmCellDataTypeReadValue>(
-    val loadData: LimitedLoadData<ReadResult>
+    val loadData: LimitedLoadData<ReadResult>,
 ) : StackFrameStepResult<ReadResult>
 
 data class LimitedLoadData<ReadResult : TvmCellDataTypeReadValue>(
     val cellAddress: UConcreteHeapRef,
-    val type: TvmCellDataTypeRead<ReadResult>
+    val type: TvmCellDataTypeRead<ReadResult>,
 ) {
     companion object {
         fun <ReadResult : TvmCellDataTypeReadValue> fromLoadData(
-            loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>
+            loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>,
         ) = LimitedLoadData(
             type = loadData.type,
             cellAddress = loadData.cellAddress

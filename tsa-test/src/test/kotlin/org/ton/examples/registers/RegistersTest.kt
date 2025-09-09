@@ -54,7 +54,7 @@ class RegistersTest {
 
     private fun analyzeContract(
         contractPath: String,
-        methodsBlackList: Set<MethodId> = hashSetOf()
+        methodsBlackList: Set<MethodId> = hashSetOf(),
     ) {
         val resourcePath = extractResource(contractPath)
         val tmpFiftFile = createTempFile(suffix = ".boc")

@@ -66,11 +66,11 @@ import org.usvm.test.resolver.truncateSliceCell
 
 class TsRenderer(
     private val ctx: TsContext,
-    private val contractType: ContractType
+    private val contractType: ContractType,
 ) : TsVisitor<Unit> {
     enum class ContractType {
         Boc,
-        Func
+        Func,
     }
 
     private val printer = TsPrinterImpl()
@@ -289,7 +289,7 @@ class TsRenderer(
 
     private fun renderExecutableCall(
         caller: TsExpression<*>?,
-        element: TsExecutableCall<*>
+        element: TsExecutableCall<*>,
     ) {
         if (element.async) {
             printer.print("await ")
@@ -484,7 +484,7 @@ class TsRenderer(
 
     private fun precedencePrint(
         element: TsExpression<*>,
-        parent: TsExpression<*>
+        parent: TsExpression<*>,
     ) {
         // TODO support associativity
 
@@ -684,11 +684,11 @@ class TsRenderer(
 
 data class TsRenderedWrapper(
     val fileName: String,
-    val code: String
+    val code: String,
 )
 
 data class TsRenderedTest(
     val fileName: String,
     val code: String,
-    val wrappers: List<TsRenderedWrapper>
+    val wrappers: List<TsRenderedWrapper>,
 )

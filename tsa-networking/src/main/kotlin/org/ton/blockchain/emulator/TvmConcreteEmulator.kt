@@ -31,13 +31,13 @@ import java.math.BigInteger
 import java.time.Instant
 
 class TvmConcreteEmulator(
-    private val libPath: String
+    private val libPath: String,
 ) {
     fun getWalletAddress(
         holderAddress: String,
         masterAddress: String,
         masterContractState: ContractState,
-        libs: Map<BigInteger, Cell> = emptyMap()
+        libs: Map<BigInteger, Cell> = emptyMap(),
     ): String {
         val error = ConcreteGetMethodRunFailed("$masterAddress has incorrect implementation of get_wallet_address")
 
@@ -63,7 +63,7 @@ class TvmConcreteEmulator(
     fun getJettonInfo(
         address: String,
         contractState: ContractState,
-        libs: Map<BigInteger, Cell>
+        libs: Map<BigInteger, Cell>,
     ): JettonContractInfo {
         val error = ConcreteGetMethodRunFailed("$address has incorrect implementation of get_jetton_data")
 
@@ -109,7 +109,7 @@ class TvmConcreteEmulator(
     fun getJettonWalletBalance(
         walletAddress: String,
         walletState: ContractState,
-        libs: Map<BigInteger, Cell> = emptyMap()
+        libs: Map<BigInteger, Cell> = emptyMap(),
     ): BigInteger {
         val error = ConcreteGetMethodRunFailed("$walletAddress has incorrect implementation of get_wallet_data")
 
@@ -151,7 +151,7 @@ class TvmConcreteEmulator(
         argsVmStack: VmStack,
         address: String,
         state: ContractState,
-        libs: Map<BigInteger, Cell>
+        libs: Map<BigInteger, Cell>,
     ): GetMethodResult {
         val emulator =
             TvmEmulator
@@ -227,11 +227,11 @@ class TvmConcreteEmulator(
 }
 
 class ConcreteGetMethodRunFailed(
-    override val message: String
+    override val message: String,
 ) : RuntimeException()
 
 class MissingLibraryException(
-    val library: String
+    val library: String,
 ) : RuntimeException() {
     override val message: String = "Missing library: $library"
 }

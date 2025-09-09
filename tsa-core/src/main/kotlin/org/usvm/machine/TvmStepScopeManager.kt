@@ -21,7 +21,7 @@ import org.usvm.uctx
 class TvmStepScopeManager(
     private val originalState: TvmState,
     private val forkBlackList: UForkBlackList<TvmState, TvmInst>,
-    val allowFailuresOnCurrentStep: Boolean
+    val allowFailuresOnCurrentStep: Boolean,
 ) {
     private val forkedStates = mutableListOf<TvmState>()
     private val scope: TvmStepScope = TvmStepScope(originalState, forkBlackList, forkedStates)
@@ -54,7 +54,7 @@ class TvmStepScopeManager(
         constraint: UBoolExpr,
         satBlock: TvmState.() -> Unit = {},
         unsatBlock: TvmState.() -> Unit = {},
-        unknownBlock: TvmState.() -> Unit = {}
+        unknownBlock: TvmState.() -> Unit = {},
     ) = scope.assert(constraint, satBlock, unsatBlock, unknownBlock)
 
     val ctx: TvmContext
@@ -79,7 +79,7 @@ class TvmStepScopeManager(
         condition: UBoolExpr,
         falseStateIsExceptional: Boolean,
         blockOnTrueState: TvmState.() -> Unit = {},
-        blockOnFalseState: TvmState.() -> Unit = {}
+        blockOnFalseState: TvmState.() -> Unit = {},
     ): Unit? {
         if (falseStateIsExceptional && !allowFailuresOnCurrentStep && originalState.c2IsDefault()) {
             return assert(condition)?.run {
@@ -109,7 +109,7 @@ class TvmStepScopeManager(
         condition: UBoolExpr,
         blockOnUnknownTrueState: TvmState.() -> Unit = {},
         blockOnUnsatTrueState: TvmState.() -> Unit = {},
-        blockOnFalseState: TvmState.() -> Unit = {}
+        blockOnFalseState: TvmState.() -> Unit = {},
     ): Unit? {
         check(allowFailuresOnCurrentStep) {
             "[forkWithCheckerStatusKnowledge] should be called only with allowFailuresOnCurrentStep=true, but now it is false."
@@ -126,7 +126,7 @@ class TvmStepScopeManager(
         condition: UBoolExpr,
         blockOnUnknownFalseState: TvmState.() -> Unit = {},
         blockOnUnsatFalseState: TvmState.() -> Unit = {},
-        blockOnFalseState: TvmState.() -> Unit = {}
+        blockOnFalseState: TvmState.() -> Unit = {},
     ): Unit? {
         check(allowFailuresOnCurrentStep) {
             "[forkWithCheckerStatusKnowledgeOnFalseState] should be called only with allowFailuresOnCurrentStep=true, but now it is false."
@@ -142,7 +142,7 @@ class TvmStepScopeManager(
     // TODO docs
     fun <T> doWithConditions(
         givenConditionsWithActions: List<ActionOnCondition<T>>,
-        doForAllBlock: TvmStepScopeManager.(T) -> Unit
+        doForAllBlock: TvmStepScopeManager.(T) -> Unit,
     ) {
         val conditionsWithActions =
             if (!allowFailuresOnCurrentStep && originalState.c2IsDefault()) {
@@ -199,7 +199,7 @@ class TvmStepScopeManager(
         val action: TvmState.() -> Unit,
         val caseIsExceptional: Boolean,
         val condition: UBoolExpr,
-        val paramForDoForAllBlock: T
+        val paramForDoForAllBlock: T,
     )
 
     /**
@@ -222,7 +222,7 @@ class TvmStepScopeManager(
     private class TvmStepScope(
         private val originalState: TvmState,
         private val forkBlackList: UForkBlackList<TvmState, TvmInst>,
-        private val forkedStates: MutableList<TvmState> = mutableListOf()
+        private val forkedStates: MutableList<TvmState> = mutableListOf(),
     ) {
         private inline val alive: Boolean get() = stepScopeState != DEAD
         private inline val canProcessFurtherOnCurrentStep: Boolean get() = stepScopeState == CAN_BE_PROCESSED
@@ -273,7 +273,7 @@ class TvmStepScopeManager(
         inline fun fork(
             condition: UBoolExpr,
             blockOnTrueState: TvmState.() -> Unit = {},
-            blockOnFalseState: TvmState.() -> Unit = {}
+            blockOnFalseState: TvmState.() -> Unit = {},
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -292,7 +292,7 @@ class TvmStepScopeManager(
             blockOnTrueState: TvmState.() -> Unit = {},
             blockOnUnknownFalseState: TvmState.() -> Unit = {},
             blockOnUnsatFalseState: TvmState.() -> Unit = {},
-            blockOnFalseState: TvmState.() -> Unit = {}
+            blockOnFalseState: TvmState.() -> Unit = {},
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -371,7 +371,7 @@ class TvmStepScopeManager(
          * */
         private fun forkMulti(
             conditionsWithBlockOnStates: List<Pair<UBoolExpr, TvmState.() -> Unit>>,
-            skipForkPointIfPossible: Boolean
+            skipForkPointIfPossible: Boolean,
         ) {
             check(canProcessFurtherOnCurrentStep)
 
@@ -411,7 +411,7 @@ class TvmStepScopeManager(
             constraint: UBoolExpr,
             satBlock: TvmState.() -> Unit = {},
             unsatBlock: TvmState.() -> Unit = {},
-            unknownBlock: TvmState.() -> Unit = {}
+            unknownBlock: TvmState.() -> Unit = {},
         ): Unit? =
             assert(
                 constraint,
@@ -430,7 +430,7 @@ class TvmStepScopeManager(
             registerForkPoint: Boolean,
             satBlock: TvmState.() -> Unit = {},
             unsatBlock: TvmState.() -> Unit = {},
-            unknownBlock: TvmState.() -> Unit = {}
+            unknownBlock: TvmState.() -> Unit = {},
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -510,7 +510,7 @@ class TvmStepScopeManager(
             trueStmt: TvmInst,
             falseStmt: TvmInst,
             blockOnTrueState: TvmState.() -> Unit = {},
-            blockOnFalseState: TvmState.() -> Unit = {}
+            blockOnFalseState: TvmState.() -> Unit = {},
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -610,7 +610,7 @@ class TvmStepScopeManager(
             /**
              * Can be forked using [forkWithBlackList] or [forkMultiWithBlackList] and asserted using [assert].
              */
-            CAN_BE_PROCESSED
+            CAN_BE_PROCESSED,
         }
 
         private inline val UBoolExpr.isConcrete get() = isTrue || isFalse

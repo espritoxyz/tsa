@@ -1,17 +1,17 @@
 package org.usvm.machine.types
 
 sealed class TvmType(
-    val parentType: TvmType?
+    val parentType: TvmType?,
 )
 
 /** type that exists in TVM */
 sealed class TvmRealType(
-    parentType: TvmType
+    parentType: TvmType,
 ) : TvmType(parentType)
 
 /** reference type that exists in TVM */
 sealed class TvmRealReferenceType(
-    parentType: TvmType
+    parentType: TvmType,
 ) : TvmRealType(parentType)
 
 data object TvmAnyType : TvmType(null)

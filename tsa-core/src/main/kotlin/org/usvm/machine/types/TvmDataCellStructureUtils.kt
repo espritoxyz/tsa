@@ -4,7 +4,7 @@ import org.ton.TlbStructure
 
 fun <Acc> TlbStructure.fold(
     init: Acc,
-    f: (Acc, TlbStructure) -> Acc
+    f: (Acc, TlbStructure) -> Acc,
 ): Acc {
     val cur = f(init, this)
     return when (this) {

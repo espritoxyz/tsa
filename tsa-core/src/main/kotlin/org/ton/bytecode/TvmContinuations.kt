@@ -18,7 +18,7 @@ data class TvmRegisterSavelist(
     val c3: C3Register? = null,
     val c4: C4Register? = null,
     val c5: C5Register? = null,
-    val c7: C7Register? = null
+    val c7: C7Register? = null,
 ) {
     companion object {
         val EMPTY = TvmRegisterSavelist()
@@ -33,7 +33,7 @@ sealed interface TvmContinuation {
     fun update(
         newSavelist: TvmRegisterSavelist = savelist,
         newStack: TvmStack? = stack,
-        newNargs: UInt? = nargs
+        newNargs: UInt? = nargs,
     ): TvmContinuation
 }
 
@@ -41,7 +41,7 @@ sealed interface TvmContinuation {
  * A continuation used to mark the end of a successful program execution with exit code [exitCode]
  */
 data class TvmQuitContinuation(
-    val exitCode: UInt
+    val exitCode: UInt,
 ) : TvmContinuation {
     override val savelist
         get() = TvmRegisterSavelist.EMPTY
@@ -55,7 +55,7 @@ data class TvmQuitContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmQuitContinuation = this
 }
 
@@ -75,7 +75,7 @@ data object TvmExceptionContinuation : TvmContinuation {
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmExceptionContinuation = this
 }
 
@@ -84,20 +84,20 @@ data class TvmOrdContinuation(
     val sourceCell: TvmCell?,
     override val savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
     override val stack: TvmStack? = null,
-    override val nargs: UInt? = null
+    override val nargs: UInt? = null,
 ) : TvmContinuation {
     constructor(
         codeBlock: TvmCodeBlock,
         sourceCell: TvmCell?,
         savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
         stack: TvmStack? = null,
-        nargs: UInt? = null
+        nargs: UInt? = null,
     ) : this(codeBlock.instList.first(), sourceCell, savelist, stack, nargs)
 
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmOrdContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }
 
@@ -106,7 +106,7 @@ data class TvmOrdContinuation(
  */
 data class TvmMethodReturnContinuation(
     val method: MethodId,
-    val returnSite: TvmOrdContinuation
+    val returnSite: TvmOrdContinuation,
 ) : TvmContinuation {
     override val savelist: TvmRegisterSavelist
         get() = returnSite.savelist
@@ -118,7 +118,7 @@ data class TvmMethodReturnContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmMethodReturnContinuation = copy(returnSite = returnSite.update(newSavelist, newStack, newNargs))
 }
 
@@ -128,7 +128,7 @@ data class TvmMethodReturnContinuation(
 data class TvmLoopEntranceContinuation(
     val loopBody: TvmContinuation,
     val id: UInt,
-    val parentLocation: TvmInstLocation
+    val parentLocation: TvmInstLocation,
 ) : TvmContinuation {
     override val savelist: TvmRegisterSavelist
         get() = TvmRegisterSavelist.EMPTY
@@ -150,7 +150,7 @@ data class TvmLoopEntranceContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmLoopEntranceContinuation = error("Unexpected call")
 }
 
@@ -159,12 +159,12 @@ data class TvmUntilContinuation(
     val after: TvmContinuation,
     override val savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
     override val stack: TvmStack? = null,
-    override val nargs: UInt? = null
+    override val nargs: UInt? = null,
 ) : TvmContinuation {
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmUntilContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }
 
@@ -174,12 +174,12 @@ data class TvmRepeatContinuation(
     val count: UExpr<TvmInt257Sort>,
     override val savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
     override val stack: TvmStack? = null,
-    override val nargs: UInt? = null
+    override val nargs: UInt? = null,
 ) : TvmContinuation {
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmRepeatContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }
 
@@ -193,12 +193,12 @@ data class TvmWhileContinuation(
     val isCondition: Boolean,
     override val savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
     override val stack: TvmStack? = null,
-    override val nargs: UInt? = null
+    override val nargs: UInt? = null,
 ) : TvmContinuation {
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmWhileContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }
 
@@ -206,11 +206,11 @@ data class TvmAgainContinuation(
     val body: TvmLoopEntranceContinuation,
     override val savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
     override val stack: TvmStack? = null,
-    override val nargs: UInt? = null
+    override val nargs: UInt? = null,
 ) : TvmContinuation {
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmAgainContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }

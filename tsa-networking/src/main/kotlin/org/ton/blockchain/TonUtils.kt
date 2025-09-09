@@ -12,7 +12,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 
 fun makeRequest(
     query: String,
-    failOnRequestError: Boolean = true
+    failOnRequestError: Boolean = true,
 ): Pair<Int, String> {
     val connection =
         URI(query).toURL().openConnection() as? HttpURLConnection

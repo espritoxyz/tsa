@@ -4,12 +4,12 @@ import java.util.PriorityQueue
 
 @JvmInline
 private value class ExecutionNumber(
-    val number: Int
+    val number: Int,
 )
 
 @JvmInline
 private value class LineNumber(
-    val number: Int
+    val number: Int,
 )
 
 /**
@@ -17,7 +17,7 @@ private value class LineNumber(
  */
 class GreedyEssential private constructor(
     executionToCoveredLines: Map<ExecutionNumber, List<LineNumber>>,
-    executionToPriority: Map<ExecutionNumber, Int>
+    executionToPriority: Map<ExecutionNumber, Int>,
 ) {
     private val executionToUsefulLines: Map<ExecutionNumber, MutableSet<LineNumber>> =
         executionToCoveredLines
@@ -82,7 +82,7 @@ class GreedyEssential private constructor(
 
     private fun removeLineFromExecution(
         execution: ExecutionNumber,
-        line: LineNumber
+        line: LineNumber,
     ) {
         executionByPriority.remove(executionToPriority(execution))
 
@@ -103,7 +103,7 @@ class GreedyEssential private constructor(
          */
         fun minimize(
             executions: Map<Int, List<Int>>,
-            executionToPriority: Map<Int, Int> = mapOf()
+            executionToPriority: Map<Int, Int> = mapOf(),
         ): List<Int> {
             val convertedExecutions =
                 executions

@@ -22,7 +22,7 @@ object TvmTestExecutor {
 
     private fun executeTests(
         project: Path,
-        generatedTestsPath: String
+        generatedTestsPath: String,
     ) {
         val (testResults, successful) =
             executeTests(
@@ -56,7 +56,7 @@ object TvmTestExecutor {
         testResult: TvmContractSymbolicTestResult,
         sources: Path,
         contractType: TsRenderer.ContractType,
-        useMinimization: Boolean = false
+        useMinimization: Boolean = false,
     ) {
         executeGeneratedTests { project ->
             generateTests(
@@ -73,7 +73,7 @@ object TvmTestExecutor {
         testSuite: TvmSymbolicTestSuite,
         sources: Path,
         contractType: TsRenderer.ContractType,
-        useMinimization: Boolean = false
+        useMinimization: Boolean = false,
     ) {
         executeGeneratedTests(TvmContractSymbolicTestResult(listOf(testSuite)), sources, contractType, useMinimization)
     }

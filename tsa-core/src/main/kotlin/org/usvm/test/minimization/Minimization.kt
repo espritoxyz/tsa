@@ -25,7 +25,7 @@ import java.util.IdentityHashMap
  */
 fun minimizeTestCase(
     tests: List<TvmSymbolicTest>,
-    branchInstructionsNumber: Int = 3
+    branchInstructionsNumber: Int = 3,
 ): List<TvmSymbolicTest> {
     val executions = buildExecutions(tests)
     val groupedExecutionsByTestSuite = groupExecutionsByTestSuite(executions)
@@ -80,7 +80,7 @@ private fun filterOutDuplicateCoverages(executions: List<TvmExecution>): List<Tv
 
 private fun groupByBranchInstructions(
     executions: List<TvmExecution>,
-    branchInstructionsNumber: Int
+    branchInstructionsNumber: Int,
 ): Collection<List<TvmExecution>> {
     val instructionToPossibleNextInstructions = mutableMapOf<Int, MutableSet<Int?>>()
 
@@ -187,7 +187,7 @@ private fun List<TvmExecution>.chooseOneExecution(): TvmExecution = first()
 private fun addExtraIfLastInstructionIsException(
     instructionsWithoutExtra: List<Int>,
     result: TvmMethodSymbolicResult,
-    thrownExceptions: MutableMap<String, Int>
+    thrownExceptions: MutableMap<String, Int>,
 ): List<Int> =
     if (result is TvmMethodFailure || result is TvmExecutionWithStructuralError) {
         val exceptionInfo = failedResultToInfo(result, instructionsWithoutExtra.last())
@@ -202,7 +202,7 @@ private fun getExecutionPriority(): Int = 0
 
 private fun failedResultToInfo(
     result: TvmMethodSymbolicResult,
-    lastInst: Int
+    lastInst: Int,
 ): String =
     when (result) {
         is TvmMethodFailure -> "TvmError-${result.failure.exit.ruleName}-${result.failure.type}-$lastInst"
@@ -226,5 +226,5 @@ private fun buildExecutions(tests: List<TvmSymbolicTest>): List<TvmExecution> {
 
 private data class TvmExecution(
     val test: TvmSymbolicTest,
-    val coveredInstructionIds: List<Int>
+    val coveredInstructionIds: List<Int>,
 )

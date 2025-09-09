@@ -5,5 +5,5 @@ import org.usvm.UConcreteHeapRef
 data class TvmRefEmptyValue(
     val emptyCell: UConcreteHeapRef,
     val emptySlice: UConcreteHeapRef,
-    val emptyBuilder: UConcreteHeapRef
+    val emptyBuilder: UConcreteHeapRef,
 )

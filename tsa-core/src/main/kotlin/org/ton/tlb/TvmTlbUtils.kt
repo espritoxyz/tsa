@@ -7,7 +7,7 @@ import java.nio.file.Path
 fun readFromJson(
     path: Path,
     name: String,
-    onlyBasicAddresses: Boolean = false
+    onlyBasicAddresses: Boolean = false,
 ): TlbLabel? {
     val text = path.toFile().readText()
     val defs = Json.decodeFromString<List<TvmTlbTypeDefinition>>(text)

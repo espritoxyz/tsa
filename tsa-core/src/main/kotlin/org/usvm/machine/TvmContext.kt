@@ -63,7 +63,7 @@ typealias TvmSizeSort = UBv32Sort
 
 class TvmContext(
     val tvmOptions: TvmOptions,
-    components: UComponents<TvmType, TvmSizeSort>
+    components: UComponents<TvmType, TvmSizeSort>,
 ) : UContext<TvmSizeSort>(components) {
     val int257sort = TvmInt257Sort(this)
     val cellDataSort = TvmCellDataSort(this)
@@ -196,7 +196,7 @@ class TvmContext(
     override fun <T : KBvSort> mkBvExtractExpr(
         high: Int,
         low: Int,
-        value: KExpr<T>
+        value: KExpr<T>,
     ): KExpr<KBvSort> {
         if (value is KBvLogicalShiftRightExpr && value.shift is KBitVecValue) {
             val maxSizeBits = value.sort.sizeBits.toInt()
@@ -216,7 +216,7 @@ class TvmContext(
     private fun tvmSimplifyBoolIte(
         condition: KExpr<KBoolSort>,
         trueBranch: KExpr<KBoolSort>,
-        falseBranch: KExpr<KBoolSort>
+        falseBranch: KExpr<KBoolSort>,
     ): KExpr<KBoolSort> =
         simplifyBoolIteConstBranches(
             condition = condition,
@@ -239,7 +239,7 @@ class TvmContext(
     private fun <T : KSort> tvmSimplifyIte(
         condition: KExpr<KBoolSort>,
         trueBranch: KExpr<T>,
-        falseBranch: KExpr<T>
+        falseBranch: KExpr<T>,
     ): KExpr<T> =
         simplifyIteNotCondition(condition, trueBranch, falseBranch) { condition2, trueBranch2, falseBranch2 ->
             simplifyIteLight(condition2, trueBranch2, falseBranch2) { condition3, trueBranch3, falseBranch3 ->
@@ -264,7 +264,7 @@ class TvmContext(
     override fun <T : KSort> mkIte(
         condition: KExpr<KBoolSort>,
         trueBranch: KExpr<T>,
-        falseBranch: KExpr<T>
+        falseBranch: KExpr<T>,
     ): KExpr<T> = tvmSimplifyIte(condition, trueBranch, falseBranch)
 
     companion object {
@@ -335,19 +335,19 @@ class TvmContext(
     }
 
     class TvmInt257Sort(
-        ctx: KContext
+        ctx: KContext,
     ) : KBvCustomSizeSort(ctx, INT_BITS)
 
     class TvmCellDataSort(
-        ctx: KContext
+        ctx: KContext,
     ) : KBvCustomSizeSort(ctx, CELL_DATA_BITS)
 
     // Utility sorts for arith operations
     class TvmInt257Ext1Sort(
-        ctx: KContext
+        ctx: KContext,
     ) : KBvCustomSizeSort(ctx, INT_EXT1_BITS)
 
     class TvmInt257Ext256Sort(
-        ctx: KContext
+        ctx: KContext,
     ) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
 }

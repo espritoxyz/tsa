@@ -33,7 +33,7 @@ import org.usvm.test.resolver.TvmTestStateResolver
 
 fun TvmContext.generateCellDataConstraint(
     struct: KnownTypePrefix,
-    param: AbstractionForUExprWithCellDataPrefix
+    param: AbstractionForUExprWithCellDataPrefix,
 ): UBoolExpr =
     when (struct.typeLabel) {
         is TlbCompositeLabel -> {
@@ -90,7 +90,7 @@ private fun TlbCompositeLabel.getStructureById(id: Int): TlbStructure =
 
 private fun getStructureById(
     id: Int,
-    structure: TlbStructure
+    structure: TlbStructure,
 ): TlbStructure? {
     if (structure is TlbStructure.CompositeNode && structure.id == id) {
         return structure
@@ -106,7 +106,7 @@ private fun getStructureById(
 fun KnownTypePrefix.typeArgs(
     state: TvmState,
     address: UConcreteHeapRef,
-    path: List<Int>
+    path: List<Int>,
 ): List<UExpr<TvmSizeSort>> =
     with(state.ctx) {
         typeArgIds.map {
@@ -135,7 +135,7 @@ fun TvmContext.generateGuardForSwitch(
     possibleVariants: List<SwitchPrefix.SwitchVariant>,
     state: TvmState,
     address: UHeapRef,
-    path: List<Int>
+    path: List<Int>,
 ): UBoolExpr {
     require(variantId in 0..possibleVariants.size)
     val field = SwitchField(switch.id, path, possibleVariants.map { it.struct.id })
@@ -152,7 +152,7 @@ fun TvmContext.generateGuardForSwitch(
 fun readInModelFromTlbFields(
     address: UHeapRef,
     resolver: TvmTestStateResolver,
-    label: TlbCompositeLabel
+    label: TlbCompositeLabel,
 ): String {
     val state = resolver.state
     val model = resolver.model
@@ -177,7 +177,7 @@ fun generateTlbFieldConstraints(
     ref: UConcreteHeapRef,
     label: TlbCompositeLabel,
     possibleSwitchVariants: List<Map<SwitchPrefix, List<SwitchPrefix.SwitchVariant>>>,
-    maxTlbDepth: Int
+    maxTlbDepth: Int,
 ) = generateTlbFieldConstraints(
     state,
     ref,
@@ -193,7 +193,7 @@ fun generateTlbFieldConstraints(
     structure: TlbStructure,
     path: PersistentList<Int>,
     possibleSwitchVariants: List<Map<SwitchPrefix, List<SwitchPrefix.SwitchVariant>>>,
-    maxTlbDepth: Int
+    maxTlbDepth: Int,
 ): UBoolExpr =
     with(state.ctx) {
         when (structure) {

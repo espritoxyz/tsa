@@ -17,7 +17,7 @@ import org.usvm.test.resolver.TvmTestSliceValue
 import java.nio.file.Path
 
 data class BlacklistAddressChecker(
-    private val resourcesDir: Path?
+    private val resourcesDir: Path?,
 ) : TvmChecker {
     private val checkerResourcePath = resourcesDir.resolveResourcePath(CHECKER_PATH)
     private val tlbResourcePath = resourcesDir.resolveResourcePath(TLB_PATH)
@@ -35,7 +35,7 @@ data class BlacklistAddressChecker(
 
     override fun findConflictingExecutions(
         contractUnderTest: TsaContractCode,
-        stopWhenFoundOneConflictingExecution: Boolean
+        stopWhenFoundOneConflictingExecution: Boolean,
     ): List<TvmSymbolicTest> {
         val checkerContract = getFuncContract(checkerResourcePath, fiftStdlibPath, isTSAChecker = true)
         return runAnalysisAndExtractFailingExecutions(
@@ -78,7 +78,7 @@ data class BlacklistAddressChecker(
     }
 
     data class ResultDescription(
-        val blacklistedAddresses: Set<String>
+        val blacklistedAddresses: Set<String>,
     )
 
     companion object {

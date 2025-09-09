@@ -67,7 +67,7 @@ private data object AllMethods : AnalysisTarget
 private data object Receivers : AnalysisTarget
 
 private data class SpecificMethod(
-    val methodId: Int
+    val methodId: Int,
 ) : AnalysisTarget
 
 private fun CliktCommand.analysisTargetOption() =
@@ -155,7 +155,7 @@ private fun <SourcesDescription> performAnalysis(
     contractData: String?,
     target: AnalysisTarget,
     tlbOptions: TlbCLIOptions,
-    analysisOptions: AnalysisOptions
+    analysisOptions: AnalysisOptions,
 ): TvmContractSymbolicTestResult {
     val options =
         TvmOptions(
@@ -206,7 +206,7 @@ private fun performAnalysisInterContract(
     inputInfo: TvmInputInfo,
     analysisOptions: AnalysisOptions,
     turnOnTLBParsingChecks: Boolean,
-    useRecvInternalInput: Boolean
+    useRecvInternalInput: Boolean,
 ): TvmSymbolicTestSuite {
     val options =
         if (interContractSchemePath != null) {
@@ -564,7 +564,7 @@ class CheckerAnalysis :
 
 @JvmInline
 private value class NullablePath(
-    val path: Path?
+    val path: Path?,
 )
 
 class InterContractAnalysis :
@@ -659,25 +659,25 @@ private enum class ContractType {
     Tact,
     Func,
     Fift,
-    Boc
+    Boc,
 }
 
 private sealed interface ContractSources {
     fun convertToTsaContractCode(
         fiftAnalyzer: FiftAnalyzer,
         funcAnalyzer: FuncAnalyzer,
-        tactAnalyzer: TactAnalyzer
+        tactAnalyzer: TactAnalyzer,
     ): TsaContractCode
 }
 
 private data class SinglePath(
     val type: ContractType,
-    val path: Path
+    val path: Path,
 ) : ContractSources {
     override fun convertToTsaContractCode(
         fiftAnalyzer: FiftAnalyzer,
         funcAnalyzer: FuncAnalyzer,
-        tactAnalyzer: TactAnalyzer
+        tactAnalyzer: TactAnalyzer,
     ): TsaContractCode {
         val analyzer =
             when (type) {
@@ -692,19 +692,19 @@ private data class SinglePath(
 }
 
 private data class TactPath(
-    val tactPath: TactSourcesDescription
+    val tactPath: TactSourcesDescription,
 ) : ContractSources {
     override fun convertToTsaContractCode(
         fiftAnalyzer: FiftAnalyzer,
         funcAnalyzer: FuncAnalyzer,
-        tactAnalyzer: TactAnalyzer
+        tactAnalyzer: TactAnalyzer,
     ): TsaContractCode = tactAnalyzer.convertToTvmContractCode(tactPath)
 }
 
 private fun ParameterHolder.contractSourcesOption(
     pathOptionDescriptor: NullableOption<Path, Path>,
     typeOptionDescriptor: NullableOption<ContractType, ContractType>,
-    pathValidator: OptionCallTransformContext.(Path) -> Unit = { }
+    pathValidator: OptionCallTransformContext.(Path) -> Unit = { },
 ) = option("-c", "--contract")
     .help(
         """
@@ -750,7 +750,7 @@ class TonAnalysis : NoOpCliktCommand()
 
 sealed class ErrorsSarifDetector<SourcesDescription>(
     name: String,
-    help: String
+    help: String,
 ) : CliktCommand(name = name, help = help) {
     private val contractProperties by ContractProperties()
     private val sarifOptions by SarifOptions()
@@ -761,7 +761,7 @@ sealed class ErrorsSarifDetector<SourcesDescription>(
 
     fun generateAndWriteSarifReport(
         analyzer: TvmAnalyzer<SourcesDescription>,
-        sources: SourcesDescription
+        sources: SourcesDescription,
     ) {
         val analysisResult =
             performAnalysis(

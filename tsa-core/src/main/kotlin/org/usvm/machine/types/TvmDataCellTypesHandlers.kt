@@ -46,18 +46,18 @@ import org.usvm.utils.extractAddresses
 sealed interface MakeSliceTypeLoadOutcome
 
 private data class NewTlbStack(
-    val stack: TlbStack
+    val stack: TlbStack,
 ) : MakeSliceTypeLoadOutcome
 
 private data class Error(
-    val error: TvmStructuralError
+    val error: TvmStructuralError,
 ) : MakeSliceTypeLoadOutcome
 
 private data object NoTlbStack : MakeSliceTypeLoadOutcome
 
 private fun <T> MutableMap<T, UBoolExpr>.addGuard(
     key: T,
-    guard: UBoolExpr
+    guard: UBoolExpr,
 ) = with(guard.ctx) {
     val oldValue = this@addGuard[key] ?: falseExpr
     this@addGuard[key] = mkOr(oldValue, guard, flat = false)
@@ -66,7 +66,7 @@ private fun <T> MutableMap<T, UBoolExpr>.addGuard(
 private fun <T, U> MutableMap<T, MutableMap<U, UBoolExpr>>.addGuard(
     keyOuter: T,
     keyInner: U,
-    guard: UBoolExpr
+    guard: UBoolExpr,
 ) {
     val innerMap = getOrPut(keyOuter) { hashMapOf() }
     innerMap.addGuard(keyInner, guard)
@@ -76,7 +76,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoa
     oldSlice: UHeapRef,
     type: TvmCellDataTypeRead<ReadResult>,
     newSlice: UConcreteHeapRef,
-    restActions: TvmStepScopeManager.(ReadResult?) -> Unit
+    restActions: TvmStepScopeManager.(ReadResult?) -> Unit,
 ) {
     val turnOnTLBParsingChecks = doWithCtx { tvmOptions.turnOnTLBParsingChecks }
     val performTlbChecksOnAllocatedCells = doWithCtx { tvmOptions.tlbOptions.performTlbChecksOnAllocatedCells }
@@ -160,7 +160,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoa
 
 private fun processMakeSliceTypeLoadOutcome(
     newSlice: UConcreteHeapRef,
-    outcome: MakeSliceTypeLoadOutcome
+    outcome: MakeSliceTypeLoadOutcome,
 ): TvmState.() -> Unit =
     when (outcome) {
         is NoTlbStack -> {
@@ -208,7 +208,7 @@ fun TvmStepScopeManager.assertEndOfCell(slice: UHeapRef): Unit? {
 fun TvmStepScopeManager.makeSliceRefLoad(
     oldSlice: UHeapRef,
     newSlice: UConcreteHeapRef,
-    restActions: TvmStepScopeManager.() -> Unit
+    restActions: TvmStepScopeManager.() -> Unit,
 ) {
     val turnOnTLBParsingChecks = doWithCtx { tvmOptions.turnOnTLBParsingChecks }
     if (turnOnTLBParsingChecks) {
@@ -266,7 +266,7 @@ fun TvmStepScopeManager.makeSliceRefLoad(
 fun TvmStepScopeManager.makeCellToSlice(
     cellAddress: UHeapRef,
     sliceAddress: UConcreteHeapRef,
-    restActions: TvmStepScopeManager.() -> Unit
+    restActions: TvmStepScopeManager.() -> Unit,
 ) {
     // One cell on a concrete address might both have and not have TL-B scheme for different constraints.
     // This is why absence of TL-B stack is a separate situation on which we have to fork.
@@ -306,7 +306,7 @@ fun TvmStepScopeManager.makeCellToSlice(
 
 fun TvmState.copyTlbToNewBuilder(
     oldBuilder: UConcreteHeapRef,
-    newBuilder: UConcreteHeapRef
+    newBuilder: UConcreteHeapRef,
 ) {
     val tlbBuilder =
         dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
@@ -318,7 +318,7 @@ private fun TvmState.addTlbLabelToBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
     label: TlbLabel,
-    initializeTlbField: (TvmState, UConcreteHeapRef, Int) -> Unit
+    initializeTlbField: (TvmState, UConcreteHeapRef, Int) -> Unit,
 ) {
     val oldTlbBuilder =
         dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
@@ -330,7 +330,7 @@ private fun TvmState.addTlbLabelToBuilder(
 private fun TvmState.addTlbConstantToBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
-    constant: String
+    constant: String,
 ) {
     val oldTlbBuilder =
         dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
@@ -345,7 +345,7 @@ fun TvmState.storeIntTlbLabelToBuilder(
     sizeBits: UExpr<TvmSizeSort>,
     value: UExpr<TvmContext.TvmInt257Sort>,
     isSigned: Boolean,
-    endian: Endian
+    endian: Endian,
 ) = with(ctx) {
     // special case for storing constants
     if (value is KBitVecValue && sizeBits is KInterpretedValue) {
@@ -379,7 +379,7 @@ fun TvmState.storeCoinTlbLabelToBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
     length: UExpr<KBvSort>,
-    value: UExpr<TvmContext.TvmInt257Sort>
+    value: UExpr<TvmContext.TvmInt257Sort>,
 ) = with(ctx) {
     addTlbLabelToBuilder(oldBuilder, newBuilder, TlbCoinsLabel) { state, ref, structId ->
         val lengthStructure = TlbCoinsLabel.internalStructure as TlbStructure.KnownTypePrefix
@@ -415,7 +415,7 @@ fun TvmState.storeCoinTlbLabelToBuilder(
 fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
-    slice: UHeapRef
+    slice: UHeapRef,
 ) = doWithCtx {
     val cellRef = calcOnState { memory.readField(slice, TvmContext.sliceCellField, addressSort) }
     val dataPos = calcOnState { memory.readField(slice, TvmContext.sliceDataPosField, sizeSort) }
@@ -454,7 +454,7 @@ fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
     value: UExpr<TvmCellDataSort>,
-    sizeBits: UExpr<TvmSizeSort>
+    sizeBits: UExpr<TvmSizeSort>,
 ) = doWithCtx {
     if (value is KBitVecValue && sizeBits is KInterpretedValue) {
         val constValue = (value as KBitVecValue<*>).stringValue.takeLast(sizeBits.intValue())

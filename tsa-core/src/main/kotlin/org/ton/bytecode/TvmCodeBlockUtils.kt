@@ -33,7 +33,7 @@ fun TvmMainMethod.addReturnStmt(): TvmMainMethod {
 data class TvmLambda(
     private val instListRaw: MutableList<TvmInst>,
     // must be given if lambda is empty
-    private val givenParent: TvmInst? = null
+    private val givenParent: TvmInst? = null,
 ) : TvmCodeBlock() {
     override val instList: List<TvmInst>
         get() = instListRaw

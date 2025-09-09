@@ -265,7 +265,7 @@ class ContractsTest {
         contractPath: String,
         methodsNumber: Int,
         methodsBlackList: Set<MethodId> = hashSetOf(),
-        enableTestGeneration: Boolean
+        enableTestGeneration: Boolean,
     ) {
         val funcResourcePath = extractResource(contractPath)
 
@@ -290,7 +290,7 @@ class ContractsTest {
     private fun analyzeSpecificMethodFift(
         contractPath: String,
         methodId: MethodId,
-        enableTestGeneration: Boolean
+        enableTestGeneration: Boolean,
     ) {
         val fiftPath = getResourcePath<ContractsTest>(contractPath)
         val tests = compileAndAnalyzeFift(fiftPath, methodId)
@@ -309,7 +309,7 @@ class ContractsTest {
     private fun analyzeSpecificMethodBoc(
         contractPath: String,
         methodId: MethodId,
-        enableTestGeneration: Boolean
+        enableTestGeneration: Boolean,
     ) {
         val bocPath = getResourcePath<ContractsTest>(contractPath)
         val tests =

@@ -9,21 +9,21 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.types.memory.stack.TlbStack
 
 class TvmSliceToTlbStackMapper(
-    private var sliceToTlbStack: PersistentMap<UConcreteHeapRef, TlbStack> = persistentMapOf()
+    private var sliceToTlbStack: PersistentMap<UConcreteHeapRef, TlbStack> = persistentMapOf(),
 ) {
     fun clone() = TvmSliceToTlbStackMapper(sliceToTlbStack)
 
     fun allocateInitialSlice(
         ctx: TvmContext,
         address: UConcreteHeapRef,
-        label: TlbCompositeLabel
+        label: TlbCompositeLabel,
     ) {
         sliceToTlbStack = sliceToTlbStack.put(address, TlbStack.new(ctx, label))
     }
 
     fun mapSliceToTlbStack(
         sliceAddress: UConcreteHeapRef,
-        stack: TlbStack
+        stack: TlbStack,
     ) {
         sliceToTlbStack = sliceToTlbStack.put(sliceAddress, stack)
     }
@@ -33,7 +33,7 @@ class TvmSliceToTlbStackMapper(
     companion object {
         fun constructInitialSliceMapper(
             ctx: TvmContext,
-            input: InputParametersStructure
+            input: InputParametersStructure,
         ): TvmSliceToTlbStackMapper {
             val result = TvmSliceToTlbStackMapper()
 

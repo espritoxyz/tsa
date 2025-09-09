@@ -28,7 +28,7 @@ val UExpr<out KBvSort>.intValueOrNull: Int?
 fun TvmContext.extractAddresses(
     ref: UHeapRef,
     extractAllocated: Boolean = false,
-    extractStatic: Boolean = true
+    extractStatic: Boolean = true,
 ): List<Pair<UBoolExpr, UConcreteHeapRef>> =
     foldHeapRef(
         ref,
@@ -77,7 +77,7 @@ fun TvmContext.extractAddresses(
 fun TvmContext.extractAddressesSpecialized(
     ref: UHeapRef,
     extractAllocated: Boolean = true,
-    extractStatic: Boolean = true
+    extractStatic: Boolean = true,
 ): List<Pair<UBoolExpr, UConcreteHeapRef>> {
     val queue = mutableListOf(Guard(persistentMapOf(), trueExpr) to ref)
     val result = mutableListOf<Pair<UBoolExpr, UConcreteHeapRef>>()
@@ -105,7 +105,7 @@ fun TvmContext.extractAddressesSpecialized(
 
 private data class Guard(
     val symbolToConcreteValues: PersistentMap<UExpr<UBvSort>, SymbolValues>,
-    val otherGuard: UBoolExpr
+    val otherGuard: UBoolExpr,
 ) {
     fun toUBoolExpr(): UBoolExpr =
         with(otherGuard.ctx) {
@@ -175,7 +175,7 @@ private data class Guard(
     companion object {
         private fun specificValue(
             expr: UExpr<UBvSort>,
-            value: KBitVecValue<UBvSort>
+            value: KBitVecValue<UBvSort>,
         ): Guard =
             with(expr.ctx) {
                 Guard(
@@ -193,7 +193,7 @@ private data class Guard(
 
         private fun forbiddenValue(
             expr: UExpr<UBvSort>,
-            value: KBitVecValue<UBvSort>
+            value: KBitVecValue<UBvSort>,
         ): Guard =
             with(expr.ctx) {
                 Guard(
@@ -235,5 +235,5 @@ private data class Guard(
 
 private data class SymbolValues(
     val forbiddenValues: PersistentSet<KBitVecValue<UBvSort>>,
-    val specificValues: PersistentSet<KBitVecValue<UBvSort>>
+    val specificValues: PersistentSet<KBitVecValue<UBvSort>>,
 )

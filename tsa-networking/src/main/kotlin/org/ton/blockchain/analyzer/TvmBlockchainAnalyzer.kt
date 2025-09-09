@@ -18,18 +18,18 @@ interface TvmBlockchainAnalyzer {
     fun getJettonWalletInfo(
         jettonAddress: String,
         jettonState: ContractState,
-        holderAddress: String
+        holderAddress: String,
     ): JettonWalletInfo?
 
     fun getJettonWalletAddress(
         jettonAddress: String,
         jettonState: ContractState,
-        holderAddress: String
+        holderAddress: String,
     ): String
 }
 
 abstract class TvmBlockchainAnalyzerBase(
-    emulatorLibPath: String
+    emulatorLibPath: String,
 ) : TvmBlockchainAnalyzer {
     protected abstract val infoExtractor: TonBlockchainInfoExtractor
     private val emulator = TvmConcreteEmulator(emulatorLibPath)
@@ -75,7 +75,7 @@ abstract class TvmBlockchainAnalyzerBase(
     override fun getJettonWalletInfo(
         jettonAddress: String,
         jettonState: ContractState,
-        holderAddress: String
+        holderAddress: String,
     ): JettonWalletInfo? {
         val walletAddress = getJettonWalletAddress(jettonAddress, jettonState, holderAddress)
         val walletStateRaw =
@@ -95,7 +95,7 @@ abstract class TvmBlockchainAnalyzerBase(
     override fun getJettonWalletAddress(
         jettonAddress: String,
         jettonState: ContractState,
-        holderAddress: String
+        holderAddress: String,
     ): String =
         runWithCatchingMissingLibrary {
             emulator.getWalletAddress(holderAddress, jettonAddress, jettonState, it)

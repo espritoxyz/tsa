@@ -23,7 +23,7 @@ import org.usvm.utils.extractAddresses
 class TvmCellDataFieldManager(
     private val ctx: TvmContext,
     private var addressesWithRequestedCellDataField: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
-    private var addressesWithAssertedCellData: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf()
+    private var addressesWithAssertedCellData: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
 ) {
     fun clone(): TvmCellDataFieldManager =
         TvmCellDataFieldManager(
@@ -39,20 +39,20 @@ class TvmCellDataFieldManager(
     fun writeCellData(
         state: TvmState,
         cellRef: UHeapRef,
-        value: UExpr<TvmContext.TvmCellDataSort>
+        value: UExpr<TvmContext.TvmCellDataSort>,
     ) = writeCellData(state.memory, cellRef, value)
 
     fun writeCellData(
         memory: UWritableMemory<TvmType>,
         cellRef: UHeapRef,
-        value: UExpr<TvmContext.TvmCellDataSort>
+        value: UExpr<TvmContext.TvmCellDataSort>,
     ) = with(ctx) {
         memory.writeField(cellRef, cellDataField, cellDataSort, value, guard = trueExpr)
     }
 
     fun readCellDataForBuilderOrAllocatedCell(
         state: TvmState,
-        cellRef: UConcreteHeapRef
+        cellRef: UConcreteHeapRef,
     ): UExpr<TvmContext.TvmCellDataSort> =
         with(ctx) {
             if (::addressToLabelMapper.isInitialized) {
@@ -70,7 +70,7 @@ class TvmCellDataFieldManager(
 
     private fun TvmContext.generatedDataConstraint(
         scope: TvmStepScopeManager,
-        refs: List<UConcreteHeapRef>
+        refs: List<UConcreteHeapRef>,
     ): UBoolExpr =
         scope.calcOnState {
             refs.fold(trueExpr as UBoolExpr) { acc, ref ->
@@ -86,7 +86,7 @@ class TvmCellDataFieldManager(
 
     fun readCellData(
         scope: TvmStepScopeManager,
-        cellRef: UHeapRef
+        cellRef: UHeapRef,
     ): UExpr<TvmContext.TvmCellDataSort>? =
         with(ctx) {
             val staticRefs = extractAddresses(cellRef, extractAllocated = false, extractStatic = true)
@@ -110,7 +110,7 @@ class TvmCellDataFieldManager(
      * */
     fun readCellDataWithoutAsserts(
         state: TvmState,
-        cellRef: UHeapRef
+        cellRef: UHeapRef,
     ) = with(ctx) {
         val staticRefs = extractAddresses(cellRef, extractAllocated = false, extractStatic = true)
         addressesWithRequestedCellDataField =

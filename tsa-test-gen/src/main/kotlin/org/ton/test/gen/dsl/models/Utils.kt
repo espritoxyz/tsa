@@ -67,7 +67,7 @@ fun initializeContract(
     address: TsExpression<TsAddress>,
     code: TsExpression<TsCell>,
     data: TsExpression<TsCell>,
-    balance: TsExpression<TsBigint> = toNano("100")
+    balance: TsExpression<TsBigint> = toNano("100"),
 ) = TsMethodCall(
     caller = null,
     executableName = "initializeContract",
@@ -96,7 +96,7 @@ fun beginCell(): TsExpression<TsBuilder> =
 
 fun TsExpression<TsBuilder>.storeUint(
     value: TsExpression<TsInt>,
-    bits: TsExpression<TsInt>
+    bits: TsExpression<TsInt>,
 ): TsExpression<TsBuilder> =
     TsMethodCall(
         caller = this,
@@ -108,7 +108,7 @@ fun TsExpression<TsBuilder>.storeUint(
 
 fun TsExpression<TsBuilder>.storeInt(
     value: TsExpression<TsInt>,
-    bits: TsExpression<TsInt>
+    bits: TsExpression<TsInt>,
 ): TsExpression<TsBuilder> =
     TsMethodCall(
         caller = this,

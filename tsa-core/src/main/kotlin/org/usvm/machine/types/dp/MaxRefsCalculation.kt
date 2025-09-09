@@ -8,7 +8,7 @@ import kotlin.math.min
 fun calculateMaximumRefs(
     maxTlbDepth: Int,
     compositeLabels: Collection<TlbCompositeLabel>,
-    individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>
+    individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
 ): List<Map<TlbCompositeLabel, Int>> =
     calculateMapsByTlbDepth(maxTlbDepth, compositeLabels) { label, curDepth, prevDepthValues ->
         val tlbDepthBound =
@@ -27,7 +27,7 @@ fun calculateMaximumRefs(
  * */
 private fun getMaximumRefs(
     struct: TlbStructure,
-    maxRefsFromPreviousDepth: Map<TlbCompositeLabel, Int>
+    maxRefsFromPreviousDepth: Map<TlbCompositeLabel, Int>,
 ): Int? {
     val cur: Int =
         when (struct) {

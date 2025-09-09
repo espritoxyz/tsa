@@ -17,7 +17,7 @@ import org.usvm.memory.GuardedExpr
 import org.usvm.utils.extractAddressesSpecialized
 
 class TvmDataCellLoadedTypeInfo(
-    var addressToActions: PersistentMap<UConcreteHeapRef, PersistentList<Action>>
+    var addressToActions: PersistentMap<UConcreteHeapRef, PersistentList<Action>>,
 ) {
     sealed interface Action {
         val guard: UBoolExpr
@@ -29,26 +29,26 @@ class TvmDataCellLoadedTypeInfo(
         override val cellAddress: UConcreteHeapRef,
         val type: TvmCellDataTypeRead<ReadResult>,
         val offset: UExpr<TvmSizeSort>,
-        val sliceAddress: UConcreteHeapRef
+        val sliceAddress: UConcreteHeapRef,
     ) : Action
 
     class LoadRef(
         override val guard: UBoolExpr,
         override val cellAddress: UConcreteHeapRef,
-        val refNumber: UExpr<TvmSizeSort>
+        val refNumber: UExpr<TvmSizeSort>,
     ) : Action
 
     class EndOfCell(
         override val guard: UBoolExpr,
         override val cellAddress: UConcreteHeapRef,
         val offset: UExpr<TvmSizeSort>,
-        val refNumber: UExpr<TvmSizeSort>
+        val refNumber: UExpr<TvmSizeSort>,
     ) : Action
 
     private fun <ConcreteAction : Action> registerAction(
         cellAddress: UHeapRef,
         actionList: MutableList<ConcreteAction>,
-        action: (GuardedExpr<UConcreteHeapRef>) -> ConcreteAction?
+        action: (GuardedExpr<UConcreteHeapRef>) -> ConcreteAction?,
     ) = with(cellAddress.ctx as TvmContext) {
         val cellLeaves = extractAddressesSpecialized(cellAddress, extractAllocated = true, extractStatic = true)
 
@@ -72,7 +72,7 @@ class TvmDataCellLoadedTypeInfo(
         state: TvmState,
         offset: UExpr<TvmSizeSort>,
         type: TvmCellDataTypeRead<ReadResult>,
-        slice: UHeapRef
+        slice: UHeapRef,
     ): List<LoadData<ReadResult>> =
         with(state.ctx) {
             val staticSliceAddresses = extractAddressesSpecialized(slice, extractAllocated = true, extractStatic = true)
@@ -95,7 +95,7 @@ class TvmDataCellLoadedTypeInfo(
 
     fun loadRef(
         cellAddress: UHeapRef,
-        refPos: UExpr<TvmSizeSort>
+        refPos: UExpr<TvmSizeSort>,
     ): List<LoadRef> {
         val result = mutableListOf<LoadRef>()
         registerAction(cellAddress, result) { ref ->
@@ -107,7 +107,7 @@ class TvmDataCellLoadedTypeInfo(
     fun makeEndOfCell(
         cellAddress: UHeapRef,
         offset: UExpr<TvmSizeSort>,
-        refNumber: UExpr<TvmSizeSort>
+        refNumber: UExpr<TvmSizeSort>,
     ): List<EndOfCell> {
         val result = mutableListOf<EndOfCell>()
         registerAction(cellAddress, result) { ref ->

@@ -15,7 +15,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
     private val options: TvmOptions,
     private val bv2intSolver: KBv2IntSolver<C1>,
     private val regularSolver: KSolver<C2>,
-    private val exprFilter: KNonRecursiveVisitor<Boolean>
+    private val exprFilter: KNonRecursiveVisitor<Boolean>,
 ) : KSolver<KSolverConfiguration> {
     private val assertions = mutableListOf<KExpr<KBoolSort>>()
     private val trackedAssertions = mutableListOf<KExpr<KBoolSort>>()
@@ -136,7 +136,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
 
     override fun checkWithAssumptions(
         assumptions: List<KExpr<KBoolSort>>,
-        timeout: Duration
+        timeout: Duration,
     ): KSolverStatus {
         require(currentScope == 1)
 

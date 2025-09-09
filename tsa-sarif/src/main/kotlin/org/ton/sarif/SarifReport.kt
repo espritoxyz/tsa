@@ -23,7 +23,7 @@ import org.usvm.test.resolver.TvmSymbolicTestSuite
 
 fun TvmContractSymbolicTestResult.toSarifReport(
     methodsMapping: Map<MethodId, String>,
-    excludeUserDefinedErrors: Boolean = false
+    excludeUserDefinedErrors: Boolean = false,
 ): String =
     SarifSchema210(
         schema = TsaSarifSchema.SCHEMA,
@@ -49,13 +49,13 @@ fun TvmContractSymbolicTestResult.toSarifReport(
 
 private fun TvmSymbolicTestSuite.toSarifResult(
     methodsMapping: Map<MethodId, String>,
-    excludeUserDefinedErrors: Boolean
+    excludeUserDefinedErrors: Boolean,
 ): List<Result> = tests.toSarifResult(methodsMapping, excludeUserDefinedErrors = excludeUserDefinedErrors)
 
 fun List<TvmSymbolicTest>.toSarifReport(
     methodsMapping: Map<MethodId, String>,
     useShortenedOutput: Boolean,
-    excludeUserDefinedErrors: Boolean
+    excludeUserDefinedErrors: Boolean,
 ): String =
     SarifSchema210(
         schema = TsaSarifSchema.SCHEMA,
@@ -72,7 +72,7 @@ fun List<TvmSymbolicTest>.toSarifReport(
 private fun List<TvmSymbolicTest>.toSarifResult(
     methodsMapping: Map<MethodId, String>,
     excludeUserDefinedErrors: Boolean,
-    useShortenedOutput: Boolean = false
+    useShortenedOutput: Boolean = false,
 ) = mapNotNull {
     val (ruleId, message) =
         when (it.result) {

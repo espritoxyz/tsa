@@ -6,6 +6,6 @@ interface TonBlockchainInfoExtractorWithHoldersInfo : TonBlockchainInfoExtractor
     fun getJettonWallets(
         masterAddress: String,
         limit: Int = 100,
-        offset: Int = 0
+        offset: Int = 0,
     ): List<JettonWalletInfo>
 }

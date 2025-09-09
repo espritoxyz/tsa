@@ -38,7 +38,7 @@ class Statements {
 
     private fun checkFailedSendInStatement(
         checkerPathStr: String,
-        possibleOpcodesList: List<List<Int>>
+        possibleOpcodesList: List<List<Int>>,
     ) {
         val analyzedPath = extractResource(targetContract)
         val checkerPath = extractResource(checkerPathStr)

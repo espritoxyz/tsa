@@ -20,7 +20,7 @@ import org.ton.TvmParameterInfo.DataCellInfo
 
 class TvmTlbTransformer(
     definitions: List<TvmTlbTypeDefinition>,
-    private val onlyBasicAddresses: Boolean = false
+    private val onlyBasicAddresses: Boolean = false,
 ) {
     private val typeDefinitions = definitions.associateBy { it.id }
     private val transformed = hashMapOf<Pair<TvmTlbTypeDefinition, List<TvmTlbTypeExpr>>, TlbLabel>()
@@ -33,7 +33,7 @@ class TvmTlbTransformer(
 
     fun transformTypeDefinition(
         def: TvmTlbTypeDefinition,
-        args: List<TvmTlbTypeExpr> = emptyList()
+        args: List<TvmTlbTypeExpr> = emptyList(),
     ): TlbLabel? {
         return transformed.getOrPut(def to args) {
             if (def.isBuiltin) {
@@ -51,7 +51,7 @@ class TvmTlbTransformer(
 
     private fun transformBuiltins(
         def: TvmTlbTypeDefinition,
-        args: List<TvmTlbTypeExpr>
+        args: List<TvmTlbTypeExpr>,
     ): TlbLabel? {
         val name = def.name
 
@@ -78,7 +78,7 @@ class TvmTlbTransformer(
 
     private fun transformComplexType(
         def: TvmTlbTypeDefinition,
-        args: List<TvmTlbTypeExpr>
+        args: List<TvmTlbTypeExpr>,
     ): TlbLabel {
         // special cases
         when (def.name) {
@@ -175,7 +175,7 @@ class TvmTlbTransformer(
 
     private fun transformConstructors(
         constructors: List<ConstructorTagSuffix>,
-        owner: TlbCompositeLabel
+        owner: TlbCompositeLabel,
     ): TlbStructure {
         if (constructors.size == 1 && constructors.single().tagSuffix.isEmpty()) {
             return transformConstructor(constructors.single().constructor, owner)
@@ -203,7 +203,7 @@ class TvmTlbTransformer(
 
     private fun transformSequenceOfExprs(
         sequence: List<TvmTlbTypeExpr>,
-        owner: TlbCompositeLabel
+        owner: TlbCompositeLabel,
     ): Pair<TlbStructure, Boolean> {
         var last: TlbStructure = Empty
         var foundAny = false
@@ -258,7 +258,7 @@ class TvmTlbTransformer(
 
     private fun transformConstructor(
         constructor: TvmTlbTypeConstructor,
-        owner: TlbCompositeLabel
+        owner: TlbCompositeLabel,
     ): TlbStructure {
         val exprs = constructor.fields.map { it.typeExpr }
         return transformSequenceOfExprs(exprs, owner).first
@@ -266,7 +266,7 @@ class TvmTlbTransformer(
 
     private data class ConstructorTagSuffix(
         val constructor: TvmTlbTypeConstructor,
-        var tagSuffix: String
+        var tagSuffix: String,
     )
 
     private fun List<TvmTlbTypeExpr>.toIntConst(): Int =

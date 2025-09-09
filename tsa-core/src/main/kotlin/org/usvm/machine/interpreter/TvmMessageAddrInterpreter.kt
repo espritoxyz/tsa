@@ -24,11 +24,11 @@ import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.types.TvmSliceType
 
 class TvmMessageAddrInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     fun visitAddrInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppAddrInst
+        stmt: TvmAppAddrInst,
     ) {
         scope.consumeDefaultGas(stmt)
 
@@ -41,7 +41,7 @@ class TvmMessageAddrInterpreter(
 
     private fun visitLoadMessageAddrInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppAddrLdmsgaddrInst
+        stmt: TvmAppAddrLdmsgaddrInst,
     ) = with(ctx) {
         val slice =
             scope.calcOnState { takeLastSlice() }
@@ -64,7 +64,7 @@ class TvmMessageAddrInterpreter(
 
     private fun visitParseStdAddr(
         scope: TvmStepScopeManager,
-        inst: TvmAppAddrRewritestdaddrInst
+        inst: TvmAppAddrRewritestdaddrInst,
     ) {
         scope.doWithStateCtx {
             // TODO support var address

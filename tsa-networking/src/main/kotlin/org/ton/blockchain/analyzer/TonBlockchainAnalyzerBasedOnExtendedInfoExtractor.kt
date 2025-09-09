@@ -6,7 +6,7 @@ import org.ton.blockchain.JettonWalletInfo
 import org.ton.blockchain.info.TonBlockchainExtendedInfoExtractor
 
 class TonBlockchainAnalyzerBasedOnExtendedInfoExtractor(
-    val infoExtractor: TonBlockchainExtendedInfoExtractor
+    val infoExtractor: TonBlockchainExtendedInfoExtractor,
 ) : TvmBlockchainAnalyzer {
     override fun extractJettonContractInfo(address: String): JettonContractInfo =
         infoExtractor.getJettonContractInfo(address)
@@ -16,7 +16,7 @@ class TonBlockchainAnalyzerBasedOnExtendedInfoExtractor(
     override fun getJettonWalletInfo(
         jettonAddress: String,
         jettonState: ContractState,
-        holderAddress: String
+        holderAddress: String,
     ): JettonWalletInfo? {
         val (walletAddress, balance) =
             infoExtractor.getJettonBalanceAndAddress(holderAddress, jettonAddress)
@@ -30,7 +30,7 @@ class TonBlockchainAnalyzerBasedOnExtendedInfoExtractor(
     override fun getJettonWalletAddress(
         jettonAddress: String,
         jettonState: ContractState,
-        holderAddress: String
+        holderAddress: String,
     ): String {
         // [getJettonWalletInfo] cannot be used here, because we must calculate potential address even if it is not on blockchain
         return infoExtractor.runGetWalletAddressOnJettonMaster(jettonAddress, holderAddress)

@@ -9,7 +9,7 @@ data class JettonContractInfo(
     val walletContractBytesHex: String,
     val declaredOwner: String?,
     val declaredMintable: Boolean,
-    val declaredTotalSupply: String
+    val declaredTotalSupply: String,
 ) {
     @OptIn(ExperimentalStdlibApi::class)
     val walletContractBytes: ByteArray
@@ -30,14 +30,14 @@ data class JettonContractInfo(
 data class ContractState(
     val dataHex: String,
     val codeHex: String,
-    val balance: Long
+    val balance: Long,
 )
 
 data class JettonWalletInfo(
     val address: String,
     val owner: String,
     val jettonBalance: String,
-    val state: ContractState
+    val state: ContractState,
 )
 
 const val GET_WALLET_ADDRESS_METHOD_NAME = "get_wallet_address"

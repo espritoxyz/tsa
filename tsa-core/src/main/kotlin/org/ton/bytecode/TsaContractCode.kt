@@ -9,7 +9,7 @@ data class TsaContractCode(
     val mainMethod: TvmMainMethod,
     val methods: Map<MethodId, TvmMethod>,
     val codeCell: TvmCell,
-    val parentCode: TsaContractCode? = null
+    val parentCode: TsaContractCode? = null,
 ) {
     var isContractWithTSACheckerFunctions: Boolean = false
 
@@ -24,7 +24,7 @@ data class TsaContractCode(
         fun construct(
             tvmContractCode: TvmContractCode,
             cell: TvmCell,
-            parentCode: TsaContractCode?
+            parentCode: TsaContractCode?,
         ): TsaContractCode {
             val newMethods =
                 tvmContractCode.methods.entries.associate { (key, value) ->

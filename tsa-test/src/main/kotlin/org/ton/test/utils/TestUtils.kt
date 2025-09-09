@@ -68,7 +68,7 @@ fun tactCompileAndAnalyzeAllMethods(
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
     tvmOptions: TvmOptions = TvmOptions(),
-    takeEmptyTests: Boolean = false
+    takeEmptyTests: Boolean = false,
 ): TvmContractSymbolicTestResult =
     TactAnalyzer(tactExecutable).analyzeAllMethods(
         tactSources,
@@ -90,7 +90,7 @@ fun funcCompileAndAnalyzeAllMethods(
     methodsBlackList: Set<MethodId> = hashSetOf(),
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
-    tvmOptions: TvmOptions = TvmOptions()
+    tvmOptions: TvmOptions = TvmOptions(),
 ): TvmContractSymbolicTestResult =
     funcAnalyzer.analyzeAllMethods(
         funcSourcesPath,
@@ -109,7 +109,7 @@ fun compileAndAnalyzeFift(
     methodsBlackList: Set<MethodId> = hashSetOf(),
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
-    tvmOptions: TvmOptions = TvmOptions()
+    tvmOptions: TvmOptions = TvmOptions(),
 ): TvmContractSymbolicTestResult =
     FiftAnalyzer(fiftStdlibPath = FIFT_STDLIB_RESOURCE).analyzeAllMethods(
         fiftPath,
@@ -127,7 +127,7 @@ fun compileAndAnalyzeFift(
     concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
     concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
     inputInfo: TvmInputInfo = TvmInputInfo(),
-    tvmOptions: TvmOptions = TvmOptions()
+    tvmOptions: TvmOptions = TvmOptions(),
 ): TvmSymbolicTestSuite =
     FiftAnalyzer(fiftStdlibPath = FIFT_STDLIB_RESOURCE).analyzeSpecificMethod(
         fiftPath,
@@ -143,7 +143,7 @@ fun compileAndAnalyzeFift(
  * */
 fun compileFiftCodeBlocksContract(
     fiftWorkDir: Path,
-    codeBlocks: List<String>
+    codeBlocks: List<String>,
 ): TsaContractCode =
     FiftAnalyzer(
         fiftStdlibPath = FIFT_STDLIB_RESOURCE
@@ -151,7 +151,7 @@ fun compileFiftCodeBlocksContract(
 
 fun compileFuncToFift(
     funcSourcesPath: Path,
-    fiftFilePath: Path
+    fiftFilePath: Path,
 ) = FuncAnalyzer(
     fiftStdlibPath = FIFT_STDLIB_RESOURCE
 ).compileFuncSourceToFift(funcSourcesPath, fiftFilePath)
@@ -163,7 +163,7 @@ fun analyzeAllMethods(
     methodsBlackList: Set<MethodId> = hashSetOf(),
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
-    options: TvmOptions = TvmOptions()
+    options: TvmOptions = TvmOptions(),
 ): TvmContractSymbolicTestResult =
     BocAnalyzer.analyzeAllMethods(
         Path(bytecodePath),
@@ -178,7 +178,7 @@ fun analyzeAllMethods(
 fun analyzeFuncIntercontract(
     sources: List<Path>,
     startContract: ContractId = 0,
-    options: TvmOptions
+    options: TvmOptions,
 ): TvmSymbolicTestSuite {
     val contracts = sources.map { getFuncContract(it, FIFT_STDLIB_RESOURCE) }
 
@@ -197,7 +197,7 @@ fun analyzeFuncIntercontract(
  * */
 fun runFiftMethod(
     fiftPath: Path,
-    methodId: Int
+    methodId: Int,
 ): FiftInterpreterResult =
     FiftAnalyzer(
         fiftStdlibPath = FIFT_STDLIB_RESOURCE
@@ -208,7 +208,7 @@ fun runFiftMethod(
  * */
 fun runFiftCodeBlock(
     fiftWorkDir: Path,
-    codeBlock: String
+    codeBlock: String,
 ): FiftInterpreterResult =
     FiftAnalyzer(
         fiftStdlibPath = FIFT_STDLIB_RESOURCE
@@ -234,7 +234,7 @@ internal fun TvmSymbolicTest.executionCode(): Int? =
 internal fun compareSymbolicAndConcreteResults(
     methodIds: Set<Int>,
     symbolicResult: TvmContractSymbolicTestResult,
-    expectedState: (Int) -> FiftInterpreterResult
+    expectedState: (Int) -> FiftInterpreterResult,
 ) = compareSymbolicAndConcreteResults(
     methodIds,
     symbolicResult,
@@ -249,7 +249,7 @@ internal fun compareSymbolicAndConcreteResults(
 
 internal fun compareSymbolicAndConcreteResultsFunc(
     resourcePath: String,
-    methods: Set<Int>
+    methods: Set<Int>,
 ) {
     val contractPath = extractResource(resourcePath)
     val tmpFiftFile = kotlin.io.path.createTempFile(suffix = ".boc")
@@ -275,7 +275,7 @@ internal fun compareSymbolicAndConcreteResultsFunc(
 private fun parseFiftStack(
     entries: List<String>,
     result: MutableList<TvmTestValue>,
-    initialIndex: Int
+    initialIndex: Int,
 ): Int {
     var index = initialIndex
     while (index < entries.size) {
@@ -313,7 +313,7 @@ internal fun <T> compareSymbolicAndConcreteResults(
     symbolicResult: TvmContractSymbolicTestResult,
     expectedResult: (Int) -> FiftInterpreterResult,
     symbolicStack: (TvmSymbolicTest) -> List<T>,
-    concreteStackBlock: (FiftInterpreterResult) -> List<T>
+    concreteStackBlock: (FiftInterpreterResult) -> List<T>,
 ) = compareMethodStates(methodIds, symbolicResult, expectedResult) { methodId, symbolicTest, concreteResult ->
     val actualStatus = symbolicTest.executionCode()
     assertEquals(concreteResult.exitCode, actualStatus, "Wrong exit code for method id: $methodId")
@@ -327,7 +327,7 @@ internal fun compareMethodStates(
     methodIds: Set<Int>,
     symbolicResult: TvmContractSymbolicTestResult,
     expectedResult: (Int) -> FiftInterpreterResult,
-    comparison: (Int, TvmSymbolicTest, FiftInterpreterResult) -> Unit
+    comparison: (Int, TvmSymbolicTest, FiftInterpreterResult) -> Unit,
 ) {
     assertEquals(methodIds, symbolicResult.testSuites.mapTo(hashSetOf()) { it.methodId.toInt() })
 
@@ -341,7 +341,7 @@ internal fun compareMethodStates(
 
 internal fun checkAtLeastOneStateForAllMethods(
     methodsNumber: Int,
-    symbolicResult: TvmContractSymbolicTestResult
+    symbolicResult: TvmContractSymbolicTestResult,
 ) {
     assertEquals(methodsNumber, symbolicResult.size)
     assertTrue(symbolicResult.all { it.tests.isNotEmpty() })
@@ -349,7 +349,7 @@ internal fun checkAtLeastOneStateForAllMethods(
 
 internal fun propertiesFound(
     testSuite: TvmSymbolicTestSuite,
-    properties: List<(TvmSymbolicTest) -> Boolean>
+    properties: List<(TvmSymbolicTest) -> Boolean>,
 ) {
     val failedProperties = mutableListOf<Int>()
     properties.forEachIndexed outer@{ index, property ->
@@ -365,7 +365,7 @@ internal fun propertiesFound(
 
 internal fun checkInvariants(
     tests: List<TvmSymbolicTest>,
-    properties: List<(TvmSymbolicTest) -> Boolean>
+    properties: List<(TvmSymbolicTest) -> Boolean>,
 ) {
     val failedInvariants = mutableListOf<Int>()
     properties.forEachIndexed outer@{ index, property ->
@@ -381,7 +381,7 @@ internal fun checkInvariants(
 
 internal fun extractTlbInfo(
     typesPath: String,
-    callerClass: KClass<*>
+    callerClass: KClass<*>,
 ): Map<MethodId, TvmInputInfo> {
     val path = getResourcePath(callerClass::class.java, typesPath)
     val struct =
@@ -398,7 +398,7 @@ internal fun extractTlbInfo(
 
 internal fun compareSymbolicAndConcreteFromResource(
     testPath: String,
-    lastMethodIndex: Int
+    lastMethodIndex: Int,
 ) {
     val fiftResourcePath = extractResource(testPath)
 

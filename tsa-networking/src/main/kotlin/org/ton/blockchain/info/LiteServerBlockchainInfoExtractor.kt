@@ -11,7 +11,7 @@ import org.ton.java.tonlib.types.VerbosityLevel
 
 class LiteServerBlockchainInfoExtractor(
     pathToTonLibJson: String,
-    pathToConfig: String
+    pathToConfig: String,
 ) : TonBlockchainInfoExtractor {
     private val tonlib: Tonlib =
         Tonlib

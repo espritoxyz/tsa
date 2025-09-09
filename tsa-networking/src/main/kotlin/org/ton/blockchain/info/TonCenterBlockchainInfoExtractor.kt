@@ -11,7 +11,7 @@ import org.ton.blockchain.toUrlAddress
 
 class TonCenterBlockchainInfoExtractor(
     pauseBetweenRequestsMillies: Long,
-    private val apiKey: String? = null
+    private val apiKey: String? = null,
 ) : TonBlockchainInfoExtractorWithRequestPause(pauseBetweenRequestsMillies),
     TonBlockchainInfoExtractorWithHoldersInfo {
     override fun getContractState(address: String): ContractState? {
@@ -59,7 +59,7 @@ class TonCenterBlockchainInfoExtractor(
     override fun getJettonWallets(
         masterAddress: String,
         limit: Int,
-        offset: Int
+        offset: Int,
     ): List<JettonWalletInfo> {
         val response =
             runCatching {

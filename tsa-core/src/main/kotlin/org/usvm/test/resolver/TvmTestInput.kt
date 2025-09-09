@@ -10,7 +10,7 @@ sealed interface TvmTestInput {
     @Serializable
     @SerialName("stackInput")
     data class StackInput(
-        override val usedParameters: List<TvmTestValue>
+        override val usedParameters: List<TvmTestValue>,
     ) : TvmTestInput
 
     @Serializable
@@ -25,7 +25,7 @@ sealed interface TvmTestInput {
         val ihrFee: TvmTestIntegerValue,
         val fwdFee: TvmTestIntegerValue,
         val createdLt: TvmTestIntegerValue,
-        val createdAt: TvmTestIntegerValue
+        val createdAt: TvmTestIntegerValue,
     ) : TvmTestInput {
         override val usedParameters: List<TvmTestValue>
             get() =
@@ -47,7 +47,7 @@ sealed interface TvmTestInput {
     @SerialName("recvExternalInput")
     data class RecvExternalInput(
         val msgBody: TvmTestSliceValue,
-        val wasAccepted: Boolean
+        val wasAccepted: Boolean,
     ) : TvmTestInput {
         override val usedParameters: List<TvmTestValue>
             get() = listOf(msgBody)

@@ -35,7 +35,7 @@ fun UReadOnlyMemory<*>.tvmCellRefsRegion(): TvmRefsMemoryRegion<TvmCellRefsRegio
     getRegion(TvmCellRefsRegionId) as TvmRefsMemoryRegion<TvmCellRefsRegionLValue, TvmSizeSort, UAddressSort>
 
 class TvmCellRefsRegionValueInfo(
-    private val state: TvmState
+    private val state: TvmState,
 ) : TvmRefsMemoryRegion.TvmRefsRegionValueInfo<UAddressSort> {
     override fun mkDefaultValue(): UHeapRef = state.emptyRefValue.emptyCell
 
@@ -48,7 +48,7 @@ class TvmCellRefsRegionValueInfo(
 fun TvmState.readCellRef(
     cell: UHeapRef,
     refIdx: UExpr<TvmSizeSort>,
-    initConstraintsForChildren: Boolean = true
+    initConstraintsForChildren: Boolean = true,
 ): UHeapRef {
     if (initConstraintsForChildren && stateInitialized) {
         dataCellInfoStorage.notifyAboutChildRequest(this, cell)
@@ -61,7 +61,7 @@ fun TvmState.writeCellRef(
     cell: UHeapRef,
     refIdx: UExpr<TvmSizeSort>,
     ref: UHeapRef,
-    guard: UBoolExpr = ref.ctx.trueExpr
+    guard: UBoolExpr = ref.ctx.trueExpr,
 ) {
     val region = memory.tvmCellRefsRegion()
     val updatedRegion = region.writeRefValue(cell, refIdx, ref, guard)
@@ -70,7 +70,7 @@ fun TvmState.writeCellRef(
 
 fun TvmState.copyCellRefs(
     srcCell: UHeapRef,
-    dstCell: UConcreteHeapRef
+    dstCell: UConcreteHeapRef,
 ) {
     val region = memory.tvmCellRefsRegion()
     val updatedRegion = region.copyRefValues(srcCell, dstCell)

@@ -22,7 +22,7 @@ fun executeTests(
     testFileName: String,
     testsExecutionTimeout: Duration = TESTS_EXECUTION_DEFAULT_TIMEOUT,
     // Could be also "jest" or "npm test"
-    testCommand: String = "$yarnCommand jest"
+    testCommand: String = "$yarnCommand jest",
 ): TestExecutionResult {
     val command = "$testCommand --json $testFileName"
 
@@ -59,19 +59,19 @@ enum class TestStatus {
     PASSED,
 
     @SerialName("failed")
-    FAILED
+    FAILED,
 }
 
 @Serializable
 data class MatcherResult(
     val pass: Boolean,
-    val message: String
+    val message: String,
 )
 
 @Serializable
 data class FailureDetails(
     val error: String?,
-    val matcherResult: MatcherResult?
+    val matcherResult: MatcherResult?,
 )
 
 @Serializable
@@ -79,16 +79,16 @@ data class TestResult(
     val fullName: String,
     val status: TestStatus,
     val failureDetails: List<FailureDetails>?,
-    val failureMessages: List<String>?
+    val failureMessages: List<String>?,
 )
 
 @Serializable
 data class TestSuite(
-    val assertionResults: List<TestResult>
+    val assertionResults: List<TestResult>,
 )
 
 @Serializable
 data class TestExecutionResult(
     val testResults: List<TestSuite>,
-    val success: Boolean
+    val success: Boolean,
 )

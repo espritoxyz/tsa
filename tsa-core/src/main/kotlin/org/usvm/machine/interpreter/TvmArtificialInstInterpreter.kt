@@ -41,11 +41,11 @@ class TvmArtificialInstInterpreter(
     val ctx: TvmContext,
     private val contractsCode: List<TsaContractCode>,
     private val transactionInterpreter: TvmTransactionInterpreter,
-    private val checkerFunctionsInterpreter: TsaCheckerFunctionsInterpreter
+    private val checkerFunctionsInterpreter: TsaCheckerFunctionsInterpreter,
 ) {
     fun visit(
         scope: TvmStepScopeManager,
-        stmt: TvmArtificialInst
+        stmt: TvmArtificialInst,
     ) {
         check(stmt is TsaArtificialInst) {
             "Unexpected artificial instruction: $stmt"
@@ -90,7 +90,7 @@ class TvmArtificialInstInterpreter(
 
     private fun visitActionPhaseInst(
         scope: TvmStepScopeManager,
-        stmt: TsaArtificialActionPhaseInst
+        stmt: TsaArtificialActionPhaseInst,
     ) {
         val commitedState =
             scope.calcOnState {
@@ -115,7 +115,7 @@ class TvmArtificialInstInterpreter(
 
     private fun visitExitInst(
         scope: TvmStepScopeManager,
-        stmt: TsaArtificialExitInst
+        stmt: TsaArtificialExitInst,
     ) {
         scope.doWithStateCtx {
             phase = EXIT_PHASE
@@ -130,7 +130,7 @@ class TvmArtificialInstInterpreter(
 
     private fun processIntercontractExit(
         scope: TvmStepScopeManager,
-        result: TvmMethodResult
+        result: TvmMethodResult,
     ) {
         scope.doWithState {
             require(!messageQueue.isEmpty()) {
@@ -197,7 +197,7 @@ class TvmArtificialInstInterpreter(
 
     private fun processNewMessages(
         scope: TvmStepScopeManager,
-        commitedState: TvmCommitedState
+        commitedState: TvmCommitedState,
     ): Unit? {
         val (newUnprocessedMessages, messageDestinations) =
             transactionInterpreter.parseActionsToDestinations(scope, commitedState)
@@ -213,7 +213,7 @@ class TvmArtificialInstInterpreter(
 
     private fun processCheckerExit(
         scope: TvmStepScopeManager,
-        result: TvmMethodResult
+        result: TvmMethodResult,
     ) {
         scope.doWithState {
             // TODO: case of committed state of TvmFailure

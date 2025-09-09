@@ -17,11 +17,11 @@ import org.usvm.utils.extractAddresses
 class TvmDataCellInfoStorage private constructor(
     private val ctx: TvmContext,
     val mapper: TvmAddressToLabelMapper,
-    val sliceMapper: TvmSliceToTlbStackMapper
+    val sliceMapper: TvmSliceToTlbStackMapper,
 ) {
     fun notifyAboutChildRequest(
         state: TvmState,
-        ref: UHeapRef
+        ref: UHeapRef,
     ) = with(ctx) {
         val staticAddresses = extractAddresses(ref).map { it.second }
 
@@ -51,7 +51,7 @@ class TvmDataCellInfoStorage private constructor(
 
     fun getNoUnexpectedEndOfReadingCondition(
         state: TvmState,
-        endOfCell: TvmDataCellLoadedTypeInfo.EndOfCell
+        endOfCell: TvmDataCellLoadedTypeInfo.EndOfCell,
     ): UBoolExpr =
         with(ctx) {
             val labelInfo =
@@ -89,7 +89,7 @@ class TvmDataCellInfoStorage private constructor(
 
     fun getNoUnexpectedLoadRefCondition(
         state: TvmState,
-        loadRef: TvmDataCellLoadedTypeInfo.LoadRef
+        loadRef: TvmDataCellLoadedTypeInfo.LoadRef,
     ): UBoolExpr =
         with(ctx) {
             val labelInfo =
@@ -127,7 +127,7 @@ class TvmDataCellInfoStorage private constructor(
             info: TvmInputInfo,
             additionalCellLabels: Map<UConcreteHeapRef, TvmParameterInfo.CellInfo> = emptyMap(),
             additionalSliceToCell: Map<UConcreteHeapRef, UConcreteHeapRef> = emptyMap(),
-            additionalLabels: Set<TlbCompositeLabel> = emptySet()
+            additionalLabels: Set<TlbCompositeLabel> = emptySet(),
         ): TvmDataCellInfoStorage {
             val inputAddresses = extractInputParametersAddresses(state, info)
             val addressesWithCellInfo =

@@ -23,7 +23,7 @@ import java.util.IdentityHashMap
 // Note that one instance should be used only one per method.
 class TvmCoverageStatistics(
     private val observedContractId: ContractId,
-    private val mainMethod: TvmMainMethod
+    private val mainMethod: TvmMainMethod,
 ) : UMachineObserver<TvmState> {
     private val coveredStatements: MutableSet<TvmInst> = newSetFromMap(IdentityHashMap())
     private val reachableMethods: MutableSet<TvmMethod> = hashSetOf()
@@ -63,7 +63,7 @@ class TvmCoverageStatistics(
 
     private fun computeCoveragePercents(
         covered: Int,
-        all: Int
+        all: Int,
     ): Float {
         if (all == 0) {
             return 100f
@@ -79,7 +79,7 @@ class TvmCoverageStatistics(
 
     private fun addReachableMethod(
         methodId: MethodId,
-        currentCode: TsaContractCode
+        currentCode: TsaContractCode,
     ) {
         if (reachableMethods.any { it.id == methodId }) {
             return

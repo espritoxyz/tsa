@@ -37,13 +37,13 @@ abstract class TsBlockBuilder<T : TsBlock> : TsBuilder<T> {
 
     fun <T : TsType> newVar(
         name: String,
-        init: TsExpression<T>
+        init: TsExpression<T>,
     ): TsVariable<T> = newVar(name, init.type, init)
 
     fun <T : TsType> newVar(
         name: String,
         type: T,
-        init: TsExpression<T>? = null
+        init: TsExpression<T>? = null,
     ): TsVariable<T> {
         val declaration = TsDeclaration(name, type, init)
         statements += declaration
@@ -69,7 +69,7 @@ abstract class TsBlockBuilder<T : TsBlock> : TsBuilder<T> {
 
     fun <T : TsType> TsExpression<T>.expectToEqual(
         expected: TsExpression<T>,
-        message: String? = null
+        message: String? = null,
     ) {
         statements += TsExpectToEqual(actual = this, expected, message = message)
     }
@@ -93,14 +93,14 @@ abstract class TsBlockBuilder<T : TsBlock> : TsBuilder<T> {
 
 data class TsTestFileBuilder(
     override val ctx: TsContext,
-    val name: String
+    val name: String,
 ) : TsBlockBuilder<TsTestFile>() {
     private val wrappers = mutableListOf<TsWrapperDescriptor<*>>()
     private val testBlocks = mutableListOf<TsTestBlock>()
 
     fun describe(
         name: String,
-        block: TsTestBlockBuilder.() -> Unit
+        block: TsTestBlockBuilder.() -> Unit,
     ) {
         testBlocks += TsTestBlockBuilder(ctx, name).apply(block).build()
     }
@@ -114,11 +114,11 @@ data class TsTestFileBuilder(
 
 class TsTestBlockBuilder(
     override val ctx: TsContext,
-    private val name: String
+    private val name: String,
 ) : TsBlockBuilder<TsTestBlock>() {
     fun it(
         name: String,
-        block: TsTestCaseBuilder.() -> Unit
+        block: TsTestCaseBuilder.() -> Unit,
     ) {
         statements += TsTestCaseBuilder(ctx, name).apply(block).build()
     }
@@ -127,27 +127,27 @@ class TsTestBlockBuilder(
 }
 
 class TsBeforeAllBuilder(
-    override val ctx: TsContext
+    override val ctx: TsContext,
 ) : TsBlockBuilder<TsBeforeAllBlock>() {
     override fun build(): TsBeforeAllBlock = TsBeforeAllBlock(statements)
 }
 
 class TsBeforeEachBuilder(
-    override val ctx: TsContext
+    override val ctx: TsContext,
 ) : TsBlockBuilder<TsBeforeEachBlock>() {
     override fun build(): TsBeforeEachBlock = TsBeforeEachBlock(statements)
 }
 
 class TsTestCaseBuilder(
     override val ctx: TsContext,
-    private val name: String
+    private val name: String,
 ) : TsBlockBuilder<TsTestCase>() {
     override fun build(): TsTestCase = TsTestCase(name, statements)
 }
 
 class TsExpectToHaveTransactionBuilder(
     override val ctx: TsContext,
-    private val sendMessageResult: TsExpression<TsSendMessageResult>
+    private val sendMessageResult: TsExpression<TsSendMessageResult>,
 ) : TsBuilder<TsExpectToHaveTransaction> {
     var from: TsExpression<TsAddress>? = null
     var to: TsExpression<TsAddress>? = null
@@ -176,5 +176,5 @@ class TsExpectToHaveTransactionBuilder(
 
 fun TsContext.testFile(
     name: String,
-    block: TsTestFileBuilder.() -> Unit
+    block: TsTestFileBuilder.() -> Unit,
 ) = TsTestFileBuilder(ctx = this, name).apply(block).build()

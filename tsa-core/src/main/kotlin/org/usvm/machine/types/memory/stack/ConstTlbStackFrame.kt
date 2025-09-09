@@ -31,11 +31,11 @@ data class ConstTlbStackFrame(
     private val nextStruct: TlbStructure,
     private val offset: UExpr<TvmSizeSort>,
     override val path: PersistentList<Int>,
-    override val leftTlbDepth: Int
+    override val leftTlbDepth: Int,
 ) : TlbStackFrame {
     override fun <ReadResult : TvmCellDataTypeReadValue> step(
         state: TvmState,
-        loadData: LimitedLoadData<ReadResult>
+        loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
         with(state.ctx) {
             val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
@@ -135,7 +135,7 @@ data class ConstTlbStackFrame(
         buildFrameForStructure(ctx, nextStruct, path, leftTlbDepth)
 
     override fun readInModel(
-        read: TlbStack.ConcreteReadInfo
+        read: TlbStack.ConcreteReadInfo,
     ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> {
         check(read.leftBits >= data.length)
         val newReadInfo =

@@ -51,7 +51,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
     address: UHeapRef,
     path: PersistentList<Int>,
     state: TvmState,
-    leftTlbDepth: Int
+    leftTlbDepth: Int,
 ): ReadResult? =
     with(state.ctx) {
         check(curStructure.typeLabel == this@extractTlbValueIfPossible)
@@ -218,7 +218,7 @@ private fun extractInt(
     offset: UExpr<TvmSizeSort>,
     length: UExpr<TvmSizeSort>,
     data: String,
-    isSigned: Boolean
+    isSigned: Boolean,
 ): UExpr<TvmContext.TvmInt257Sort> =
     with(offset.ctx.tctx()) {
         val bits = mkBv(data, data.length.toUInt()).zeroExtendToSort(cellDataSort)
@@ -233,7 +233,7 @@ private fun extractInt(
 fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.readFromConstant(
     state: TvmState,
     offset: UExpr<TvmSizeSort>,
-    data: String
+    data: String,
 ): ReadResult? =
     with(offset.ctx.tctx()) {
         when (this@readFromConstant) {

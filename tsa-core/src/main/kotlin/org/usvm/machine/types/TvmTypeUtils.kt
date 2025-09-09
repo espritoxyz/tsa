@@ -32,7 +32,7 @@ import org.usvm.types.USingleTypeStream
 fun <AccType> foldOnTvmType(
     type: TvmType,
     init: AccType,
-    f: (AccType, TvmType) -> AccType
+    f: (AccType, TvmType) -> AccType,
 ): AccType {
     var acc = init
     var curType: TvmType? = type
@@ -53,7 +53,7 @@ fun TvmState.getPossibleTypes(ref: UConcreteHeapRef): Sequence<TvmType> {
 fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.accepts(
     ctx: TvmContext,
     labelArgs: List<UExpr<TvmSizeSort>>,
-    symbolicTypeRead: TvmCellDataTypeRead<ReadResult>
+    symbolicTypeRead: TvmCellDataTypeRead<ReadResult>,
 ): UBoolExpr =
     with(ctx) {
         when (this@accepts) {
@@ -117,7 +117,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.accepts(
 fun TlbBuiltinLabel.passBitArrayRead(
     ctx: TvmContext,
     labelArgs: List<UExpr<TvmSizeSort>>,
-    bitArrayLength: UExpr<TvmSizeSort>
+    bitArrayLength: UExpr<TvmSizeSort>,
 ): PassBitArrayRead? =
     with(ctx) {
         when (this@passBitArrayRead) {
@@ -140,12 +140,12 @@ fun TlbBuiltinLabel.passBitArrayRead(
 
 data class PassBitArrayRead(
     val guard: UBoolExpr,
-    val leftBits: UExpr<TvmSizeSort>
+    val leftBits: UExpr<TvmSizeSort>,
 )
 
 fun TlbBuiltinLabel.isEmptyLabel(
     ctx: TvmContext,
-    labelArgs: List<UExpr<TvmSizeSort>>
+    labelArgs: List<UExpr<TvmSizeSort>>,
 ): UBoolExpr =
     with(ctx) {
         when (this@isEmptyLabel) {
@@ -172,7 +172,7 @@ fun TlbBuiltinLabel.isEmptyLabel(
 
 fun TlbAtomicLabel.dataLength(
     state: TvmState,
-    args: List<UExpr<TvmSizeSort>>
+    args: List<UExpr<TvmSizeSort>>,
 ): UExpr<TvmSizeSort> =
     with(state.ctx) {
         when (this@dataLength) {
@@ -206,12 +206,12 @@ fun TlbAtomicLabel.lengthUpperBound(): Int =
 
 data class InputParametersStructure(
     val cellToInfo: Map<UConcreteHeapRef, TvmParameterInfo.CellInfo>,
-    val sliceToCell: Map<UConcreteHeapRef, UConcreteHeapRef>
+    val sliceToCell: Map<UConcreteHeapRef, UConcreteHeapRef>,
 )
 
 fun extractInputParametersAddresses(
     initialState: TvmState,
-    inputInfo: TvmInputInfo
+    inputInfo: TvmInputInfo,
 ): InputParametersStructure {
     val cells = hashMapOf<UConcreteHeapRef, TvmParameterInfo.CellInfo>()
     val slices = hashMapOf<UConcreteHeapRef, UConcreteHeapRef>()

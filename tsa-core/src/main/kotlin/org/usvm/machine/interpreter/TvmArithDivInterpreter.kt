@@ -109,11 +109,11 @@ import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 
 class TvmArithDivInterpreter(
-    private val ctx: TvmContext
+    private val ctx: TvmContext,
 ) {
     fun visitArithmeticDivInst(
         scope: TvmStepScopeManager,
-        stmt: TvmArithmDivInst
+        stmt: TvmArithmDivInst,
     ) {
         scope.consumeDefaultGas(stmt)
 
@@ -739,12 +739,12 @@ class TvmArithDivInterpreter(
 
     private fun <S : UBvSort> TvmContext.makeDivMod(
         x: UExpr<S>,
-        y: UExpr<S>
+        y: UExpr<S>,
     ): Pair<DivResult<S>, UExpr<S>> = makeDiv(x, y) to makeMod(x, y)
 
     private fun <S : UBvSort> TvmContext.makeDivModc(
         x: UExpr<S>,
-        y: UExpr<S>
+        y: UExpr<S>,
     ): Pair<DivResult<S>, UExpr<S>> {
         val divc = makeDivc(x, y)
         val modc = mkBvSubExpr(x, mkBvMulExpr(y, divc.value))
@@ -753,12 +753,12 @@ class TvmArithDivInterpreter(
 
     private fun <S : UBvSort> TvmContext.makeModc(
         x: UExpr<S>,
-        y: UExpr<S>
+        y: UExpr<S>,
     ): UExpr<S> = makeDivModc(x, y).second
 
     private fun <S : UBvSort> TvmContext.makeDivModr(
         x: UExpr<S>,
-        y: UExpr<S>
+        y: UExpr<S>,
     ): Pair<DivResult<S>, UExpr<S>> {
         val divr = makeDivr(x, y)
         val modr = mkBvSubExpr(x, mkBvMulExpr(y, divr.value))
@@ -767,12 +767,12 @@ class TvmArithDivInterpreter(
 
     private fun <S : UBvSort> TvmContext.makeModr(
         x: UExpr<S>,
-        y: UExpr<S>
+        y: UExpr<S>,
     ): UExpr<S> = makeDivModr(x, y).second
 
     private fun checkDivisionByZero(
         expr: UExpr<TvmInt257Sort>,
-        scope: TvmStepScopeManager
+        scope: TvmStepScopeManager,
     ) = with(ctx) {
         val neqZero = mkEq(expr, zeroValue).not()
         scope.fork(
@@ -783,7 +783,7 @@ class TvmArithDivInterpreter(
     }
 
     private fun takeOperandsAndCheckForZero(
-        scope: TvmStepScopeManager
+        scope: TvmStepScopeManager,
     ): Pair<UExpr<TvmInt257Sort>, UExpr<TvmInt257Sort>>? {
         val secondOperand = scope.takeLastIntOrThrowTypeError() ?: return null
         val firstOperand = scope.takeLastIntOrThrowTypeError() ?: return null
@@ -796,8 +796,8 @@ class TvmArithDivInterpreter(
         scope: TvmStepScopeManager,
         makeDivmodX: (
             UExpr<TvmInt257Ext1Sort>,
-            UExpr<TvmInt257Ext1Sort>
-        ) -> Pair<DivResult<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>>
+            UExpr<TvmInt257Ext1Sort>,
+        ) -> Pair<DivResult<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>>,
     ): Unit? =
         with(ctx) {
             val z = scope.takeLastIntOrThrowTypeError() ?: return null
@@ -828,7 +828,7 @@ class TvmArithDivInterpreter(
     private fun doRshiftXNoVar(
         stmtT: Int,
         scope: TvmStepScopeManager,
-        makeModOrDivX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> List<UExpr<TvmInt257Ext1Sort>>
+        makeModOrDivX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> List<UExpr<TvmInt257Ext1Sort>>,
     ): Unit? =
         with(ctx) {
             val t = (stmtT + 1).toBv257()
@@ -838,7 +838,7 @@ class TvmArithDivInterpreter(
 
     private fun doRshiftXVar(
         scope: TvmStepScopeManager,
-        makeModOrDivX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> List<UExpr<TvmInt257Ext1Sort>>
+        makeModOrDivX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> List<UExpr<TvmInt257Ext1Sort>>,
     ): Unit? =
         with(ctx) {
             val t = scope.takeLastIntOrThrowTypeError() ?: return null
@@ -854,7 +854,7 @@ class TvmArithDivInterpreter(
         x: UExpr<TvmInt257Sort>,
         t: UExpr<TvmInt257Sort>,
         scope: TvmStepScopeManager,
-        makeModOrDivX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> List<UExpr<TvmInt257Ext1Sort>>
+        makeModOrDivX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> List<UExpr<TvmInt257Ext1Sort>>,
     ): Unit =
         with(ctx) {
             val xExtended = x.signedExtendByOne()
@@ -874,7 +874,7 @@ class TvmArithDivInterpreter(
     private fun doModpow2XNoVar(
         scope: TvmStepScopeManager,
         stmtT: Int,
-        makeModX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> UExpr<TvmInt257Ext1Sort>
+        makeModX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> UExpr<TvmInt257Ext1Sort>,
     ) = with(ctx) {
         val x = scope.takeLastIntOrThrowTypeError() ?: return@with null
         doModpow2X(scope, x, (stmtT + 1).toBv257(), makeModX)
@@ -882,7 +882,7 @@ class TvmArithDivInterpreter(
 
     private fun doModpow2XVar(
         scope: TvmStepScopeManager,
-        makeModX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> UExpr<TvmInt257Ext1Sort>
+        makeModX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> UExpr<TvmInt257Ext1Sort>,
     ): Unit? =
         with(ctx) {
             val t = scope.takeLastIntOrThrowTypeError() ?: return@with null
@@ -896,7 +896,7 @@ class TvmArithDivInterpreter(
         scope: TvmStepScopeManager,
         x: UExpr<TvmInt257Sort>,
         t: UExpr<TvmInt257Sort>,
-        makeModX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> UExpr<TvmInt257Ext1Sort>
+        makeModX: (UExpr<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>) -> UExpr<TvmInt257Ext1Sort>,
     ) = with(ctx) {
         val divExtended = mkBvShiftLeftExpr(oneValue.signedExtendByOne(), t.signedExtendByOne())
         val xExtended = x.signedExtendByOne()
@@ -910,7 +910,7 @@ class TvmArithDivInterpreter(
     private fun doLShiftXNoVar(
         scope: TvmStepScopeManager,
         stmtT: Int,
-        makeDivOrMod: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?
+        makeDivOrMod: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?,
     ) = with(ctx) {
         val y = scope.takeLastIntOrThrowTypeError() ?: return@with null
         val x = scope.takeLastIntOrThrowTypeError() ?: return@with null
@@ -920,7 +920,7 @@ class TvmArithDivInterpreter(
 
     private fun doLShiftXVar(
         scope: TvmStepScopeManager,
-        makeDivOrMod: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?
+        makeDivOrMod: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?,
     ) = with(ctx) {
         val t = scope.takeLastIntOrThrowTypeError() ?: return@with null
         checkOutOfRange(t, scope, min = 0, max = 256)
@@ -935,7 +935,7 @@ class TvmArithDivInterpreter(
         x: UExpr<TvmInt257Sort>,
         y: UExpr<TvmInt257Sort>,
         t: UExpr<TvmInt257Sort>,
-        makeDivOrMod: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?
+        makeDivOrMod: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?,
     ): Unit? =
         with(ctx) {
             checkDivisionByZero(y, scope) ?: return null
@@ -954,8 +954,8 @@ class TvmArithDivInterpreter(
         stmtT: Int,
         makeDivModX: (
             UExpr<TvmInt257Ext1Sort>,
-            UExpr<TvmInt257Ext1Sort>
-        ) -> Pair<DivResult<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>>
+            UExpr<TvmInt257Ext1Sort>,
+        ) -> Pair<DivResult<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>>,
     ) = with(ctx) {
         val w = scope.takeLastIntOrThrowTypeError() ?: return@with null
         val x = scope.takeLastIntOrThrowTypeError() ?: return@with null
@@ -966,8 +966,8 @@ class TvmArithDivInterpreter(
         scope: TvmStepScopeManager,
         makeDivModX: (
             UExpr<TvmInt257Ext1Sort>,
-            UExpr<TvmInt257Ext1Sort>
-        ) -> Pair<DivResult<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>>
+            UExpr<TvmInt257Ext1Sort>,
+        ) -> Pair<DivResult<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>>,
     ): Unit? {
         val t = scope.takeLastIntOrThrowTypeError() ?: return null
         checkOutOfRange(t, scope, min = 0, max = 256)
@@ -984,8 +984,8 @@ class TvmArithDivInterpreter(
         t: UExpr<TvmInt257Sort>,
         makeDivModX: (
             UExpr<TvmInt257Ext1Sort>,
-            UExpr<TvmInt257Ext1Sort>
-        ) -> Pair<DivResult<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>>
+            UExpr<TvmInt257Ext1Sort>,
+        ) -> Pair<DivResult<TvmInt257Ext1Sort>, UExpr<TvmInt257Ext1Sort>>,
     ): Unit? =
         with(ctx) {
             val wExtended = w.signedExtendByOne()
@@ -1011,8 +1011,8 @@ class TvmArithDivInterpreter(
         stmtT: Int,
         makeDivModX: (
             UExpr<TvmInt257Ext256Sort>,
-            UExpr<TvmInt257Ext256Sort>
-        ) -> Pair<DivResult<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>>
+            UExpr<TvmInt257Ext256Sort>,
+        ) -> Pair<DivResult<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>>,
     ) = with(ctx) {
         val z = scope.takeLastIntOrThrowTypeError() ?: return null
         val w = scope.takeLastIntOrThrowTypeError() ?: return null
@@ -1024,8 +1024,8 @@ class TvmArithDivInterpreter(
         scope: TvmStepScopeManager,
         makeDivModX: (
             UExpr<TvmInt257Ext256Sort>,
-            UExpr<TvmInt257Ext256Sort>
-        ) -> Pair<DivResult<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>>
+            UExpr<TvmInt257Ext256Sort>,
+        ) -> Pair<DivResult<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>>,
     ): Unit? {
         val t = scope.takeLastIntOrThrowTypeError() ?: return null
         checkOutOfRange(t, scope, min = 0, max = 256)
@@ -1044,8 +1044,8 @@ class TvmArithDivInterpreter(
         t: UExpr<TvmInt257Sort>,
         makeDivModX: (
             UExpr<TvmInt257Ext256Sort>,
-            UExpr<TvmInt257Ext256Sort>
-        ) -> Pair<DivResult<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>>
+            UExpr<TvmInt257Ext256Sort>,
+        ) -> Pair<DivResult<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>>,
     ): Unit? =
         with(ctx) {
             checkDivisionByZero(z, scope)
@@ -1073,7 +1073,7 @@ class TvmArithDivInterpreter(
 
     private fun doMuldivX(
         scope: TvmStepScopeManager,
-        makeDivOrMod: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?
+        makeDivOrMod: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?,
     ): Unit? =
         with(ctx) {
             val z = scope.takeLastIntOrThrowTypeError() ?: return null
@@ -1099,7 +1099,7 @@ class TvmArithDivInterpreter(
     private fun doMulrshiftXNoVar(
         scope: TvmStepScopeManager,
         stmtT: Int,
-        makeDivX: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?
+        makeDivX: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?,
     ) = with(ctx) {
         val y = scope.takeLastIntOrThrowTypeError() ?: return null
         val x = scope.takeLastIntOrThrowTypeError() ?: return null
@@ -1109,7 +1109,7 @@ class TvmArithDivInterpreter(
 
     private fun doMulrshiftXVar(
         scope: TvmStepScopeManager,
-        makeDivX: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?
+        makeDivX: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?,
     ) = with(ctx) {
         val z = scope.takeLastIntOrThrowTypeError() ?: return null
         checkOutOfRange(z, scope, min = 0, max = 256)
@@ -1125,7 +1125,7 @@ class TvmArithDivInterpreter(
         x: UExpr<TvmInt257Sort>,
         y: UExpr<TvmInt257Sort>,
         t: UExpr<TvmInt257Sort>,
-        makeDivX: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?
+        makeDivX: (UExpr<TvmInt257Ext256Sort>, UExpr<TvmInt257Ext256Sort>) -> List<UExpr<TvmInt257Ext256Sort>>?,
     ): Unit? =
         with(ctx) {
             val xExtended = x.signedExtendBy256()
@@ -1156,13 +1156,13 @@ class TvmArithDivInterpreter(
 
 data class DivResult<S : UBvSort>(
     val value: UExpr<S>,
-    val noOverflow: UBoolExpr
+    val noOverflow: UBoolExpr,
 )
 
 // shorter version, but unfortunately overflows in a test: mkBvSignedDivExpr(mkBvSubExpr(x, makeMod(x, y)), y)
 fun <S : UBvSort> TvmContext.makeDiv(
     x: UExpr<S>,
-    y: UExpr<S>
+    y: UExpr<S>,
 ): DivResult<S> {
     val zero = zeroValue.signExtendToSort(x.sort)
     val minusOne = minusOneValue.signExtendToSort(x.sort)
@@ -1185,12 +1185,12 @@ fun <S : UBvSort> TvmContext.makeDiv(
 // invariant: makeMod(x, y) == mkBvSubExpr(x, mkBvMulExpr(makeDiv(x, y), y))
 fun <S : UBvSort> TvmContext.makeMod(
     x: UExpr<S>,
-    y: UExpr<S>
+    y: UExpr<S>,
 ): UExpr<S> = mkBvSignedModExpr(x, y)
 
 fun <S : UBvSort> TvmContext.makeDivc(
     x: UExpr<S>,
-    y: UExpr<S>
+    y: UExpr<S>,
 ): DivResult<S> {
     val zero = zeroValue.signExtendToSort(x.sort)
     val one = oneValue.signExtendToSort(x.sort)
@@ -1211,7 +1211,7 @@ fun <S : UBvSort> TvmContext.makeDivc(
 
 fun <S : UBvSort> TvmContext.makeDivr(
     x: UExpr<S>,
-    y: UExpr<S>
+    y: UExpr<S>,
 ): DivResult<S> {
     val zero = zeroValue.signExtendToSort(x.sort)
     val two = twoValue.signExtendToSort(x.sort)
@@ -1242,7 +1242,7 @@ fun <S : UBvSort> TvmContext.makeDivr(
  */
 fun <S : UBvSort> TvmContext.checkInBounds(
     expr: UExpr<S>,
-    scope: TvmStepScopeManager
+    scope: TvmStepScopeManager,
 ): Unit? {
     val minValue = min257BitValue.signExtendToSort(expr.sort)
     val maxValue = max257BitValue.signExtendToSort(expr.sort)
