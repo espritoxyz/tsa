@@ -155,7 +155,7 @@ fun readInModelFromTlbFields(
     val model = resolver.model
     var stack = TlbStack.new(state.ctx, label)
     var result = ""
-    val sizeSymbolic = state.memory.readField(address, TvmContext.cellDataLengthField, state.ctx.sizeSort)
+    val sizeSymbolic = state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
     val size = model.eval(sizeSymbolic).intValue()
     var readInfo = TlbStack.ConcreteReadInfo(model.eval(address) as UConcreteHeapRef, resolver, size)
 

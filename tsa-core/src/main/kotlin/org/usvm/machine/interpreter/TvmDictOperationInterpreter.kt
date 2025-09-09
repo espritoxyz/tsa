@@ -156,7 +156,7 @@ import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.assertDictType
 import org.usvm.machine.state.assertIfSat
 import org.usvm.machine.state.builderCopyFromBuilder
-import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.machine.state.builderStoreDataBitsNoOverflowCheck
 import org.usvm.machine.state.builderStoreNextRef
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.checkOutOfRange
@@ -166,7 +166,6 @@ import org.usvm.machine.state.dictAddKeyValue
 import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictRemoveKey
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getSliceRemainingBitsCount
@@ -193,7 +192,6 @@ import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
-import org.usvm.utils.intValueOrNull
 
 class TvmDictOperationInterpreter(
     private val ctx: TvmContext,
@@ -449,9 +447,9 @@ class TvmDictOperationInterpreter(
 
         scope.doWithStateCtx {
             if (dictCellRef == null) {
-                builderStoreDataBits(resultBuilder, mkBv(value = 0, sizeBits = 1u))
+                builderStoreDataBitsNoOverflowCheck(resultBuilder, mkBv(value = 0, sizeBits = 1u))
             } else {
-                builderStoreDataBits(resultBuilder, mkBv(value = 1, sizeBits = 1u))
+                builderStoreDataBitsNoOverflowCheck(resultBuilder, mkBv(value = 1, sizeBits = 1u))
                 builderStoreNextRef(resultBuilder, dictCellRef)
             }
         }

@@ -214,13 +214,11 @@ import org.usvm.api.writeField
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.forkblacklists.UForkBlackList
-import org.usvm.machine.TvmCellDataFieldManager
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_EXTERNAL_ID
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
-import org.usvm.machine.TvmContext.Companion.cellDataLengthField
 import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.Companion.sliceDataPosField
@@ -229,6 +227,9 @@ import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.extractMethodIdOrNull
+import org.usvm.machine.fields.TvmCellDataFieldManager
+import org.usvm.machine.fields.TvmCellDataLengthFieldManager
+import org.usvm.machine.fields.TvmFieldManagers
 import org.usvm.machine.intValue
 import org.usvm.machine.state.C0Register
 import org.usvm.machine.state.C1Register
@@ -372,8 +373,10 @@ class TvmInterpreter(
         val initOwnership = MutabilityOwnership()
         val pathConstraints = UPathConstraints<TvmType>(ctx, initOwnership)
         val memory = UMemory<TvmType, TvmCodeBlock>(ctx, initOwnership, pathConstraints.typeConstraints)
-        val cellDataFieldManager = TvmCellDataFieldManager(ctx)
-        val refEmptyValue = memory.initializeEmptyRefValues(cellDataFieldManager)
+        val fieldManagers = TvmFieldManagers(ctx)
+        val cellDataFieldManager = fieldManagers.cellDataFieldManager
+        val cellDataLengthFieldManager = fieldManagers.cellDataLengthFieldManager
+        val refEmptyValue = memory.initializeEmptyRefValues(cellDataFieldManager, cellDataLengthFieldManager)
 
         val state = TvmState(
             ctx = ctx,
@@ -386,7 +389,7 @@ class TvmInterpreter(
             targets = UTargetsSet.from(targets),
             typeSystem = typeSystem,
             currentContract = startContractId,
-            cellDataFieldManager = cellDataFieldManager,
+            fieldManagers = fieldManagers,
             intercontractPath = persistentListOf(startContractId),
             analysisOfGetMethod = methodId != RECEIVE_INTERNAL_ID && methodId != RECEIVE_EXTERNAL_ID,
         )
@@ -528,7 +531,7 @@ class TvmInterpreter(
 
     private fun setDataCellInfoStorageAndSetModel(state: TvmState, dataCellInfoStorage: TvmDataCellInfoStorage) {
         state.dataCellInfoStorage = dataCellInfoStorage
-        state.cellDataFieldManager.addressToLabelMapper = dataCellInfoStorage.mapper
+        state.fieldManagers.cellDataFieldManager.addressToLabelMapper = dataCellInfoStorage.mapper
 
         val structuralConstraints = state.dataCellInfoStorage.mapper.getInitialStructuralConstraints(state)
         state.pathConstraints += structuralConstraints
@@ -542,17 +545,18 @@ class TvmInterpreter(
     }
 
     private fun UWritableMemory<TvmType>.initializeEmptyRefValues(
-        cellDataFieldManager: TvmCellDataFieldManager
+        cellDataFieldManager: TvmCellDataFieldManager,
+        cellDataLengthFieldManager: TvmCellDataLengthFieldManager,
     ): TvmRefEmptyValue = with(ctx) {
         val emptyCell = allocStatic(TvmCellType)
         cellDataFieldManager.writeCellData(this@initializeEmptyRefValues, emptyCell, mkBv(0, cellDataSort))
         writeField(emptyCell, cellRefsLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-        writeField(emptyCell, cellDataLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
+        cellDataLengthFieldManager.writeCellDataLength(ctx, this@initializeEmptyRefValues, emptyCell, value = zeroSizeExpr, upperBound = 0)
 
         val emptyBuilder = allocStatic(TvmBuilderType)
         cellDataFieldManager.writeCellData(this@initializeEmptyRefValues, emptyBuilder, mkBv(0, cellDataSort))
         writeField(emptyBuilder, cellRefsLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-        writeField(emptyBuilder, cellDataLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
+        cellDataLengthFieldManager.writeCellDataLength(ctx, this@initializeEmptyRefValues, emptyBuilder, value = zeroSizeExpr, upperBound = 0)
 
         val emptySlice = allocStatic(TvmSliceType)
         writeField(emptySlice, sliceCellField, addressSort, emptyCell, guard = trueExpr)
@@ -1519,7 +1523,7 @@ class TvmInterpreter(
                 val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
                 val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
                 val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
-                val dataLength = scope.calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
+                val dataLength = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell) }
                 val refsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
 
                 val isRemainingDataEmptyConstraint = mkSizeGeExpr(dataPos, dataLength)

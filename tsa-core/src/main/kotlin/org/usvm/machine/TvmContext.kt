@@ -311,7 +311,6 @@ class TvmContext(
         const val TRUE_CONCRETE_VALUE = -1
         const val FALSE_CONCRETE_VALUE = 0
 
-        val cellDataLengthField: TvmField = TvmFieldImpl(TvmCellType, "dataLength")
         val cellRefsLengthField: TvmField = TvmFieldImpl(TvmCellType, "refsLength")
 
         val sliceDataPosField: TvmField = TvmFieldImpl(TvmSliceType, "dataPos")

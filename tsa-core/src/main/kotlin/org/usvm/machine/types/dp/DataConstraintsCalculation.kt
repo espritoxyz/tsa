@@ -97,7 +97,7 @@ private fun getDataConstraints(
             AbstractGuard { (address, prefixSize, path, state) ->
                 val field = UnknownBlockField(struct.id, path)
                 val fieldValue = state.memory.readField(address, field, field.getSort(ctx))
-                val curData = state.cellDataFieldManager.readCellDataWithoutAsserts(state, address)
+                val curData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, address)
 
                 mkBvShiftLeftExpr(curData, prefixSize.zeroExtendToSort(cellDataSort)) eq fieldValue
             }

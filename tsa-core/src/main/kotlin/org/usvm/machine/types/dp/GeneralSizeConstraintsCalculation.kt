@@ -112,7 +112,8 @@ fun calculateGeneralSizeConstraints(
     childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): UBoolExpr = with(state.ctx) {
-    val dataLengthField = state.memory.readField(address, TvmContext.cellDataLengthField, sizeSort)
+    val dataLengthField =
+        state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
     val refsLengthField = state.memory.readField(address, TvmContext.cellRefsLengthField, sizeSort)
 
     val info = calculateSizeInfoForLeaves(

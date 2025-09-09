@@ -35,6 +35,8 @@ data object TvmTestResolver {
         val outMessages = stateResolver.resolveOutMessages()
         val additionalInputs = stateResolver.resolveAdditionalInputs()
         val contractStatesBefore = state.contractIds.associateWith { stateResolver.resolveInitialContractState(it) }
+        val numberOfAddressesWithAssertedDataConstraints =
+            state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData().size
 
         return TvmSymbolicTest(
             methodId = methodId,
@@ -48,7 +50,7 @@ data object TvmTestResolver {
             lastStmt = state.lastRealStmt,
             gasUsage = gasUsage,
             additionalFlags = state.additionalFlags,
-            numberOfAddressesWithAssertedDataConstraints = state.cellDataFieldManager.getCellsWithAssertedCellData().size,
+            numberOfAddressesWithAssertedDataConstraints = numberOfAddressesWithAssertedDataConstraints,
             intercontractPath = state.intercontractPath,
             coveredInstructions = collectVisitedInstructions(state),
             outMessages = outMessages,

@@ -1,4 +1,4 @@
-package org.usvm.machine.state
+package org.usvm.machine.fields
 
 import kotlinx.collections.immutable.PersistentMap
 import org.usvm.UConcreteHeapRef

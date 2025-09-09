@@ -29,7 +29,6 @@ import org.usvm.machine.TvmContext.Companion.NONE_ADDRESS_TAG
 import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
 import org.usvm.machine.TvmContext.Companion.STD_WORKCHAIN_BITS
 import org.usvm.machine.TvmContext.Companion.VAR_ADDRESS_TAG
-import org.usvm.machine.TvmContext.Companion.cellDataLengthField
 import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.Companion.sliceDataPosField
@@ -206,7 +205,9 @@ fun TvmContext.checkCellDataUnderflow(
     maxSize: UExpr<TvmSizeSort>? = null,
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? {
-    val cellSize = scope.calcOnStateCtx { memory.readField(cellRef, cellDataLengthField, sizeSort) }
+    val cellSize = scope.calcOnStateCtx {
+        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
+    }
     return processCellUnderflowCheck(cellSize, scope, minSize, maxSize, quietBlock)
 }
 
@@ -243,28 +244,20 @@ fun setBuilderLengthOrThrowCellOverflow(
     quietBlock: (TvmState.() -> Unit)? = null,
 ): Unit? = with(scope.ctx) {
     val oldBuilderUpperBound = scope.calcOnState {
-        val refs = extractAddresses(oldBuilder, extractAllocated = true, extractStatic = true)
-        refs.maxOf {
-            builderLengthUpperBoundTracker.builderRefToLengthUpperBound[it.second]
-                ?: return@calcOnState null
-        }
+        fieldManagers.cellDataLengthFieldManager.getUpperBound(this@with, oldBuilder)
     }
 
     val newUpperBound = if (oldBuilderUpperBound != null && writeSizeBitsUpperBound != null) {
-        oldBuilderUpperBound + writeSizeBitsUpperBound
+        (oldBuilderUpperBound + writeSizeBitsUpperBound).takeIf { it <= MAX_DATA_LENGTH }
     } else {
         null
     }
 
     val newLength = scope.calcOnState {
-        mkBvAddExpr(memory.readField(oldBuilder, cellDataLengthField, sizeSort), writeSizeBits)
+        mkBvAddExpr(fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, oldBuilder), writeSizeBits)
     }
 
-    if (newUpperBound != null && newUpperBound <= MAX_DATA_LENGTH) {
-        scope.doWithState {
-            builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(newBuilder, newUpperBound)
-        }
-    } else {
+    if (newUpperBound == null) {
         checkCellOverflow(
             mkBvSignedLessOrEqualExpr(newLength, mkSizeExpr(MAX_DATA_LENGTH)),
             scope,
@@ -273,7 +266,7 @@ fun setBuilderLengthOrThrowCellOverflow(
     }
 
     scope.calcOnState {
-        memory.writeField(newBuilder, cellDataLengthField, sizeSort, newLength, guard = trueExpr)
+        fieldManagers.cellDataLengthFieldManager.writeCellDataLength(this, newBuilder, newLength, newUpperBound)
     }
 }
 
@@ -304,7 +297,9 @@ fun TvmStepScopeManager.preloadDataBitsFromCellWithoutChecks(
     offset: UExpr<TvmSizeSort>,
     sizeBits: UExpr<TvmSizeSort>,
 ): UExpr<TvmCellDataSort>? {
-    val cellDataFieldManager = calcOnState { cellDataFieldManager }
+    val cellDataFieldManager = calcOnState {
+        fieldManagers.cellDataFieldManager
+    }
     val cellData = cellDataFieldManager.readCellData(this@preloadDataBitsFromCellWithoutChecks, cell)
         ?: return null
     return calcOnStateCtx {
@@ -346,7 +341,7 @@ fun TvmStepScopeManager.slicePreloadDataBits(
     quietBlock: (TvmState.() -> Unit)? = null
 ): UExpr<TvmCellDataSort>? = calcOnStateCtx {
     val cell = memory.readField(slice, sliceCellField, addressSort)
-    val cellDataLength = memory.readField(cell, cellDataLengthField, sizeSort)
+    val cellDataLength = fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
 
     assertDataLengthConstraintWithoutError(
         cellDataLength,
@@ -691,34 +686,39 @@ fun TvmState.allocEmptyBuilder(): UConcreteHeapRef =
     memory.allocConcrete(TvmBuilderType).also {
         builderCopyFromBuilder(emptyRefValue.emptyBuilder, it)
         dataCellInfoStorage.mapper.addTlbBuilder(it, TlbStructureBuilder.empty)
-        builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(it, 0)
     }
 
 fun TvmState.builderCopyFromBuilder(original: UConcreteHeapRef, result: UConcreteHeapRef) = with(ctx) {
-    val cellData = cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderCopyFromBuilder, original)
-    cellDataFieldManager.writeCellData(this@builderCopyFromBuilder, result, cellData)
-    memory.copyField(original, result, cellDataLengthField, sizeSort)
+    val cellData =
+        fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderCopyFromBuilder, original)
+    fieldManagers.cellDataFieldManager.writeCellData(this@builderCopyFromBuilder, result, cellData)
+    fieldManagers.cellDataLengthFieldManager.copyLength(this@builderCopyFromBuilder, original, result)
     memory.copyField(original, result, cellRefsLengthField, sizeSort)
     copyCellRefs(original, result)
 }
 
 fun TvmStepScopeManager.builderCopy(original: UHeapRef, result: UConcreteHeapRef): Unit? = doWithCtx {
-    val cellDataFieldManager = calcOnState { cellDataFieldManager }
+    val cellDataFieldManager = calcOnState { fieldManagers.cellDataFieldManager }
     val cellData = cellDataFieldManager.readCellData(this, original)
         ?: return@doWithCtx null
     doWithState {
         cellDataFieldManager.writeCellData(this, result, cellData)
-        memory.copyField(original, result, cellDataLengthField, sizeSort)
+        fieldManagers.cellDataLengthFieldManager.copyLength(this, from = original, to = result)
         memory.copyField(original, result, cellRefsLengthField, sizeSort)
         copyCellRefs(original, result)
     }
 }
 
-fun TvmState.builderStoreDataBits(builder: UConcreteHeapRef, bits: UExpr<UBvSort>) = with(ctx) {
-    val builderData = cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderStoreDataBits, builder)
-    val builderDataLength = memory.readField(builder, cellDataLengthField, sizeSort)
+fun TvmState.builderStoreDataBitsNoOverflowCheck(builder: UConcreteHeapRef, bits: UExpr<UBvSort>) = with(ctx) {
+    val builderData =
+        fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderStoreDataBitsNoOverflowCheck, builder)
+    val builderDataLength =
+        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@builderStoreDataBitsNoOverflowCheck, builder)
 
     val updatedLength = mkSizeAddExpr(builderDataLength, mkSizeExpr(bits.sort.sizeBits.toInt()))
+    val updatedLengthUpperBound = fieldManagers.cellDataLengthFieldManager.getUpperBound(this, builder)?.let {
+        it + bits.sort.sizeBits.toInt()
+    }
 
     val updatedData: UExpr<TvmCellDataSort> = if (builderDataLength is KBitVecValue) {
         val size = builderDataLength.intValue()
@@ -743,10 +743,14 @@ fun TvmState.builderStoreDataBits(builder: UConcreteHeapRef, bits: UExpr<UBvSort
         updateBuilderData(builderData, bits.zeroExtendToSort(builderData.sort), updatedLength)
     }
 
-    cellDataFieldManager.writeCellData(this@builderStoreDataBits, builder, updatedData)
-    memory.writeField(builder, cellDataLengthField, sizeSort, updatedLength, guard = trueExpr)
+    fieldManagers.cellDataFieldManager.writeCellData(this@builderStoreDataBitsNoOverflowCheck, builder, updatedData)
+    fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
+        this@builderStoreDataBitsNoOverflowCheck,
+        builder,
+        value = updatedLength,
+        upperBound = updatedLengthUpperBound,
+    )
 }
-
 
 fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
     oldBuilder: UHeapRef,
@@ -756,7 +760,9 @@ fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? = with(ctx) {
 
-    val oldBuilderDataLength = calcOnState { memory.readField(oldBuilder, cellDataLengthField, sizeSort) }
+    val oldBuilderDataLength = calcOnState {
+        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, oldBuilder)
+    }
     val newDataLength = mkSizeAddExpr(oldBuilderDataLength, sizeBits)
     val extendedBits = bits.zeroExtendToSort(cellDataSort)
 
@@ -774,11 +780,13 @@ fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
     val trashBits = mkSizeSubExpr(mkSizeExpr(MAX_DATA_LENGTH), sizeBits).zeroExtendToSort(cellDataSort)
     val normalizedBits = mkBvLogicalShiftRightExpr(mkBvShiftLeftExpr(extendedBits, trashBits), trashBits)
 
-    val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
+    val builderData = calcOnState {
+        fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder)
+    }
     val updatedData = updateBuilderData(builderData, normalizedBits, newDataLength)
 
     return doWithState {
-        cellDataFieldManager.writeCellData(this, builder, updatedData)
+        fieldManagers.cellDataFieldManager.writeCellData(this, builder, updatedData)
     }
 }
 
@@ -791,7 +799,9 @@ fun TvmStepScopeManager.builderStoreInt(
     sizeBitsUpperBound: Int? = null,
     quietBlock: (TvmState.() -> Unit)? = null
 ): Unit? = with(ctx) {
-    val builderData = calcOnState { cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder) }
+    val builderData = calcOnState {
+        fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this, builder)
+    }
 
     setBuilderLengthOrThrowCellOverflow(
         scope = this@builderStoreInt,
@@ -802,7 +812,7 @@ fun TvmStepScopeManager.builderStoreInt(
         quietBlock = quietBlock,
     ) ?: return null
 
-    val updatedLength = calcOnState { memory.readField(builder, cellDataLengthField, sizeSort) }
+    val updatedLength = calcOnState { fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, builder) }
 
     val normalizedValue = if (isSigned) {
         val trashBits = mkBvSubExpr(intBitsValue, sizeBits.unsignedExtendToInteger())
@@ -814,7 +824,7 @@ fun TvmStepScopeManager.builderStoreInt(
     val updatedData = updateBuilderData(builderData, normalizedValue.zeroExtendToSort(builderData.sort), updatedLength)
 
     return doWithState {
-        cellDataFieldManager.writeCellData(this, builder, updatedData)
+        fieldManagers.cellDataFieldManager.writeCellData(this, builder, updatedData)
     }
 }
 
@@ -921,7 +931,7 @@ fun TvmStepScopeManager.builderStoreSlice(
     quietBlock: (TvmState.() -> Unit)? = null,
 ): UExpr<TvmCellDataSort>? = with(ctx) {
     val cell = calcOnState { memory.readField(slice, sliceCellField, addressSort) }
-    val cellDataLength = calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
+    val cellDataLength = calcOnState { fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell) }
 
     assertDataLengthConstraintWithoutError(
         cellDataLength,
@@ -966,7 +976,7 @@ fun TvmState.allocDataCellFromData(data: UExpr<UBvSort>): UConcreteHeapRef {
     val cell = allocEmptyCell()
 
     memory.types.allocate(cell.address, TvmDataCellType)
-    builderStoreDataBits(cell, data)
+    builderStoreDataBitsNoOverflowCheck(cell, data)
 
     return cell
 }
@@ -983,8 +993,8 @@ fun TvmStepScopeManager.allocCellFromData(
     val shiftedData = mkBvShiftLeftExpr(data, shiftValue)
 
     doWithState {
-        cellDataFieldManager.writeCellData(this, cell, shiftedData)
-        memory.writeField(cell, cellDataLengthField, sizeSort, sizeBits, guard = trueExpr)
+        fieldManagers.cellDataFieldManager.writeCellData(this, cell, shiftedData)
+        fieldManagers.cellDataLengthFieldManager.writeCellDataLength(this, cell, sizeBits, sizeBits.intValueOrNull)
     }
 
     cell
@@ -1017,7 +1027,7 @@ fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef = with(ctx) {
 
     if (cellValue.data.bits.isNotEmpty()) {
         val data = mkBv(cellValue.data.bits, cellValue.data.bits.length.toUInt())
-        builderStoreDataBits(cell, data)
+        builderStoreDataBitsNoOverflowCheck(cell, data)
     }
 
     cellValue.refs.forEach { refValue ->
@@ -1031,10 +1041,14 @@ fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef = with(ctx) {
 
 fun TvmState.allocEmptyCell() = with(ctx) {
     memory.allocConcrete(TvmDataCellType).also { cell ->
-        cellDataFieldManager.writeCellData(memory, cell, mkBv(0, cellDataSort))
-        memory.writeField(cell, cellDataLengthField, sizeSort, zeroSizeExpr, trueExpr)
+        fieldManagers.cellDataFieldManager.writeCellData(memory, cell, mkBv(0, cellDataSort))
+        fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
+            this@allocEmptyCell,
+            cellRef = cell,
+            value = zeroSizeExpr,
+            upperBound = 0,
+        )
         memory.writeField(cell, cellRefsLengthField, sizeSort, zeroSizeExpr, trueExpr)
-        builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(cell, 0)
     }
 }
 
@@ -1056,7 +1070,7 @@ fun TvmState.getSliceRemainingRefsCount(slice: UHeapRef): UExpr<TvmSizeSort> = w
 
 fun TvmState.getSliceRemainingBitsCount(slice: UHeapRef): UExpr<TvmSizeSort> = with(ctx) {
     val cell = memory.readField(slice, sliceCellField, addressSort)
-    val dataLength = memory.readField(cell, cellDataLengthField, sizeSort)
+    val dataLength = fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@getSliceRemainingBitsCount, cell)
     val dataPos = memory.readField(slice, sliceDataPosField, sizeSort)
 
     mkBvSubExpr(dataLength, dataPos)
@@ -1187,14 +1201,23 @@ fun sliceLoadAddrTlb(
                 }.also { sliceDeepCopy(slice, it) }
 
                 val addrRefPos = memory.readField(addrSlice, sliceRefPosField, sizeSort)
-                val addrCell = memory.readField(addrSlice, sliceCellField, addressSort)
+                val addrCell = memory.readField(addrSlice, sliceCellField, addressSort).let {
+                    it as? UConcreteHeapRef
+                        ?: error("Unexpected cell in new slice: $it")
+                }
+
                 // new data length to ensure that the remaining slice bits count is equal to [addrLength]
                 val addrDataLength = mkBvAddExpr(dataPos, addrLength)
 
                 checkCellDataUnderflow(this@makeSliceTypeLoad, originalCell, addrDataLength)
                     ?: return@calcOnStateCtx
 
-                memory.writeField(addrCell, cellDataLengthField, sizeSort, addrDataLength, guard = trueExpr)
+                fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
+                    this,
+                    addrCell,
+                    addrDataLength,
+                    upperBound = addrDataLength.intValueOrNull,
+                )
                 // new refs length to ensure that the remaining slice refs count is equal to 0
                 memory.writeField(addrCell, cellRefsLengthField, sizeSort, addrRefPos, guard = trueExpr)
 

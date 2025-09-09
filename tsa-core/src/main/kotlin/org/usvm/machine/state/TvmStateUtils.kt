@@ -126,7 +126,8 @@ fun TvmState.ensureSymbolicSliceInitialized(ref: UHeapRef) =
     ensureSymbolicRefInitialized(ref, TvmSliceType) { initializeSymbolicSlice(it) }
 
 fun TvmState.initializeSymbolicCell(cell: UConcreteHeapRef) = with(ctx) {
-    val dataLength = memory.readField(cell, TvmContext.cellDataLengthField, sizeSort)
+    val dataLength =
+        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@initializeSymbolicCell, cell)
     val refsLength = memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort)
 
     // We can add these constraints manually to path constraints because default values (0) in models are valid
@@ -301,8 +302,10 @@ private fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell?
         return null
     }
 
-    val data = cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@extractFullCellIfItIsConcrete, ref)
-    val dataLength = memory.readField(ref, TvmContext.cellDataLengthField, sizeSort)
+    val data =
+        fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@extractFullCellIfItIsConcrete, ref)
+    val dataLength =
+        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@extractFullCellIfItIsConcrete, ref)
     val refsLength = memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort)
 
     if (data !is KInterpretedValue || dataLength !is KInterpretedValue || refsLength !is KInterpretedValue) {

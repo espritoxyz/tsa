@@ -52,8 +52,6 @@ global int value;
     int second_new_balance = tsa_call_1_0(2, -42);
     tsa_fetch_value(second_new_balance, 22);
 
-    tsa_fetch_value(value, 1000);
-
     tsa_allow_failures();
 
     ;; check that the balance of the first account has decreased by value
