@@ -82,7 +82,7 @@ object TvmTestExecutor {
         val project = extractResource(SANDBOX_PROJECT_PATH).toFile()
         val (exitCode, _, _, _) =
             executeCommandWithTimeout(
-                command = "npm i",
+                command = "yarn install",
                 timeoutSeconds = PROJECT_INIT_TIMEOUT.inWholeSeconds,
                 processWorkingDirectory = project
             )
