@@ -548,11 +548,13 @@ class TvmTestStateResolver(
             if (label is TvmParameterInfo.DataCellInfo) {
                 val valueFromTlbFields = readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
 
-                if (performAdditionalChecks && modelRef.address in state.cellDataFieldManager.getCellsWithAssertedCellData()) {
-                    val symbolicData = state.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
+                if (performAdditionalChecks && modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()) {
+                    val symbolicData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
                     val data = extractCellData(evaluateInModel(symbolicData))
-                    val dataLength = resolveInt(memory.readField(cell, TvmContext.cellDataLengthField, sizeSort))
-                        .coerceAtMost(TvmContext.MAX_DATA_LENGTH).coerceAtLeast(0)
+                    val dataLength =
+                        resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell))
+                            .coerceAtMost(TvmContext.MAX_DATA_LENGTH)
+                            .coerceAtLeast(0)
                     val dataFromField = data.take(dataLength)
 
                     check(dataFromField == valueFromTlbFields) {
@@ -566,10 +568,11 @@ class TvmTestStateResolver(
             }
         }
 
-        val symbolicData = state.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
+        val symbolicData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
         val data = extractCellData(evaluateInModel(symbolicData))
-        val dataLength = resolveInt(memory.readField(cell, TvmContext.cellDataLengthField, sizeSort))
-            .coerceAtMost(TvmContext.MAX_DATA_LENGTH).coerceAtLeast(0)
+        val dataLength = resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell))
+            .coerceAtMost(TvmContext.MAX_DATA_LENGTH)
+            .coerceAtLeast(0)
 
         return data.take(dataLength)
     }

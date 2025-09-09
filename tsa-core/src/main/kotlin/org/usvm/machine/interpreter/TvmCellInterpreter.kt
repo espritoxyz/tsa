@@ -104,7 +104,6 @@ import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
-import org.usvm.machine.TvmContext.Companion.cellDataLengthField
 import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.Companion.sliceDataPosField
@@ -123,7 +122,7 @@ import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderStoreIntTlb
-import org.usvm.machine.state.builderStoreNextRef
+import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSlice
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderStoreValueTlb
@@ -175,6 +174,7 @@ import org.usvm.mkSizeExpr
 import org.usvm.mkSizeLtExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
+import org.usvm.utils.intValueOrNull
 
 class TvmCellInterpreter(
     private val ctx: TvmContext,
@@ -949,7 +949,7 @@ class TvmCellInterpreter(
                 val bits = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
                 val cell = calcOnState { allocEmptyCell() }
 
-                builderStoreDataBits(cell, bits, mkSizeExpr(bits.sort.sizeBits.toInt())) ?: return@makeSliceTypeLoad
+                builderStoreDataBits(cell, cell, bits, mkSizeExpr(bits.sort.sizeBits.toInt())) ?: return@makeSliceTypeLoad
 
                 calcOnState { allocSliceFromCell(cell) }
             }
@@ -998,7 +998,7 @@ class TvmCellInterpreter(
                     ) ?: return@makeSliceTypeLoad
 
                     val cell = calcOnState { allocEmptyCell() }
-                    builderStoreDataBits(cell, bits, sizeBits.extractToSizeSort())
+                    builderStoreDataBits(cell, cell, bits, sizeBits.extractToSizeSort())
                         ?: error("Cannot write $sizeBits bits to the empty builder")
 
                     calcOnState { allocSliceFromCell(cell) }
@@ -1038,7 +1038,9 @@ class TvmCellInterpreter(
 
         val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
 
-        val cellDataLength = scope.calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
+        val cellDataLength = scope.calcOnState {
+            fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
+        }
         scope.assertDataLengthConstraintWithoutError(
             cellDataLength,
             unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
@@ -1101,7 +1103,12 @@ class TvmCellInterpreter(
 
             val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
 
-            val cellDataLength = scope.calcOnState { memory.readField(cell, cellDataLengthField, sizeSort) }
+            val cellDataLength = scope.calcOnState {
+                fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
+            }
+            val oldUpperBound = scope.calcOnState {
+                fieldManagers.cellDataLengthFieldManager.getUpperBound(ctx, cell)
+            }
             scope.assertDataLengthConstraintWithoutError(
                 cellDataLength,
                 unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
@@ -1136,7 +1143,13 @@ class TvmCellInterpreter(
                 val cutCellDataLength = mkSizeSubExpr(cellDataLength, bitsToCut)
                 val cutCellRefsLength = mkSizeSubExpr(cellRefsLength, refsToCut)
 
-                memory.writeField(cutCell, cellDataLengthField, sizeSort, cutCellDataLength, guard = trueExpr)
+                val newCellLengthUpperBound = if (oldUpperBound != null) {
+                    bitsToCut.intValueOrNull?.let { oldUpperBound - it }
+                } else {
+                    null
+                }
+
+                fieldManagers.cellDataLengthFieldManager.writeCellDataLength(this, cutCell, cutCellDataLength, newCellLengthUpperBound)
                 memory.writeField(cutCell, cellRefsLengthField, sizeSort, cutCellRefsLength, guard = trueExpr)
 
                 val cutSlice = allocSliceFromCell(cutCell)
@@ -1513,7 +1526,7 @@ class TvmCellInterpreter(
             ?: return scope.doWithState(ctx.throwTypeCheckError)
 
         scope.doWithState {
-            val dataLength = memory.readField(builder, cellDataLengthField, sizeSort)
+            val dataLength = fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, builder)
 
             stack.addInt(dataLength.signedExtendToInteger())
             newStmt(stmt.nextStmt())
@@ -1585,7 +1598,7 @@ class TvmCellInterpreter(
 
             scope.doWithState {
                 val updatedBuilder = memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
-                builderStoreNextRef(updatedBuilder, cell)
+                builderStoreNextRefNoOverflowCheck(updatedBuilder, cell)
 
                 // In this case, new builder has the same data structure as the old builder (only refs are changed).
                 // Thus, we just copy tlb structure builder.
@@ -1661,7 +1674,7 @@ class TvmCellInterpreter(
         }
 
         val fromBuilderSlice = calcOnState { allocSliceFromCell(fromBuilder) }
-        builderStoreSlice(resultBuilder, fromBuilderSlice, quietBlock) ?: return
+        builderStoreSlice(toBuilder, resultBuilder, fromBuilderSlice, quietBlock) ?: return
 
         doWithState {
             addOnStack(resultBuilder, TvmBuilderType)

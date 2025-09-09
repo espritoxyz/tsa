@@ -79,7 +79,7 @@ sealed class ReceiverInput(
                     memory.readField(msgBodySliceNonBounced, sliceCellField, addressSort)
                 }
                 val msgBodyCellSize = scope.calcOnState {
-                    memory.readField(msgBodyCell, TvmContext.cellDataLengthField, sizeSort)
+                    fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, msgBodyCell)
                 }
                 val sizeConstraint = mkBvSignedGreaterOrEqualExpr(msgBodyCellSize, mkSizeExpr(TvmContext.OP_BITS.toInt()))
 

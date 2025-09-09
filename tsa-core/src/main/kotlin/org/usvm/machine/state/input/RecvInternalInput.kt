@@ -20,7 +20,7 @@ import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreIntTlb
-import org.usvm.machine.state.builderStoreNextRef
+import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.generateSymbolicSlice
@@ -58,8 +58,8 @@ class RecvInternalInput(
             // tail's length is up to 256 bits
             val tailSize = state.makeSymbolicPrimitive(mkBvSort(8u)).zeroExtendToSort(sizeSort)
             val tail = state.generateSymbolicSlice()
-            val tailCell = state.memory.readField(tail, TvmContext.sliceCellField, addressSort)
-            state.memory.writeField(tailCell, TvmContext.cellDataLengthField, sizeSort, tailSize, guard = trueExpr)
+            val tailCell = state.memory.readField(tail, TvmContext.sliceCellField, addressSort) as UConcreteHeapRef
+            state.fieldManagers.cellDataLengthFieldManager.writeCellDataLength(state, tailCell, tailSize, upperBound = 256)
             state.memory.writeField(tailCell, TvmContext.cellRefsLengthField, sizeSort, zeroSizeExpr, guard = trueExpr)
             builderStoreSliceTlb(scope, builder, builder, tail)
                 ?: error("Cannot store bounced message tail")
@@ -155,7 +155,7 @@ class RecvInternalInput(
 
         scope.doWithState {
             val msgBodyCell = memory.readField(msgBodySliceMaybeBounced, TvmContext.sliceCellField, addressSort)
-            builderStoreNextRef(resultBuilder, msgBodyCell)
+            builderStoreNextRefNoOverflowCheck(resultBuilder, msgBodyCell)
         }
 
         val stepResult = scope.stepResult()

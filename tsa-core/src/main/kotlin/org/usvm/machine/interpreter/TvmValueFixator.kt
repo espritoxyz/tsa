@@ -126,7 +126,7 @@ class TvmValueFixator(
 
             val symbolicDataLength = scope.calcOnState {
                 mkSizeSubExpr(
-                    memory.readField(ref, TvmContext.cellDataLengthField, sizeSort),
+                    fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, ref),
                     dataOffset,
                 )
             }

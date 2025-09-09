@@ -12,7 +12,7 @@ import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.builderStoreIntTlb
-import org.usvm.machine.state.builderStoreNextRef
+import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderToCell
 
@@ -63,7 +63,7 @@ class RecvExternalInput(
 
         scope.doWithState {
             val msgBodyCell = memory.readField(msgBodySliceMaybeBounced, TvmContext.sliceCellField, addressSort)
-            builderStoreNextRef(resultBuilder, msgBodyCell)
+            builderStoreNextRefNoOverflowCheck(resultBuilder, msgBodyCell)
         }
 
         val stepResult = scope.stepResult()

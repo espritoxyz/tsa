@@ -1,4 +1,4 @@
-package org.usvm.machine
+package org.usvm.machine.fields
 
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentHashSetOf
@@ -11,13 +11,14 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TvmAddressToLabelMapper
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UWritableMemory
 import org.usvm.utils.extractAddresses
-
 
 class TvmCellDataFieldManager(
     private val ctx: TvmContext,
@@ -34,7 +35,6 @@ class TvmCellDataFieldManager(
         }
 
     lateinit var addressToLabelMapper: TvmAddressToLabelMapper
-    private val cellDataField: TvmField = TvmFieldImpl(TvmCellType, "data")
 
     fun writeCellData(state: TvmState, cellRef: UHeapRef, value: UExpr<TvmContext.TvmCellDataSort>) =
         writeCellData(state.memory, cellRef, value)
@@ -97,4 +97,8 @@ class TvmCellDataFieldManager(
     fun getCellsWithRequestedCellDataField(): Set<UConcreteHeapAddress> = addressesWithRequestedCellDataField
 
     fun getCellsWithAssertedCellData(): Set<UConcreteHeapAddress> = addressesWithAssertedCellData
+
+    companion object {
+        private val cellDataField: TvmField = TvmFieldImpl(TvmCellType, "data")
+    }
 }

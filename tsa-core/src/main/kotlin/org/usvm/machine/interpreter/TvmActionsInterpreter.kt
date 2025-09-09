@@ -19,7 +19,7 @@ import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderStoreGrams
 import org.usvm.machine.state.builderStoreInt
-import org.usvm.machine.state.builderStoreNextRef
+import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.checkCellOverflow
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
@@ -113,14 +113,17 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
             val actions = registers.c5.value.value
             val updatedActions = allocEmptyCell()
 
-            builderStoreNextRef(updatedActions, actions)
-            builderStoreDataBits(updatedActions, reserveActionTag)
-            scope.builderStoreInt(updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
+            builderStoreNextRefNoOverflowCheck(updatedActions, actions)
+            scope.builderStoreDataBits(updatedActions, reserveActionTag)
+                ?: error("Unexpected cell overflow during RAWRESERVE instruction")
+            scope.builderStoreInt(updatedActions, updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
                 error("Unexpected cell overflow during RAWRESERVE instruction")
             } ?: return@doWithState
-            scope.builderStoreGrams(updatedActions, grams) ?: return@doWithState
+            scope.builderStoreGrams(updatedActions, updatedActions, grams)
+                ?: return@doWithState
             // empty ExtraCurrencyCollection
-            builderStoreDataBits(updatedActions, zeroBit)
+            scope.builderStoreDataBits(updatedActions, zeroBit)
+                ?: return@doWithState
 
             registers.c5 = C5Register(TvmCellValue(updatedActions))
 
@@ -139,12 +142,13 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
             val actions = registers.c5.value.value
             val updatedActions = allocEmptyCell()
 
-            builderStoreNextRef(updatedActions, actions)
-            builderStoreDataBits(updatedActions, sendMsgActionTag)
-            scope.builderStoreInt(updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
+            builderStoreNextRefNoOverflowCheck(updatedActions, actions)
+            scope.builderStoreDataBits(updatedActions, sendMsgActionTag)
+                ?: error("Unexpected cell overflow during $stmt instruction")
+            scope.builderStoreInt(updatedActions, updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
                 error("Unexpected cell overflow during $stmt instruction")
             } ?: return@doWithStateCtx
-            builderStoreNextRef(updatedActions, msg)
+            builderStoreNextRefNoOverflowCheck(updatedActions, msg)
 
             registers.c5 = C5Register(TvmCellValue(updatedActions))
 

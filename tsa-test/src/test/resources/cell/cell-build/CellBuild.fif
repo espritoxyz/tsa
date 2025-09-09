@@ -12,6 +12,7 @@ PROGRAM{
   7  DECLMETHOD stones_small
   8  DECLMETHOD stones
   9  DECLMETHOD stones_large
+  10  DECLMETHOD stdict_large
 
   stsliceconst PROC:<{
     192 PUSHINT
@@ -121,6 +122,27 @@ PROGRAM{
     SDSUBSTR
     4 LDU
     DROP
+  }>
+
+  stdict_large PROC:<{
+    NULL
+
+    // 1023-bit slice
+    0 PUSHINT
+    0 PUSHINT
+    0 PUSHINT
+    0 PUSHINT
+    NEWC
+    256 STU
+    256 STU
+    256 STU
+    255 STU
+    ENDC
+    CTOS
+
+    NEWC
+    STSLICE
+    STDICT  // throws cell overflow
   }>
 
 }END>c

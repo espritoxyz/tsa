@@ -20,7 +20,9 @@ fun TvmState.preloadDataBitsFromCellWithoutStructuralAsserts(
     offset: UExpr<TvmSizeSort>,
     sizeBits: UExpr<TvmSizeSort>,
 ): UExpr<TvmCellDataSort> = with(ctx) {
-    val cellData = cellDataFieldManager.readCellDataWithoutAsserts(this@preloadDataBitsFromCellWithoutStructuralAsserts, cell)
+    val cellData = fieldManagers
+        .cellDataFieldManager
+        .readCellDataWithoutAsserts(this@preloadDataBitsFromCellWithoutStructuralAsserts, cell)
     val endOffset = mkSizeAddExpr(offset, sizeBits)
     val offsetDataPos = mkSizeSubExpr(maxDataLengthSizeExpr, endOffset)
     mkBvLogicalShiftRightExpr(cellData, offsetDataPos.zeroExtendToSort(cellDataSort))

@@ -8,6 +8,7 @@ import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.C0Register
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmContractExecutionMemory
 import org.usvm.machine.state.TvmContractPosition
@@ -48,18 +49,29 @@ class TsaCheckerFunctionsInterpreter(
 
         prepareNewStack(
             scope,
-            oldStack = stmt.checkerMemorySavelist.oldMemory.stack,
+            oldStack = stmt.checkerMemorySavelist.oldStack,
             stackOperations = stmt.checkerMemorySavelist.stackOperations,
             newInput = stmt.checkerMemorySavelist.newInput,
             nextContractId = stmt.checkerMemorySavelist.nextContractId,
         ) ?: return
+
+        val registers = scope.calcOnState {
+            registersOfCurrentContract.clone()
+        }
+
+        registers.c0 = stmt.checkerMemorySavelist.oldC0Register
+
+        val oldMemory = TvmContractExecutionMemory(
+            stack = stmt.checkerMemorySavelist.oldStack,
+            registers = registers,
+        )
 
         scope.calcOnState {
             finishTsaCall(
                 this,
                 stackOperations = stmt.checkerMemorySavelist.stackOperations,
                 stmt = stmt.checkerMemorySavelist.stmt,
-                oldMemory = stmt.checkerMemorySavelist.oldMemory,
+                oldMemory = oldMemory,
                 newRegisters = stmt.checkerMemorySavelist.newRegisters,
                 nextContractId = stmt.checkerMemorySavelist.nextContractId,
                 nextMethodId = stmt.checkerMemorySavelist.nextMethodId,
@@ -246,7 +258,8 @@ class TsaCheckerFunctionsInterpreter(
                 "Receiver input should have been calculated by now"
             }
             val savelist = CheckerMemorySavelist(
-                oldMemory,
+                oldStack,
+                oldMemory.registers.c0,
                 receiverInput,
                 stackOperations,
                 newExecutionMemory.registers,
@@ -271,7 +284,8 @@ class TsaCheckerFunctionsInterpreter(
     }
 
     class CheckerMemorySavelist(
-        val oldMemory: TvmContractExecutionMemory,
+        val oldStack: TvmStack,
+        val oldC0Register: C0Register,
         val newInput: ReceiverInput,
         val stackOperations: NewReceiverInput,
         val newRegisters: TvmRegisters,

@@ -360,7 +360,7 @@ private fun TvmState.initConfigRoot(): UHeapRef = with(ctx) {
     addDictEntry(workchainsDict, 0, allocSliceFromCell(workchainDescr), isCellValue = false)
 
     val workchainsMaybeDict = allocDataCellFromData(oneBit)
-    builderStoreNextRef(workchainsMaybeDict, workchainsDict)
+    builderStoreNextRefNoOverflowCheck(workchainsMaybeDict, workchainsDict)
 
     addDictEntry(configDict, 12, workchainsMaybeDict)
 
@@ -588,7 +588,7 @@ private fun TvmState.addDictEntry(
     isCellValue: Boolean = true
 ) = with(ctx) {
     val sliceValue = if (isCellValue) {
-        val builder = allocEmptyCell().also { builderStoreNextRef(it, value) }
+        val builder = allocEmptyCell().also { builderStoreNextRefNoOverflowCheck(it, value) }
         allocSliceFromCell(builder)
     } else {
         value

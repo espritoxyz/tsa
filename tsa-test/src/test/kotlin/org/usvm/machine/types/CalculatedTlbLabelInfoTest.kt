@@ -56,7 +56,7 @@ class CalculatedTlbLabelInfoTest {
         concreteContractData = listOf(TvmConcreteContractData()),
         methodId = BigInteger.ZERO
     )
-    private val cellDataFieldManager = dummyState.cellDataFieldManager
+    private val cellDataFieldManager = dummyState.fieldManagers.cellDataFieldManager
 
     val info = CalculatedTlbLabelInfo(
         ctx,
