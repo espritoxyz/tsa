@@ -90,7 +90,10 @@ class TvmState(
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
     var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
-    var receivedMessage: ReceivedMessage? = null
+    var receivedMessage: ReceivedMessage? = null,
+    var pseudologicalTime: Long = 0,
+    var eventsLog: PersistentList<TvmEventLogEntry> = persistentListOf(),
+    var currentPhaseBeginTime: Long = 0,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
     ctx,
     ownership,
@@ -190,6 +193,9 @@ class TvmState(
             currentInput = currentInput,
             acceptedInputs = acceptedInputs,
             receivedMessage = receivedMessage,
+            pseudologicalTime = pseudologicalTime,
+            eventsLog = eventsLog,
+            currentPhaseBeginTime = currentPhaseBeginTime,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

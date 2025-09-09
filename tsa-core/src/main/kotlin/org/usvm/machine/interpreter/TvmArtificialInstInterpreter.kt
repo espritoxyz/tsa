@@ -16,8 +16,10 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.EventId
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.TvmCommitedState
+import org.usvm.machine.state.TvmMessageDrivenContractExecutionEntry
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.TvmPhase
@@ -165,6 +167,7 @@ class TvmArtificialInstInterpreter(
                             newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
                             return@calcOnState
                         }
+                    val (senderContract, eventId) = sender
                     // if is bounceable, bounce back to sender
                     val fullMsgData = cellDataFieldManager.readCellData(scope, receivedMsgData.fullMsgCell)
                         ?: return@calcOnState
@@ -173,14 +176,14 @@ class TvmArtificialInstInterpreter(
                         mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort())
                     )
 
-                    val bouncedMessage = constructBouncedMessage(scope, receivedMsgData, sender)
+                    val bouncedMessage = constructBouncedMessage(scope, receivedMsgData, senderContract)
                     scope.fork(
                         isBounceable.neq(zeroCellValue), falseStateIsExceptional = true,
                         blockOnTrueState = {
                             messageQueue = messageQueue.add(
                                 ReceivedMessage.MessageFromOtherContract(
-                                    sender = currentContract,
-                                    receiver = sender,
+                                    sender = currentContract to currentPhaseBeginTime,
+                                    receiver = senderContract,
                                     message = bouncedMessage
                                 )
                             )
@@ -244,6 +247,21 @@ class TvmArtificialInstInterpreter(
     private fun visitExitInst(scope: TvmStepScopeManager, stmt: TsaArtificialExitInst) {
         scope.doWithStateCtx {
             phase = EXIT_PHASE
+            receivedMessage?.let { receivedMessage ->
+                val methodResult = stmt.result
+                eventsLog = eventsLog.add(
+                    TvmMessageDrivenContractExecutionEntry(
+                        id = currentPhaseBeginTime,
+                        executionBegin = currentPhaseBeginTime,
+                        executionEnd = pseudologicalTime,
+                        contractId = currentContract,
+                        incomingMessage = receivedMessage,
+                        incomingMessageSender = -1,
+                        methodResult = methodResult,
+                    )
+                )
+                currentPhaseBeginTime = pseudologicalTime
+            }
 
             if (tvmOptions.intercontractOptions.isIntercontractEnabled && !messageQueue.isEmpty()) {
                 processIntercontractExit(scope, stmt.result)
@@ -282,7 +300,7 @@ class TvmArtificialInstInterpreter(
     private fun TvmState.executeContractTriggeredByMessage(
         receiver: ContractId,
         message: OutMessage,
-        sender: ContractId
+        sender: Pair<ContractId, EventId>
     ) {
         val nextContractCode = contractsCode.getOrNull(receiver)
             ?: error("Contract with id $receiver was not found")
@@ -326,7 +344,7 @@ class TvmArtificialInstInterpreter(
 
         scope.doWithState {
             messageQueue = messageQueue.addAll(messageDestinations.map { (receiver, message) ->
-                ReceivedMessage.MessageFromOtherContract(currentContract, receiver, message)
+                ReceivedMessage.MessageFromOtherContract(currentContract to currentPhaseBeginTime, receiver, message)
             })
             unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
         }

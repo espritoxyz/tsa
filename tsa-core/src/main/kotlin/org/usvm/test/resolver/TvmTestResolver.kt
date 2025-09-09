@@ -8,6 +8,7 @@ import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmEventLogEntry
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.TvmState
@@ -55,6 +56,7 @@ data object TvmTestResolver {
             rootContract = state.rootContractId,
             contractStatesBefore = contractStatesBefore,
             additionalInputs = additionalInputs,
+            eventsList = state.eventsLog.toList(),
         )
     }
 
@@ -133,6 +135,7 @@ data class TvmSymbolicTest(
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
     val numberOfAddressesWithAssertedDataConstraints: Int,  // for testing
+    val eventsList: List<TvmEventLogEntry>,
 ) {
     val initialRootContractState: TvmContractState
         get() = contractStatesBefore[rootContract]

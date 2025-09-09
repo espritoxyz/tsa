@@ -613,6 +613,7 @@ class TvmInterpreter(
     }
 
     private fun visit(scope: TvmStepScopeManager, stmt: TvmInst) {
+        scope.calcOnState { pseudologicalTime += 1 }
         when (stmt) {
             is TvmArtificialInst -> artificialInstInterpreter.visit(scope, stmt)
             is TvmStackBasicInst -> visitBasicStackInst(scope, stmt)
