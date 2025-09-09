@@ -23,90 +23,98 @@ import org.usvm.test.resolver.TvmSymbolicTestSuite
 
 fun TvmContractSymbolicTestResult.toSarifReport(
     methodsMapping: Map<MethodId, String>,
-    excludeUserDefinedErrors: Boolean = false,
-): String = SarifSchema210(
-    schema = TsaSarifSchema.SCHEMA,
-    version = TsaSarifSchema.VERSION,
-    runs = listOf(
-        Run(
-            tool = TsaSarifSchema.TsaSarifTool.TOOL,
-            results = testSuites.flatMap { it.toSarifResult(methodsMapping, excludeUserDefinedErrors) },
-            properties = PropertyBag(
-                mapOf(
-                    "coverage" to testSuites.associate { it.methodId.toString() to it.methodCoverage.transitiveCoverage }
-                )
-            )
-        )
-    )
-).let { TvmContractCode.json.encodeToString(it) }
-
-private fun TvmSymbolicTestSuite.toSarifResult(
-    methodsMapping: Map<MethodId, String>,
-    excludeUserDefinedErrors: Boolean,
-): List<Result> {
-    return tests.toSarifResult(methodsMapping, excludeUserDefinedErrors = excludeUserDefinedErrors)
-}
-
-fun List<TvmSymbolicTest>.toSarifReport(
-    methodsMapping: Map<MethodId, String>,
-    useShortenedOutput: Boolean,
-    excludeUserDefinedErrors: Boolean,
+    excludeUserDefinedErrors: Boolean = false
 ): String =
     SarifSchema210(
         schema = TsaSarifSchema.SCHEMA,
         version = TsaSarifSchema.VERSION,
-        runs = listOf(
-            Run(
-                tool = TsaSarifSchema.TsaSarifTool.TOOL,
-                results = toSarifResult(methodsMapping, excludeUserDefinedErrors, useShortenedOutput),
+        runs =
+            listOf(
+                Run(
+                    tool = TsaSarifSchema.TsaSarifTool.TOOL,
+                    results = testSuites.flatMap { it.toSarifResult(methodsMapping, excludeUserDefinedErrors) },
+                    properties =
+                        PropertyBag(
+                            mapOf(
+                                "coverage" to
+                                    testSuites.associate {
+                                        it.methodId.toString() to
+                                            it.methodCoverage.transitiveCoverage
+                                    }
+                            )
+                        )
+                )
             )
-        )
+    ).let { TvmContractCode.json.encodeToString(it) }
+
+private fun TvmSymbolicTestSuite.toSarifResult(
+    methodsMapping: Map<MethodId, String>,
+    excludeUserDefinedErrors: Boolean
+): List<Result> = tests.toSarifResult(methodsMapping, excludeUserDefinedErrors = excludeUserDefinedErrors)
+
+fun List<TvmSymbolicTest>.toSarifReport(
+    methodsMapping: Map<MethodId, String>,
+    useShortenedOutput: Boolean,
+    excludeUserDefinedErrors: Boolean
+): String =
+    SarifSchema210(
+        schema = TsaSarifSchema.SCHEMA,
+        version = TsaSarifSchema.VERSION,
+        runs =
+            listOf(
+                Run(
+                    tool = TsaSarifSchema.TsaSarifTool.TOOL,
+                    results = toSarifResult(methodsMapping, excludeUserDefinedErrors, useShortenedOutput)
+                )
+            )
     ).let { TvmContractCode.json.encodeToString(it) }
 
 private fun List<TvmSymbolicTest>.toSarifResult(
     methodsMapping: Map<MethodId, String>,
     excludeUserDefinedErrors: Boolean,
-    useShortenedOutput: Boolean = false,
+    useShortenedOutput: Boolean = false
 ) = mapNotNull {
-    val (ruleId, message) = when (it.result) {
-        is TvmMethodFailure -> {
-            val methodFailure = it.result as TvmMethodFailure
-            if (methodFailure.failure.exit is TvmUserDefinedFailure && excludeUserDefinedErrors) {
+    val (ruleId, message) =
+        when (it.result) {
+            is TvmMethodFailure -> {
+                val methodFailure = it.result as TvmMethodFailure
+                if (methodFailure.failure.exit is TvmUserDefinedFailure && excludeUserDefinedErrors) {
+                    return@mapNotNull null
+                }
+                resolveRuleId(methodFailure.failure) to methodFailure.failure.toString()
+            }
+
+            is TvmExecutionWithStructuralError -> {
+                val exit = (it.result as TvmExecutionWithStructuralError).exit
+                exit.ruleId to exit.toString()
+            }
+
+            is TvmExecutionWithSoftFailure -> {
+                val exit = (it.result as TvmExecutionWithSoftFailure).failure
+                exit.exit.ruleId to exit.toString()
+            }
+
+            is TvmSuccessfulExecution -> {
                 return@mapNotNull null
             }
-            resolveRuleId(methodFailure.failure) to methodFailure.failure.toString()
         }
-
-        is TvmExecutionWithStructuralError -> {
-            val exit = (it.result as TvmExecutionWithStructuralError).exit
-            exit.ruleId to exit.toString()
-        }
-
-        is TvmExecutionWithSoftFailure -> {
-            val exit = (it.result as TvmExecutionWithSoftFailure).failure
-            exit.exit.ruleId to exit.toString()
-        }
-
-        is TvmSuccessfulExecution -> {
-            return@mapNotNull null
-        }
-    }
 
     val methodId = it.methodId
     val methodName = methodsMapping[methodId]
 
-    val properties = PropertyBag(
-        listOfNotNull(
-            "gasUsage" to it.gasUsage,
-            "usedParameters" to TvmContractCode.json.encodeToJsonElement(it.input),
-            it.fetchedValues.takeIf { it.isNotEmpty() }?.let {
-                "fetchedValues" to TvmContractCode.json.encodeToJsonElement(it)
-            },
-            "rootContractInitialC4" to TvmContractCode.json.encodeToJsonElement(it.rootInitialData),
-            "resultStack" to TvmContractCode.json.encodeToJsonElement(it.result.stack),
-            "additionalInputs" to TvmContractCode.json.encodeToJsonElement(it.additionalInputs),
-        ).toMap()
-    )
+    val properties =
+        PropertyBag(
+            listOfNotNull(
+                "gasUsage" to it.gasUsage,
+                "usedParameters" to TvmContractCode.json.encodeToJsonElement(it.input),
+                it.fetchedValues.takeIf { it.isNotEmpty() }?.let {
+                    "fetchedValues" to TvmContractCode.json.encodeToJsonElement(it)
+                },
+                "rootContractInitialC4" to TvmContractCode.json.encodeToJsonElement(it.rootInitialData),
+                "resultStack" to TvmContractCode.json.encodeToJsonElement(it.result.stack),
+                "additionalInputs" to TvmContractCode.json.encodeToJsonElement(it.additionalInputs)
+            ).toMap()
+        )
 
     if (useShortenedOutput) {
         Result(
@@ -120,23 +128,29 @@ private fun List<TvmSymbolicTest>.toSarifResult(
             ruleID = ruleId,
             level = TsaSarifSchema.TsaSarifResult.LEVEL,
             message = Message(text = message),
-            locations = listOf(
-                Location(
-                    logicalLocations = listOf(
-                        LogicalLocation(
-                            decoratedName = methodId.toString(),
-                            fullyQualifiedName = methodName,
-                            properties = PropertyBag(
-                                mapOf(
-                                    "position" to TvmContractCode.json.encodeToJsonElement(it.lastStmt?.physicalLocation),
-                                    "inst" to it.lastStmt?.mnemonic,
+            locations =
+                listOf(
+                    Location(
+                        logicalLocations =
+                            listOf(
+                                LogicalLocation(
+                                    decoratedName = methodId.toString(),
+                                    fullyQualifiedName = methodName,
+                                    properties =
+                                        PropertyBag(
+                                            mapOf(
+                                                "position" to
+                                                    TvmContractCode.json.encodeToJsonElement(
+                                                        it.lastStmt?.physicalLocation
+                                                    ),
+                                                "inst" to it.lastStmt?.mnemonic
+                                            )
+                                        )
                                 )
                             )
-                        )
-                    ),
-                )
-            ),
-            properties = properties,
+                    )
+                ),
+            properties = properties
         )
     }
 }

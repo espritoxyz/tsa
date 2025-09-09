@@ -17,8 +17,7 @@ data object StackFrameOfUnknown : TlbStackFrame {
     override fun <ReadResult : TvmCellDataTypeReadValue> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>
-    ): List<GuardedResult<ReadResult>> =
-        listOf(GuardedResult(state.ctx.trueExpr, NextFrame(this), value = null))
+    ): List<GuardedResult<ReadResult>> = listOf(GuardedResult(state.ctx.trueExpr, NextFrame(this), value = null))
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
 
@@ -28,13 +27,16 @@ data object StackFrameOfUnknown : TlbStackFrame {
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo
-    ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> = with(read.resolver.state.ctx) {
-        val field = UnknownBlockField(TlbStructure.Unknown.id, path)
-        val dataSymbolic = read.resolver.state.memory.readField(read.address, field, field.getSort(this))
-        val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
+    ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
+        with(read.resolver.state.ctx) {
+            val field = UnknownBlockField(TlbStructure.Unknown.id, path)
+            val dataSymbolic =
+                read.resolver.state.memory
+                    .readField(read.address, field, field.getSort(this))
+            val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
 
-        val newReadInfo = TlbStack.ConcreteReadInfo(read.address, read.resolver, leftBits = 0)
+            val newReadInfo = TlbStack.ConcreteReadInfo(read.address, read.resolver, leftBits = 0)
 
-        Triple(data.take(read.leftBits), newReadInfo, emptyList())
-    }
+            Triple(data.take(read.leftBits), newReadInfo, emptyList())
+        }
 }

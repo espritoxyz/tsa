@@ -3,10 +3,14 @@ package org.usvm.test.minimization
 import java.util.PriorityQueue
 
 @JvmInline
-private value class ExecutionNumber(val number: Int)
+private value class ExecutionNumber(
+    val number: Int
+)
 
 @JvmInline
-private value class LineNumber(val number: Int)
+private value class LineNumber(
+    val number: Int
+)
 
 /**
  * [Greedy essential algorithm](CONFLUENCE:Test+Minimization)
@@ -63,21 +67,23 @@ class GreedyEssential private constructor(
     private fun hasMore() = executionByPriority.isNotEmpty()
 
     private fun getExecutionAndRemove(): ExecutionNumber {
-
-        val bestExecution = if (essentialExecutions.isNotEmpty()) {
-            essentialExecutions.removeLast()
-        } else {
-            executionByPriority.peek()?.first
-                ?: error("No new executions could be added. Everything is already covered.")
-        }
+        val bestExecution =
+            if (essentialExecutions.isNotEmpty()) {
+                essentialExecutions.removeLast()
+            } else {
+                executionByPriority.peek()?.first
+                    ?: error("No new executions could be added. Everything is already covered.")
+            }
         removeExecution(bestExecution)
         return bestExecution
     }
 
-    private fun executionToPriority(execution: ExecutionNumber) =
-        execution to executionToUsefulLines[execution]!!.size
+    private fun executionToPriority(execution: ExecutionNumber) = execution to executionToUsefulLines[execution]!!.size
 
-    private fun removeLineFromExecution(execution: ExecutionNumber, line: LineNumber) {
+    private fun removeLineFromExecution(
+        execution: ExecutionNumber,
+        line: LineNumber
+    ) {
         executionByPriority.remove(executionToPriority(execution))
 
         executionToUsefulLines[execution]!!.remove(line)
@@ -95,14 +101,19 @@ class GreedyEssential private constructor(
          *
          * @return retained execution ids.
          */
-        fun minimize(executions: Map<Int, List<Int>>, executionToPriority: Map<Int, Int> = mapOf()): List<Int> {
-            val convertedExecutions = executions
-                .entries
-                .associate { (execution, lines) -> ExecutionNumber(execution) to lines.map { LineNumber(it) } }
+        fun minimize(
+            executions: Map<Int, List<Int>>,
+            executionToPriority: Map<Int, Int> = mapOf()
+        ): List<Int> {
+            val convertedExecutions =
+                executions
+                    .entries
+                    .associate { (execution, lines) -> ExecutionNumber(execution) to lines.map { LineNumber(it) } }
 
-            val convertedExecutionToPriority = executionToPriority
-                .entries
-                .associate { (execution, priority) -> ExecutionNumber(execution) to priority }
+            val convertedExecutionToPriority =
+                executionToPriority
+                    .entries
+                    .associate { (execution, priority) -> ExecutionNumber(execution) to priority }
 
             val prioritizer = GreedyEssential(convertedExecutions, convertedExecutionToPriority)
             val list = mutableListOf<ExecutionNumber>()

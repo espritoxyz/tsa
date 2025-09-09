@@ -3,7 +3,7 @@ import org.ton.boc.BagOfCells
 import java.nio.file.Files
 import java.nio.file.Paths
 
-//import org.ton.boc.BagOfCells
+// import org.ton.boc.BagOfCells
 
 @OptIn(ExperimentalStdlibApi::class)
 fun main() {
@@ -21,17 +21,18 @@ fun main() {
     val boc = BagOfCells(hexBytes)
 //    println(boc)
 
-    val rootParsed = boc.first().beginParse().let {
-        val setCpInstr = it.loadBits(8)
-        val setCpArg = it.loadBits(8).toHex().toInt(radix = 16)
-        val dictPushConst = it.loadBits(13)
-        it.skipBits(1)
-        val index = it.loadUInt(10)
-        val dictJmp = it.loadBits(16)
-        val throwInst = it.loadBits(13)
-        val throwArg = it.loadUInt(11)
-        listOf(setCpInstr, setCpArg, dictPushConst, index, dictJmp, throwInst, throwArg, it)
-    }
+    val rootParsed =
+        boc.first().beginParse().let {
+            val setCpInstr = it.loadBits(8)
+            val setCpArg = it.loadBits(8).toHex().toInt(radix = 16)
+            val dictPushConst = it.loadBits(13)
+            it.skipBits(1)
+            val index = it.loadUInt(10)
+            val dictJmp = it.loadBits(16)
+            val throwInst = it.loadBits(13)
+            val throwArg = it.loadUInt(11)
+            listOf(setCpInstr, setCpArg, dictPushConst, index, dictJmp, throwInst, throwArg, it)
+        }
     println(rootParsed)
 
 //    val parsed = boc.first().refs.first().refs.first().beginParse().let {
@@ -91,9 +92,9 @@ fun main() {
 //        drop = "DROP" to it.loadBits(8)
 //        var ifelse = "IFELSE" to it.loadBits(8)
 //
-////        println(
-////            listOf(s, it.bits.toHex(), ctos, dropInst, dropArgFst, dropArgSnd, dup, sempty, pushContInst, pushContArg1, drop, ifJmp, lduInst, lduArg1, drop, pushCtrInst, ctos, dumpStack, dup, dumpInst, dumArg1, drop, pushIntInst, pushIntInstArg, newcInst, stuInst, stuArg, endc, dumpInst, dumArg2, drop, lduInst, lduArg2, drop, swap, eqintInst, eqintArg, pushContInst, pushContArg1, inc, newcInst, stuInst, stuArg, endc, popCtr, pushContInst, pushContArg2, drop, ifelse, it.bits.slice(it.bitsPosition)).joinToString(System.lineSeparator())
-////                .replace("x", ""))
+// //        println(
+// //            listOf(s, it.bits.toHex(), ctos, dropInst, dropArgFst, dropArgSnd, dup, sempty, pushContInst, pushContArg1, drop, ifJmp, lduInst, lduArg1, drop, pushCtrInst, ctos, dumpStack, dup, dumpInst, dumArg1, drop, pushIntInst, pushIntInstArg, newcInst, stuInst, stuArg, endc, dumpInst, dumArg2, drop, lduInst, lduArg2, drop, swap, eqintInst, eqintArg, pushContInst, pushContArg1, inc, newcInst, stuInst, stuArg, endc, popCtr, pushContInst, pushContArg2, drop, ifelse, it.bits.slice(it.bitsPosition)).joinToString(System.lineSeparator())
+// //                .replace("x", ""))
 //    }
 
 //    val counterSlice = boc.first().refs.first().refs.last().beginParse().skipBits(2 + 5).skipBits(16).let {

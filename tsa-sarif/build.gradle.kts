@@ -1,5 +1,6 @@
 plugins {
     id("tsa.kotlin-conventions")
+    id("org.jmailen.kotlinter") version Versions.kotlinterPluginVersion
 }
 
 dependencies {
@@ -10,4 +11,11 @@ dependencies {
 
     // https://mvnrepository.com/artifact/io.github.detekt.sarif4k/sarif4k
     implementation("io.github.detekt.sarif4k:sarif4k:0.6.0")
+}
+
+tasks.register("formatAndLintAll") {
+    group = "formatting"
+
+    dependsOn(tasks.findByName("formatKotlin"))
+    dependsOn(tasks.findByName("lintKotlin"))
 }

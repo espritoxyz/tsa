@@ -6,7 +6,6 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
-import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
@@ -29,12 +28,18 @@ data class TypeCastException(
     override val message: String = "Trying to cast $oldType value to $newType"
 }
 
-private fun TvmStack.add(value: UExpr<out USort>, type: TvmRealType) {
+private fun TvmStack.add(
+    value: UExpr<out USort>,
+    type: TvmRealType
+) {
     // TODO check size 256?
     addStackEntry(value.toStackValue(type).toStackEntry())
 }
 
-fun TvmState.addOnStack(value: UExpr<out USort>, type: TvmRealType) {
+fun TvmState.addOnStack(
+    value: UExpr<out USort>,
+    type: TvmRealType
+) {
     stack.add(value, type)
     if (value.sort is UAddressSort) {
         @Suppress("UNCHECKED_CAST")
@@ -42,8 +47,10 @@ fun TvmState.addOnStack(value: UExpr<out USort>, type: TvmRealType) {
     }
 }
 
-fun TvmStepScopeManager.addOnStack(value: UExpr<out USort>, type: TvmRealType) =
-    calcOnState { addOnStack(value, type) }
+fun TvmStepScopeManager.addOnStack(
+    value: UExpr<out USort>,
+    type: TvmRealType
+) = calcOnState { addOnStack(value, type) }
 
 fun TvmStack.addInt(value: UExpr<TvmInt257Sort>) {
     add(value, TvmIntegerType)
@@ -60,9 +67,10 @@ fun TvmStack.addTuple(value: TvmStackTupleValue) {
 fun TvmStackValue.toStackEntry(): TvmConcreteStackEntry = TvmConcreteStackEntry(this)
 
 fun TvmState.takeLastIntOrNull(): UExpr<TvmInt257Sort>? {
-    val intStackValue = stack.takeLast(TvmIntegerType) { id ->
-        ctx.mkRegisterReading(id, ctx.int257sort)
-    }
+    val intStackValue =
+        stack.takeLast(TvmIntegerType) { id ->
+            ctx.mkRegisterReading(id, ctx.int257sort)
+        }
 
     if (intStackValue !is TvmStack.TvmStackIntValue) {
         return null
@@ -80,21 +88,21 @@ fun TvmState.takeLastIntOrThrowTypeError(): UExpr<TvmInt257Sort>? =
 fun TvmStepScopeManager.takeLastIntOrThrowTypeError(): UExpr<TvmInt257Sort>? =
     calcOnState { takeLastIntOrThrowTypeError() }
 
-fun TvmStepScopeManager.takeLastSliceOrThrowTypeError(): UHeapRef? = with(ctx) {
-    val slice = this@takeLastSliceOrThrowTypeError.calcOnState { takeLastSlice() }
-    if (slice == null) {
-        doWithState(throwTypeCheckError)
+fun TvmStepScopeManager.takeLastSliceOrThrowTypeError(): UHeapRef? =
+    with(ctx) {
+        val slice = this@takeLastSliceOrThrowTypeError.calcOnState { takeLastSlice() }
+        if (slice == null) {
+            doWithState(throwTypeCheckError)
+        }
+        slice
     }
-    slice
-}
 
 fun TvmState.takeLastCell(): UHeapRef? =
     takeLastRef(TvmCellType, TvmStackValue::cellValue) {
         generateSymbolicCell()
     }?.also { ensureSymbolicCellInitialized(it) }
 
-fun TvmStepScopeManager.takeLastCell(): UHeapRef? =
-    calcOnState { takeLastCell() }
+fun TvmStepScopeManager.takeLastCell(): UHeapRef? = calcOnState { takeLastCell() }
 
 fun TvmState.takeLastSlice(): UHeapRef? =
     takeLastRef(TvmSliceType, TvmStackValue::sliceValue) {
@@ -106,45 +114,49 @@ fun TvmState.takeLastBuilder(): UConcreteHeapRef? =
         generateSymbolicBuilder()
     }?.also { ensureSymbolicBuilderInitialized(it) }
 
-fun TvmState.takeLastRef(type: TvmRealReferenceType): UHeapRef? = when (type) {
-    is TvmCellType -> takeLastCell()
-    is TvmSliceType -> takeLastSlice()
-    is TvmBuilderType -> takeLastBuilder()
-}
+fun TvmState.takeLastRef(type: TvmRealReferenceType): UHeapRef? =
+    when (type) {
+        is TvmCellType -> takeLastCell()
+        is TvmSliceType -> takeLastSlice()
+        is TvmBuilderType -> takeLastBuilder()
+    }
 
-fun TvmStepScopeManager.takeLastTuple(): TvmStackTupleValue? = calcOnStateCtx {
-    val lastEntry = stack.takeLastEntry()
+fun TvmStepScopeManager.takeLastTuple(): TvmStackTupleValue? =
+    calcOnStateCtx {
+        val lastEntry = stack.takeLastEntry()
 
-    when (lastEntry) {
-        is TvmConcreteStackEntry -> lastEntry.cell(stack) as? TvmStackTupleValue
-        is TvmInputStackEntry -> {
-            val cell = lastEntry.cell(stack)
-            if (cell != null) {
-                return@calcOnStateCtx cell as? TvmStackTupleValue
-            }
+        when (lastEntry) {
+            is TvmConcreteStackEntry -> lastEntry.cell(stack) as? TvmStackTupleValue
+            is TvmInputStackEntry -> {
+                val cell = lastEntry.cell(stack)
+                if (cell != null) {
+                    return@calcOnStateCtx cell as? TvmStackTupleValue
+                }
 
-            val size = ctx.mkRegisterReading(lastEntry.id, ctx.int257sort)
-            val sizeConstraint = mkAnd(
-                mkBvSignedLessOrEqualExpr(zeroValue, size),
-                mkBvSignedLessOrEqualExpr(size, maxTupleSizeValue)
-            )
-            assert(
-                sizeConstraint,
-                unsatBlock = { error("Cannot assert tuple size constraints") }
-            ) ?: return@calcOnStateCtx null
+                val size = ctx.mkRegisterReading(lastEntry.id, ctx.int257sort)
+                val sizeConstraint =
+                    mkAnd(
+                        mkBvSignedLessOrEqualExpr(zeroValue, size),
+                        mkBvSignedLessOrEqualExpr(size, maxTupleSizeValue)
+                    )
+                assert(
+                    sizeConstraint,
+                    unsatBlock = { error("Cannot assert tuple size constraints") }
+                ) ?: return@calcOnStateCtx null
 
-            val symbolicTuple = TvmStack.TvmStackTupleValueInputNew(entries = mutableMapOf(), size = size)
-            symbolicTuple.also {
-                stack.putInputEntryValue(lastEntry, it)
+                val symbolicTuple = TvmStack.TvmStackTupleValueInputNew(entries = mutableMapOf(), size = size)
+                symbolicTuple.also {
+                    stack.putInputEntryValue(lastEntry, it)
+                }
             }
         }
     }
-}
 
 fun TvmStack.takeLastContinuation(): TvmContinuation? {
-    val continuationStackValue = takeLast(TvmContinuationType) { _ ->
-        error("Unexpected continuation as an input")
-    }
+    val continuationStackValue =
+        takeLast(TvmContinuationType) { _ ->
+            error("Unexpected continuation as an input")
+        }
 
     return continuationStackValue.continuationValue
 }
@@ -158,7 +170,11 @@ private fun <Ref : UHeapRef> TvmState.takeLastRef(
     return lastRefValue.extractValue()?.also { assertType(it, referenceType) }
 }
 
-fun doXchg(scope: TvmStepScopeManager, first: Int, second: Int) {
+fun doXchg(
+    scope: TvmStepScopeManager,
+    first: Int,
+    second: Int
+) {
     scope.doWithState {
         stack.swap(first, second)
     }
@@ -166,36 +182,55 @@ fun doXchg(scope: TvmStepScopeManager, first: Int, second: Int) {
 
 fun doSwap(scope: TvmStepScopeManager) = doXchg(scope, first = 0, second = 1)
 
-fun doPop(scope: TvmStepScopeManager, i: Int) {
+fun doPop(
+    scope: TvmStepScopeManager,
+    i: Int
+) {
     scope.doWithState {
         stack.pop(i)
     }
 }
 
-fun doPush(scope: TvmStepScopeManager, i: Int) {
+fun doPush(
+    scope: TvmStepScopeManager,
+    i: Int
+) {
     scope.doWithState {
         stack.push(i)
     }
 }
 
-fun TvmStack.doBlkSwap(i: Int, j: Int) {
+fun TvmStack.doBlkSwap(
+    i: Int,
+    j: Int
+) {
     reverse(i + 1, j + 1)
     reverse(j + 1, 0)
     reverse(i + j + 2, 0)
 }
 
-fun TvmStack.doPuxc(i: Int, j: Int) {
+fun TvmStack.doPuxc(
+    i: Int,
+    j: Int
+) {
     push(i)
     swap(0, 1)
     swap(0, j + 1)
 }
 
-fun TvmStack.doXchg2(i: Int, j: Int) {
+fun TvmStack.doXchg2(
+    i: Int,
+    j: Int
+) {
     swap(1, i)
     swap(0, j)
 }
 
-fun TvmStack.doXchg3(i: Int, j: Int, k: Int) {
+fun TvmStack.doXchg3(
+    i: Int,
+    j: Int,
+    k: Int
+) {
     swap(2, i)
     swap(1, j)
     swap(0, k)

@@ -22,12 +22,12 @@ class PersistentDataTest {
 
     @Test
     fun testWithConcreteData() {
-
         val cell = CellBuilder().storeInt(100, 32).endCell()
 
         val path = getResourcePath<PersistentDataTest>("/data/data.fc")
 
-        val symbolicResult = funcCompileAndAnalyzeAllMethods(path, concreteContractData = TvmConcreteContractData(contractC4 = cell))
+        val symbolicResult =
+            funcCompileAndAnalyzeAllMethods(path, concreteContractData = TvmConcreteContractData(contractC4 = cell))
         val allTests = symbolicResult.map { it.tests }.flatten()
         val results = allTests.map { it.result }
         assertTrue(results.isNotEmpty())

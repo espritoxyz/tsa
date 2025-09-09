@@ -16,22 +16,22 @@ fun calculateMinTlbDepth(
     for (curDepth in 1..maxTlbDepth) {
         val newLabels = mutableListOf<TlbCompositeLabel>()
         compositeLabels.forEach { label ->
-            if (result[label] != null)
+            if (result[label] != null) {
                 return@forEach
+            }
             val currentDepthIsPossible = constructionIsPossible(label.internalStructure) { result[it] != null }
-            if (currentDepthIsPossible)
+            if (currentDepthIsPossible) {
                 newLabels.add(label)
+            }
         }
         newLabels.forEach { result[it] = curDepth }
     }
     return result
 }
 
-private fun zeroDepthIsPossible(label: TlbCompositeLabel) =
-    zeroDepthIsPossible(label.internalStructure)
+private fun zeroDepthIsPossible(label: TlbCompositeLabel) = zeroDepthIsPossible(label.internalStructure)
 
-private fun zeroDepthIsPossible(struct: TlbStructure): Boolean =
-    constructionIsPossible(struct) { false }
+private fun zeroDepthIsPossible(struct: TlbStructure): Boolean = constructionIsPossible(struct) { false }
 
 fun constructionIsPossible(
     struct: TlbStructure,

@@ -5,11 +5,12 @@ import org.ton.test.gen.dsl.wrapper.TsWrapperDescriptor
 
 class TsBasicWrapperDescriptor(
     override val ctx: TsContext,
-    override val name: String,
+    override val name: String
 ) : TsWrapperDescriptor<TsBasicWrapper> {
     override val wrapperType: TsBasicWrapper = TsBasicWrapper(name)
 
-    override fun renderFile(): String = """
+    override fun renderFile(): String =
+        """
         import {Address, Cell, Contract, ContractProvider, TupleItem} from '@ton/core'
         import {Blockchain, createShardAccount, internal} from "@ton/sandbox"
 
@@ -77,5 +78,5 @@ class TsBasicWrapperDescriptor(
                 return await provider.get(name, args)
             }
         }
-    """.trimIndent()
+        """.trimIndent()
 }

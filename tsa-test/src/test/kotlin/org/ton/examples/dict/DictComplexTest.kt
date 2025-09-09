@@ -55,22 +55,24 @@ class DictComplexTest {
 
     private fun runTestWithBigConcreteDict(
         codePath: String,
-        dataPath: String,
+        dataPath: String
     ) {
         val resourcePath = getResourcePath<DictComplexTest>(codePath)
         val dataResourcePath = getResourcePath<DictComplexTest>(dataPath)
         val data = dataResourcePath.toFile().readBytes()
         val parsedData = BagOfCells(data).roots.single()
 
-        val tests = BocAnalyzer.analyzeSpecificMethod(
-            resourcePath,
-            methodId = MethodId.ZERO,
-            concreteContractData = TvmConcreteContractData(contractC4 = parsedData),
-            tvmOptions = TvmOptions(
-                quietMode = false,
-                timeout = 30.seconds,
+        val tests =
+            BocAnalyzer.analyzeSpecificMethod(
+                resourcePath,
+                methodId = MethodId.ZERO,
+                concreteContractData = TvmConcreteContractData(contractC4 = parsedData),
+                tvmOptions =
+                    TvmOptions(
+                        quietMode = false,
+                        timeout = 30.seconds
+                    )
             )
-        )
 
         assertTrue { tests.isNotEmpty() }
     }
@@ -88,7 +90,7 @@ class DictComplexTest {
             tests,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
             )
         )
 
@@ -110,7 +112,7 @@ class DictComplexTest {
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 }
             )
         )
 

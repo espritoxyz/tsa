@@ -26,7 +26,7 @@ data class TvmOptions(
     val useMainMethodForInitialMethodJump: Boolean = true,
     val analyzeBouncedMessaged: Boolean = false,
     val enableOutMessageAnalysis: Boolean = false,
-    val useIntBlasting: Boolean = false,
+    val useIntBlasting: Boolean = false
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
@@ -38,7 +38,7 @@ data class TvmOptions(
 data class TlbOptions(
     val performTlbChecksOnAllocatedCells: Boolean = false,
     val maxTlbDepth: Int = DEFAULT_MAX_TLB_DEPTH,
-    val maxCellDepthForDefaultCellsConsistentWithTlb: Int = DEFAULT_MAX_CELL_DEPTH_FOR_DEFAULT_CELLS_CONSISTENT_WITH_TLB,
+    val maxCellDepthForDefaultCellsConsistentWithTlb: Int = DEFAULT_MAX_CELL_DEPTH_FOR_DEFAULT_CELLS_CONSISTENT_WITH_TLB
 ) {
     init {
         check(maxTlbDepth >= 0) {
@@ -46,13 +46,13 @@ data class TlbOptions(
         }
         check(maxCellDepthForDefaultCellsConsistentWithTlb >= 0) {
             "maxCellDepthForDefaultCellsConsistentWithTlb must be non-negative, " +
-                    "but it is $maxCellDepthForDefaultCellsConsistentWithTlb"
+                "but it is $maxCellDepthForDefaultCellsConsistentWithTlb"
         }
     }
 }
 
 data class IntercontractOptions(
-    val communicationScheme: Map<ContractId, TvmContractHandlers>? = null,
+    val communicationScheme: Map<ContractId, TvmContractHandlers>? = null
 ) {
     val isIntercontractEnabled: Boolean
         get() = communicationScheme != null

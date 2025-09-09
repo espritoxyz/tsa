@@ -1,13 +1,13 @@
 package org.ton.examples.dict
 
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
+import org.ton.RUN_HARD_TESTS_REGEX
+import org.ton.RUN_HARD_TESTS_VAR
 import org.ton.boc.BagOfCells
 import org.ton.bytecode.MethodId
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
-import org.ton.runHardTestsRegex
-import org.ton.runHardTestsVar
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
@@ -28,45 +28,49 @@ class DictOperationOnDataCell {
     fun testDictOperationOnDataCell() {
         val resourcePath = getResourcePath<DictExampleTest>(badOpPath)
 
-        val symbolicResult = funcCompileAndAnalyzeAllMethods(
-            resourcePath,
-            tvmOptions = TvmOptions(useReceiverInputs = false)
-        )
+        val symbolicResult =
+            funcCompileAndAnalyzeAllMethods(
+                resourcePath,
+                tvmOptions = TvmOptions(useReceiverInputs = false)
+            )
         val tests = symbolicResult.single()
 
         checkInvariants(
             tests,
-            listOf {
-                test -> test.result !is TvmSuccessfulExecution
+            listOf { test ->
+                test.result !is TvmSuccessfulExecution
             }
         )
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmExecutionWithSoftFailure)?.failure?.exit is TvmDictOperationOnDataCell }
+            listOf { test ->
+                (test.result as? TvmExecutionWithSoftFailure)?.failure?.exit is TvmDictOperationOnDataCell
+            }
         )
     }
 
-    @EnabledIfEnvironmentVariable(named = runHardTestsVar, matches = runHardTestsRegex)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testConcreteDictInC4() {
         val resourcePath = getResourcePath<DictExampleTest>(dictInC4Path)
         val dataResourcePath = getResourcePath<DictExampleTest>(dictInC4DataPath)
         val data = dataResourcePath.toFile().readBytes()
 
-        val tests = BocAnalyzer.analyzeSpecificMethod(
-            resourcePath,
-            methodId = MethodId.ZERO,
-            concreteContractData = TvmConcreteContractData(contractC4 = BagOfCells(data).roots.single()),
-            tvmOptions = TvmOptions(timeout = 3.minutes)
-        )
+        val tests =
+            BocAnalyzer.analyzeSpecificMethod(
+                resourcePath,
+                methodId = MethodId.ZERO,
+                concreteContractData = TvmConcreteContractData(contractC4 = BagOfCells(data).roots.single()),
+                tvmOptions = TvmOptions(timeout = 3.minutes)
+            )
 
         assertTrue { tests.isNotEmpty() }
 
         checkInvariants(
             tests,
-            listOf {
-                test -> test.result !is TvmExecutionWithSoftFailure
+            listOf { test ->
+                test.result !is TvmExecutionWithSoftFailure
             }
         )
     }

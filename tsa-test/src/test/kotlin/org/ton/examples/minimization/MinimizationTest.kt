@@ -15,10 +15,11 @@ class MinimizationTest {
     fun testMinimization() {
         val funcResourcePath = extractResource(contractPath)
 
-        val methodStates = funcCompileAndAnalyzeAllMethods(
-            funcResourcePath,
-            methodWhiteList = setOf(0.toMethodId())
-        )
+        val methodStates =
+            funcCompileAndAnalyzeAllMethods(
+                funcResourcePath,
+                methodWhiteList = setOf(0.toMethodId())
+            )
 
         val initialTest = methodStates.single().tests
         val minimizedTests1 = minimizeTestCase(initialTest, branchInstructionsNumber = 0)

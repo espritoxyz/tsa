@@ -5,10 +5,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 data class ProcessExecutionResult(
-    val exitValue: Int?,  // null if not completed in time
+    val exitValue: Int?, // null if not completed in time
     val completedInTime: Boolean,
     val output: List<String>,
-    val errors: List<String>,
+    val errors: List<String>
 )
 
 fun executeCommandWithTimeout(
@@ -16,24 +16,26 @@ fun executeCommandWithTimeout(
     timeoutSeconds: Long,
     processWorkingDirectory: File? = null,
     additionalEnvironment: Map<String, String> = emptyMap(),
-    inputFile: File? = null,
-): ProcessExecutionResult = executeCommandWithTimeout(
-    command.split(" "),
-    timeoutSeconds,
-    processWorkingDirectory,
-    additionalEnvironment,
-    inputFile,
-)
+    inputFile: File? = null
+): ProcessExecutionResult =
+    executeCommandWithTimeout(
+        command.split(" "),
+        timeoutSeconds,
+        processWorkingDirectory,
+        additionalEnvironment,
+        inputFile
+    )
 
 fun executeCommandWithTimeout(
     command: List<String>,
     timeoutSeconds: Long,
     processWorkingDirectory: File? = null,
     additionalEnvironment: Map<String, String> = emptyMap(),
-    inputFile: File? = null,
+    inputFile: File? = null
 ): ProcessExecutionResult {
-    val processBuilder = ProcessBuilder(command)
-        .directory(processWorkingDirectory)
+    val processBuilder =
+        ProcessBuilder(command)
+            .directory(processWorkingDirectory)
 
     if (inputFile != null) {
         processBuilder.redirectInput(inputFile)
@@ -48,17 +50,19 @@ fun executeCommandWithTimeout(
     val output = mutableListOf<String>()
     val errors = mutableListOf<String>()
 
-    val outputTask = executor.submit {
-        process.inputStream.bufferedReader().useLines { lines ->
-            output.addAll(lines)
+    val outputTask =
+        executor.submit {
+            process.inputStream.bufferedReader().useLines { lines ->
+                output.addAll(lines)
+            }
         }
-    }
 
-    val errorTask = executor.submit {
-        process.errorStream.bufferedReader().useLines { lines ->
-            errors.addAll(lines)
+    val errorTask =
+        executor.submit {
+            process.errorStream.bufferedReader().useLines { lines ->
+                errors.addAll(lines)
+            }
         }
-    }
 
     // Wait for the process to complete within the timeout
     val completedInTime = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)

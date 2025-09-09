@@ -61,18 +61,32 @@ class ContractProperties : OptionGroup("Contract properties") {
 }
 
 private sealed interface AnalysisTarget
-private data object AllMethods : AnalysisTarget
-private data object Receivers : AnalysisTarget
-private data class SpecificMethod(val methodId: Int) : AnalysisTarget
 
-private fun CliktCommand.analysisTargetOption() = mutuallyExclusiveOptions(
-    option("--method").int().help("Id of the method to analyze").convert { SpecificMethod(it) },
-    option("--analyze-receivers").flag().help("Analyze recv_internal and recv_external (default)").convert { Receivers },
-    option("--analyze-all-methods").flag().help("Analyze all methods (applicable only for contracts with default main method)").convert { AllMethods }
-)
-    .single()
-    .default(Receivers)
-    .help("Analysis target", "What to analyze. By default, only receivers (recv_interval and recv_external) are analyzed.")
+private data object AllMethods : AnalysisTarget
+
+private data object Receivers : AnalysisTarget
+
+private data class SpecificMethod(
+    val methodId: Int
+) : AnalysisTarget
+
+private fun CliktCommand.analysisTargetOption() =
+    mutuallyExclusiveOptions(
+        option("--method").int().help("Id of the method to analyze").convert { SpecificMethod(it) },
+        option(
+            "--analyze-receivers"
+        ).flag().help("Analyze recv_internal and recv_external (default)").convert { Receivers },
+        option(
+            "--analyze-all-methods"
+        ).flag().help("Analyze all methods (applicable only for contracts with default main method)").convert {
+            AllMethods
+        }
+    ).single()
+        .default(Receivers)
+        .help(
+            "Analysis target",
+            "What to analyze. By default, only receivers (recv_interval and recv_external) are analyzed."
+        )
 
 class SarifOptions : OptionGroup("SARIF options") {
     val sarifPath by option("-o", "--output")
@@ -107,20 +121,21 @@ class TlbCLIOptions : OptionGroup("TlB scheme options") {
         .help("Turn off TL-B parsing checks")
 
     companion object {
-        fun extractInputInfo(path: Path?): Map<BigInteger, TvmInputInfo> {
-            return if (path == null) {
+        fun extractInputInfo(path: Path?): Map<BigInteger, TvmInputInfo> =
+            if (path == null) {
                 emptyMap()
             } else {
-                val struct = readFromJson(path, "InternalMsgBody") as? TlbCompositeLabel
-                    ?: error("Couldn't parse `InternalMsgBody` structure from $path")
-                val info = TvmParameterInfo.SliceInfo(
-                    TvmParameterInfo.DataCellInfo(
-                        struct
+                val struct =
+                    readFromJson(path, "InternalMsgBody") as? TlbCompositeLabel
+                        ?: error("Couldn't parse `InternalMsgBody` structure from $path")
+                val info =
+                    TvmParameterInfo.SliceInfo(
+                        TvmParameterInfo.DataCellInfo(
+                            struct
+                        )
                     )
-                )
                 mapOf(BigInteger.ZERO to TvmInputInfo(mapOf(0 to info)))
             }
-        }
     }
 }
 
@@ -140,20 +155,22 @@ private fun <SourcesDescription> performAnalysis(
     contractData: String?,
     target: AnalysisTarget,
     tlbOptions: TlbCLIOptions,
-    analysisOptions: AnalysisOptions,
+    analysisOptions: AnalysisOptions
 ): TvmContractSymbolicTestResult {
-    val options = TvmOptions(
-        quietMode = true,
-        turnOnTLBParsingChecks = !tlbOptions.doNotPerformTlbChecks,
-        analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
-        timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-    )
+    val options =
+        TvmOptions(
+            quietMode = true,
+            turnOnTLBParsingChecks = !tlbOptions.doNotPerformTlbChecks,
+            analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
+            timeout = analysisOptions.timeout?.seconds ?: INFINITE
+        )
     val inputInfo = TlbCLIOptions.extractInputInfo(tlbOptions.tlbJsonPath)
-    val methodIds: List<BigInteger>? = when (target) {
-        is AllMethods -> null
-        is SpecificMethod -> listOf(target.methodId.toMethodId())
-        is Receivers -> listOf(TvmContext.RECEIVE_INTERNAL_ID, TvmContext.RECEIVE_EXTERNAL_ID)
-    }
+    val methodIds: List<BigInteger>? =
+        when (target) {
+            is AllMethods -> null
+            is SpecificMethod -> listOf(target.methodId.toMethodId())
+            is Receivers -> listOf(TvmContext.RECEIVE_INTERNAL_ID, TvmContext.RECEIVE_EXTERNAL_ID)
+        }
 
     val concreteData = TvmConcreteContractData(contractC4 = contractData?.hexToCell())
 
@@ -162,19 +179,19 @@ private fun <SourcesDescription> performAnalysis(
             sources,
             concreteContractData = concreteData,
             inputInfo = inputInfo,
-            tvmOptions = options,
+            tvmOptions = options
         )
-
     } else {
-        val testSets = methodIds.map { methodId ->
-            analyzer.analyzeSpecificMethod(
-                sources,
-                methodId,
-                concreteContractData = concreteData,
-                inputInfo = inputInfo[methodId] ?: TvmInputInfo(),
-                tvmOptions = options,
-            )
-        }
+        val testSets =
+            methodIds.map { methodId ->
+                analyzer.analyzeSpecificMethod(
+                    sources,
+                    methodId,
+                    concreteContractData = concreteData,
+                    inputInfo = inputInfo[methodId] ?: TvmInputInfo(),
+                    tvmOptions = options
+                )
+            }
 
         TvmContractSymbolicTestResult(testSets)
     }
@@ -189,27 +206,31 @@ private fun performAnalysisInterContract(
     inputInfo: TvmInputInfo,
     analysisOptions: AnalysisOptions,
     turnOnTLBParsingChecks: Boolean,
-    useRecvInternalInput: Boolean,
+    useRecvInternalInput: Boolean
 ): TvmSymbolicTestSuite {
-    val options = if (interContractSchemePath != null) {
-        TvmOptions(
-            turnOnTLBParsingChecks = turnOnTLBParsingChecks,
-            quietMode = true,
-            analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
-            timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-            useReceiverInputs = useRecvInternalInput,
-            intercontractOptions = IntercontractOptions(communicationScheme = interContractSchemePath.extractIntercontractScheme()),
-            enableOutMessageAnalysis = true,
-        )
-    } else {
-        TvmOptions(
-            turnOnTLBParsingChecks = turnOnTLBParsingChecks,
-            quietMode = true,
-            analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
-            timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-            useReceiverInputs = useRecvInternalInput,
-        )
-    }
+    val options =
+        if (interContractSchemePath != null) {
+            TvmOptions(
+                turnOnTLBParsingChecks = turnOnTLBParsingChecks,
+                quietMode = true,
+                analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
+                timeout = analysisOptions.timeout?.seconds ?: INFINITE,
+                useReceiverInputs = useRecvInternalInput,
+                intercontractOptions =
+                    IntercontractOptions(
+                        communicationScheme = interContractSchemePath.extractIntercontractScheme()
+                    ),
+                enableOutMessageAnalysis = true
+            )
+        } else {
+            TvmOptions(
+                turnOnTLBParsingChecks = turnOnTLBParsingChecks,
+                quietMode = true,
+                analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
+                timeout = analysisOptions.timeout?.seconds ?: INFINITE,
+                useReceiverInputs = useRecvInternalInput
+            )
+        }
 
     return analyzeInterContract(
         contracts,
@@ -217,7 +238,7 @@ private fun performAnalysisInterContract(
         methodId = methodId,
         options = options,
         inputInfo = inputInfo,
-        concreteContractData = concreteContractData,
+        concreteContractData = concreteContractData
     )
 }
 
@@ -259,54 +280,59 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
     override fun run() {
         val tactAnalyzer = TactAnalyzer(tactOptions.tactExecutable)
 
-        val (sourcesAbsolutePath, sourcesRelativePath) = when (val optionSources = contractSources) {
-            is SinglePath -> optionSources.path.let { toAbsolutePath(it) to it }
+        val (sourcesAbsolutePath, sourcesRelativePath) =
+            when (val optionSources = contractSources) {
+                is SinglePath -> optionSources.path.let { toAbsolutePath(it) to it }
 
-            is TactPath -> {
-                val configAbsolutePath = toAbsolutePath(optionSources.tactPath.configPath)
-                val sourcesAbsolutePath = optionSources.tactPath.copy(configPath = configAbsolutePath)
-                val bocAbsolutePath = tactAnalyzer.getBocAbsolutePath(sourcesAbsolutePath)
-                val bocRelativePath = bocAbsolutePath.relativeTo(projectPath)
+                is TactPath -> {
+                    val configAbsolutePath = toAbsolutePath(optionSources.tactPath.configPath)
+                    val sourcesAbsolutePath = optionSources.tactPath.copy(configPath = configAbsolutePath)
+                    val bocAbsolutePath = tactAnalyzer.getBocAbsolutePath(sourcesAbsolutePath)
+                    val bocRelativePath = bocAbsolutePath.relativeTo(projectPath)
 
-                sourcesAbsolutePath to bocRelativePath
+                    sourcesAbsolutePath to bocRelativePath
+                }
             }
-        }
-        val analyzer = when (contractType) {
-            ContractType.Func -> FuncAnalyzer(fiftOptions.fiftStdlibPath)
-            ContractType.Boc -> BocAnalyzer
-            ContractType.Tact -> tactAnalyzer
+        val analyzer =
+            when (contractType) {
+                ContractType.Func -> FuncAnalyzer(fiftOptions.fiftStdlibPath)
+                ContractType.Boc -> BocAnalyzer
+                ContractType.Tact -> tactAnalyzer
 
-            ContractType.Fift -> error("Fift is not supported")
-        }
+                ContractType.Fift -> error("Fift is not supported")
+            }
 
-        val results = performAnalysis(
-            analyzer.uncheckedCast(),
-            sourcesAbsolutePath,
-            contractProperties.contractData,
-            target,
-            tlbOptions,
-            analysisOptions,
-        )
+        val results =
+            performAnalysis(
+                analyzer.uncheckedCast(),
+                sourcesAbsolutePath,
+                contractProperties.contractData,
+                target,
+                tlbOptions,
+                analysisOptions
+            )
 
-        val testGenContractType = when (contractType) {
-            ContractType.Func -> TsRenderer.ContractType.Func
-            else -> TsRenderer.ContractType.Boc
-        }
+        val testGenContractType =
+            when (contractType) {
+                ContractType.Func -> TsRenderer.ContractType.Func
+                else -> TsRenderer.ContractType.Boc
+            }
 
         generateTests(
             results,
             projectPath,
             sourcesRelativePath,
             testGenContractType,
-            useMinimization = true,
+            useMinimization = true
         )
     }
 }
 
-class TactAnalysis : ErrorsSarifDetector<TactSourcesDescription>(
-    name = "tact",
-    help = "Options for analyzing Tact sources of smart contracts"
-) {
+class TactAnalysis :
+    ErrorsSarifDetector<TactSourcesDescription>(
+        name = "tact",
+        help = "Options for analyzing Tact sources of smart contracts"
+    ) {
     private val tactConfigPath by option("-c", "--config")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
@@ -327,12 +353,13 @@ class TactAnalysis : ErrorsSarifDetector<TactSourcesDescription>(
 
         generateAndWriteSarifReport(
             analyzer = TactAnalyzer(tactOptions.tactExecutable),
-            sources = sources,
+            sources = sources
         )
     }
 }
 
-class FuncAnalysis : ErrorsSarifDetector<Path>(name = "func", help = "Options for analyzing FunC sources of smart contracts") {
+class FuncAnalysis :
+    ErrorsSarifDetector<Path>(name = "func", help = "Options for analyzing FunC sources of smart contracts") {
     private val funcSourcesPath by option("-i", "--input")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
@@ -341,18 +368,20 @@ class FuncAnalysis : ErrorsSarifDetector<Path>(name = "func", help = "Options fo
     private val fiftOptions by FiftOptions()
 
     override fun run() {
-        val analyzer = FuncAnalyzer(
-            fiftStdlibPath = fiftOptions.fiftStdlibPath
-        )
+        val analyzer =
+            FuncAnalyzer(
+                fiftStdlibPath = fiftOptions.fiftStdlibPath
+            )
 
         generateAndWriteSarifReport(
             analyzer = analyzer,
-            sources = funcSourcesPath,
+            sources = funcSourcesPath
         )
     }
 }
 
-class FiftAnalysis : ErrorsSarifDetector<Path>(name = "fift", help = "Options for analyzing smart contracts in Fift assembler") {
+class FiftAnalysis :
+    ErrorsSarifDetector<Path>(name = "fift", help = "Options for analyzing smart contracts in Fift assembler") {
     private val fiftSourcesPath by option("-i", "--input")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
@@ -361,18 +390,20 @@ class FiftAnalysis : ErrorsSarifDetector<Path>(name = "fift", help = "Options fo
     private val fiftOptions by FiftOptions()
 
     override fun run() {
-        val analyzer = FiftAnalyzer(
-            fiftStdlibPath = fiftOptions.fiftStdlibPath
-        )
+        val analyzer =
+            FiftAnalyzer(
+                fiftStdlibPath = fiftOptions.fiftStdlibPath
+            )
 
         generateAndWriteSarifReport(
             analyzer = analyzer,
-            sources = fiftSourcesPath,
+            sources = fiftSourcesPath
         )
     }
 }
 
-class BocAnalysis : ErrorsSarifDetector<Path>(name = "boc", help = "Options for analyzing a smart contract in the BoC format") {
+class BocAnalysis :
+    ErrorsSarifDetector<Path>(name = "boc", help = "Options for analyzing a smart contract in the BoC format") {
     private val bocPath by option("-i", "--input")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .required()
@@ -383,15 +414,16 @@ class BocAnalysis : ErrorsSarifDetector<Path>(name = "boc", help = "Options for 
 
         generateAndWriteSarifReport(
             analyzer = analyzer,
-            sources = bocPath,
+            sources = bocPath
         )
     }
 }
 
-class CheckerAnalysis : CliktCommand(
-    name = "custom-checker",
-    help = "Options for using custom checkers",
-) {
+class CheckerAnalysis :
+    CliktCommand(
+        name = "custom-checker",
+        help = "Options for using custom checkers"
+    ) {
     private val fiftOptions by FiftOptions()
     private val tactOptions by TactOptions()
 
@@ -410,8 +442,10 @@ class CheckerAnalysis : CliktCommand(
 
     private val pathOptionDescriptor = option().path(mustExist = true, canBeFile = true, canBeDir = false)
     private val typeOptionDescriptor = option().enum<ContractType>(ignoreCase = true)
-    private val contractSources: List<ContractSources> by contractSourcesOption(pathOptionDescriptor, typeOptionDescriptor)
-        .multiple(required = true)
+    private val contractSources: List<ContractSources> by contractSourcesOption(
+        pathOptionDescriptor,
+        typeOptionDescriptor
+    ).multiple(required = true)
         .validate {
             if (it.size > 1) {
                 requireNotNull(interContractSchemePath) {
@@ -423,26 +457,24 @@ class CheckerAnalysis : CliktCommand(
     private val concreteData: List<NullablePath> by option("-d", "--data")
         .help {
             """
-                Paths to .boc files with contract data.
-                
-                The order corresponds to the order of contracts with -c option.
-                
-                If data for a contract should be skipped, type "-".
-                
-                Example:
-                
-                -d data1.boc -d - -c Boc contract1.boc -c Func contract2.fc
-                
+            Paths to .boc files with contract data.
+            
+            The order corresponds to the order of contracts with -c option.
+            
+            If data for a contract should be skipped, type "-".
+            
+            Example:
+            
+            -d data1.boc -d - -c Boc contract1.boc -c Func contract2.fc
+            
             """.trimIndent()
-        }
-        .convert { value ->
+        }.convert { value ->
             if (value == "-") {
                 NullablePath(null)
             } else {
                 NullablePath(pathOptionDescriptor.transformValue(this, value))
             }
-        }
-        .multiple()
+        }.multiple()
         .validate {
             require(it.isEmpty() || it.size == contractSources.size) {
                 "If data specified, number of data paths should be equal to the number of contracts (excluding checker contract)"
@@ -463,57 +495,66 @@ class CheckerAnalysis : CliktCommand(
 
     private val tactAnalyzer by lazy {
         TactAnalyzer(
-            tactExecutable = tactOptions.tactExecutable,
+            tactExecutable = tactOptions.tactExecutable
         )
     }
 
     private val analysisOptions by AnalysisOptions()
 
     override fun run() {
-        val checkerContract = getFuncContract(
-            checkerContractPath,
-            fiftOptions.fiftStdlibPath,
-            isTSAChecker = true
-        )
+        val checkerContract =
+            getFuncContract(
+                checkerContractPath,
+                fiftOptions.fiftStdlibPath,
+                isTSAChecker = true
+            )
 
-        val contractsToAnalyze = contractSources.map {
-            it.convertToTsaContractCode(fiftAnalyzer, funcAnalyzer, tactAnalyzer)
-        }
+        val contractsToAnalyze =
+            contractSources.map {
+                it.convertToTsaContractCode(fiftAnalyzer, funcAnalyzer, tactAnalyzer)
+            }
 
         // TODO support TL-B schemes in JAR
-        val inputInfo = runCatching {
-            TlbCLIOptions.extractInputInfo(tlbOptions.tlbJsonPath).values.singleOrNull()
-        }
-            .getOrElse { TvmInputInfo() } // In case TL-B scheme is incorrect (not json format, for example), use empty scheme
-            ?: TvmInputInfo() // In case TL-B scheme is not provided, use empty scheme
+        val inputInfo =
+            runCatching {
+                TlbCLIOptions.extractInputInfo(tlbOptions.tlbJsonPath).values.singleOrNull()
+            }.getOrElse {
+                // In case TL-B scheme is incorrect (not json format, for example), use empty scheme
+                TvmInputInfo()
+            } ?: TvmInputInfo() // In case TL-B scheme is not provided, use empty scheme
 
-        val concreteContractData = listOf(TvmConcreteContractData()) + concreteData.map { path ->
-            path.path ?: return@map TvmConcreteContractData()
-            val bytes = path.path.toFile().readBytes()
-            val dataCell = BagOfCells(bytes).roots.single()
-            TvmConcreteContractData(contractC4 = dataCell)
-        }.ifEmpty {
-            contractsToAnalyze.map { TvmConcreteContractData() }
-        }
+        val concreteContractData =
+            listOf(TvmConcreteContractData()) +
+                concreteData
+                    .map { path ->
+                        path.path ?: return@map TvmConcreteContractData()
+                        val bytes = path.path.toFile().readBytes()
+                        val dataCell = BagOfCells(bytes).roots.single()
+                        TvmConcreteContractData(contractC4 = dataCell)
+                    }.ifEmpty {
+                        contractsToAnalyze.map { TvmConcreteContractData() }
+                    }
 
         val contracts = listOf(checkerContract) + contractsToAnalyze
-        val result = performAnalysisInterContract(
-            contracts,
-            concreteContractData,
-            interContractSchemePath,
-            startContractId = 0, // Checker contract is the first to analyze
-            methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            inputInfo = inputInfo,
-            analysisOptions = analysisOptions,
-            turnOnTLBParsingChecks = false,
-            useRecvInternalInput = false,
-        )
+        val result =
+            performAnalysisInterContract(
+                contracts,
+                concreteContractData,
+                interContractSchemePath,
+                startContractId = 0, // Checker contract is the first to analyze
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                inputInfo = inputInfo,
+                analysisOptions = analysisOptions,
+                turnOnTLBParsingChecks = false,
+                useRecvInternalInput = false
+            )
 
-        val sarifReport = result.toSarifReport(
-            methodsMapping = emptyMap(),
-            useShortenedOutput = false,
-            excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
-        )
+        val sarifReport =
+            result.toSarifReport(
+                methodsMapping = emptyMap(),
+                useShortenedOutput = false,
+                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors
+            )
 
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
             echo(sarifReport)
@@ -526,10 +567,11 @@ private value class NullablePath(
     val path: Path?
 )
 
-class InterContractAnalysis : CliktCommand(
-    name = "inter-contract",
-    help = "Options for analyzing inter-contract communication of smart contracts",
-) {
+class InterContractAnalysis :
+    CliktCommand(
+        name = "inter-contract",
+        help = "Options for analyzing inter-contract communication of smart contracts"
+    ) {
     private val fiftOptions by FiftOptions()
     private val tactOptions by TactOptions()
 
@@ -561,8 +603,10 @@ class InterContractAnalysis : CliktCommand(
     private val pathOptionDescriptor = option().path(mustExist = true, canBeFile = true, canBeDir = false)
     private val typeOptionDescriptor = option().enum<ContractType>(ignoreCase = true)
 
-    private val contractSources: List<ContractSources> by contractSourcesOption(pathOptionDescriptor, typeOptionDescriptor)
-        .multiple(required = true)
+    private val contractSources: List<ContractSources> by contractSourcesOption(
+        pathOptionDescriptor,
+        typeOptionDescriptor
+    ).multiple(required = true)
 
     private val startContractId: Int by option("-r", "--root")
         .int()
@@ -577,27 +621,30 @@ class InterContractAnalysis : CliktCommand(
     private val analysisOptions by AnalysisOptions()
 
     override fun run() {
-        val contracts = contractSources.map {
-            it.convertToTsaContractCode(fiftAnalyzer, funcAnalyzer, tactAnalyzer)
-        }
+        val contracts =
+            contractSources.map {
+                it.convertToTsaContractCode(fiftAnalyzer, funcAnalyzer, tactAnalyzer)
+            }
 
-        val result = performAnalysisInterContract(
-            contracts,
-            concreteContractData = contracts.map { TvmConcreteContractData() },  // TODO: support conrete data
-            interContractSchemePath,
-            startContractId,
-            methodId = methodId.toMethodId(),
-            inputInfo = TvmInputInfo(), // TODO: support TL-B
-            analysisOptions = analysisOptions,
-            turnOnTLBParsingChecks = false,
-            useRecvInternalInput = true,
-        )
+        val result =
+            performAnalysisInterContract(
+                contracts,
+                concreteContractData = contracts.map { TvmConcreteContractData() }, // TODO: support conrete data
+                interContractSchemePath,
+                startContractId,
+                methodId = methodId.toMethodId(),
+                inputInfo = TvmInputInfo(), // TODO: support TL-B
+                analysisOptions = analysisOptions,
+                turnOnTLBParsingChecks = false,
+                useRecvInternalInput = true
+            )
 
-        val sarifReport = result.toSarifReport(
-            methodsMapping = emptyMap(),
-            useShortenedOutput = false,
-            excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
-        )
+        val sarifReport =
+            result.toSarifReport(
+                methodsMapping = emptyMap(),
+                useShortenedOutput = false,
+                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors
+            )
 
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
             echo(sarifReport)
@@ -605,69 +652,81 @@ class InterContractAnalysis : CliktCommand(
     }
 }
 
-private fun Path.extractIntercontractScheme(): Map<ContractId, TvmContractHandlers> = communicationSchemeFromJson(readText())
+private fun Path.extractIntercontractScheme(): Map<ContractId, TvmContractHandlers> =
+    communicationSchemeFromJson(readText())
 
 private enum class ContractType {
     Tact,
     Func,
     Fift,
-    Boc,
+    Boc
 }
 
 private sealed interface ContractSources {
-    fun convertToTsaContractCode(fiftAnalyzer: FiftAnalyzer, funcAnalyzer: FuncAnalyzer, tactAnalyzer: TactAnalyzer): TsaContractCode
+    fun convertToTsaContractCode(
+        fiftAnalyzer: FiftAnalyzer,
+        funcAnalyzer: FuncAnalyzer,
+        tactAnalyzer: TactAnalyzer
+    ): TsaContractCode
 }
-private data class SinglePath(val type: ContractType, val path: Path) : ContractSources {
+
+private data class SinglePath(
+    val type: ContractType,
+    val path: Path
+) : ContractSources {
     override fun convertToTsaContractCode(
         fiftAnalyzer: FiftAnalyzer,
         funcAnalyzer: FuncAnalyzer,
-        tactAnalyzer: TactAnalyzer,
+        tactAnalyzer: TactAnalyzer
     ): TsaContractCode {
-        val analyzer = when (type) {
-            ContractType.Boc -> BocAnalyzer
-            ContractType.Func -> funcAnalyzer
-            ContractType.Fift -> fiftAnalyzer
-            ContractType.Tact -> error("Unexpected contract type $type with a single path $path")
-        }
+        val analyzer =
+            when (type) {
+                ContractType.Boc -> BocAnalyzer
+                ContractType.Func -> funcAnalyzer
+                ContractType.Fift -> fiftAnalyzer
+                ContractType.Tact -> error("Unexpected contract type $type with a single path $path")
+            }
 
         return analyzer.convertToTvmContractCode(path)
     }
 }
-private data class TactPath(val tactPath: TactSourcesDescription) : ContractSources {
+
+private data class TactPath(
+    val tactPath: TactSourcesDescription
+) : ContractSources {
     override fun convertToTsaContractCode(
         fiftAnalyzer: FiftAnalyzer,
         funcAnalyzer: FuncAnalyzer,
-        tactAnalyzer: TactAnalyzer,
+        tactAnalyzer: TactAnalyzer
     ): TsaContractCode = tactAnalyzer.convertToTvmContractCode(tactPath)
 }
 
 private fun ParameterHolder.contractSourcesOption(
     pathOptionDescriptor: NullableOption<Path, Path>,
     typeOptionDescriptor: NullableOption<ContractType, ContractType>,
-    pathValidator: OptionCallTransformContext.(Path) -> Unit = { },
+    pathValidator: OptionCallTransformContext.(Path) -> Unit = { }
 ) = option("-c", "--contract")
     .help(
         """
-                Contract to analyze. Must be given in format <contract-type> <options>.
-                
-                <contract-type> can be Tact, Func, Fift or Boc.
-                
-                For Func, Fift and Boc <options> is path to contract sources.
-                
-                For Tact, <options> is three values separated by space:
-                <path to tact.config.json> <project name> <contract name>
-                
-                This option should be used for each analyzed contract separately.
-                
-                Examples:
-                
-                -c func jetton-wallet.fc
-                
-                -c tact path/to/tact.config.json Jetton JettonWallet
-            
-            """.trimIndent()
-    )
-    .transformValues(nvalues = 2..4) { args ->
+        Contract to analyze. Must be given in format <contract-type> <options>.
+        
+        <contract-type> can be Tact, Func, Fift or Boc.
+        
+        For Func, Fift and Boc <options> is path to contract sources.
+        
+        For Tact, <options> is three values separated by space:
+        <path to tact.config.json> <project name> <contract name>
+        
+        This option should be used for each analyzed contract separately.
+        
+        Examples:
+        
+        -c func jetton-wallet.fc
+        
+        -c tact path/to/tact.config.json Jetton JettonWallet
+        
+        """.trimIndent()
+    ).transformValues(nvalues = 2..4) { args ->
         val typeRaw = args[0]
         val type = typeOptionDescriptor.transformValue(this, typeRaw)
         val pathRaw = args[1]
@@ -689,7 +748,10 @@ private fun ParameterHolder.contractSourcesOption(
 
 class TonAnalysis : NoOpCliktCommand()
 
-sealed class ErrorsSarifDetector<SourcesDescription>(name: String, help: String) : CliktCommand(name = name, help = help) {
+sealed class ErrorsSarifDetector<SourcesDescription>(
+    name: String,
+    help: String
+) : CliktCommand(name = name, help = help) {
     private val contractProperties by ContractProperties()
     private val sarifOptions by SarifOptions()
 
@@ -699,20 +761,22 @@ sealed class ErrorsSarifDetector<SourcesDescription>(name: String, help: String)
 
     fun generateAndWriteSarifReport(
         analyzer: TvmAnalyzer<SourcesDescription>,
-        sources: SourcesDescription,
+        sources: SourcesDescription
     ) {
-        val analysisResult = performAnalysis(
-            analyzer = analyzer,
-            sources = sources,
-            contractData = contractProperties.contractData,
-            target = target,
-            tlbOptions = tlbOptions,
-            analysisOptions,
-        )
-        val sarifReport = analysisResult.toSarifReport(
-            methodsMapping = emptyMap(),
-            excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
-        )
+        val analysisResult =
+            performAnalysis(
+                analyzer = analyzer,
+                sources = sources,
+                contractData = contractProperties.contractData,
+                target = target,
+                tlbOptions = tlbOptions,
+                analysisOptions
+            )
+        val sarifReport =
+            analysisResult.toSarifReport(
+                methodsMapping = emptyMap(),
+                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors
+            )
 
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
             echo(sarifReport)
@@ -720,13 +784,14 @@ sealed class ErrorsSarifDetector<SourcesDescription>(name: String, help: String)
     }
 }
 
-fun main(args: Array<String>) = TonAnalysis()
-    .subcommands(
-        TactAnalysis(),
-        FuncAnalysis(),
-        FiftAnalysis(),
-        BocAnalysis(),
-        TestGeneration(),
-        CheckerAnalysis(),
-        InterContractAnalysis()
-    ).main(args)
+fun main(args: Array<String>) =
+    TonAnalysis()
+        .subcommands(
+            TactAnalysis(),
+            FuncAnalysis(),
+            FiftAnalysis(),
+            BocAnalysis(),
+            TestGeneration(),
+            CheckerAnalysis(),
+            InterContractAnalysis()
+        ).main(args)

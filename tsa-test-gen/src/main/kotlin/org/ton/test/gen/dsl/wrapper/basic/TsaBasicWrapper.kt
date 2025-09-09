@@ -22,11 +22,12 @@ fun TsBasicWrapperDescriptor.constructor(
     address: TsExpression<TsAddress>,
     code: TsExpression<TsCell>,
     data: TsExpression<TsCell>
-): TsExpression<TsBasicWrapper> = TsConstructorCall(
-    executableName = name,
-    arguments = listOf(address, code, data),
-    type = wrapperType
-)
+): TsExpression<TsBasicWrapper> =
+    TsConstructorCall(
+        executableName = name,
+        arguments = listOf(address, code, data),
+        type = wrapperType
+    )
 
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.internal(
     blockchain: TsExpression<TsBlockchain>,
@@ -39,33 +40,49 @@ fun TsExpression<TsSandboxContract<TsBasicWrapper>>.internal(
     ihrFee: TsExpression<TsBigint>,
     forwardFee: TsExpression<TsBigint>,
     createdLt: TsExpression<TsBigint>,
-    createdAt: TsExpression<TsInt>,
-): TsExpression<TsSendMessageResult> = TsMethodCall(
-    caller = this,
-    executableName = "internal",
-    arguments = listOf(blockchain, sender, body, value, bounce, bounced, ihrDisabled, ihrFee, forwardFee, createdLt, createdAt),
-    async = true,
-    type = TsSendMessageResult
-)
+    createdAt: TsExpression<TsInt>
+): TsExpression<TsSendMessageResult> =
+    TsMethodCall(
+        caller = this,
+        executableName = "internal",
+        arguments =
+            listOf(
+                blockchain,
+                sender,
+                body,
+                value,
+                bounce,
+                bounced,
+                ihrDisabled,
+                ihrFee,
+                forwardFee,
+                createdLt,
+                createdAt
+            ),
+        async = true,
+        type = TsSendMessageResult
+    )
 
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.external(
     blockchain: TsExpression<TsBlockchain>,
-    body: TsExpression<TsCell>,
-): TsExpression<TsSendMessageResult> = TsMethodCall(
-    caller = this,
-    executableName = "external",
-    arguments = listOf(blockchain, body),
-    async = true,
-    type = TsSendMessageResult
-)
+    body: TsExpression<TsCell>
+): TsExpression<TsSendMessageResult> =
+    TsMethodCall(
+        caller = this,
+        executableName = "external",
+        arguments = listOf(blockchain, body),
+        async = true,
+        type = TsSendMessageResult
+    )
 
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.initializeContract(
     blockchain: TsExpression<TsBlockchain>,
     balance: TsExpression<TsBigint>
-): TsExpression<TsVoid> = TsMethodCall(
-    caller = this,
-    executableName = "initializeContract",
-    arguments = listOf(blockchain, balance),
-    async = true,
-    type = TsVoid
-)
+): TsExpression<TsVoid> =
+    TsMethodCall(
+        caller = this,
+        executableName = "initializeContract",
+        arguments = listOf(blockchain, balance),
+        async = true,
+        type = TsVoid
+    )

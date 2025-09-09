@@ -1,29 +1,29 @@
 package org.usvm.machine
 
 import org.ton.bytecode.MethodId
-import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.TvmArtificialInst
+import org.ton.bytecode.TvmContDictCalldictInst
+import org.ton.bytecode.TvmContDictCalldictLongInst
+import org.ton.bytecode.TvmContDictJmpdictInst
+import org.ton.bytecode.TvmContDictPreparedictInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmInstMethodLocation
+import org.ton.bytecode.TvmMainMethod
 import org.ton.bytecode.TvmMainMethodLocation
 import org.ton.bytecode.TvmMethod
+import org.ton.bytecode.flattenStatements
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
 import org.usvm.statistics.UMachineObserver
 import java.util.Collections.newSetFromMap
 import java.util.IdentityHashMap
-import org.ton.bytecode.TvmContDictCalldictInst
-import org.ton.bytecode.TvmContDictCalldictLongInst
-import org.ton.bytecode.TvmContDictJmpdictInst
-import org.ton.bytecode.TvmContDictPreparedictInst
-import org.ton.bytecode.TvmMainMethod
-import org.ton.bytecode.flattenStatements
 
 // Tracks coverage of all visited statements for all visited methods from all states.
 // Note that one instance should be used only one per method.
 class TvmCoverageStatistics(
     private val observedContractId: ContractId,
-    private val mainMethod: TvmMainMethod,
+    private val mainMethod: TvmMainMethod
 ) : UMachineObserver<TvmState> {
     private val coveredStatements: MutableSet<TvmInst> = newSetFromMap(IdentityHashMap())
     private val reachableMethods: MutableSet<TvmMethod> = hashSetOf()
@@ -32,8 +32,9 @@ class TvmCoverageStatistics(
     private var wasC3Changed: Boolean = false
 
     fun getMethodCoveragePercents(methodId: MethodId): Float? {
-        val method = reachableMethods.firstOrNull { it.id == methodId }
-            ?: return null
+        val method =
+            reachableMethods.firstOrNull { it.id == methodId }
+                ?: return null
 
         val methodStatements = getMethodStatements(method)
         val coveredMethodStatements = methodStatements.count { it in coveredStatements }
@@ -60,7 +61,10 @@ class TvmCoverageStatistics(
         return computeCoveragePercents(coveredStatements.size, allStatements.size)
     }
 
-    private fun computeCoveragePercents(covered: Int, all: Int): Float {
+    private fun computeCoveragePercents(
+        covered: Int,
+        all: Int
+    ): Float {
         if (all == 0) {
             return 100f
         }
@@ -73,7 +77,10 @@ class TvmCoverageStatistics(
             method.instList.flattenStatements()
         }
 
-    private fun addReachableMethod(methodId: MethodId, currentCode: TsaContractCode) {
+    private fun addReachableMethod(
+        methodId: MethodId,
+        currentCode: TsaContractCode
+    ) {
         if (reachableMethods.any { it.id == methodId }) {
             return
         }
@@ -82,8 +89,9 @@ class TvmCoverageStatistics(
 
         while (methodsToVisit.isNotEmpty()) {
             val curId = methodsToVisit.removeLast()
-            val method = currentCode.methods[curId]
-                ?: continue
+            val method =
+                currentCode.methods[curId]
+                    ?: continue
 
             if (!reachableMethods.add(method)) {
                 continue

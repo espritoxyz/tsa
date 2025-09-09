@@ -24,22 +24,25 @@ class SortTest {
         val checkerPath = getResourcePath<SortTest>(checkerResourcePath)
         val checkerCode = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
 
-        val options = TvmOptions(
-            intercontractOptions = IntercontractOptions(communicationScheme = null),
-            turnOnTLBParsingChecks = false,
-        )
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = null),
+                turnOnTLBParsingChecks = false
+            )
 
         val contracts = listOf(checkerCode, sortContractCode)
-        val result = analyzeInterContract(
-            contracts,
-            startContractId = 0, // Checker contract is the first to analyze
-            methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            options = options,
-        )
+        val result =
+            analyzeInterContract(
+                contracts,
+                startContractId = 0, // Checker contract is the first to analyze
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options
+            )
 
-        val failure = result.tests.single {
-            (it.result as? TvmMethodFailure)?.failure?.exit?.exitCode == 256
-        }
+        val failure =
+            result.tests.single {
+                (it.result as? TvmMethodFailure)?.failure?.exit?.exitCode == 256
+            }
         val firstValue = failure.fetchedValues[0] as TvmTestIntegerValue
         val secondValue = failure.fetchedValues[1] as TvmTestIntegerValue
 

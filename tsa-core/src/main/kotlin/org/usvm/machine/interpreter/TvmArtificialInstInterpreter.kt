@@ -13,13 +13,13 @@ import org.ton.bytecode.TvmArtificialInst
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.TvmCommitedState
+import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.TvmPhase.ACTION_PHASE
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.EXIT_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
-import org.usvm.machine.state.TvmCommitedState
-import org.usvm.machine.state.TvmMethodResult
-import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.callContinuation
@@ -41,9 +41,12 @@ class TvmArtificialInstInterpreter(
     val ctx: TvmContext,
     private val contractsCode: List<TsaContractCode>,
     private val transactionInterpreter: TvmTransactionInterpreter,
-    private val checkerFunctionsInterpreter: TsaCheckerFunctionsInterpreter,
+    private val checkerFunctionsInterpreter: TsaCheckerFunctionsInterpreter
 ) {
-    fun visit(scope: TvmStepScopeManager, stmt: TvmArtificialInst) {
+    fun visit(
+        scope: TvmStepScopeManager,
+        stmt: TvmArtificialInst
+    ) {
         check(stmt is TsaArtificialInst) {
             "Unexpected artificial instruction: $stmt"
         }
@@ -85,10 +88,14 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun visitActionPhaseInst(scope: TvmStepScopeManager, stmt: TsaArtificialActionPhaseInst) {
-        val commitedState = scope.calcOnState {
-            lastCommitedStateOfContracts[currentContract]
-        }
+    private fun visitActionPhaseInst(
+        scope: TvmStepScopeManager,
+        stmt: TsaArtificialActionPhaseInst
+    ) {
+        val commitedState =
+            scope.calcOnState {
+                lastCommitedStateOfContracts[currentContract]
+            }
 
         val analysisOfGetMethod = scope.calcOnState { analysisOfGetMethod }
 
@@ -106,7 +113,10 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun visitExitInst(scope: TvmStepScopeManager, stmt: TsaArtificialExitInst) {
+    private fun visitExitInst(
+        scope: TvmStepScopeManager,
+        stmt: TsaArtificialExitInst
+    ) {
         scope.doWithStateCtx {
             phase = EXIT_PHASE
 
@@ -118,7 +128,10 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun processIntercontractExit(scope: TvmStepScopeManager, result: TvmMethodResult) {
+    private fun processIntercontractExit(
+        scope: TvmStepScopeManager,
+        result: TvmMethodResult
+    ) {
         scope.doWithState {
             require(!messageQueue.isEmpty()) {
                 "Unexpected empty message queue during processing inter-contract exit"
@@ -129,8 +142,10 @@ class TvmArtificialInstInterpreter(
             // TODO stop at failure state or at state without commitedState
             if (analysisOfGetMethod ||
                 commitedState == null ||
-                result is TvmFailure && result.phase == ACTION_PHASE ||
-                result is TvmMethodResult.TvmAbstractSoftFailure && result.phase == ACTION_PHASE
+                result is TvmFailure &&
+                result.phase == ACTION_PHASE ||
+                result is TvmMethodResult.TvmAbstractSoftFailure &&
+                result.phase == ACTION_PHASE
             ) {
                 phase = TERMINATED
                 methodResult = result
@@ -140,8 +155,9 @@ class TvmArtificialInstInterpreter(
             contractEpilogue()
 
             val (nextContract, message) = messageQueue.first()
-            val nextContractCode = contractsCode.getOrNull(nextContract)
-                ?: error("Contract with id $nextContract was not found")
+            val nextContractCode =
+                contractsCode.getOrNull(nextContract)
+                    ?: error("Contract with id $nextContract was not found")
 
             messageQueue = messageQueue.removeAt(0)
             intercontractPath = intercontractPath.add(nextContract)
@@ -149,20 +165,22 @@ class TvmArtificialInstInterpreter(
             val prevStack = stack
             // Update current contract to the next contract
             currentContract = nextContract
-            val newMemory = initializeContractExecutionMemory(
-                contractsCode,
-                this,
-                currentContract,
-                allowInputStackValues = false,
-                newMsgValue = message.msgValue,
-            )
+            val newMemory =
+                initializeContractExecutionMemory(
+                    contractsCode,
+                    this,
+                    currentContract,
+                    allowInputStackValues = false,
+                    newMsgValue = message.msgValue
+                )
             stack = newMemory.stack
             stack.copyInputValues(prevStack)
             registersOfCurrentContract = newMemory.registers
 
             // TODO update balance using message value
-            val balance = getBalance()
-                ?: error("Unexpected incorrect config balance value")
+            val balance =
+                getBalance()
+                    ?: error("Unexpected incorrect config balance value")
 
             stack.addInt(balance)
             stack.addInt(message.msgValue)
@@ -179,7 +197,7 @@ class TvmArtificialInstInterpreter(
 
     private fun processNewMessages(
         scope: TvmStepScopeManager,
-        commitedState: TvmCommitedState,
+        commitedState: TvmCommitedState
     ): Unit? {
         val (newUnprocessedMessages, messageDestinations) =
             transactionInterpreter.parseActionsToDestinations(scope, commitedState)
@@ -193,7 +211,10 @@ class TvmArtificialInstInterpreter(
         return Unit
     }
 
-    private fun processCheckerExit(scope: TvmStepScopeManager, result: TvmMethodResult) {
+    private fun processCheckerExit(
+        scope: TvmStepScopeManager,
+        result: TvmMethodResult
+    ) {
         scope.doWithState {
             // TODO: case of committed state of TvmFailure
             if (result !is TvmMethodResult.TvmSuccess || contractStack.isEmpty()) {
@@ -215,9 +236,13 @@ class TvmArtificialInstInterpreter(
             currentContract = prevContractId
 
             val prevStack = prevMem.stack
-            stack = prevStack.clone()  // we should not touch stack from contractStack, as it is contained in other states
+
+            // we should not touch stack from contractStack, as it is contained in other states
+            stack = prevStack.clone()
             stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
-            registersOfCurrentContract = prevMem.registers.clone()  // like for stack, we shouldn't touch registers
+
+            // like for stack, we shouldn't touch registers
+            registersOfCurrentContract = prevMem.registers.clone()
 
             phase = COMPUTE_PHASE
             newStmt(prevInst.nextStmt())

@@ -12,7 +12,7 @@ import org.ton.TlbStructure.Unknown
 fun calculatePossibleSwitchVariants(
     maxTlbDepth: Int,
     switches: Collection<SwitchPrefix>,
-    minTlbDepths: Map<TlbCompositeLabel, Int>,
+    minTlbDepths: Map<TlbCompositeLabel, Int>
 ): List<Map<SwitchPrefix, List<SwitchVariant>>> =
     calculateMapsByTlbDepth(maxTlbDepth, switches) { switch, curDepth, _ ->
         getPossibleSwitchVariantsForGivenDepth(curDepth, switch, minTlbDepths)
@@ -21,12 +21,13 @@ fun calculatePossibleSwitchVariants(
 private fun getPossibleSwitchVariantsForGivenDepth(
     tlbDepth: Int,
     switch: SwitchPrefix,
-    minTlbDepths: Map<TlbCompositeLabel, Int>,
+    minTlbDepths: Map<TlbCompositeLabel, Int>
 ): List<SwitchVariant> =
     switch.variants.filter { (_, variant) ->
         constructionIsPossible(variant) {
-            val minDepth = minTlbDepths[it]
-                ?: error("minTlbDepth must be known for $it, but it is not")
+            val minDepth =
+                minTlbDepths[it]
+                    ?: error("minTlbDepth must be known for $it, but it is not")
             minDepth <= tlbDepth - 1
         }
     }

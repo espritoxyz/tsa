@@ -9,7 +9,7 @@ fun TvmMethod.addReturnStmt(): TvmMethod {
     instListNew.add(retStmt)
     return TvmMethod(
         id = id,
-        instListRaw = instListNew,
+        instListRaw = instListNew
     ).also {
         retStmt.location.codeBlock = it
     }
@@ -23,7 +23,7 @@ fun TvmMainMethod.addReturnStmt(): TvmMainMethod {
     val instListNew = instList.toMutableList()
     instListNew.add(retStmt)
     return TvmMainMethod(
-        instListRaw = instListNew,
+        instListRaw = instListNew
     ).also {
         retStmt.location.codeBlock = it
     }
@@ -32,7 +32,8 @@ fun TvmMainMethod.addReturnStmt(): TvmMainMethod {
 // An artificial entity representing instructions in continuation
 data class TvmLambda(
     private val instListRaw: MutableList<TvmInst>,
-    private val givenParent: TvmInst? = null  // must be given if lambda is empty
+    // must be given if lambda is empty
+    private val givenParent: TvmInst? = null
 ) : TvmCodeBlock() {
     override val instList: List<TvmInst>
         get() = instListRaw
@@ -51,11 +52,12 @@ data class TvmLambda(
             val lastStmt = instList.last()
             return TsaArtificialImplicitRetInst(lastStmt.location.increment())
         } else {
-            val loc = TvmInstLambdaLocation(0).also {
-                it.parent = givenParent?.location
-                    ?: error("Parent must be given if TvmLambda is empty")
-                it.codeBlock = this
-            }
+            val loc =
+                TvmInstLambdaLocation(0).also {
+                    it.parent = givenParent?.location
+                        ?: error("Parent must be given if TvmLambda is empty")
+                    it.codeBlock = this
+                }
             return TsaArtificialImplicitRetInst(loc)
         }
     }

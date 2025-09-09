@@ -21,7 +21,7 @@ import org.usvm.uctx
 class TvmStepScopeManager(
     private val originalState: TvmState,
     private val forkBlackList: UForkBlackList<TvmState, TvmInst>,
-    val allowFailuresOnCurrentStep: Boolean,
+    val allowFailuresOnCurrentStep: Boolean
 ) {
     private val forkedStates = mutableListOf<TvmState>()
     private val scope: TvmStepScope = TvmStepScope(originalState, forkBlackList, forkedStates)
@@ -54,7 +54,7 @@ class TvmStepScopeManager(
         constraint: UBoolExpr,
         satBlock: TvmState.() -> Unit = {},
         unsatBlock: TvmState.() -> Unit = {},
-        unknownBlock: TvmState.() -> Unit = {},
+        unknownBlock: TvmState.() -> Unit = {}
     ) = scope.assert(constraint, satBlock, unsatBlock, unknownBlock)
 
     val ctx: TvmContext
@@ -63,13 +63,15 @@ class TvmStepScopeManager(
     fun stepResult(): StepResult<TvmState> {
         val originalStepResult = scope.stepResult()
 
-        val originalStateAlive = originalStepResult.originalStateAlive &&
+        val originalStateAlive =
+            originalStepResult.originalStateAlive &&
                 (allowFailuresOnCurrentStep || !originalState.isExceptional)
-        val resultingForkedStates = if (allowFailuresOnCurrentStep) {
-            originalStepResult.forkedStates
-        } else {
-            originalStepResult.forkedStates.filter { !it.isExceptional }
-        }
+        val resultingForkedStates =
+            if (allowFailuresOnCurrentStep) {
+                originalStepResult.forkedStates
+            } else {
+                originalStepResult.forkedStates.filter { !it.isExceptional }
+            }
         return StepResult(resultingForkedStates, originalStateAlive)
     }
 
@@ -77,7 +79,7 @@ class TvmStepScopeManager(
         condition: UBoolExpr,
         falseStateIsExceptional: Boolean,
         blockOnTrueState: TvmState.() -> Unit = {},
-        blockOnFalseState: TvmState.() -> Unit = {},
+        blockOnFalseState: TvmState.() -> Unit = {}
     ): Unit? {
         if (falseStateIsExceptional && !allowFailuresOnCurrentStep && originalState.c2IsDefault()) {
             return assert(condition)?.run {
@@ -97,7 +99,7 @@ class TvmStepScopeManager(
                 }
                 check(isExceptional == falseStateIsExceptional) {
                     "`falseStateIsExceptional` parameter in fork was wrong. " +
-                            "Set value: $falseStateIsExceptional, but actual is $isExceptional"
+                        "Set value: $falseStateIsExceptional, but actual is $isExceptional"
                 }
             }
         }
@@ -107,7 +109,7 @@ class TvmStepScopeManager(
         condition: UBoolExpr,
         blockOnUnknownTrueState: TvmState.() -> Unit = {},
         blockOnUnsatTrueState: TvmState.() -> Unit = {},
-        blockOnFalseState: TvmState.() -> Unit = {},
+        blockOnFalseState: TvmState.() -> Unit = {}
     ): Unit? {
         check(allowFailuresOnCurrentStep) {
             "[forkWithCheckerStatusKnowledge] should be called only with allowFailuresOnCurrentStep=true, but now it is false."
@@ -124,7 +126,7 @@ class TvmStepScopeManager(
         condition: UBoolExpr,
         blockOnUnknownFalseState: TvmState.() -> Unit = {},
         blockOnUnsatFalseState: TvmState.() -> Unit = {},
-        blockOnFalseState: TvmState.() -> Unit = {},
+        blockOnFalseState: TvmState.() -> Unit = {}
     ): Unit? {
         check(allowFailuresOnCurrentStep) {
             "[forkWithCheckerStatusKnowledgeOnFalseState] should be called only with allowFailuresOnCurrentStep=true, but now it is false."
@@ -140,13 +142,14 @@ class TvmStepScopeManager(
     // TODO docs
     fun <T> doWithConditions(
         givenConditionsWithActions: List<ActionOnCondition<T>>,
-        doForAllBlock: TvmStepScopeManager.(T) -> Unit,
+        doForAllBlock: TvmStepScopeManager.(T) -> Unit
     ) {
-        val conditionsWithActions = if (!allowFailuresOnCurrentStep && originalState.c2IsDefault()) {
-            givenConditionsWithActions.filter { !it.caseIsExceptional }
-        } else {
-            givenConditionsWithActions
-        }
+        val conditionsWithActions =
+            if (!allowFailuresOnCurrentStep && originalState.c2IsDefault()) {
+                givenConditionsWithActions.filter { !it.caseIsExceptional }
+            } else {
+                givenConditionsWithActions
+            }
 
         val states = ctx.statesForkProvider.forkMulti(originalState, conditionsWithActions.map { it.condition })
         if (!doNotKillScopeOnDoWithConditions) {
@@ -162,8 +165,8 @@ class TvmStepScopeManager(
                         "c2 register was changed in forked state handler"
                     }
                     check(state.isExceptional == action.caseIsExceptional) {
-                        "action under condition ${action.condition} expected exceptional status: ${action.caseIsExceptional}, " +
-                                "but actual one is: ${state.isExceptional}."
+                        "action under condition ${action.condition} expected exceptional status:" +
+                            " ${action.caseIsExceptional}, but actual one is: ${state.isExceptional}."
                     }
                 }
 
@@ -196,7 +199,7 @@ class TvmStepScopeManager(
         val action: TvmState.() -> Unit,
         val caseIsExceptional: Boolean,
         val condition: UBoolExpr,
-        val paramForDoForAllBlock: T,
+        val paramForDoForAllBlock: T
     )
 
     /**
@@ -234,9 +237,7 @@ class TvmStepScopeManager(
         /**
          * @return forked states and the status of initial state.
          */
-        fun stepResult(): StepResult<TvmState> {
-            return StepResult(forkedStates.asSequence(), alive)
-        }
+        fun stepResult(): StepResult<TvmState> = StepResult(forkedStates.asSequence(), alive)
 
         inline val isDead: Boolean get() = stepScopeState === DEAD
         inline val canBeProcessed: Boolean get() = stepScopeState == CAN_BE_PROCESSED
@@ -272,11 +273,15 @@ class TvmStepScopeManager(
         inline fun fork(
             condition: UBoolExpr,
             blockOnTrueState: TvmState.() -> Unit = {},
-            blockOnFalseState: TvmState.() -> Unit = {},
+            blockOnFalseState: TvmState.() -> Unit = {}
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
-            return forkWithCheckerStatusKnowledge(condition, blockOnTrueState = blockOnTrueState, blockOnFalseState = blockOnFalseState)
+            return forkWithCheckerStatusKnowledge(
+                condition,
+                blockOnTrueState = blockOnTrueState,
+                blockOnFalseState = blockOnFalseState
+            )
         }
 
         // TODO: I don't like this implementation, but that was the fastest way to do it without patching usvm
@@ -287,7 +292,7 @@ class TvmStepScopeManager(
             blockOnTrueState: TvmState.() -> Unit = {},
             blockOnUnknownFalseState: TvmState.() -> Unit = {},
             blockOnUnsatFalseState: TvmState.() -> Unit = {},
-            blockOnFalseState: TvmState.() -> Unit = {},
+            blockOnFalseState: TvmState.() -> Unit = {}
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -306,26 +311,26 @@ class TvmStepScopeManager(
                 },
                 satBlock = blockOnTrueState
             ) ?: run {
-                    /**
-                     * Hack: change [stepScopeState] to make assert with opposite constraint possible.
-                     *
-                     * If we got here, it means that [condition] was UNSAT or UNKNOWN,
-                     * and that means that the original model in [originalState] did not satisfy [condition],
-                     * and that means that asserting opposite constraint might result only in SAT.
-                     * */
-                    stepScopeState = CAN_BE_PROCESSED
-                    assert(ctx.mkNot(condition), satBlock = blockOnFalseState)
-                        ?: error("Unexpected assert result on negation of $condition")
+                /**
+                 * Hack: change [stepScopeState] to make assert with opposite constraint possible.
+                 *
+                 * If we got here, it means that [condition] was UNSAT or UNKNOWN,
+                 * and that means that the original model in [originalState] did not satisfy [condition],
+                 * and that means that asserting opposite constraint might result only in SAT.
+                 * */
+                stepScopeState = CAN_BE_PROCESSED
+                assert(ctx.mkNot(condition), satBlock = blockOnFalseState)
+                    ?: error("Unexpected assert result on negation of $condition")
 
-                    // fix current step scope
-                    stepScopeState = CANNOT_BE_PROCESSED
+                // fix current step scope
+                stepScopeState = CANNOT_BE_PROCESSED
 
-                    if (unknownHappened) {
-                        originalState.forkPoints += possibleForkPoint
-                    }
-
-                    return null
+                if (unknownHappened) {
+                    originalState.forkPoints += possibleForkPoint
                 }
+
+                return null
+            }
 
             val clonedStepScope = TvmStepScope(clonedState, forkBlackList)
 
@@ -336,7 +341,7 @@ class TvmStepScopeManager(
                     unknownHappened = true
                     blockOnUnknownFalseState()
                 },
-                unsatBlock = blockOnUnsatFalseState,
+                unsatBlock = blockOnUnsatFalseState
             )
             if (clonedStepScope.alive) {
                 val newState = clonedStepScope.originalState
@@ -376,11 +381,12 @@ class TvmStepScopeManager(
 
             val conditionStates = ctx.statesForkProvider.forkMulti(originalState, conditions)
 
-            val forkedStates = conditionStates.mapIndexedNotNull { idx, positiveState ->
-                val block = conditionsWithBlockOnStates[idx].second
+            val forkedStates =
+                conditionStates.mapIndexedNotNull { idx, positiveState ->
+                    val block = conditionsWithBlockOnStates[idx].second
 
-                positiveState?.apply(block)
-            }
+                    positiveState?.apply(block)
+                }
 
             stepScopeState = CANNOT_BE_PROCESSED
             if (forkedStates.isEmpty()) {
@@ -405,14 +411,15 @@ class TvmStepScopeManager(
             constraint: UBoolExpr,
             satBlock: TvmState.() -> Unit = {},
             unsatBlock: TvmState.() -> Unit = {},
-            unknownBlock: TvmState.() -> Unit = {},
-        ): Unit? = assert(
-            constraint,
-            registerForkPoint = false,
-            satBlock,
-            unsatBlock,
-            unknownBlock
-        )
+            unknownBlock: TvmState.() -> Unit = {}
+        ): Unit? =
+            assert(
+                constraint,
+                registerForkPoint = false,
+                satBlock,
+                unsatBlock,
+                unknownBlock
+            )
 
         /**
          * @param registerForkPoint register a fork point if assert was successful.
@@ -423,7 +430,7 @@ class TvmStepScopeManager(
             registerForkPoint: Boolean,
             satBlock: TvmState.() -> Unit = {},
             unsatBlock: TvmState.() -> Unit = {},
-            unknownBlock: TvmState.() -> Unit = {},
+            unknownBlock: TvmState.() -> Unit = {}
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -503,7 +510,7 @@ class TvmStepScopeManager(
             trueStmt: TvmInst,
             falseStmt: TvmInst,
             blockOnTrueState: TvmState.() -> Unit = {},
-            blockOnFalseState: TvmState.() -> Unit = {},
+            blockOnFalseState: TvmState.() -> Unit = {}
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -537,13 +544,14 @@ class TvmStepScopeManager(
         fun forkMultiWithBlackList(forkCases: List<ForkCase<TvmState, TvmInst>>) {
             check(canProcessFurtherOnCurrentStep)
 
-            val filteredConditionsWithBlockOnStates = forkCases
-                .mapNotNull { case ->
-                    if (!forkBlackList.shouldForkTo(originalState, case.stmt)) {
-                        return@mapNotNull null
+            val filteredConditionsWithBlockOnStates =
+                forkCases
+                    .mapNotNull { case ->
+                        if (!forkBlackList.shouldForkTo(originalState, case.stmt)) {
+                            return@mapNotNull null
+                        }
+                        case.condition to case.block
                     }
-                    case.condition to case.block
-                }
 
             if (filteredConditionsWithBlockOnStates.isEmpty()) {
                 stepScopeState = DEAD
@@ -592,15 +600,17 @@ class TvmStepScopeManager(
              * Cannot be processed further with any actions.
              */
             DEAD,
+
             /**
              * Cannot be forked or asserted using [forkWithBlackList], [forkMultiWithBlackList] or [assert],
              * but is considered as alive from the Machine's point of view.
              */
             CANNOT_BE_PROCESSED,
+
             /**
              * Can be forked using [forkWithBlackList] or [forkMultiWithBlackList] and asserted using [assert].
              */
-            CAN_BE_PROCESSED;
+            CAN_BE_PROCESSED
         }
 
         private inline val UBoolExpr.isConcrete get() = isTrue || isFalse

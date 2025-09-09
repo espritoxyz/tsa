@@ -30,29 +30,41 @@ class Bv2IntExprFilter(
     ctx: KContext,
     private val excludeNonConstShift: Boolean = true,
     private val excludeNonConstBvand: Boolean = true,
-    private val excludeNonlinearArith: Boolean = false,
+    private val excludeNonlinearArith: Boolean = false
 ) : KNonRecursiveVisitor<Boolean>(ctx) {
+    private inline fun filter(
+        enabled: Boolean,
+        body: () -> Boolean
+    ): Boolean = if (enabled) body() else true
 
-    private inline fun filter(enabled: Boolean, body: () -> Boolean): Boolean = if (enabled) body() else true
-
-    private fun filterNonConstBitwiseOp(lhs: KExpr<*>, rhs: KExpr<*>) = filter(excludeNonConstBvand) {
+    private fun filterNonConstBitwiseOp(
+        lhs: KExpr<*>,
+        rhs: KExpr<*>
+    ) = filter(excludeNonConstBvand) {
         lhs is KInterpretedValue || rhs is KInterpretedValue
     }
 
     @Suppress("UnusedPrivateMember")
-    private fun filterNonConstShift(arg: KExpr<*>, shift: KExpr<*>) = filter(excludeNonConstShift) {
+    private fun filterNonConstShift(
+        arg: KExpr<*>,
+        shift: KExpr<*>
+    ) = filter(excludeNonConstShift) {
         shift is KInterpretedValue
     }
 
-    private fun filterNonlinearArith(lhs: KExpr<*>, rhs: KExpr<*>) = filter(excludeNonlinearArith) {
+    private fun filterNonlinearArith(
+        lhs: KExpr<*>,
+        rhs: KExpr<*>
+    ) = filter(excludeNonlinearArith) {
         lhs is KInterpretedValue || rhs is KInterpretedValue
     }
 
-    override fun <T : KSort> defaultValue(expr: KExpr<T>): Boolean {
-        return true
-    }
+    override fun <T : KSort> defaultValue(expr: KExpr<T>): Boolean = true
 
-    override fun mergeResults(left: Boolean, right: Boolean): Boolean = left && right
+    override fun mergeResults(
+        left: Boolean,
+        right: Boolean
+    ): Boolean = left && right
 
     override fun <T : KBvSort> visit(expr: KBvAndExpr<T>): KExprVisitResult<Boolean> {
         if (!filterNonConstBitwiseOp(expr.arg0, expr.arg1)) return saveVisitResult(expr, false)

@@ -21,10 +21,11 @@ class TypeVariantsExample {
     fun testVariants() {
         val resourcePath = extractResource(path)
 
-        val result = funcCompileAndAnalyzeAllMethods(
-            resourcePath,
-            tvmOptions = testOptionsToAnalyzeSpecificMethod
-        )
+        val result =
+            funcCompileAndAnalyzeAllMethods(
+                resourcePath,
+                tvmOptions = testOptionsToAnalyzeSpecificMethod
+            )
         assertEquals(1, result.testSuites.size)
         val testSuite = result.testSuites.first()
 
@@ -45,7 +46,9 @@ class TypeVariantsExample {
         propertiesFound(
             testSuite,
             listOf(
-                generatePredicate1(listOf(TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0))),
+                generatePredicate1(
+                    listOf(TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0))
+                ),
                 generatePredicate1(
                     listOf(
                         TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0),

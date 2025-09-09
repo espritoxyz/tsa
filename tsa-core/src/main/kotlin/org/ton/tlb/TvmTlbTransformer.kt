@@ -20,19 +20,20 @@ import org.ton.TvmParameterInfo.DataCellInfo
 
 class TvmTlbTransformer(
     definitions: List<TvmTlbTypeDefinition>,
-    private val onlyBasicAddresses: Boolean = false,
+    private val onlyBasicAddresses: Boolean = false
 ) {
     private val typeDefinitions = definitions.associateBy { it.id }
     private val transformed = hashMapOf<Pair<TvmTlbTypeDefinition, List<TvmTlbTypeExpr>>, TlbLabel>()
     private val cellTypeId = definitions.first { it.name == "Cell" }.id
     private val anyTypeId = definitions.first { it.name == "Any" }.id
 
-    private fun getTypeDef(id: Int): TvmTlbTypeDefinition = typeDefinitions[id]
-        ?: error("Unknown type id: $id")
+    private fun getTypeDef(id: Int): TvmTlbTypeDefinition =
+        typeDefinitions[id]
+            ?: error("Unknown type id: $id")
 
     fun transformTypeDefinition(
         def: TvmTlbTypeDefinition,
-        args: List<TvmTlbTypeExpr> = emptyList(),
+        args: List<TvmTlbTypeExpr> = emptyList()
     ): TlbLabel? {
         return transformed.getOrPut(def to args) {
             if (def.isBuiltin) {
@@ -43,15 +44,14 @@ class TvmTlbTransformer(
         }
     }
 
-    private fun sequenceOfExprsHasAny(
-        sequence: Iterable<TvmTlbTypeExpr>
-    ): Boolean = sequence.any {
-        it is TvmTlbType && it.id in listOf(cellTypeId, anyTypeId)
-    }
+    private fun sequenceOfExprsHasAny(sequence: Iterable<TvmTlbTypeExpr>): Boolean =
+        sequence.any {
+            it is TvmTlbType && it.id in listOf(cellTypeId, anyTypeId)
+        }
 
     private fun transformBuiltins(
         def: TvmTlbTypeDefinition,
-        args: List<TvmTlbTypeExpr>,
+        args: List<TvmTlbTypeExpr>
     ): TlbLabel? {
         val name = def.name
 
@@ -78,7 +78,7 @@ class TvmTlbTransformer(
 
     private fun transformComplexType(
         def: TvmTlbTypeDefinition,
-        args: List<TvmTlbTypeExpr>,
+        args: List<TvmTlbTypeExpr>
     ): TlbLabel {
         // special cases
         when (def.name) {
@@ -95,36 +95,37 @@ class TvmTlbTransformer(
                     else -> {
                         val label = TlbCompositeLabel("Maybe")
                         val (internal, hasAny) = transformSequenceOfExprs(listOf(arg), label)
-                        val structure = SwitchPrefix(
-                            id = TlbStructureIdProvider.provideId(),
-                            switchSize = 1,
-                            mapOf(
-                                "0" to Empty,
-                                "1" to internal
-                            ),
-                            owner = label,
-                        )
+                        val structure =
+                            SwitchPrefix(
+                                id = TlbStructureIdProvider.provideId(),
+                                switchSize = 1,
+                                mapOf(
+                                    "0" to Empty,
+                                    "1" to internal
+                                ),
+                                owner = label
+                            )
                         label.internalStructure = structure
                         label.definitelyHasAny = hasAny
                         return label
                     }
                 }
-
             }
             "Either" -> {
                 require(args.size == 2)
                 val label = TlbCompositeLabel("Either")
                 val (left, leftHasAny) = transformSequenceOfExprs(listOf(args[0]), label)
                 val (right, rightHasAny) = transformSequenceOfExprs(listOf(args[1]), label)
-                val structure = SwitchPrefix(
-                    id = TlbStructureIdProvider.provideId(),
-                    switchSize = 1,
-                    mapOf(
-                        "0" to left,
-                        "1" to right
-                    ),
-                    owner = label,
-                )
+                val structure =
+                    SwitchPrefix(
+                        id = TlbStructureIdProvider.provideId(),
+                        switchSize = 1,
+                        mapOf(
+                            "0" to left,
+                            "1" to right
+                        ),
+                        owner = label
+                    )
                 label.internalStructure = structure
                 label.definitelyHasAny = leftHasAny || rightHasAny
                 return label
@@ -132,7 +133,7 @@ class TvmTlbTransformer(
             "MsgAddress" -> {
                 return if (onlyBasicAddresses) TlbBasicMsgAddrLabel else TlbFullMsgAddrLabel
             }
-            "Grams", "Coins" -> {  // TODO: add variant for `VarUInteger`
+            "Grams", "Coins" -> { // TODO: add variant for `VarUInteger`
                 return TlbCoinsLabel
             }
         }
@@ -141,17 +142,19 @@ class TvmTlbTransformer(
             TODO()
         }
 
-        val someConstructorHasAny = def.constructors.any { c ->
-            val typeExprs = c.fields.map { it.typeExpr }
-            sequenceOfExprsHasAny(typeExprs)
-        }
+        val someConstructorHasAny =
+            def.constructors.any { c ->
+                val typeExprs = c.fields.map { it.typeExpr }
+                sequenceOfExprsHasAny(typeExprs)
+            }
         if (someConstructorHasAny) {
             // this one must not be recursive (if it is, it will lead to infinite recursion)
             val result = TlbCompositeLabel(def.name)
-            val structure = transformConstructors(
-                def.constructors.map { ConstructorTagSuffix(it, it.tag) },
-                owner = result,
-            )
+            val structure =
+                transformConstructors(
+                    def.constructors.map { ConstructorTagSuffix(it, it.tag) },
+                    owner = result
+                )
             result.internalStructure = structure
             result.definitelyHasAny = true
             return result
@@ -161,17 +164,18 @@ class TvmTlbTransformer(
             name = def.name
         ).also { label ->
             transformed[def to args] = label
-            val structure = transformConstructors(
-                def.constructors.map { ConstructorTagSuffix(it, it.tag) },
-                owner = label
-            )
+            val structure =
+                transformConstructors(
+                    def.constructors.map { ConstructorTagSuffix(it, it.tag) },
+                    owner = label
+                )
             label.internalStructure = structure
         }
     }
 
     private fun transformConstructors(
         constructors: List<ConstructorTagSuffix>,
-        owner: TlbCompositeLabel,
+        owner: TlbCompositeLabel
     ): TlbStructure {
         if (constructors.size == 1 && constructors.single().tagSuffix.isEmpty()) {
             return transformConstructor(constructors.single().constructor, owner)
@@ -193,52 +197,60 @@ class TvmTlbTransformer(
             id = TlbStructureIdProvider.provideId(),
             minLen,
             variants,
-            owner,
+            owner
         )
     }
 
     private fun transformSequenceOfExprs(
         sequence: List<TvmTlbTypeExpr>,
-        owner: TlbCompositeLabel,
+        owner: TlbCompositeLabel
     ): Pair<TlbStructure, Boolean> {
         var last: TlbStructure = Empty
         var foundAny = false
         sequence.asReversed().forEach { expr ->
-            last = when (expr) {
-                is TvmTlbReference -> {
-                    val ref = expr.ref
-                    require(ref is TvmTlbType) {
-                        "Unexpected reference: $ref"
-                    }
-
-                    val dataInfo = transformTypeDefinition(getTypeDef(ref.id), ref.args)?.let {
-                        (it as? TlbCompositeLabel)?.let { casted -> DataCellInfo(casted) }
-                            ?: error("Unexpected atomic label in ref: $it")
-                    } ?: TvmParameterInfo.UnknownCellInfo
-
-                    LoadRef(TlbStructureIdProvider.provideId(), dataInfo, last, owner)
-                }
-
-                is TvmTlbType -> {
-                    val typeDef = getTypeDef(expr.id)
-
-                    transformTypeDefinition(typeDef, expr.args)?.let { label ->
-                        // unfold last label, if it has `Any`
-                        if (last is Empty && label is TlbCompositeLabel && label.definitelyHasAny) {
-                            foundAny = true
-                            label.internalStructure
-                        } else {
-                            check(label.arity == 0)
-                            KnownTypePrefix(TlbStructureIdProvider.provideId(), label, typeArgIds = emptyList(), last, owner)
+            last =
+                when (expr) {
+                    is TvmTlbReference -> {
+                        val ref = expr.ref
+                        require(ref is TvmTlbType) {
+                            "Unexpected reference: $ref"
                         }
-                    } ?: let {
-                        foundAny = true
-                        Unknown
-                    }
-                }
 
-                else -> TODO()
-            }
+                        val dataInfo =
+                            transformTypeDefinition(getTypeDef(ref.id), ref.args)?.let {
+                                (it as? TlbCompositeLabel)?.let { casted -> DataCellInfo(casted) }
+                                    ?: error("Unexpected atomic label in ref: $it")
+                            } ?: TvmParameterInfo.UnknownCellInfo
+
+                        LoadRef(TlbStructureIdProvider.provideId(), dataInfo, last, owner)
+                    }
+
+                    is TvmTlbType -> {
+                        val typeDef = getTypeDef(expr.id)
+
+                        transformTypeDefinition(typeDef, expr.args)?.let { label ->
+                            // unfold last label, if it has `Any`
+                            if (last is Empty && label is TlbCompositeLabel && label.definitelyHasAny) {
+                                foundAny = true
+                                label.internalStructure
+                            } else {
+                                check(label.arity == 0)
+                                KnownTypePrefix(
+                                    TlbStructureIdProvider.provideId(),
+                                    label,
+                                    typeArgIds = emptyList(),
+                                    last,
+                                    owner
+                                )
+                            }
+                        } ?: let {
+                            foundAny = true
+                            Unknown
+                        }
+                    }
+
+                    else -> TODO()
+                }
         }
 
         return last to foundAny
@@ -246,7 +258,7 @@ class TvmTlbTransformer(
 
     private fun transformConstructor(
         constructor: TvmTlbTypeConstructor,
-        owner: TlbCompositeLabel,
+        owner: TlbCompositeLabel
     ): TlbStructure {
         val exprs = constructor.fields.map { it.typeExpr }
         return transformSequenceOfExprs(exprs, owner).first
@@ -254,7 +266,7 @@ class TvmTlbTransformer(
 
     private data class ConstructorTagSuffix(
         val constructor: TvmTlbTypeConstructor,
-        var tagSuffix: String,
+        var tagSuffix: String
     )
 
     private fun List<TvmTlbTypeExpr>.toIntConst(): Int =

@@ -9,7 +9,7 @@ data class TsaContractCode(
     val mainMethod: TvmMainMethod,
     val methods: Map<MethodId, TvmMethod>,
     val codeCell: TvmCell,
-    val parentCode: TsaContractCode? = null,
+    val parentCode: TsaContractCode? = null
 ) {
     var isContractWithTSACheckerFunctions: Boolean = false
 
@@ -21,12 +21,22 @@ data class TsaContractCode(
             return construct(tvmContractCode, cell, parentCode = null)
         }
 
-        fun construct(tvmContractCode: TvmContractCode, cell: TvmCell, parentCode: TsaContractCode?): TsaContractCode {
-            val newMethods = tvmContractCode.methods.entries.associate { (key, value) ->
-                key to value.addReturnStmt()
-            }
+        fun construct(
+            tvmContractCode: TvmContractCode,
+            cell: TvmCell,
+            parentCode: TsaContractCode?
+        ): TsaContractCode {
+            val newMethods =
+                tvmContractCode.methods.entries.associate { (key, value) ->
+                    key to value.addReturnStmt()
+                }
             val newMainMethod = tvmContractCode.mainMethod.addReturnStmt()
-            return TsaContractCode(mainMethod = newMainMethod, methods = newMethods, codeCell = cell, parentCode = parentCode)
+            return TsaContractCode(
+                mainMethod = newMainMethod,
+                methods = newMethods,
+                codeCell = cell,
+                parentCode = parentCode
+            )
         }
     }
 }

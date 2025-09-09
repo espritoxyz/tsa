@@ -17,7 +17,11 @@ class OverflowExample {
         val symbolicResult = analyzeAllMethods(bytecodeResourcePath.toString())
         val allTests = symbolicResult.map { it.tests }.flatten()
         val results = allTests.map { it.result }
-        val exceptions = results.mapNotNull { (it as? TvmMethodFailure)?.failure?.exit }.filterIsInstance<TvmIntegerOverflowError>()
+        val exceptions =
+            results
+                .mapNotNull {
+                    (it as? TvmMethodFailure)?.failure?.exit
+                }.filterIsInstance<TvmIntegerOverflowError>()
         assertTrue(exceptions.isNotEmpty(), "Integer overflow was not found!")
     }
 }

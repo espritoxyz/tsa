@@ -1,6 +1,7 @@
 plugins {
     id("tsa.kotlin-conventions")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
+    id("org.jmailen.kotlinter") version Versions.kotlinterPluginVersion
 }
 
 dependencies {
@@ -39,4 +40,11 @@ val pathToSpec = File(rootProject.projectDir, "tvm-spec/cp0.json")
 
 tasks.processResources {
     from(pathToSpec)
+}
+
+tasks.register("formatAndLintAll") {
+    group = "formatting"
+
+    dependsOn(tasks.findByName("formatKotlin"))
+    dependsOn(tasks.findByName("lintKotlin"))
 }

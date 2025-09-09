@@ -23,7 +23,7 @@ import org.usvm.utils.extractAddresses
 class TvmCellDataFieldManager(
     private val ctx: TvmContext,
     private var addressesWithRequestedCellDataField: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
-    private var addressesWithAssertedCellData: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
+    private var addressesWithAssertedCellData: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf()
 ) {
     fun clone(): TvmCellDataFieldManager =
         TvmCellDataFieldManager(
@@ -36,25 +36,42 @@ class TvmCellDataFieldManager(
 
     lateinit var addressToLabelMapper: TvmAddressToLabelMapper
 
-    fun writeCellData(state: TvmState, cellRef: UHeapRef, value: UExpr<TvmContext.TvmCellDataSort>) =
-        writeCellData(state.memory, cellRef, value)
+    fun writeCellData(
+        state: TvmState,
+        cellRef: UHeapRef,
+        value: UExpr<TvmContext.TvmCellDataSort>
+    ) = writeCellData(state.memory, cellRef, value)
 
-    fun writeCellData(memory: UWritableMemory<TvmType>, cellRef: UHeapRef, value: UExpr<TvmContext.TvmCellDataSort>) = with(ctx) {
+    fun writeCellData(
+        memory: UWritableMemory<TvmType>,
+        cellRef: UHeapRef,
+        value: UExpr<TvmContext.TvmCellDataSort>
+    ) = with(ctx) {
         memory.writeField(cellRef, cellDataField, cellDataSort, value, guard = trueExpr)
     }
 
-    fun readCellDataForBuilderOrAllocatedCell(state: TvmState, cellRef: UConcreteHeapRef): UExpr<TvmContext.TvmCellDataSort> = with(ctx) {
-        if (::addressToLabelMapper.isInitialized) {
-            val hasStructuralConstraints = addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(cellRef)
-            check(!hasStructuralConstraints) {
-                "readCellDataForAllocatedCell cannot be used for cells with structural constraints"
+    fun readCellDataForBuilderOrAllocatedCell(
+        state: TvmState,
+        cellRef: UConcreteHeapRef
+    ): UExpr<TvmContext.TvmCellDataSort> =
+        with(ctx) {
+            if (::addressToLabelMapper.isInitialized) {
+                val hasStructuralConstraints =
+                    addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(
+                        cellRef
+                    )
+                check(!hasStructuralConstraints) {
+                    "readCellDataForAllocatedCell cannot be used for cells with structural constraints"
+                }
             }
+
+            state.memory.readField(cellRef, cellDataField, cellDataSort)
         }
 
-        state.memory.readField(cellRef, cellDataField, cellDataSort)
-    }
-
-    private fun TvmContext.generatedDataConstraint(scope: TvmStepScopeManager, refs: List<UConcreteHeapRef>): UBoolExpr =
+    private fun TvmContext.generatedDataConstraint(
+        scope: TvmStepScopeManager,
+        refs: List<UConcreteHeapRef>
+    ): UBoolExpr =
         scope.calcOnState {
             refs.fold(trueExpr as UBoolExpr) { acc, ref ->
                 if (addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(ref)) {
@@ -67,29 +84,37 @@ class TvmCellDataFieldManager(
             }
         }
 
-    fun readCellData(scope: TvmStepScopeManager, cellRef: UHeapRef): UExpr<TvmContext.TvmCellDataSort>? = with(ctx) {
-        val staticRefs = extractAddresses(cellRef, extractAllocated = false, extractStatic = true)
+    fun readCellData(
+        scope: TvmStepScopeManager,
+        cellRef: UHeapRef
+    ): UExpr<TvmContext.TvmCellDataSort>? =
+        with(ctx) {
+            val staticRefs = extractAddresses(cellRef, extractAllocated = false, extractStatic = true)
 
-        val newRefs = staticRefs.map { it.second }.filter { it.address !in addressesWithAssertedCellData }
-        addressesWithAssertedCellData = addressesWithAssertedCellData.addAll(newRefs.map { it.address })
-        addressesWithRequestedCellDataField = addressesWithRequestedCellDataField.addAll(newRefs.map { it.address })
+            val newRefs = staticRefs.map { it.second }.filter { it.address !in addressesWithAssertedCellData }
+            addressesWithAssertedCellData = addressesWithAssertedCellData.addAll(newRefs.map { it.address })
+            addressesWithRequestedCellDataField = addressesWithRequestedCellDataField.addAll(newRefs.map { it.address })
 
-        val dataConstraint = generatedDataConstraint(scope, newRefs)
-        scope.assert(dataConstraint)
-            ?: return@with null
+            val dataConstraint = generatedDataConstraint(scope, newRefs)
+            scope.assert(dataConstraint)
+                ?: return@with null
 
-        scope.calcOnState {
-            memory.readField(cellRef, cellDataField, cellDataSort)
+            scope.calcOnState {
+                memory.readField(cellRef, cellDataField, cellDataSort)
+            }
         }
-    }
 
     /**
      * This function should be used with caution.
      * [cellDataField] might be invalid (without asserted structural constraints).
      * */
-    fun readCellDataWithoutAsserts(state: TvmState, cellRef: UHeapRef) = with(ctx) {
+    fun readCellDataWithoutAsserts(
+        state: TvmState,
+        cellRef: UHeapRef
+    ) = with(ctx) {
         val staticRefs = extractAddresses(cellRef, extractAllocated = false, extractStatic = true)
-        addressesWithRequestedCellDataField = addressesWithRequestedCellDataField.addAll(staticRefs.map { it.second.address })
+        addressesWithRequestedCellDataField =
+            addressesWithRequestedCellDataField.addAll(staticRefs.map { it.second.address })
 
         state.memory.readField(cellRef, cellDataField, cellDataSort)
     }

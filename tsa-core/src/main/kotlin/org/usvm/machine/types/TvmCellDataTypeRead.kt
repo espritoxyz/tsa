@@ -9,7 +9,6 @@ import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 
-
 sealed interface TvmCellDataTypeRead<ReadResult : TvmCellDataTypeReadValue>
 
 sealed interface SizedCellDataTypeRead {
@@ -20,11 +19,13 @@ data class TvmCellDataIntegerRead(
     override val sizeBits: UExpr<TvmSizeSort>,
     val isSigned: Boolean,
     val endian: Endian
-) : TvmCellDataTypeRead<UExprReadResult<TvmContext.TvmInt257Sort>>, SizedCellDataTypeRead
+) : TvmCellDataTypeRead<UExprReadResult<TvmContext.TvmInt257Sort>>,
+    SizedCellDataTypeRead
 
 class TvmCellMaybeConstructorBitRead(
     val ctx: TvmContext
-) : TvmCellDataTypeRead<UExprReadResult<UBoolSort>>, SizedCellDataTypeRead {
+) : TvmCellDataTypeRead<UExprReadResult<UBoolSort>>,
+    SizedCellDataTypeRead {
     override val sizeBits: UExpr<TvmSizeSort>
         get() = ctx.oneSizeExpr
 }
@@ -36,7 +37,8 @@ class TvmCellDataMsgAddrRead(
 
 data class TvmCellDataBitArrayRead(
     override val sizeBits: UExpr<TvmSizeSort>
-) : TvmCellDataTypeRead<UExprReadResult<UAddressSort>>, SizedCellDataTypeRead
+) : TvmCellDataTypeRead<UExprReadResult<UAddressSort>>,
+    SizedCellDataTypeRead
 
 // As a read result expects bitvector of size 4 (coin prefix) + coin value as int257
 class TvmCellDataCoinsRead(

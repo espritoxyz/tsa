@@ -14,24 +14,35 @@ import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastContinuation
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 
-class TvmContinuationStackInterpreter(private val ctx: TvmContext) {
-    fun visitContStackInst(scope: TvmStepScopeManager, stmt: TvmContStackInst) {
+class TvmContinuationStackInterpreter(
+    private val ctx: TvmContext
+) {
+    fun visitContStackInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmContStackInst
+    ) {
         when (stmt) {
             is TvmContStackSetcontvarargsInst -> visitSetContVarargs(scope, stmt)
             else -> TODO("$stmt")
         }
     }
 
-    private fun visitSetContVarargs(scope: TvmStepScopeManager, stmt: TvmContStackSetcontvarargsInst) {
+    private fun visitSetContVarargs(
+        scope: TvmStepScopeManager,
+        stmt: TvmContStackSetcontvarargsInst
+    ) {
         // TODO consume correct amount of gas
         scope.doWithState { consumeGas(26) }
 
-        val more = scope.takeLastIntOrThrowTypeError()
-            ?: return
-        val copy = scope.takeLastIntOrThrowTypeError()
-            ?: return
-        val cont = scope.calcOnState { stack.takeLastContinuation() }
-            ?: return scope.doWithState(ctx.throwTypeCheckError)
+        val more =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return
+        val copy =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return
+        val cont =
+            scope.calcOnState { stack.takeLastContinuation() }
+                ?: return scope.doWithState(ctx.throwTypeCheckError)
 
         checkOutOfRange(more, scope, min = -1, max = 255)
             ?: return

@@ -15,5 +15,4 @@ fun <Acc> TlbStructure.fold(
     }
 }
 
-fun TlbStructure.forEach(f: (TlbStructure) -> Unit) =
-    fold(Unit) { _, struct -> f(struct) }
+fun TlbStructure.forEach(f: (TlbStructure) -> Unit) = fold(Unit) { _, struct -> f(struct) }

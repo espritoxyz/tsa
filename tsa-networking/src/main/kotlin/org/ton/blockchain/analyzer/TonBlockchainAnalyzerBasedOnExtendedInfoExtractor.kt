@@ -8,19 +8,22 @@ import org.ton.blockchain.info.TonBlockchainExtendedInfoExtractor
 class TonBlockchainAnalyzerBasedOnExtendedInfoExtractor(
     val infoExtractor: TonBlockchainExtendedInfoExtractor
 ) : TvmBlockchainAnalyzer {
-    override fun extractJettonContractInfo(address: String): JettonContractInfo {
-        return infoExtractor.getJettonContractInfo(address)
-    }
+    override fun extractJettonContractInfo(address: String): JettonContractInfo =
+        infoExtractor.getJettonContractInfo(address)
 
-    override fun getContractState(address: String): ContractState? {
-        return infoExtractor.getContractState(address)
-    }
+    override fun getContractState(address: String): ContractState? = infoExtractor.getContractState(address)
 
-    override fun getJettonWalletInfo(jettonAddress: String, jettonState: ContractState, holderAddress: String): JettonWalletInfo? {
-        val (walletAddress, balance) = infoExtractor.getJettonBalanceAndAddress(holderAddress, jettonAddress)
-            ?: return null
-        val state = getContractState(walletAddress)
-            ?: return null
+    override fun getJettonWalletInfo(
+        jettonAddress: String,
+        jettonState: ContractState,
+        holderAddress: String
+    ): JettonWalletInfo? {
+        val (walletAddress, balance) =
+            infoExtractor.getJettonBalanceAndAddress(holderAddress, jettonAddress)
+                ?: return null
+        val state =
+            getContractState(walletAddress)
+                ?: return null
         return JettonWalletInfo(walletAddress, holderAddress, balance.toString(), state)
     }
 

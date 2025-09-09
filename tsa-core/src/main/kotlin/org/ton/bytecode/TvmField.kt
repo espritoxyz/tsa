@@ -6,4 +6,7 @@ interface TvmField {
     val name: String
 }
 
-data class TvmFieldImpl(val enclosingType: TvmType, override val name: String) : TvmField
+data class TvmFieldImpl(
+    val enclosingType: TvmType,
+    override val name: String
+) : TvmField

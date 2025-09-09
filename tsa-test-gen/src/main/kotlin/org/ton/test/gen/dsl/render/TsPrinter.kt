@@ -2,22 +2,25 @@ package org.ton.test.gen.dsl.render
 
 interface TsPrinter {
     fun print(text: String)
+
     fun println(text: String = "")
 
     fun pushIndent()
+
     fun popIndent()
 
     fun clear()
 
     override fun toString(): String
+
     var printedLength: Int
 }
 
 class TsPrinterImpl(
     private var tabsAmount: Int = 0,
     private val builder: StringBuilder = StringBuilder()
-) : TsPrinter, Appendable by builder {
-
+) : TsPrinter,
+    Appendable by builder {
     private var atLineStart: Boolean = true
 
     private val indent: String get() = TAB * tabsAmount

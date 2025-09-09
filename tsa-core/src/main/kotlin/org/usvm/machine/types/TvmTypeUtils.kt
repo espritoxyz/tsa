@@ -29,7 +29,11 @@ import org.usvm.mkSizeGtExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.types.USingleTypeStream
 
-fun <AccType> foldOnTvmType(type: TvmType, init: AccType, f: (AccType, TvmType) -> AccType): AccType {
+fun <AccType> foldOnTvmType(
+    type: TvmType,
+    init: AccType,
+    f: (AccType, TvmType) -> AccType
+): AccType {
     var acc = init
     var curType: TvmType? = type
     while (curType != null) {
@@ -49,127 +53,135 @@ fun TvmState.getPossibleTypes(ref: UConcreteHeapRef): Sequence<TvmType> {
 fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.accepts(
     ctx: TvmContext,
     labelArgs: List<UExpr<TvmSizeSort>>,
-    symbolicTypeRead: TvmCellDataTypeRead<ReadResult>,
-): UBoolExpr = with(ctx) {
-    when (this@accepts) {
-        is TlbIntegerLabel -> {
-            if (symbolicTypeRead is SizedCellDataTypeRead &&
-                (symbolicTypeRead is TvmCellDataIntegerRead && isSigned == symbolicTypeRead.isSigned && endian == symbolicTypeRead.endian
-                || symbolicTypeRead is TvmCellDataBitArrayRead)
-            ) {
-                symbolicTypeRead.sizeBits eq bitSize(this, labelArgs)
-            } else {
-                falseExpr
+    symbolicTypeRead: TvmCellDataTypeRead<ReadResult>
+): UBoolExpr =
+    with(ctx) {
+        when (this@accepts) {
+            is TlbIntegerLabel -> {
+                if (symbolicTypeRead is SizedCellDataTypeRead &&
+                    (
+                        symbolicTypeRead is TvmCellDataIntegerRead &&
+                            isSigned == symbolicTypeRead.isSigned &&
+                            endian == symbolicTypeRead.endian ||
+                            symbolicTypeRead is TvmCellDataBitArrayRead
+                    )
+                ) {
+                    symbolicTypeRead.sizeBits eq bitSize(this, labelArgs)
+                } else {
+                    falseExpr
+                }
             }
-        }
 
-        is TlbAddressByRef -> {
-            if (symbolicTypeRead is TvmCellDataBitArrayRead) {
-                symbolicTypeRead.sizeBits eq sizeBits
-            } else {
+            is TlbAddressByRef -> {
+                if (symbolicTypeRead is TvmCellDataBitArrayRead) {
+                    symbolicTypeRead.sizeBits eq sizeBits
+                } else {
+                    (symbolicTypeRead is TvmCellDataMsgAddrRead).expr
+                }
+            }
+
+            is TlbMsgAddrLabel -> {
                 (symbolicTypeRead is TvmCellDataMsgAddrRead).expr
             }
-        }
 
-        is TlbMsgAddrLabel -> {
-            (symbolicTypeRead is TvmCellDataMsgAddrRead).expr
-        }
-
-        is TlbCoinsLabel -> {
-            (symbolicTypeRead is TvmCellDataCoinsRead).expr
-        }
-
-        is TlbMaybeRefLabel -> {
-            // case of TvmCellDataIntegerRead should be processed by internal structure of TlbMaybeRefLabel
-            when (symbolicTypeRead) {
-                is TvmCellMaybeConstructorBitRead -> trueExpr
-                else -> falseExpr
+            is TlbCoinsLabel -> {
+                (symbolicTypeRead is TvmCellDataCoinsRead).expr
             }
-        }
 
-        is TlbBitArrayOfConcreteSize -> {
-            if (symbolicTypeRead is TvmCellDataBitArrayRead) {
-                symbolicTypeRead.sizeBits eq mkSizeExpr(concreteSize)
-            } else {
-                falseExpr
+            is TlbMaybeRefLabel -> {
+                // case of TvmCellDataIntegerRead should be processed by internal structure of TlbMaybeRefLabel
+                when (symbolicTypeRead) {
+                    is TvmCellMaybeConstructorBitRead -> trueExpr
+                    else -> falseExpr
+                }
             }
-        }
 
-        is TlbBitArrayByRef -> {
-            if (symbolicTypeRead is TvmCellDataBitArrayRead) {
-                symbolicTypeRead.sizeBits eq sizeBits
-            } else {
-                falseExpr
+            is TlbBitArrayOfConcreteSize -> {
+                if (symbolicTypeRead is TvmCellDataBitArrayRead) {
+                    symbolicTypeRead.sizeBits eq mkSizeExpr(concreteSize)
+                } else {
+                    falseExpr
+                }
+            }
+
+            is TlbBitArrayByRef -> {
+                if (symbolicTypeRead is TvmCellDataBitArrayRead) {
+                    symbolicTypeRead.sizeBits eq sizeBits
+                } else {
+                    falseExpr
+                }
             }
         }
     }
-}
 
 fun TlbBuiltinLabel.passBitArrayRead(
     ctx: TvmContext,
     labelArgs: List<UExpr<TvmSizeSort>>,
     bitArrayLength: UExpr<TvmSizeSort>
-): PassBitArrayRead? = with(ctx) {
-    when (this@passBitArrayRead) {
-        is TlbIntegerLabel -> {
-            val intLength = bitSize(this, labelArgs)
-            PassBitArrayRead(mkSizeGtExpr(bitArrayLength, intLength), mkSizeSubExpr(bitArrayLength, intLength))
-        }
-        is TlbBitArrayOfConcreteSize -> {
-            val length = mkSizeExpr(concreteSize)
-            PassBitArrayRead(mkSizeGtExpr(bitArrayLength, length), mkSizeSubExpr(bitArrayLength, length))
-        }
-        is TlbBitArrayByRef -> {
-            PassBitArrayRead(mkSizeGtExpr(bitArrayLength, sizeBits), mkSizeSubExpr(bitArrayLength, sizeBits))
-        }
-        is TlbMsgAddrLabel, is TlbCoinsLabel, is TlbMaybeRefLabel  -> {
-            null
+): PassBitArrayRead? =
+    with(ctx) {
+        when (this@passBitArrayRead) {
+            is TlbIntegerLabel -> {
+                val intLength = bitSize(this, labelArgs)
+                PassBitArrayRead(mkSizeGtExpr(bitArrayLength, intLength), mkSizeSubExpr(bitArrayLength, intLength))
+            }
+            is TlbBitArrayOfConcreteSize -> {
+                val length = mkSizeExpr(concreteSize)
+                PassBitArrayRead(mkSizeGtExpr(bitArrayLength, length), mkSizeSubExpr(bitArrayLength, length))
+            }
+            is TlbBitArrayByRef -> {
+                PassBitArrayRead(mkSizeGtExpr(bitArrayLength, sizeBits), mkSizeSubExpr(bitArrayLength, sizeBits))
+            }
+            is TlbMsgAddrLabel, is TlbCoinsLabel, is TlbMaybeRefLabel -> {
+                null
+            }
         }
     }
-}
 
 data class PassBitArrayRead(
     val guard: UBoolExpr,
-    val leftBits: UExpr<TvmSizeSort>,
+    val leftBits: UExpr<TvmSizeSort>
 )
 
 fun TlbBuiltinLabel.isEmptyLabel(
     ctx: TvmContext,
-    labelArgs: List<UExpr<TvmSizeSort>>,
-): UBoolExpr = with(ctx) {
-    when (this@isEmptyLabel) {
-        is TlbIntegerLabel -> {
-            bitSize(this, labelArgs) eq zeroSizeExpr
-        }
-        is TlbMsgAddrLabel -> {
-            falseExpr
-        }
-        is TlbCoinsLabel -> {
-            falseExpr
-        }
-        is TlbMaybeRefLabel -> {
-            falseExpr
-        }
-        is TlbBitArrayOfConcreteSize -> {
-            mkBool(concreteSize == 0)
-        }
-        is TlbBitArrayByRef -> {
-            sizeBits eq zeroSizeExpr
+    labelArgs: List<UExpr<TvmSizeSort>>
+): UBoolExpr =
+    with(ctx) {
+        when (this@isEmptyLabel) {
+            is TlbIntegerLabel -> {
+                bitSize(this, labelArgs) eq zeroSizeExpr
+            }
+            is TlbMsgAddrLabel -> {
+                falseExpr
+            }
+            is TlbCoinsLabel -> {
+                falseExpr
+            }
+            is TlbMaybeRefLabel -> {
+                falseExpr
+            }
+            is TlbBitArrayOfConcreteSize -> {
+                mkBool(concreteSize == 0)
+            }
+            is TlbBitArrayByRef -> {
+                sizeBits eq zeroSizeExpr
+            }
         }
     }
-}
 
 fun TlbAtomicLabel.dataLength(
     state: TvmState,
-    args: List<UExpr<TvmSizeSort>>,
-): UExpr<TvmSizeSort> = with(state.ctx) {
-    when (this@dataLength) {
-        is TlbIntegerLabel -> bitSize(this, args)
-        is FixedSizeDataLabel -> mkSizeExpr(concreteSize)
-        is TlbBitArrayByRef -> sizeBits
-        is TlbAddressByRef -> sizeBits
+    args: List<UExpr<TvmSizeSort>>
+): UExpr<TvmSizeSort> =
+    with(state.ctx) {
+        when (this@dataLength) {
+            is TlbIntegerLabel -> bitSize(this, args)
+            is FixedSizeDataLabel -> mkSizeExpr(concreteSize)
+            is TlbBitArrayByRef -> sizeBits
+            is TlbAddressByRef -> sizeBits
+        }
     }
-}
 
 fun TlbAtomicLabel.defaultCellValue(ctx: TvmContext): String =
     when (this) {
@@ -194,12 +206,12 @@ fun TlbAtomicLabel.lengthUpperBound(): Int =
 
 data class InputParametersStructure(
     val cellToInfo: Map<UConcreteHeapRef, TvmParameterInfo.CellInfo>,
-    val sliceToCell: Map<UConcreteHeapRef, UConcreteHeapRef>,
+    val sliceToCell: Map<UConcreteHeapRef, UConcreteHeapRef>
 )
 
 fun extractInputParametersAddresses(
     initialState: TvmState,
-    inputInfo: TvmInputInfo,
+    inputInfo: TvmInputInfo
 ): InputParametersStructure {
     val cells = hashMapOf<UConcreteHeapRef, TvmParameterInfo.CellInfo>()
     val slices = hashMapOf<UConcreteHeapRef, UConcreteHeapRef>()
@@ -211,9 +223,10 @@ fun extractInputParametersAddresses(
 
         when (paramInfo) {
             is TvmParameterInfo.CellInfo -> {
-                val stackValue = initialState.stack.getStackValue(entry, TvmCellType) {
-                    initialState.generateSymbolicCell()
-                }
+                val stackValue =
+                    initialState.stack.getStackValue(entry, TvmCellType) {
+                        initialState.generateSymbolicCell()
+                    }
                 // At this point stack should be empty (since TvmState is the initial state)
                 // => stackValue is from input stack entry
                 // => stackValue.cellValue must be UConcreteHeapRef
@@ -222,17 +235,23 @@ fun extractInputParametersAddresses(
             }
 
             is TvmParameterInfo.SliceInfo -> {
-                val stackValue = initialState.stack.getStackValue(entry, TvmSliceType) {
-                    initialState.generateSymbolicSlice()
-                }
-                val sliceAddress = stackValue.sliceValue
-                    ?: error("Could not extract slice address while building TvmDataCellInfoStorage")
+                val stackValue =
+                    initialState.stack.getStackValue(entry, TvmSliceType) {
+                        initialState.generateSymbolicSlice()
+                    }
+                val sliceAddress =
+                    stackValue.sliceValue
+                        ?: error("Could not extract slice address while building TvmDataCellInfoStorage")
                 // At this point stack should be empty (since TvmState is the initial state)
                 // => stackValue is from input stack entry
                 // => sliceAddress must be UConcreteHeapRef
                 // => the corresponding cell address must also be concrete
                 val address =
-                    initialState.memory.readField(sliceAddress, sliceCellField, initialState.ctx.addressSort) as UConcreteHeapRef
+                    initialState.memory.readField(
+                        sliceAddress,
+                        sliceCellField,
+                        initialState.ctx.addressSort
+                    ) as UConcreteHeapRef
                 cells[address] = paramInfo.cellInfo
                 // sliceAddress is concrete for the same reason as cell's address
                 slices[sliceAddress as UConcreteHeapRef] = address

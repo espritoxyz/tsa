@@ -36,7 +36,7 @@ fun UReadOnlyMemory<*>.tvmCellRefsRegion(): TvmRefsMemoryRegion<TvmCellRefsRegio
 
 class TvmCellRefsRegionValueInfo(
     private val state: TvmState
-): TvmRefsMemoryRegion.TvmRefsRegionValueInfo<UAddressSort>{
+) : TvmRefsMemoryRegion.TvmRefsRegionValueInfo<UAddressSort> {
     override fun mkDefaultValue(): UHeapRef = state.emptyRefValue.emptyCell
 
     override fun mkSymbolicValue(): UHeapRef = state.generateSymbolicCell()
@@ -48,7 +48,7 @@ class TvmCellRefsRegionValueInfo(
 fun TvmState.readCellRef(
     cell: UHeapRef,
     refIdx: UExpr<TvmSizeSort>,
-    initConstraintsForChildren: Boolean = true,
+    initConstraintsForChildren: Boolean = true
 ): UHeapRef {
     if (initConstraintsForChildren && stateInitialized) {
         dataCellInfoStorage.notifyAboutChildRequest(this, cell)
@@ -68,7 +68,10 @@ fun TvmState.writeCellRef(
     memory.setRegion(TvmCellRefsRegionId, updatedRegion)
 }
 
-fun TvmState.copyCellRefs(srcCell: UHeapRef, dstCell: UConcreteHeapRef) {
+fun TvmState.copyCellRefs(
+    srcCell: UHeapRef,
+    dstCell: UConcreteHeapRef
+) {
     val region = memory.tvmCellRefsRegion()
     val updatedRegion = region.copyRefValues(srcCell, dstCell)
     memory.setRegion(TvmCellRefsRegionId, updatedRegion)

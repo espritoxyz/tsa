@@ -66,11 +66,11 @@ import org.usvm.test.resolver.truncateSliceCell
 
 class TsRenderer(
     private val ctx: TsContext,
-    private val contractType: ContractType,
+    private val contractType: ContractType
 ) : TsVisitor<Unit> {
     enum class ContractType {
         Boc,
-        Func,
+        Func
     }
 
     private val printer = TsPrinterImpl()
@@ -184,10 +184,11 @@ class TsRenderer(
     }
 
     override fun visit(element: TsTestFile) {
-        val wrapperImports = element.wrappers.joinToString(
-            separator = System.lineSeparator(),
-            transform = ::renderWrapperImport,
-        )
+        val wrapperImports =
+            element.wrappers.joinToString(
+                separator = System.lineSeparator(),
+                transform = ::renderWrapperImport
+            )
 
         // TODO optimize imports
         printer.println(TEST_FILE_IMPORTS)
@@ -256,20 +257,21 @@ class TsRenderer(
         endStatement()
     }
 
-    override fun <T : TsType> visit(element: TsDeclaration<T>) = with(ctx) {
-        val ref = element.reference
-        val declaration = if (ref.isMutable()) "let" else "const"
+    override fun <T : TsType> visit(element: TsDeclaration<T>) =
+        with(ctx) {
+            val ref = element.reference
+            val declaration = if (ref.isMutable()) "let" else "const"
 
-        printer.print("$declaration ${element.name}: ")
-        element.type.accept(this@TsRenderer)
+            printer.print("$declaration ${element.name}: ")
+            element.type.accept(this@TsRenderer)
 
-        if (element.initializer != null) {
-            printer.print(" = ")
-            element.initializer.accept(this@TsRenderer)
+            if (element.initializer != null) {
+                printer.print(" = ")
+                element.initializer.accept(this@TsRenderer)
+            }
+
+            endStatement()
         }
-
-        endStatement()
-    }
 
     override fun <T : TsType> visit(element: TsStatementExpression<T>) {
         element.expr.accept(this)
@@ -480,7 +482,10 @@ class TsRenderer(
         precedencePrint(element.body(element.arg), element)
     }
 
-    private fun precedencePrint(element: TsExpression<*>, parent: TsExpression<*>) {
+    private fun precedencePrint(
+        element: TsExpression<*>,
+        parent: TsExpression<*>
+    ) {
         // TODO support associativity
 
         if (element.precedence() <= parent.precedence() && element.precedence() != maxPrecedence) {
@@ -525,9 +530,10 @@ class TsRenderer(
             is TvmTestSliceValue -> "${renderTestValue(truncateSliceCell(arg))}.beginParse()"
             is TvmTestDictCellValue -> {
                 val dictInit = "Dictionary.empty(Dictionary.Keys.BigInt(${arg.keyLength}), sliceValue)"
-                val dictStores = arg.entries.map { entry ->
-                    ".set(${renderTestValue(entry.key)}n, ${renderTestValue(entry.value)})"
-                }
+                val dictStores =
+                    arg.entries.map { entry ->
+                        ".set(${renderTestValue(entry.key)}n, ${renderTestValue(entry.value)})"
+                    }
 
                 "${dictInit}${dictStores.joinToString(separator = "")}"
             }
@@ -590,15 +596,17 @@ class TsRenderer(
 
         private const val STATEMENT_END: String = ""
 
-        private val TEST_FILE_IMPORTS = """
+        private val TEST_FILE_IMPORTS =
+            """
             import {Blockchain, createShardAccount, SandboxContract, SendMessageResult} from '@ton/sandbox'
             import {Address, beginCell, Builder, Cell, Dictionary, DictionaryValue, Slice, toNano, Transaction} from '@ton/core'
             import '@ton/test-utils'
             import * as fs from "node:fs"
             import {randomAddress, findTransaction} from "@ton/test-utils"
-        """.trimIndent()
+            """.trimIndent()
 
-        private val TEST_FILE_UTILS = """
+        private val TEST_FILE_UTILS =
+            """
             const bigIntMin = (...args: bigint[]) => args.reduce((m, e) => e < m ? e : m)
             const bigIntMax = (...args: bigint[]) => args.reduce((m, e) => e > m ? e : m)
             
@@ -646,35 +654,37 @@ class TsRenderer(
 
         private const val FUNC_COMPILER_IMPORT = "import {compileFunc} from \"@ton-community/func-js\""
 
-        private val COMPILE_FUNC_CONTRACT = """
+        private val COMPILE_FUNC_CONTRACT =
+            """
             async function compileContract(target: string): Promise<Cell> {
                 let compileResult = await compileFunc({
                     targets: [target],
                     sources: (x) => fs.readFileSync(x).toString("utf8"),
                 })
-    
+            
                 if (compileResult.status === "error") {
                     console.error("Compilation Error!")
                     console.error(`\n${'$'}{compileResult.message}`)
                     process.exit(1)
                 }
-    
+            
                 return Cell.fromBoc(Buffer.from(compileResult.codeBoc, "base64"))[0]
             }
-        """.trimIndent()
+            """.trimIndent()
 
-        private val COMPILE_BOC_CONTRACT = """
+        private val COMPILE_BOC_CONTRACT =
+            """
             async function compileContract(target: string): Promise<Cell> {
                  const fileBuffer = fs.readFileSync(target);
                  return Cell.fromBoc(fileBuffer)[0]
             }
-        """.trimIndent()
+            """.trimIndent()
     }
 }
 
 data class TsRenderedWrapper(
     val fileName: String,
-    val code: String,
+    val code: String
 )
 
 data class TsRenderedTest(

@@ -54,7 +54,7 @@ class RegistersTest {
 
     private fun analyzeContract(
         contractPath: String,
-        methodsBlackList: Set<MethodId> = hashSetOf(),
+        methodsBlackList: Set<MethodId> = hashSetOf()
     ) {
         val resourcePath = extractResource(contractPath)
         val tmpFiftFile = createTempFile(suffix = ".boc")
@@ -62,11 +62,12 @@ class RegistersTest {
         try {
             compileFuncToFift(resourcePath, tmpFiftFile)
 
-            val symbolicResult = compileAndAnalyzeFift(
-                tmpFiftFile,
-                methodsBlackList = methodsBlackList,
-                tvmOptions = testConcreteOptions
-            )
+            val symbolicResult =
+                compileAndAnalyzeFift(
+                    tmpFiftFile,
+                    methodsBlackList = methodsBlackList,
+                    tvmOptions = testConcreteOptions
+                )
 
             compareSymbolicAndConcreteResults(setOf(0), symbolicResult) { methodId ->
                 runFiftMethod(tmpFiftFile, methodId)

@@ -20,16 +20,22 @@ object TvmTestExecutor {
 
     private val logger = object : KLogging() {}.logger
 
-    private fun executeTests(project: Path, generatedTestsPath: String) {
-        val (testResults, successful) = executeTests(
-            projectPath = project,
-            testFileName = generatedTestsPath,
-            testsExecutionTimeout = TEST_EXECUTION_TIMEOUT
-        )
+    private fun executeTests(
+        project: Path,
+        generatedTestsPath: String
+    ) {
+        val (testResults, successful) =
+            executeTests(
+                projectPath = project,
+                testFileName = generatedTestsPath,
+                testsExecutionTimeout = TEST_EXECUTION_TIMEOUT
+            )
         val allTests = testResults.flatMap { it.assertionResults }
         val failedTests = allTests.filter { it.status == TestStatus.FAILED }
 
-        val failMessage = "${failedTests.size} of ${allTests.size} generated tests failed: ${failedTests.joinToString { it.fullName }}"
+        val failMessage = "${failedTests.size} of ${allTests.size} generated tests failed: ${failedTests.joinToString {
+            it.fullName
+        }}"
 
         assertTrue(successful, failMessage)
 
@@ -40,8 +46,9 @@ object TvmTestExecutor {
         get() = extractResource(SANDBOX_PROJECT_PATH)
 
     private fun executeGeneratedTests(generateTestsBlock: (Path) -> String?) {
-        val generatedTests = generateTestsBlock(project)
-            ?: return
+        val generatedTests =
+            generateTestsBlock(project)
+                ?: return
         executeTests(project, generatedTests)
     }
 
@@ -49,7 +56,7 @@ object TvmTestExecutor {
         testResult: TvmContractSymbolicTestResult,
         sources: Path,
         contractType: TsRenderer.ContractType,
-        useMinimization: Boolean = false,
+        useMinimization: Boolean = false
     ) {
         executeGeneratedTests { project ->
             generateTests(
@@ -66,18 +73,19 @@ object TvmTestExecutor {
         testSuite: TvmSymbolicTestSuite,
         sources: Path,
         contractType: TsRenderer.ContractType,
-        useMinimization: Boolean = false,
+        useMinimization: Boolean = false
     ) {
         executeGeneratedTests(TvmContractSymbolicTestResult(listOf(testSuite)), sources, contractType, useMinimization)
     }
 
     init {
         val project = extractResource(SANDBOX_PROJECT_PATH).toFile()
-        val (exitCode, _, _, _) = executeCommandWithTimeout(
-            command = "npm i",
-            timeoutSeconds = PROJECT_INIT_TIMEOUT.inWholeSeconds,
-            processWorkingDirectory = project
-        )
+        val (exitCode, _, _, _) =
+            executeCommandWithTimeout(
+                command = "npm i",
+                timeoutSeconds = PROJECT_INIT_TIMEOUT.inWholeSeconds,
+                processWorkingDirectory = project
+            )
 
         check(exitCode == 0) {
             "Couldn't initialize the test sandbox project"

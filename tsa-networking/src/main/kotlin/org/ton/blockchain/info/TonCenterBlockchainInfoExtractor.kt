@@ -11,34 +11,38 @@ import org.ton.blockchain.toUrlAddress
 
 class TonCenterBlockchainInfoExtractor(
     pauseBetweenRequestsMillies: Long,
-    private val apiKey: String? = null,
-): TonBlockchainInfoExtractorWithRequestPause(pauseBetweenRequestsMillies), TonBlockchainInfoExtractorWithHoldersInfo {
+    private val apiKey: String? = null
+) : TonBlockchainInfoExtractorWithRequestPause(pauseBetweenRequestsMillies),
+    TonBlockchainInfoExtractorWithHoldersInfo {
     override fun getContractState(address: String): ContractState? {
-        val response = runCatching {
-            var request = "$API_URL/v3/addressInformation?address=${address.toUrlAddress()}&use_v2=true"
-            if (apiKey != null) {
-                request += "&api_key=$apiKey"
-            }
-            val (code, res) = makeTonApiRequest(request, failOnRequestError = false)
+        val response =
+            runCatching {
+                var request = "$API_URL/v3/addressInformation?address=${address.toUrlAddress()}&use_v2=true"
+                if (apiKey != null) {
+                    request += "&api_key=$apiKey"
+                }
+                val (code, res) = makeTonApiRequest(request, failOnRequestError = false)
 
-            if (code == 404) {
-                return null
-            }
+                if (code == 404) {
+                    return null
+                }
 
-            check(code in 200..<300) {
-                "Request $request returned response code $code"
+                check(code in 200..<300) {
+                    "Request $request returned response code $code"
+                }
+                res
+            }.getOrElse { error ->
+                throw TonApiException("TonCenter request failed: $error", isParsingError = false)
             }
-            res
-
-        }.getOrElse { error ->
-            throw TonApiException("TonCenter request failed: $error", isParsingError = false)
-        }
 
         return runCatching {
             val body = Json.parseToJsonElement(response)
             val data = body.jsonObject["data"]!!.jsonPrimitive.content
             val code = body.jsonObject["code"]!!.jsonPrimitive.content
-            val balance = body.jsonObject["balance"]!!.jsonPrimitive.content.toLong()
+            val balance =
+                body.jsonObject["balance"]!!
+                    .jsonPrimitive.content
+                    .toLong()
 
             // non-existent address
             if (code.isEmpty() || code == "null") {
@@ -52,23 +56,27 @@ class TonCenterBlockchainInfoExtractor(
         }
     }
 
-    override fun getJettonWallets(masterAddress: String, limit: Int, offset: Int): List<JettonWalletInfo> {
-        val response = runCatching {
-            var request =
-                "$API_URL/v3/jetton/wallets?jetton_address=${masterAddress.toUrlAddress()}&limit=$limit&offset=$offset&exclude_zero_balance=true"
-            if (apiKey != null) {
-                request += "&api_key=$apiKey"
-            }
-            val (code, res) = makeTonApiRequest(request, failOnRequestError = true)
+    override fun getJettonWallets(
+        masterAddress: String,
+        limit: Int,
+        offset: Int
+    ): List<JettonWalletInfo> {
+        val response =
+            runCatching {
+                var request =
+                    "$API_URL/v3/jetton/wallets?jetton_address=${masterAddress.toUrlAddress()}&limit=$limit&offset=$offset&exclude_zero_balance=true"
+                if (apiKey != null) {
+                    request += "&api_key=$apiKey"
+                }
+                val (code, res) = makeTonApiRequest(request, failOnRequestError = true)
 
-            check(code in 200..<300) {
-                "Request $request returned response code $code"
+                check(code in 200..<300) {
+                    "Request $request returned response code $code"
+                }
+                res
+            }.getOrElse { error ->
+                throw TonApiException("TonCenter request failed: $error", isParsingError = false)
             }
-            res
-
-        }.getOrElse { error ->
-            throw TonApiException("TonCenter request failed: $error", isParsingError = false)
-        }
 
         return runCatching {
             val body = Json.parseToJsonElement(response)
@@ -76,8 +84,9 @@ class TonCenterBlockchainInfoExtractor(
                 val address = it.jsonObject["address"]!!.jsonPrimitive.content
                 val owner = it.jsonObject["owner"]!!.jsonPrimitive.content
                 val balance = it.jsonObject["balance"]!!.jsonPrimitive.content
-                val state = getContractState(address)
-                    ?: error("Contract at $address must be present")
+                val state =
+                    getContractState(address)
+                        ?: error("Contract at $address must be present")
                 JettonWalletInfo(address, owner, balance, state)
             }
         }.getOrElse { error ->

@@ -1,8 +1,5 @@
 package org.ton.test.gen
 
-import java.math.BigInteger
-import java.nio.file.Files.createDirectories
-import java.nio.file.Path
 import org.ton.boc.BagOfCells
 import org.ton.test.gen.dsl.render.TsRenderedTest
 import org.ton.test.gen.dsl.render.TsRenderer
@@ -10,6 +7,9 @@ import org.usvm.machine.TvmContext.Companion.CONFIG_KEY_LENGTH
 import org.usvm.test.resolver.TvmTestDictCellValue
 import org.usvm.test.resolver.transformTestDictCellIntoCell
 import java.io.File
+import java.math.BigInteger
+import java.nio.file.Files.createDirectories
+import java.nio.file.Path
 
 fun String.binaryToHex(): String = BigInteger(this, 2).toString(16)
 
@@ -25,7 +25,10 @@ fun String.binaryToSignedDecimal(): String {
     return resultBigInteger.toString(10)
 }
 
-fun writeRenderedTest(projectPath: Path, test: TsRenderedTest): List<File> {
+fun writeRenderedTest(
+    projectPath: Path,
+    test: TsRenderedTest
+): List<File> {
     val wrapperFolder = projectPath.resolve(TsRenderer.WRAPPERS_DIR_NAME)
     val testsFolder = projectPath.resolve(TsRenderer.TESTS_DIR_NAME)
 

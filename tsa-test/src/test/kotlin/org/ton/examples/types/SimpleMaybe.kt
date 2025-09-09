@@ -19,10 +19,11 @@ class SimpleMaybe {
     fun testSimpleMaybe() {
         val resourcePath = extractResource(path)
 
-        val results = funcCompileAndAnalyzeAllMethods(
-            resourcePath,
-            tvmOptions = testOptionsToAnalyzeSpecificMethod
-        )
+        val results =
+            funcCompileAndAnalyzeAllMethods(
+                resourcePath,
+                tvmOptions = testOptionsToAnalyzeSpecificMethod
+            )
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })

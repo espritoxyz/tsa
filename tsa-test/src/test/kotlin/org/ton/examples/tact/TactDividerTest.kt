@@ -16,14 +16,19 @@ class TactDividerTest {
     fun testDivider() {
         val resourcePath = getResourcePath<TactDividerTest>(tactConfigPath)
 
-        val symbolicResult = tactCompileAndAnalyzeAllMethods(
-            TactSourcesDescription(resourcePath, "Divider", "Divider"),
-            methodWhiteList = setOf(MethodId.valueOf(95202L)),
-        )
+        val symbolicResult =
+            tactCompileAndAnalyzeAllMethods(
+                TactSourcesDescription(resourcePath, "Divider", "Divider"),
+                methodWhiteList = setOf(MethodId.valueOf(95202L))
+            )
 
         val allTests = symbolicResult.map { it.tests }.flatten()
         val results = allTests.map { it.result }
-        val exceptions = results.mapNotNull { (it as? TvmMethodFailure)?.failure?.exit }.filterIsInstance<TvmIntegerOverflowError>()
+        val exceptions =
+            results
+                .mapNotNull {
+                    (it as? TvmMethodFailure)?.failure?.exit
+                }.filterIsInstance<TvmIntegerOverflowError>()
         assertTrue(exceptions.isNotEmpty(), "Division by zero was not found!")
     }
 }

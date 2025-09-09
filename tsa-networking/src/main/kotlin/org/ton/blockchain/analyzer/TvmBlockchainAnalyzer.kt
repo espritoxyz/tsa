@@ -12,9 +12,20 @@ import java.math.BigInteger
 
 interface TvmBlockchainAnalyzer {
     fun extractJettonContractInfo(address: String): JettonContractInfo
+
     fun getContractState(address: String): ContractState?
-    fun getJettonWalletInfo(jettonAddress: String, jettonState: ContractState, holderAddress: String): JettonWalletInfo?
-    fun getJettonWalletAddress(jettonAddress: String, jettonState: ContractState, holderAddress: String): String
+
+    fun getJettonWalletInfo(
+        jettonAddress: String,
+        jettonState: ContractState,
+        holderAddress: String
+    ): JettonWalletInfo?
+
+    fun getJettonWalletAddress(
+        jettonAddress: String,
+        jettonState: ContractState,
+        holderAddress: String
+    ): String
 }
 
 abstract class TvmBlockchainAnalyzerBase(
@@ -31,11 +42,11 @@ abstract class TvmBlockchainAnalyzerBase(
             try {
                 return emulatorRun(libs)
             } catch (e: MissingLibraryException) {
-
                 val keyAsByteArray = e.library.hexToByteArray()
 
-                val libCellValue = extractLibraryCellByHashIfCan(keyAsByteArray)
-                    ?: throw e
+                val libCellValue =
+                    extractLibraryCellByHashIfCan(keyAsByteArray)
+                        ?: throw e
 
                 val keyAsBigInteger = BigInteger(ByteArray(1) + keyAsByteArray)
                 val prevValue = libs.put(keyAsBigInteger, BagOfCells(libCellValue).roots.first())
@@ -49,8 +60,9 @@ abstract class TvmBlockchainAnalyzerBase(
     }
 
     override fun extractJettonContractInfo(address: String): JettonContractInfo {
-        val state = infoExtractor.getContractState(address)
-            ?: error("No jetton at address $address")
+        val state =
+            infoExtractor.getContractState(address)
+                ?: error("No jetton at address $address")
 
         return runWithCatchingMissingLibrary {
             val jettonInfo = emulator.getJettonInfo(address, state, it)
@@ -66,14 +78,16 @@ abstract class TvmBlockchainAnalyzerBase(
         holderAddress: String
     ): JettonWalletInfo? {
         val walletAddress = getJettonWalletAddress(jettonAddress, jettonState, holderAddress)
-        val walletStateRaw = getContractState(walletAddress)
-            ?: return null
+        val walletStateRaw =
+            getContractState(walletAddress)
+                ?: return null
 
         val walletState = processStateWithPossibleLibraryCell(walletStateRaw)
 
-        val balance = runWithCatchingMissingLibrary {
-            emulator.getJettonWalletBalance(walletAddress, walletState, it)
-        }
+        val balance =
+            runWithCatchingMissingLibrary {
+                emulator.getJettonWalletBalance(walletAddress, walletState, it)
+            }
 
         return JettonWalletInfo(walletAddress, holderAddress, balance.toString(), walletState)
     }
@@ -82,15 +96,12 @@ abstract class TvmBlockchainAnalyzerBase(
         jettonAddress: String,
         jettonState: ContractState,
         holderAddress: String
-    ): String {
-        return runWithCatchingMissingLibrary {
+    ): String =
+        runWithCatchingMissingLibrary {
             emulator.getWalletAddress(holderAddress, jettonAddress, jettonState, it)
         }
-    }
 
-    protected open fun extractLibraryCellByHashIfCan(libraryCellHash: ByteArray): ByteArray? {
-        return null
-    }
+    protected open fun extractLibraryCellByHashIfCan(libraryCellHash: ByteArray): ByteArray? = null
 
     protected open fun processLibraryCells(jettonContractInfo: JettonContractInfo): JettonContractInfo =
         jettonContractInfo

@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 import org.ton.TlbBuiltinLabel
 import org.usvm.UBv32Sort
 import org.usvm.UExpr
-import org.usvm.machine.state.TvmMethodResult.TvmErrorExit
 import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
+import org.usvm.machine.state.TvmMethodResult.TvmErrorExit
 import org.usvm.machine.state.TvmMethodResult.TvmSuccessfulExit
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmStructuralExit
@@ -24,7 +24,7 @@ sealed interface TvmMethodResult {
      */
     data class TvmSuccess(
         val exit: TvmSuccessfulExit,
-        val stack: TvmStack,
+        val stack: TvmStack
     ) : TvmMethodResult
 
     /**
@@ -34,7 +34,7 @@ sealed interface TvmMethodResult {
     data class TvmFailure(
         val exit: TvmErrorExit,
         val type: TvmFailureType,
-        val phase: TvmPhase,
+        val phase: TvmPhase
     ) : TvmMethodResult {
         override fun toString(): String =
             if (type == TvmFailureType.UnknownError) {
@@ -62,7 +62,7 @@ sealed interface TvmMethodResult {
 
     data class TvmSoftFailure(
         val exit: TvmSoftFailureExit,
-        override val phase: TvmPhase,
+        override val phase: TvmPhase
     ) : TvmAbstractSoftFailure
 
     sealed interface TvmSoftFailureExit {
@@ -72,7 +72,7 @@ sealed interface TvmMethodResult {
 
 data class TvmStructuralError(
     val exit: TvmStructuralExit<TvmCellDataTypeRead<*>, TlbBuiltinLabel>,
-    override val phase: TvmPhase,
+    override val phase: TvmPhase
 ) : TvmAbstractSoftFailure
 
 data object TvmUsageOfAnycastAddress : TvmMethodResult.TvmSoftFailureExit {
@@ -119,18 +119,21 @@ enum class TvmFailureType {
      * Example: input_slice~load_bits(128), when len(input_slice) < 128
      */
     FixedStructuralError,
+
     /**
      * Error due to bad input object structure, that has symbolic constraints.
      *
      * Example: input_slice~load_bits(input_x), when len(input_slice) < input_x
      */
     SymbolicStructuralError,
+
     /**
      * Real programmer's error.
      *
      * Example: s = "a"; s~load_bits(128);
      */
     RealError,
+
     /**
      * Extra failure information couldn't be inferred.
      */
@@ -168,7 +171,8 @@ object TvmIntegerOutOfRangeError : TvmErrorExit {
     override val exitCode: Int = 5
     override val ruleName: String = "integer-out-of-range"
 
-    override fun toString(): String = "TVM integer out of expected range, exit code: $exitCode" // TODO add expected range to the message?
+    override fun toString(): String =
+        "TVM integer out of expected range, exit code: $exitCode" // TODO add expected range to the message?
 }
 
 // TODO add expected type
@@ -204,7 +208,10 @@ object TvmDictError : TvmErrorExit {
     override fun toString(): String = "TVM dictionary error, exit code: $exitCode"
 }
 
-data class TvmOutOfGas(val consumedGas: UExpr<UBv32Sort>, val gasLimit: UExpr<UBv32Sort>) : TvmErrorExit {
+data class TvmOutOfGas(
+    val consumedGas: UExpr<UBv32Sort>,
+    val gasLimit: UExpr<UBv32Sort>
+) : TvmErrorExit {
     override val exitCode: Int = 13
     override val ruleName: String = "out-of-gas"
 
@@ -213,7 +220,9 @@ data class TvmOutOfGas(val consumedGas: UExpr<UBv32Sort>, val gasLimit: UExpr<UB
 }
 
 @Serializable
-data class TvmUserDefinedFailure(override val exitCode: Int): TvmErrorExit {
+data class TvmUserDefinedFailure(
+    override val exitCode: Int
+) : TvmErrorExit {
     override val ruleName: String = "user-defined-error"
 
     override fun toString(): String = "TVM user defined error with exit code $exitCode"

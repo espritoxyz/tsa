@@ -52,65 +52,106 @@ import org.ton.test.gen.dsl.models.TsVoid
 import org.ton.test.gen.dsl.models.TsWrapper
 
 interface TsVisitor<R> {
-    /* types */
+    // types
     fun visit(element: TsVoid): R
+
     fun visit(element: TsBoolean): R
+
     fun visit(element: TsString): R
+
     fun visit(element: TsCell): R
+
     fun visit(element: TsSlice): R
+
     fun visit(element: TsBuilder): R
+
     fun visit(element: TsAddress): R
+
     fun visit(element: TsBlockchain): R
+
     fun visit(element: TsSendMessageResult): R
+
     fun visit(element: TsInt): R
+
     fun visit(element: TsBigint): R
+
     fun visit(element: TsWrapper): R
+
     fun visit(element: TsObject): R
+
     fun visit(element: TsTransaction): R
+
     fun <T : TsType> visit(element: TsPredicate<T>): R
+
     fun <T : TsWrapper> visit(element: TsSandboxContract<T>): R
+
     fun <T : TsType> visit(element: TsArray<T>): R
 
-    /* blocks */
+    // blocks
     fun visit(element: TsTestFile): R
+
     fun visit(element: TsTestBlock): R
+
     fun visit(element: TsTestCase): R
+
     fun visit(element: TsBeforeAllBlock): R
+
     fun visit(element: TsBeforeEachBlock): R
 
-    /* statements */
+    // statements
     fun visit(element: TsEmptyLine): R
-    fun <T : TsType> visit(element: TsAssignment<T>): R
-    fun <T : TsType> visit(element: TsDeclaration<T>): R
-    fun <T : TsType> visit(element: TsStatementExpression<T>) : R
 
-    /* executable */
+    fun <T : TsType> visit(element: TsAssignment<T>): R
+
+    fun <T : TsType> visit(element: TsDeclaration<T>): R
+
+    fun <T : TsType> visit(element: TsStatementExpression<T>): R
+
+    // executable
     fun <T : TsType> visit(element: TsMethodCall<T>): R
+
     fun <T : TsType> visit(element: TsConstructorCall<T>): R
 
-    /* test-utils */
+    // test-utils
     fun <T : TsType> visit(element: TsExpectToEqual<T>): R
+
     fun visit(element: TsExpectToHaveTransaction): R
 
-    /* expressions */
+    // expressions
     fun <T : TsType> visit(element: TsVariable<T>): R
+
     fun <P : TsType, T : TsType> visit(element: TsFieldAccess<P, T>): R
+
     fun visit(element: TsBooleanValue): R
+
     fun visit(element: TsIntValue): R
+
     fun visit(element: TsBigintValue): R
+
     fun visit(element: TsStringValue): R
+
     fun visit(element: TsDataCellValue): R
+
     fun visit(element: TsDictValue): R
+
     fun visit(element: TsSliceValue): R
+
     fun visit(element: TsBuilderValue): R
+
     fun <T : TsType> visit(element: TsEquals<T>): R
+
     fun <T : TsObject> visit(element: TsObjectInit<T>): R
+
     fun <T : TsType> visit(element: TsGreater<T>): R
+
     fun <T : TsType> visit(element: TsLambdaPredicate<T>): R
 
-    /* arithmetic */
+    // arithmetic
     fun <T : TsNum> visit(element: TsNumAdd<T>): R
+
     fun <T : TsNum> visit(element: TsNumSub<T>): R
+
     fun <T : TsNum> visit(element: TsNumDiv<T>): R
+
     fun <T : TsNum> visit(element: TsNumPow<T>): R
 }

@@ -5,11 +5,14 @@ import java.util.Date
 import kotlin.math.max
 
 abstract class TonBlockchainInfoExtractorWithRequestPause(
-    private val pauseBetweenRequestsMillies: Long,
+    private val pauseBetweenRequestsMillies: Long
 ) : TonBlockchainInfoExtractor {
     private var lastRequestTimestamp = 0L
 
-    protected fun makeTonApiRequest(query: String, failOnRequestError: Boolean = true): Pair<Int, String> {
+    protected fun makeTonApiRequest(
+        query: String,
+        failOnRequestError: Boolean = true
+    ): Pair<Int, String> {
         val now = Date().time
         lastRequestTimestamp = Date().time
         Thread.sleep(max(0, pauseBetweenRequestsMillies - (now - lastRequestTimestamp)))
@@ -19,5 +22,5 @@ abstract class TonBlockchainInfoExtractorWithRequestPause(
 
 data class TonApiException(
     override val message: String,
-    val isParsingError: Boolean,
+    val isParsingError: Boolean
 ) : RuntimeException()

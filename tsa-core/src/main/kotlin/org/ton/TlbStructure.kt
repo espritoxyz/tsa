@@ -14,9 +14,11 @@ sealed interface TlbStructure {
         val typeLabel: TlbLabel,
         val typeArgIds: List<Int>,
         val rest: TlbStructure,
-        override val owner: TlbCompositeLabel,
-    ) : TlbStructure, CompositeNode {
+        override val owner: TlbCompositeLabel
+    ) : TlbStructure,
+        CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
+
         override fun hashCode(): Int = calculateHash()
     }
 
@@ -24,9 +26,11 @@ sealed interface TlbStructure {
         override val id: Int,
         val ref: TvmParameterInfo.CellInfo,
         val rest: TlbStructure,
-        override val owner: TlbCompositeLabel,
-    ) : TlbStructure, CompositeNode {
+        override val owner: TlbCompositeLabel
+    ) : TlbStructure,
+        CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
+
         override fun hashCode(): Int = calculateHash()
     }
 
@@ -34,9 +38,11 @@ sealed interface TlbStructure {
         override val id: Int,
         val switchSize: Int,
         givenVariants: Map<String, TlbStructure>,
-        override val owner: TlbCompositeLabel,
-    ) : TlbStructure, CompositeNode {
+        override val owner: TlbCompositeLabel
+    ) : TlbStructure,
+        CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
+
         override fun hashCode(): Int = calculateHash()
 
         val variants: List<SwitchVariant> = givenVariants.entries.map { SwitchVariant(it.key, it.value) }
@@ -54,7 +60,7 @@ sealed interface TlbStructure {
 
         data class SwitchVariant(
             val key: String,
-            val struct: TlbStructure,
+            val struct: TlbStructure
         )
     }
 
@@ -64,8 +70,9 @@ sealed interface TlbStructure {
         val owner: TlbCompositeLabel
 
         fun performEquals(other: Any?): Boolean {
-            if (other !is CompositeNode)
+            if (other !is CompositeNode) {
                 return false
+            }
             return id == other.id
         }
 

@@ -15,10 +15,16 @@ import org.usvm.machine.types.memory.SwitchField
 value class TlbStructureBuilder(
     val build: (TlbStructure, TlbCompositeLabel, TvmState, UConcreteHeapRef) -> TlbStructure
 ) {
-    fun end(owner: TlbCompositeLabel, state: TvmState, address: UConcreteHeapRef): TlbStructure =
-        build(TlbStructure.Empty, owner, state, address)
+    fun end(
+        owner: TlbCompositeLabel,
+        state: TvmState,
+        address: UConcreteHeapRef
+    ): TlbStructure = build(TlbStructure.Empty, owner, state, address)
 
-    fun addTlbLabel(label: TlbLabel, initializeTlbField: (TvmState, UConcreteHeapRef, Int) -> Unit): TlbStructureBuilder {
+    fun addTlbLabel(
+        label: TlbLabel,
+        initializeTlbField: (TvmState, UConcreteHeapRef, Int) -> Unit
+    ): TlbStructureBuilder {
         // [label] must be deduced from store operations, and such labels have zero arity.
         // So, there is no need to support type arguments here.
         check(label.arity == 0) {
@@ -33,16 +39,19 @@ value class TlbStructureBuilder(
                     typeLabel = label,
                     typeArgIds = emptyList(),
                     rest = suffix,
-                    owner = owner,
+                    owner = owner
                 ),
                 owner,
                 state,
-                address,
+                address
             )
         }
     }
 
-    fun addConstant(ctx: TvmContext, bitString: String): TlbStructureBuilder =
+    fun addConstant(
+        ctx: TvmContext,
+        bitString: String
+    ): TlbStructureBuilder =
         TlbStructureBuilder { suffix, owner, state, address ->
             val id = TlbStructureIdProvider.provideId()
             val switchField = SwitchField(id, persistentListOf(), listOf(suffix.id))
@@ -52,14 +61,15 @@ value class TlbStructureBuilder(
                 TlbStructure.SwitchPrefix(
                     id = id,
                     switchSize = bitString.length,
-                    givenVariants = mapOf(
-                        bitString to suffix
-                    ),
-                    owner,
+                    givenVariants =
+                        mapOf(
+                            bitString to suffix
+                        ),
+                    owner
                 ),
                 owner,
                 state,
-                address,
+                address
             )
         }
 

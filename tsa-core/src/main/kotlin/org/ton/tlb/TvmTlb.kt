@@ -19,7 +19,7 @@ data class TvmTlbTypeDefinition(
     val id: Int,
     val name: String,
     val arity: Int,
-    val constructors: List<TvmTlbTypeConstructor>,
+    val constructors: List<TvmTlbTypeConstructor>
 ) {
     val isBuiltin
         get() = constructors.isEmpty()
@@ -36,7 +36,7 @@ data class TvmTlbTypeConstructor(
 data class TvmTlbField(
     val name: String,
     @SerialName("type-expr")
-    val typeExpr: TvmTlbTypeExpr,
+    val typeExpr: TvmTlbTypeExpr
 )
 
 @Serializable
@@ -58,11 +58,11 @@ data class TvmTlbReference(
 @Serializable
 @SerialName("int-const")
 data class TvmTlbIntConst(
-    val value: Int,
+    val value: Int
 ) : TvmTlbTypeExpr
 
 @Serializable
 @SerialName("param")
 data class TvmTlbTypeParam(
-    val idx: Int,
+    val idx: Int
 ) : TvmTlbTypeExpr

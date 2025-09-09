@@ -1,9 +1,9 @@
 package org.ton.examples.signature
 
+import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
-import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.TvmContext
 import org.usvm.test.resolver.TvmMethodFailure
@@ -24,9 +24,10 @@ class SignatureTest {
         val path = extractResource(signaturePath)
         val result = funcCompileAndAnalyzeAllMethods(path)
 
-        val signatureCheckPassed = result.testSuites
-            .single { it.methodId == TvmContext.RECEIVE_INTERNAL_ID }
-            .any { (it.result as? TvmMethodFailure)?.exitCode == passedSignatureCheckExitCode }
+        val signatureCheckPassed =
+            result.testSuites
+                .single { it.methodId == TvmContext.RECEIVE_INTERNAL_ID }
+                .any { (it.result as? TvmMethodFailure)?.exitCode == passedSignatureCheckExitCode }
 
         assertTrue(signatureCheckPassed)
 
@@ -38,9 +39,10 @@ class SignatureTest {
         val path = extractResource(unreachableCodePath)
         val result = funcCompileAndAnalyzeAllMethods(path)
 
-        val signatureCheckPassed = result.testSuites
-            .single { it.methodId == TvmContext.RECEIVE_INTERNAL_ID }
-            .any { (it.result as? TvmMethodFailure)?.exitCode == passedSignatureCheckExitCode }
+        val signatureCheckPassed =
+            result.testSuites
+                .single { it.methodId == TvmContext.RECEIVE_INTERNAL_ID }
+                .any { (it.result as? TvmMethodFailure)?.exitCode == passedSignatureCheckExitCode }
 
         assertFalse(signatureCheckPassed)
     }
@@ -58,7 +60,7 @@ class SignatureTest {
             tests,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 }
             )
         )
 

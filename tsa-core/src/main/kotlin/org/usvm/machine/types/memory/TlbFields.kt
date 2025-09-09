@@ -18,14 +18,14 @@ interface TlbField : TvmField {
 data class ConcreteSizeBlockField(
     val bitSize: Int,
     override val structureId: Int,
-    override val pathToStructure: List<Int>,
+    override val pathToStructure: List<Int>
 ) : TlbField {
     override fun getSort(ctx: TvmContext) = ctx.mkBvSort(bitSize.toUInt())
 }
 
 data class SliceRefField(
     override val structureId: Int,
-    override val pathToStructure: List<Int>,
+    override val pathToStructure: List<Int>
 ) : TlbField {
     override fun getSort(ctx: TvmContext) = ctx.addressSort
 }
@@ -33,7 +33,7 @@ data class SliceRefField(
 data class SymbolicSizeBlockField(
     val maxBitSize: Int,
     override val structureId: Int,
-    override val pathToStructure: List<Int>,
+    override val pathToStructure: List<Int>
 ) : TlbField {
     override fun getSort(ctx: TvmContext) = ctx.mkBvSort(maxBitSize.toUInt())
 
@@ -45,7 +45,7 @@ data class SymbolicSizeBlockField(
 data class SwitchField(
     override val structureId: Int,
     override val pathToStructure: List<Int>,
-    val possibleContinuations: List<Int>,
+    val possibleContinuations: List<Int>
 ) : TlbField {
     // calculate minimum number of bits needed for storing [possibleContinuations.size] values
     private val bitSize: UInt = log2(possibleContinuations.size.toUInt() * 2u - 1u)

@@ -20,8 +20,9 @@ fun calculateMaxCellTlbDepths(
     // Then, based on that, calculate maximum TL-B depth
     calculateMapsByTlbDepth(maxTlbDepth, labels) { label, curDepth, prevDepthValues ->
         val curResult = result[label]
-        if (curResult != null)
+        if (curResult != null) {
             return@calculateMapsByTlbDepth TvmContext.MAX_DATA_LENGTH + 1
+        }
 
         val value = getMaxCellLength(label.internalStructure, prevDepthValues)
         if (value != null && value > TvmContext.MAX_DATA_LENGTH) {
@@ -54,13 +55,15 @@ private fun getMaxCellLength(
         }
 
         is TlbStructure.KnownTypePrefix -> {
-            val further = getMaxCellLength(struct.rest, maxLengthFromPreviousDepth)
-                ?: return null
+            val further =
+                getMaxCellLength(struct.rest, maxLengthFromPreviousDepth)
+                    ?: return null
 
-            val offset = when (struct.typeLabel) {
-                is TlbAtomicLabel -> struct.typeLabel.lengthUpperBound()
-                is TlbCompositeLabel -> maxLengthFromPreviousDepth[struct.typeLabel]
-            } ?: return null
+            val offset =
+                when (struct.typeLabel) {
+                    is TlbAtomicLabel -> struct.typeLabel.lengthUpperBound()
+                    is TlbCompositeLabel -> maxLengthFromPreviousDepth[struct.typeLabel]
+                } ?: return null
 
             offset + further
         }

@@ -1,5 +1,6 @@
 plugins {
     id("tsa.kotlin-conventions")
+    id("org.jmailen.kotlinter") version Versions.kotlinterPluginVersion
 }
 
 dependencies {
@@ -18,4 +19,11 @@ dependencies {
     implementation("org.ton:ton-kotlin-block-tlb:0.3.1")
     implementation("org.ton:ton-kotlin-bitstring:0.3.1")
     implementation("org.ton:ton-kotlin-bigint:0.3.1")
+}
+
+tasks.register("formatAndLintAll") {
+    group = "formatting"
+
+    dependsOn(tasks.findByName("formatKotlin"))
+    dependsOn(tasks.findByName("lintKotlin"))
 }

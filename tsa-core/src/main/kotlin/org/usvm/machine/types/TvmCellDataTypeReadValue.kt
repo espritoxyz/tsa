@@ -21,33 +21,38 @@ fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
     ctx: TvmContext,
     condition: UBoolExpr,
     trueBranch: ReadResult,
-    falseBranch: ReadResult,
-): ReadResult = when (trueBranch) {
-    is UExprReadResult<*> -> {
-        mkUExprIte<KSort>(ctx, condition, trueBranch.uncheckedCast(), falseBranch.uncheckedCast()).uncheckedCast()
+    falseBranch: ReadResult
+): ReadResult =
+    when (trueBranch) {
+        is UExprReadResult<*> -> {
+            mkUExprIte<KSort>(ctx, condition, trueBranch.uncheckedCast(), falseBranch.uncheckedCast()).uncheckedCast()
+        }
+        is UExprPairReadResult<*, *> -> {
+            mkUExprPairIte<KSort, KSort>(
+                ctx,
+                condition,
+                trueBranch.uncheckedCast(),
+                falseBranch.uncheckedCast()
+            ).uncheckedCast()
+        }
+        else -> error("Unexpected value: $trueBranch")
     }
-    is UExprPairReadResult<*, *> -> {
-        mkUExprPairIte<KSort, KSort>(ctx, condition, trueBranch.uncheckedCast(), falseBranch.uncheckedCast()).uncheckedCast()
-    }
-    else -> error("Unexpected value: $trueBranch")
-}
 
 fun <Sort : KSort> mkUExprIte(
     ctx: TvmContext,
     condition: UBoolExpr,
     trueBranch: UExprReadResult<Sort>,
-    falseBranch: UExprReadResult<Sort>,
+    falseBranch: UExprReadResult<Sort>
 ): UExprReadResult<Sort> {
     val expr = ctx.mkIte(condition, trueBranch = { trueBranch.expr }, falseBranch = { falseBranch.expr })
     return UExprReadResult(expr)
 }
 
-
 fun <Sort1 : KSort, Sort2 : KSort> mkUExprPairIte(
     ctx: TvmContext,
     condition: UBoolExpr,
     trueBranch: UExprPairReadResult<Sort1, Sort2>,
-    falseBranch: UExprPairReadResult<Sort1, Sort2>,
+    falseBranch: UExprPairReadResult<Sort1, Sort2>
 ): UExprPairReadResult<Sort1, Sort2> {
     val expr1 = ctx.mkIte(condition, trueBranch = { trueBranch.first }, falseBranch = { falseBranch.first })
     val expr2 = ctx.mkIte(condition, trueBranch = { trueBranch.second }, falseBranch = { falseBranch.second })

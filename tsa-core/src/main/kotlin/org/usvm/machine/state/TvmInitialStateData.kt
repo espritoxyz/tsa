@@ -5,5 +5,5 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 
 data class TvmInitialStateData(
     val persistentData: UHeapRef,
-    val firstElementOfC7: TvmStackTupleValueConcreteNew,
+    val firstElementOfC7: TvmStackTupleValueConcreteNew
 )

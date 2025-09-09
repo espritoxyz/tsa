@@ -24,9 +24,12 @@ import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.types.TvmSliceType
 
 class TvmMessageAddrInterpreter(
-    private val ctx: TvmContext,
+    private val ctx: TvmContext
 ) {
-    fun visitAddrInst(scope: TvmStepScopeManager, stmt: TvmAppAddrInst) {
+    fun visitAddrInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppAddrInst
+    ) {
         scope.consumeDefaultGas(stmt)
 
         when (stmt) {
@@ -36,13 +39,18 @@ class TvmMessageAddrInterpreter(
         }
     }
 
-    private fun visitLoadMessageAddrInst(scope: TvmStepScopeManager, stmt: TvmAppAddrLdmsgaddrInst) = with(ctx) {
-        val slice = scope.calcOnState { takeLastSlice() }
-            ?: return scope.doWithState(throwTypeCheckError)
+    private fun visitLoadMessageAddrInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppAddrLdmsgaddrInst
+    ) = with(ctx) {
+        val slice =
+            scope.calcOnState { takeLastSlice() }
+                ?: return scope.doWithState(throwTypeCheckError)
 
-        val updatedSlice = scope.calcOnState {
-            memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
-        }
+        val updatedSlice =
+            scope.calcOnState {
+                memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
+            }
 
         sliceLoadAddrTlb(scope, slice, updatedSlice) { value ->
             doWithState {
@@ -54,7 +62,10 @@ class TvmMessageAddrInterpreter(
         }
     }
 
-    private fun visitParseStdAddr(scope: TvmStepScopeManager, inst: TvmAppAddrRewritestdaddrInst) {
+    private fun visitParseStdAddr(
+        scope: TvmStepScopeManager,
+        inst: TvmAppAddrRewritestdaddrInst
+    ) {
         scope.doWithStateCtx {
             // TODO support var address
 
@@ -65,8 +76,9 @@ class TvmMessageAddrInterpreter(
             }
 
             val copySlice = memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
-            val addrConstructor = scope.slicePreloadDataBits(copySlice, bits = 2)
-                ?: TODO("Deal with incorrect address")
+            val addrConstructor =
+                scope.slicePreloadDataBits(copySlice, bits = 2)
+                    ?: TODO("Deal with incorrect address")
             sliceMoveDataPtr(copySlice, bits = 2)
 
             scope.assert(
@@ -77,8 +89,9 @@ class TvmMessageAddrInterpreter(
                 }
             ) ?: return@doWithStateCtx
 
-            val anycastBit = scope.slicePreloadDataBits(copySlice, bits = 1)
-                ?: TODO("Deal with incorrect address")
+            val anycastBit =
+                scope.slicePreloadDataBits(copySlice, bits = 1)
+                    ?: TODO("Deal with incorrect address")
             sliceMoveDataPtr(copySlice, bits = 1)
             scope.assert(
                 anycastBit eq zeroBit,
@@ -88,8 +101,9 @@ class TvmMessageAddrInterpreter(
                 }
             ) ?: return@doWithStateCtx
 
-            val workchain = scope.slicePreloadDataBits(copySlice, bits = STD_WORKCHAIN_BITS)?.signedExtendToInteger()
-                ?: TODO("Deal with incorrect address")
+            val workchain =
+                scope.slicePreloadDataBits(copySlice, bits = STD_WORKCHAIN_BITS)?.signedExtendToInteger()
+                    ?: TODO("Deal with incorrect address")
             sliceMoveDataPtr(copySlice, bits = STD_WORKCHAIN_BITS)
 
             val workchainValueConstraint = (workchain eq baseChain) or (workchain eq masterchain)
@@ -100,8 +114,9 @@ class TvmMessageAddrInterpreter(
                 }
             ) ?: return@doWithStateCtx
 
-            val address = scope.slicePreloadDataBits(copySlice, bits = ADDRESS_BITS)
-                ?: TODO("Deal with incorrect address")
+            val address =
+                scope.slicePreloadDataBits(copySlice, bits = ADDRESS_BITS)
+                    ?: TODO("Deal with incorrect address")
             sliceMoveDataPtr(copySlice, bits = ADDRESS_BITS)
 
             val bitsLeft = getSliceRemainingBitsCount(copySlice)

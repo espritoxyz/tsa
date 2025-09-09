@@ -19,7 +19,7 @@ import kotlin.io.path.extension
 data class JettonWalletPropertiesReport(
     val analyzedAddress: String,
     val jettonWalletCodeHashBase64: String,
-    val blacklistedAddresses: Set<String>,
+    val blacklistedAddresses: Set<String>
 )
 
 fun runAnalysisAndCreateReport(address: String): JettonWalletPropertiesReport {
@@ -30,7 +30,7 @@ fun runAnalysisAndCreateReport(address: String): JettonWalletPropertiesReport {
     return JettonWalletPropertiesReport(
         analyzedAddress = address,
         jettonWalletCodeHashBase64 = contractInfo.jettonWalletCodeHashBase64,
-        blacklistedAddresses = runAnalysisAndCreateReport(contract),
+        blacklistedAddresses = runAnalysisAndCreateReport(contract)
     )
 }
 
@@ -40,18 +40,23 @@ fun runAnalysisAndCreateReport(contract: TsaContractCode): Set<String> {
 
     try {
         val blacklistAddressChecker = BlacklistAddressChecker(targetResourcesDir)
-        val blacklistedAddressesExecutions = blacklistAddressChecker.findConflictingExecutions(
-            contract,
-            stopWhenFoundOneConflictingExecution = false,
-        )
+        val blacklistedAddressesExecutions =
+            blacklistAddressChecker.findConflictingExecutions(
+                contract,
+                stopWhenFoundOneConflictingExecution = false
+            )
 
-        val description = if (blacklistedAddressesExecutions.isNotEmpty()) {
-            val blacklistedAddressesDescription = blacklistAddressChecker.getDescription(blacklistedAddressesExecutions)
+        val description =
+            if (blacklistedAddressesExecutions.isNotEmpty()) {
+                val blacklistedAddressesDescription =
+                    blacklistAddressChecker.getDescription(
+                        blacklistedAddressesExecutions
+                    )
 
-            blacklistedAddressesDescription.blacklistedAddresses
-        } else {
-            null
-        }
+                blacklistedAddressesDescription.blacklistedAddresses
+            } else {
+                null
+            }
 
         return description ?: emptySet()
     } finally {
@@ -60,7 +65,9 @@ fun runAnalysisAndCreateReport(contract: TsaContractCode): Set<String> {
 }
 
 private fun makeTmpDirForResourcesForJarEnvironmentOrNull(): Path? {
-    val uri = JettonWalletPropertiesReport::class.java.protectionDomain.codeSource.location.toURI()
+    val uri =
+        JettonWalletPropertiesReport::class.java.protectionDomain.codeSource.location
+            .toURI()
     val extension = Path(uri.path).extension
 
     if (extension != "jar") {
@@ -70,7 +77,9 @@ private fun makeTmpDirForResourcesForJarEnvironmentOrNull(): Path? {
     JarFile(uri.schemeSpecificPart).use { jar ->
         val resourcesPrefix = "resources"
         val targetResourcesDir = createTempDirectory()
-        jar.entries().asSequence()
+        jar
+            .entries()
+            .asSequence()
             .filter { it.name.startsWith(resourcesPrefix) }
             .forEach { entry ->
                 // Determine the target path for each entry

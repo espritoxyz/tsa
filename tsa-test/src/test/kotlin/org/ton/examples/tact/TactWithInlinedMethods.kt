@@ -26,7 +26,11 @@ class TactWithInlinedMethods {
         val symbolicResult = analyzeSpecificMethod(code, 95202.toMethodId())
 
         val results = symbolicResult.map { it.result }
-        val exceptions = results.mapNotNull { (it as? TvmMethodFailure)?.failure?.exit }.filterIsInstance<TvmIntegerOverflowError>()
+        val exceptions =
+            results
+                .mapNotNull {
+                    (it as? TvmMethodFailure)?.failure?.exit
+                }.filterIsInstance<TvmIntegerOverflowError>()
         assertTrue(exceptions.isNotEmpty(), "Division by zero was not found!")
     }
 

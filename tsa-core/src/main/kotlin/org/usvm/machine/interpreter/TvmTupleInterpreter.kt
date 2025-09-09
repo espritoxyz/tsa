@@ -3,12 +3,10 @@ package org.usvm.machine.interpreter
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
-import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bytecode.TvmComplexGas
 import org.ton.bytecode.TvmInst
-import org.usvm.machine.types.TvmNullType
 import org.ton.bytecode.TvmTupleExplodeInst
 import org.ton.bytecode.TvmTupleExplodevarInst
 import org.ton.bytecode.TvmTupleIndex2Inst
@@ -62,10 +60,16 @@ import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastTuple
+import org.usvm.machine.types.TvmNullType
 import java.math.BigInteger
 
-class TvmTupleInterpreter(private val ctx: TvmContext) {
-    fun visitTvmTupleInst(scope: TvmStepScopeManager, stmt: TvmTupleInst) {
+class TvmTupleInterpreter(
+    private val ctx: TvmContext
+) {
+    fun visitTvmTupleInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleInst
+    ) {
         if (stmt.gasConsumption !is TvmComplexGas) {
             scope.consumeDefaultGas(stmt)
         }
@@ -96,17 +100,74 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
             is TvmTupleNullInst -> visitNullInst(scope, stmt)
             is TvmTupleIsnullInst -> visitIsNull(scope, stmt)
             is TvmTupleIstupleInst -> visitIsTupleInst(scope, stmt)
-            is TvmTupleNullswapifInst -> doPushNullIf(scope, stmt, swapIfZero = false, nullsCount = 1, skipOneEntryUnderTop = false)
-            is TvmTupleNullswapif2Inst -> doPushNullIf(scope, stmt, swapIfZero = false, nullsCount = 2, skipOneEntryUnderTop = false)
-            is TvmTupleNullrotrifInst -> doPushNullIf(scope, stmt, swapIfZero = false, nullsCount = 1, skipOneEntryUnderTop = true)
-            is TvmTupleNullrotrif2Inst -> doPushNullIf(scope, stmt, swapIfZero = false, nullsCount = 2, skipOneEntryUnderTop = true)
-            is TvmTupleNullswapifnotInst -> doPushNullIf(scope, stmt, swapIfZero = true, nullsCount = 1, skipOneEntryUnderTop = false)
-            is TvmTupleNullswapifnot2Inst -> doPushNullIf(scope, stmt, swapIfZero = true, nullsCount = 2, skipOneEntryUnderTop = false)
-            is TvmTupleNullrotrifnotInst -> doPushNullIf(scope, stmt, swapIfZero = true, nullsCount = 1, skipOneEntryUnderTop = true)
-            is TvmTupleNullrotrifnot2Inst -> doPushNullIf(scope, stmt, swapIfZero = true, nullsCount = 2, skipOneEntryUnderTop = true)
+            is TvmTupleNullswapifInst ->
+                doPushNullIf(
+                    scope,
+                    stmt,
+                    swapIfZero = false,
+                    nullsCount = 1,
+                    skipOneEntryUnderTop = false
+                )
+            is TvmTupleNullswapif2Inst ->
+                doPushNullIf(
+                    scope,
+                    stmt,
+                    swapIfZero = false,
+                    nullsCount = 2,
+                    skipOneEntryUnderTop = false
+                )
+            is TvmTupleNullrotrifInst ->
+                doPushNullIf(
+                    scope,
+                    stmt,
+                    swapIfZero = false,
+                    nullsCount = 1,
+                    skipOneEntryUnderTop = true
+                )
+            is TvmTupleNullrotrif2Inst ->
+                doPushNullIf(
+                    scope,
+                    stmt,
+                    swapIfZero = false,
+                    nullsCount = 2,
+                    skipOneEntryUnderTop = true
+                )
+            is TvmTupleNullswapifnotInst ->
+                doPushNullIf(
+                    scope,
+                    stmt,
+                    swapIfZero = true,
+                    nullsCount = 1,
+                    skipOneEntryUnderTop = false
+                )
+            is TvmTupleNullswapifnot2Inst ->
+                doPushNullIf(
+                    scope,
+                    stmt,
+                    swapIfZero = true,
+                    nullsCount = 2,
+                    skipOneEntryUnderTop = false
+                )
+            is TvmTupleNullrotrifnotInst ->
+                doPushNullIf(
+                    scope,
+                    stmt,
+                    swapIfZero = true,
+                    nullsCount = 1,
+                    skipOneEntryUnderTop = true
+                )
+            is TvmTupleNullrotrifnot2Inst ->
+                doPushNullIf(
+                    scope,
+                    stmt,
+                    swapIfZero = true,
+                    nullsCount = 2,
+                    skipOneEntryUnderTop = true
+                )
             is TvmTupleIndexvarInst -> {
-                val index = scope.takeLastIntOrThrowTypeError()
-                    ?: return
+                val index =
+                    scope.takeLastIntOrThrowTypeError()
+                        ?: return
                 if (index !is KBitVecValue<*>) {
                     TODO("Non-concrete at TvmTupleIndexvarInst: $index")
                 }
@@ -118,16 +179,18 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
                 scope.doWithState { newStmt(stmt.nextStmt()) }
             }
             is TvmTupleSetindexvarInst -> {
-                val index = scope.takeLastIntOrThrowTypeError()
-                    ?: return
+                val index =
+                    scope.takeLastIntOrThrowTypeError()
+                        ?: return
                 if (index !is KInterpretedValue || index.bigIntValue() > Int.MAX_VALUE.toBigInteger()) {
                     TODO("Non-concrete or big index in TvmTupleSetindexvarInst: $index")
                 }
                 doConcreteSet(scope, stmt, index.intValue(), quiet = false)
             }
             is TvmTupleSetindexvarqInst -> {
-                val index = scope.takeLastIntOrThrowTypeError()
-                    ?: return
+                val index =
+                    scope.takeLastIntOrThrowTypeError()
+                        ?: return
                 if (index !is KInterpretedValue || index.bigIntValue() > Int.MAX_VALUE.toBigInteger()) {
                     TODO("Non-concrete or big index in TvmTupleSetindexvarqInst: $index")
                 }
@@ -146,8 +209,10 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun visitTPushInst(scope: TvmStepScopeManager, stmt: TvmTupleTpushInst) {
-
+    private fun visitTPushInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleTpushInst
+    ) {
         val value = scope.calcOnState { stack.takeLastEntry() }
 
         val tuple = scope.takeLastTuple()
@@ -175,7 +240,10 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun visitTPopInst(scope: TvmStepScopeManager, stmt: TvmTupleTpopInst) {
+    private fun visitTPopInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleTpopInst
+    ) {
         val tuple = scope.takeLastTuple()
         if (tuple == null) {
             scope.doWithState(ctx.throwTypeCheckError)
@@ -206,7 +274,10 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun visitMakeTupleInst(scope: TvmStepScopeManager, stmt: TvmTupleTupleInst) {
+    private fun visitMakeTupleInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleTupleInst
+    ) {
         val size = stmt.n
         check(size in 0..15) {
             "Unexpected tuple size $size"
@@ -225,7 +296,10 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun visitUntupleInst(scope: TvmStepScopeManager, stmt: TvmTupleUntupleInst) {
+    private fun visitUntupleInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleUntupleInst
+    ) {
         val size = stmt.n
         check(size in 0..15) {
             "Unexpected tuple size $size"
@@ -276,7 +350,11 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun visitGetTupleLenInst(scope: TvmStepScopeManager, stmt: TvmTupleInst, quiet: Boolean) {
+    private fun visitGetTupleLenInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleInst,
+        quiet: Boolean
+    ) {
         val tuple = scope.takeLastTuple()
         if (tuple == null) {
             if (!quiet) {
@@ -297,7 +375,12 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun doConcreteGet(scope: TvmStepScopeManager, stmt: TvmInst, index: Int, quiet: Boolean): Unit? {
+    private fun doConcreteGet(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+        index: Int,
+        quiet: Boolean
+    ): Unit? {
         check(index in 0..15) {
             "Unexpected tuple index $index"
         }
@@ -341,7 +424,12 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         return Unit
     }
 
-    private fun doConcreteSet(scope: TvmStepScopeManager, stmt: TvmInst, index: Int, quiet: Boolean) {
+    private fun doConcreteSet(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+        index: Int,
+        quiet: Boolean
+    ) {
         check(index in 0..15) {
             "Unexpected tuple index $index"
         }
@@ -385,11 +473,12 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
             }
         ) ?: return
 
-        val updatedTuple = if (isValueNull && quiet) {
-            tuple // Do not consume gas!
-        } else {
-            tuple.set(index, value)
-        }
+        val updatedTuple =
+            if (isValueNull && quiet) {
+                tuple // Do not consume gas!
+            } else {
+                tuple.set(index, value)
+            }
 
         scope.doWithStateCtx {
             stack.addTuple(updatedTuple)
@@ -398,7 +487,12 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun doIndex2(scope: TvmStepScopeManager, stmt: TvmTupleInst, i: Int, j: Int): Unit? {
+    private fun doIndex2(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleInst,
+        i: Int,
+        j: Int
+    ): Unit? {
         check(i in 0..3) {
             "Unexpected index $i in $stmt"
         }
@@ -411,7 +505,10 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         return Unit
     }
 
-    private fun doIndex3(scope: TvmStepScopeManager, stmt: TvmTupleIndex3Inst): Unit? {
+    private fun doIndex3(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleIndex3Inst
+    ): Unit? {
         val k = stmt.k
         check(k in 0..3) {
             "Unexpected index $k in $stmt"
@@ -423,20 +520,29 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         return Unit
     }
 
-    private fun visitIsNull(scope: TvmStepScopeManager, stmt: TvmTupleIsnullInst) = scope.doWithStateCtx {
+    private fun visitIsNull(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleIsnullInst
+    ) = scope.doWithStateCtx {
         val isNull = stack.lastIsNull()
         stack.pop(0)
         stack.addInt(if (isNull) trueValue else falseValue)
         newStmt(stmt.nextStmt())
     }
 
-    private fun visitIsTupleInst(scope: TvmStepScopeManager, stmt: TvmTupleIstupleInst) = scope.doWithStateCtx {
+    private fun visitIsTupleInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleIstupleInst
+    ) = scope.doWithStateCtx {
         val lastTuple = scope.takeLastTuple()
         stack.addInt(if (lastTuple != null) trueValue else falseValue)
         newStmt(stmt.nextStmt())
     }
 
-    private fun visitNullInst(scope: TvmStepScopeManager, stmt: TvmTupleNullInst) = scope.doWithStateCtx {
+    private fun visitNullInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmTupleNullInst
+    ) = scope.doWithStateCtx {
         scope.addOnStack(nullValue, TvmNullType)
         newStmt(stmt.nextStmt())
     }
@@ -449,10 +555,11 @@ class TvmTupleInterpreter(private val ctx: TvmContext) {
         skipOneEntryUnderTop: Boolean
     ) {
         val value = scope.takeLastIntOrThrowTypeError() ?: return
-        val condition = scope.calcOnStateCtx {
-            val cond = mkEq(value, zeroValue)
-            if (swapIfZero) cond else cond.not()
-        }
+        val condition =
+            scope.calcOnStateCtx {
+                val cond = mkEq(value, zeroValue)
+                if (swapIfZero) cond else cond.not()
+            }
         scope.fork(
             condition,
             falseStateIsExceptional = false,

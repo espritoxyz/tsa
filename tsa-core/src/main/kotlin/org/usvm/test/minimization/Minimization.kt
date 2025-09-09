@@ -1,6 +1,5 @@
 package org.usvm.test.minimization
 
-import java.util.IdentityHashMap
 import org.ton.bytecode.TvmInst
 import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
@@ -9,6 +8,7 @@ import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmMethodSymbolicResult
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
+import java.util.IdentityHashMap
 
 /**
  * Minimizes [tests] in each test suite independently. Test suite is computed with [executionToTestSuite] function.
@@ -25,16 +25,17 @@ import org.usvm.test.resolver.TvmSymbolicTest
  */
 fun minimizeTestCase(
     tests: List<TvmSymbolicTest>,
-    branchInstructionsNumber: Int = 3,
+    branchInstructionsNumber: Int = 3
 ): List<TvmSymbolicTest> {
     val executions = buildExecutions(tests)
     val groupedExecutionsByTestSuite = groupExecutionsByTestSuite(executions)
-    val groupedExecutionsByBranchInstructions = groupedExecutionsByTestSuite.flatMap { execution ->
-        groupByBranchInstructions(
-            execution,
-            branchInstructionsNumber
-        )
-    }
+    val groupedExecutionsByBranchInstructions =
+        groupedExecutionsByTestSuite.flatMap { execution ->
+            groupByBranchInstructions(
+                execution,
+                branchInstructionsNumber
+            )
+        }
     return groupedExecutionsByBranchInstructions.map { minimizeExecutions(it) }.flatten().map { it.test }
 }
 
@@ -93,9 +94,10 @@ private fun groupByBranchInstructions(
         }
     }
 
-    val branchInstructions = instructionToPossibleNextInstructions
-        .filterValues { it.size > 1 } // here we take only real branch instruction.
-        .keys
+    val branchInstructions =
+        instructionToPossibleNextInstructions
+            .filterValues { it.size > 1 } // here we take only real branch instruction.
+            .keys
 
     /**
      * here we group executions by their behaviour on the branch instructions
@@ -110,20 +112,21 @@ private fun groupByBranchInstructions(
      * 2. {2 -> 3, 3 -> 2} (because of {__2__, __3__, 2, 6})
      * 3. {2 -> 3, 3 -> 4} (because of {__2__, __3__, 4, 3})
      */
-    val groupedExecutions = executions.groupBy { execution ->
-        val branchInstructionToBranch = mutableListOf<Pair<Int, Int>>() // we group executions by this variable
-        val coveredInstructionIds = execution.coveredInstructionIds
-        // collect the behaviour on the branch instructions
-        for (i in 0 until coveredInstructionIds.size - 1) {
-            if (coveredInstructionIds[i] in branchInstructions) {
-                branchInstructionToBranch.add(coveredInstructionIds[i] to coveredInstructionIds[i + 1])
+    val groupedExecutions =
+        executions.groupBy { execution ->
+            val branchInstructionToBranch = mutableListOf<Pair<Int, Int>>() // we group executions by this variable
+            val coveredInstructionIds = execution.coveredInstructionIds
+            // collect the behaviour on the branch instructions
+            for (i in 0 until coveredInstructionIds.size - 1) {
+                if (coveredInstructionIds[i] in branchInstructions) {
+                    branchInstructionToBranch.add(coveredInstructionIds[i] to coveredInstructionIds[i + 1])
+                }
+                if (branchInstructionToBranch.size == branchInstructionsNumber) {
+                    break
+                }
             }
-            if (branchInstructionToBranch.size == branchInstructionsNumber) {
-                break
-            }
+            branchInstructionToBranch
         }
-        branchInstructionToBranch
-    }
 
     return groupedExecutions.values
 }
@@ -156,9 +159,10 @@ private fun buildMapping(executions: List<TvmExecution>): Pair<Map<Int, List<Int
             execution.test.result,
             thrownExceptions
         ).let { instructions ->
-            val edges = instructions.indices.map { i ->
-                allCoveredEdges.getOrPut(instructions[i] to instructions.getOrNull(i + 1)) { allCoveredEdges.size }
-            }
+            val edges =
+                instructions.indices.map { i ->
+                    allCoveredEdges.getOrPut(instructions[i] to instructions.getOrNull(i + 1)) { allCoveredEdges.size }
+                }
 
             mapping[idx] = edges
             executionToPriorityMapping[idx] = getExecutionPriority()
@@ -196,7 +200,10 @@ private fun addExtraIfLastInstructionIsException(
 
 private fun getExecutionPriority(): Int = 0
 
-private fun failedResultToInfo(result: TvmMethodSymbolicResult, lastInst: Int): String =
+private fun failedResultToInfo(
+    result: TvmMethodSymbolicResult,
+    lastInst: Int
+): String =
     when (result) {
         is TvmMethodFailure -> "TvmError-${result.failure.exit.ruleName}-${result.failure.type}-$lastInst"
         is TvmExecutionWithStructuralError -> "StructuralError-${result.exit.ruleId}-$lastInst"
@@ -208,9 +215,10 @@ private fun buildExecutions(tests: List<TvmSymbolicTest>): List<TvmExecution> {
     val instToId = IdentityHashMap<TvmInst, Int>()
 
     return tests.map { test ->
-        val coveredInstructionsIds = test.coveredInstructions.map { inst ->
-            instToId.getOrPut(inst) { instToId.size }
-        }
+        val coveredInstructionsIds =
+            test.coveredInstructions.map { inst ->
+                instToId.getOrPut(inst) { instToId.size }
+            }
 
         TvmExecution(test, coveredInstructionsIds)
     }
@@ -218,5 +226,5 @@ private fun buildExecutions(tests: List<TvmSymbolicTest>): List<TvmExecution> {
 
 private data class TvmExecution(
     val test: TvmSymbolicTest,
-    val coveredInstructionIds: List<Int>,
+    val coveredInstructionIds: List<Int>
 )
