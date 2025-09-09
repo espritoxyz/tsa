@@ -21,15 +21,17 @@ fun executeTests(
     projectPath: Path,
     testFileName: String,
     testsExecutionTimeout: Duration = TESTS_EXECUTION_DEFAULT_TIMEOUT,
-    testCommand: String = "$yarnCommand jest", // Could be also "jest" or "npm test"
+    // Could be also "jest" or "npm test"
+    testCommand: String = "$yarnCommand jest",
 ): TestExecutionResult {
     val command = "$testCommand --json $testFileName"
 
-    val (exitValue, completedInTime, output, errors) = executeCommandWithTimeout(
-        command,
-        testsExecutionTimeout.inWholeSeconds,
-        projectPath.toFile()
-    )
+    val (exitValue, completedInTime, output, errors) =
+        executeCommandWithTimeout(
+            command,
+            testsExecutionTimeout.inWholeSeconds,
+            projectPath.toFile()
+        )
     check(completedInTime) {
         "Tests execution has not finished in $testsExecutionTimeout"
     }
@@ -39,23 +41,25 @@ fun executeTests(
         "Tests execution finished with an error, exit code $exitValue, errors:\n${errors.toText()}"
     }
 
-    val jsonOutput = output.firstOrNull { it.first() == '{' && it.last() == '}' }
-        ?: error("No json in the output of yarn jest")
-    val json = Json {
-        ignoreUnknownKeys = true
-        explicitNulls = false
-    }
+    val jsonOutput =
+        output.firstOrNull { it.first() == '{' && it.last() == '}' }
+            ?: error("No json in the output of yarn jest")
+    val json =
+        Json {
+            ignoreUnknownKeys = true
+            explicitNulls = false
+        }
 
     return json.decodeFromString(jsonOutput)
 }
-
 
 @Serializable
 enum class TestStatus {
     @SerialName("passed")
     PASSED,
+
     @SerialName("failed")
-    FAILED
+    FAILED,
 }
 
 @Serializable
@@ -80,11 +84,11 @@ data class TestResult(
 
 @Serializable
 data class TestSuite(
-    val assertionResults: List<TestResult>
+    val assertionResults: List<TestResult>,
 )
 
 @Serializable
 data class TestExecutionResult(
     val testResults: List<TestSuite>,
-    val success: Boolean
+    val success: Boolean,
 )

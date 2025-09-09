@@ -49,10 +49,11 @@ class ExceptionTypesTest {
     fun testCellSizeConflict2() {
         val resourcePath = extractResource(cellSizeConflict2Path)
 
-        val results = funcCompileAndAnalyzeAllMethods(
-            resourcePath,
-            tvmOptions = testOptionsToAnalyzeSpecificMethod,
-        )
+        val results =
+            funcCompileAndAnalyzeAllMethods(
+                resourcePath,
+                tvmOptions = testOptionsToAnalyzeSpecificMethod
+            )
         assertEquals(1, results.testSuites.size)
         val testSuite = results.testSuites.first()
 
@@ -60,7 +61,8 @@ class ExceptionTypesTest {
             testSuite,
             listOf(
                 { test ->
-                    val param = (test.input.usedParameters.lastOrNull() as? TvmTestSliceValue)?.cell
+                    val param =
+                        (test.input.usedParameters.lastOrNull() as? TvmTestSliceValue)?.cell
                             ?: return@listOf false
                     val isEmpty = param.data.isEmpty() && param.refs.isEmpty()
                     !isEmpty || (test.result as? TvmMethodFailure)?.failure?.type != TvmFailureType.FixedStructuralError
@@ -73,7 +75,7 @@ class ExceptionTypesTest {
             testSuite,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.FixedStructuralError },
-                { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.RealError },
+                { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.RealError }
             )
         )
     }

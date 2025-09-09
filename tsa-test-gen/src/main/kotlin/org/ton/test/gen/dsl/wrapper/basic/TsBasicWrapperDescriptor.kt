@@ -9,7 +9,8 @@ class TsBasicWrapperDescriptor(
 ) : TsWrapperDescriptor<TsBasicWrapper> {
     override val wrapperType: TsBasicWrapper = TsBasicWrapper(name)
 
-    override fun renderFile(): String = """
+    override fun renderFile(): String =
+        """
         import {Address, Cell, Contract, ContractProvider, TupleItem} from '@ton/core'
         import {Blockchain, createShardAccount, internal} from "@ton/sandbox"
 
@@ -77,5 +78,5 @@ class TsBasicWrapperDescriptor(
                 return await provider.get(name, args)
             }
         }
-    """.trimIndent()
+        """.trimIndent()
 }

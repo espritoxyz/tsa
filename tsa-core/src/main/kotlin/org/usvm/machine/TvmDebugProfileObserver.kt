@@ -1,5 +1,6 @@
 package org.usvm.machine
 
+import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmContDictCalldictInst
@@ -7,7 +8,6 @@ import org.ton.bytecode.TvmContDictCalldictLongInst
 import org.ton.bytecode.TvmContOperand1Inst
 import org.ton.bytecode.TvmContOperand2Inst
 import org.ton.bytecode.TvmContOperandInst
-import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmInstLambdaLocation
 import org.ton.bytecode.TvmInstLocation
@@ -20,22 +20,21 @@ import org.usvm.statistics.UDebugProfileObserver
 fun getTvmDebugProfileObserver(code: TsaContractCode) =
     UDebugProfileObserver(
         TvmStatementOperations(code),
-        profilerOptions = UDebugProfileObserver.Options(
-            printNonVisitedStatements = true,
-            padInstructionEnd = 50,
-            timeFormat = UDebugProfileObserver.TimeFormat.Milliseconds,
-        )
+        profilerOptions =
+            UDebugProfileObserver.Options(
+                printNonVisitedStatements = true,
+                padInstructionEnd = 50,
+                timeFormat = UDebugProfileObserver.TimeFormat.Milliseconds
+            )
     )
 
 private class TvmStatementOperations(
-    private val code: TsaContractCode
-): UDebugProfileObserver.StatementOperations<TvmInst, TvmCodeBlock, TvmState> {
-    override fun getMethodOfStatement(statement: TvmInst): TvmCodeBlock {
-        return statement.getRootLocation().codeBlock
-    }
+    private val code: TsaContractCode,
+) : UDebugProfileObserver.StatementOperations<TvmInst, TvmCodeBlock, TvmState> {
+    override fun getMethodOfStatement(statement: TvmInst): TvmCodeBlock = statement.getRootLocation().codeBlock
 
-    override fun getMethodToCallIfCallStatement(statement: TvmInst): TvmMethod? {
-        return when (statement) {
+    override fun getMethodToCallIfCallStatement(statement: TvmInst): TvmMethod? =
+        when (statement) {
             is TvmContDictCalldictInst -> {
                 code.methods[statement.n.toBigInteger()]
             }
@@ -46,14 +45,11 @@ private class TvmStatementOperations(
                 null
             }
         }
-    }
 
-    override fun getAllMethodStatements(method: TvmCodeBlock): List<TvmInst> {
-        return getAllMethodStatements(method.instList)
-    }
+    override fun getAllMethodStatements(method: TvmCodeBlock): List<TvmInst> = getAllMethodStatements(method.instList)
 
-    private fun getAllMethodStatements(instList: List<TvmInst>): List<TvmInst> {
-        return instList.flatMap {
+    private fun getAllMethodStatements(instList: List<TvmInst>): List<TvmInst> =
+        instList.flatMap {
             when (it) {
                 !is TvmContOperandInst -> {
                     if (it is TvmArtificialInst) emptyList() else listOf(it)
@@ -66,29 +62,28 @@ private class TvmStatementOperations(
                 }
             }
         }
-    }
 
     override fun getStatementIndexInMethod(statement: TvmInst): Int {
         // will be called only with option [printNonVisitedStatements] set to true
         TODO("not implemented")
     }
 
-    override fun printMethodName(method: TvmCodeBlock): String {
-        return when (method) {
+    override fun printMethodName(method: TvmCodeBlock): String =
+        when (method) {
             is TvmMethod -> "Method ${method.id}"
             is TvmLambda -> "TvmLambda"
             is TvmMainMethod -> "TvmMainMethod"
             else -> error("Unexpected TvmCodeBlock: $method")
         }
-    }
 
     override fun printStatement(statement: TvmInst): String {
         val name = statement.mnemonic
-        var prefix = if (statement.location is TvmInstLambdaLocation) {
-            ">"
-        } else {
-            ""
-        }
+        var prefix =
+            if (statement.location is TvmInstLambdaLocation) {
+                ">"
+            } else {
+                ""
+            }
         var curLoc: TvmInstLocation = statement.location
         while (curLoc is TvmInstLambdaLocation) {
             prefix = "-$prefix"

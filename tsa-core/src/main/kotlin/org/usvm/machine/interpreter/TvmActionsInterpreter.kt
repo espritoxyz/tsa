@@ -30,8 +30,13 @@ import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.unsignedIntegerFitsBits
 
-class TvmActionsInterpreter(private val ctx: TvmContext) {
-    fun visitActionsStmt(scope: TvmStepScopeManager, stmt: TvmAppActionsInst) {
+class TvmActionsInterpreter(
+    private val ctx: TvmContext,
+) {
+    fun visitActionsStmt(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppActionsInst,
+    ) {
         scope.consumeDefaultGas(stmt)
 
         when (stmt) {
@@ -43,11 +48,16 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun visitSendRawMsgInst(scope: TvmStepScopeManager, stmt: TvmAppActionsSendrawmsgInst) = with(ctx) {
-        val mode = scope.takeLastIntOrThrowTypeError()
-            ?: return@with
-        val msg = scope.calcOnState { takeLastCell() }
-            ?: return@with scope.doWithState(throwTypeCheckError)
+    private fun visitSendRawMsgInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppActionsSendrawmsgInst,
+    ) = with(ctx) {
+        val mode =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return@with
+        val msg =
+            scope.calcOnState { takeLastCell() }
+                ?: return@with scope.doWithState(throwTypeCheckError)
 
         val notOutOfRangeExpr = unsignedIntegerFitsBits(mode, 8u)
         checkOutOfRange(notOutOfRangeExpr, scope) ?: return
@@ -55,11 +65,16 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
         doSendMsg(scope, msg, mode, stmt)
     }
 
-    private fun visitSendMsgInst(scope: TvmStepScopeManager, stmt: TvmAppActionsSendmsgInst) = with(ctx) {
-        val mode = scope.takeLastIntOrThrowTypeError()
-            ?: return@with
-        val msg = scope.calcOnState { takeLastCell() }
-            ?: return@with scope.doWithState(throwTypeCheckError)
+    private fun visitSendMsgInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppActionsSendmsgInst,
+    ) = with(ctx) {
+        val mode =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return@with
+        val msg =
+            scope.calcOnState { takeLastCell() }
+                ?: return@with scope.doWithState(throwTypeCheckError)
 
         val sendBit = sendMsgFeeEstimationFlag
         val sendFlag = mkBvAndExpr(mode, sendBit)
@@ -70,10 +85,11 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
 
         val fee = scope.calcOnState { makeSymbolicPrimitive(int257sort) }
         scope.assert(
-            constraint = mkAnd(
-                mkBvSignedLessExpr(zeroValue, fee),
-                mkBvSignedLessOrEqualExpr(fee, maxMessageCurrencyValue)
-            ),
+            constraint =
+                mkAnd(
+                    mkBvSignedLessExpr(zeroValue, fee),
+                    mkBvSignedLessOrEqualExpr(fee, maxMessageCurrencyValue)
+                ),
             unsatBlock = {
                 error("Cannot assume message fee constraints")
             }
@@ -94,11 +110,16 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
         doSendMsg(scope, msg, normalizedMode, stmt)
     }
 
-    private fun visitRawReserveInst(scope: TvmStepScopeManager, stmt: TvmAppActionsRawreserveInst) = with(ctx) {
-        val mode = scope.takeLastIntOrThrowTypeError()
-            ?: return@with
-        val grams = scope.takeLastIntOrThrowTypeError()
-            ?: return@with
+    private fun visitRawReserveInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppActionsRawreserveInst,
+    ) = with(ctx) {
+        val mode =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return@with
+        val grams =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return@with
 
         // TODO 4 or 5 bits depending on the version
         val modeNotOutOfRangeExpr = unsignedIntegerFitsBits(mode, 5u)
@@ -135,31 +156,42 @@ class TvmActionsInterpreter(private val ctx: TvmContext) {
         scope: TvmStepScopeManager,
         msg: UHeapRef,
         mode: UExpr<TvmInt257Sort>,
-        stmt: TvmInst
-    ): Unit = with(ctx) {
-        scope.doWithStateCtx {
-            val registers = registersOfCurrentContract
-            val actions = registers.c5.value.value
-            val updatedActions = allocEmptyCell()
+        stmt: TvmInst,
+    ): Unit =
+        with(ctx) {
+            scope.doWithStateCtx {
+                val registers = registersOfCurrentContract
+                val actions = registers.c5.value.value
+                val updatedActions = allocEmptyCell()
 
-            builderStoreNextRefNoOverflowCheck(updatedActions, actions)
-            scope.builderStoreDataBits(updatedActions, sendMsgActionTag)
-                ?: error("Unexpected cell overflow during $stmt instruction")
-            scope.builderStoreInt(updatedActions, updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
-                error("Unexpected cell overflow during $stmt instruction")
-            } ?: return@doWithStateCtx
-            builderStoreNextRefNoOverflowCheck(updatedActions, msg)
+                builderStoreNextRefNoOverflowCheck(updatedActions, actions)
+                scope.builderStoreDataBits(updatedActions, sendMsgActionTag)
+                    ?: error("Unexpected cell overflow during $stmt instruction")
+                scope.builderStoreInt(
+                    updatedActions,
+                    updatedActions,
+                    mode,
+                    sizeBits = eightSizeExpr,
+                    isSigned = false
+                ) {
+                    error("Unexpected cell overflow during $stmt instruction")
+                } ?: return@doWithStateCtx
+                builderStoreNextRefNoOverflowCheck(updatedActions, msg)
 
-            registers.c5 = C5Register(TvmCellValue(updatedActions))
+                registers.c5 = C5Register(TvmCellValue(updatedActions))
 
-            newStmt(stmt.nextStmt())
+                newStmt(stmt.nextStmt())
+            }
         }
-    }
 
-    private fun visitSetCodeInst(scope: TvmStepScopeManager, stmt: TvmAppActionsSetcodeInst) {
+    private fun visitSetCodeInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppActionsSetcodeInst,
+    ) {
         scope.doWithState {
-            val cell = takeLastCell()
-                ?: ctx.throwTypeCheckError(this)
+            val cell =
+                takeLastCell()
+                    ?: ctx.throwTypeCheckError(this)
 
             // TODO make a real implementation
             newStmt(stmt.nextStmt())

@@ -19,7 +19,6 @@ import org.usvm.UIteExpr
 import org.usvm.isAllocated
 import org.usvm.isStatic
 import org.usvm.machine.TvmContext
-import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.bigIntValue
 import org.usvm.memory.foldHeapRef
 
@@ -30,8 +29,8 @@ fun TvmContext.extractAddresses(
     ref: UHeapRef,
     extractAllocated: Boolean = false,
     extractStatic: Boolean = true,
-): List<Pair<UBoolExpr, UConcreteHeapRef>> {
-    return foldHeapRef(
+): List<Pair<UBoolExpr, UConcreteHeapRef>> =
+    foldHeapRef(
         ref,
         initial = emptyList(),
         initialGuard = trueExpr,
@@ -45,7 +44,6 @@ fun TvmContext.extractAddresses(
             }
         }
     )
-}
 
 /**
  * In a case of concrete dict, after reading with a symbolic key,
@@ -89,17 +87,14 @@ fun TvmContext.extractAddressesSpecialized(
             val curGuard = Guard.fromUBoolExpr(cur.condition)
             queue.add(guard.mkAnd(curGuard) to cur.trueBranch)
             queue.add(guard.mkAnd(curGuard.mkNot()) to cur.falseBranch)
-
         } else if (cur is UConcreteHeapRef && cur.isAllocated) {
             if (extractAllocated) {
                 result.add(guard.toUBoolExpr() to cur)
             }
-
         } else if (cur is UConcreteHeapRef && cur.isStatic) {
             if (extractStatic) {
                 result.add(guard.toUBoolExpr() to cur)
             }
-
         } else {
             error("Unexpected ref: $cur")
         }
@@ -112,83 +107,107 @@ private data class Guard(
     val symbolToConcreteValues: PersistentMap<UExpr<UBvSort>, SymbolValues>,
     val otherGuard: UBoolExpr,
 ) {
-    fun toUBoolExpr(): UBoolExpr = with(otherGuard.ctx) {
-        var result = otherGuard
-        symbolToConcreteValues.forEach { (symbol, values) ->
-            val cur = when (values.specificValues.size) {
-                0 -> {
-                    values.forbiddenValues.fold(trueExpr as UBoolExpr) { acc, elem ->
-                        mkAnd(acc, (symbol neq elem), flat = false)
+    fun toUBoolExpr(): UBoolExpr =
+        with(otherGuard.ctx) {
+            var result = otherGuard
+            symbolToConcreteValues.forEach { (symbol, values) ->
+                val cur =
+                    when (values.specificValues.size) {
+                        0 -> {
+                            values.forbiddenValues.fold(trueExpr as UBoolExpr) { acc, elem ->
+                                mkAnd(acc, (symbol neq elem), flat = false)
+                            }
+                        }
+                        1 -> {
+                            val value = values.specificValues.single()
+                            if (value in values.forbiddenValues) {
+                                falseExpr
+                            } else {
+                                symbol eq value
+                            }
+                        }
+                        else -> {
+                            falseExpr
+                        }
                     }
-                }
-                1 -> {
-                    val value = values.specificValues.single()
-                    if (value in values.forbiddenValues) {
-                        falseExpr
-                    } else {
-                        symbol eq value
-                    }
-                }
-                else -> {
-                    falseExpr
-                }
+                result = result and cur
             }
-            result = result and cur
+            result
         }
-        result
-    }
 
-    fun mkNot(): Guard = with(otherGuard.ctx) {
-        val boolExpr = toUBoolExpr()
-        return fromUBoolExpr(boolExpr.not())
-    }
+    fun mkNot(): Guard =
+        with(otherGuard.ctx) {
+            val boolExpr = toUBoolExpr()
+            return fromUBoolExpr(boolExpr.not())
+        }
 
-    fun mkAnd(other: Guard): Guard = with(otherGuard.ctx) {
-        val commonKeys = other.symbolToConcreteValues.keys intersect symbolToConcreteValues.keys
+    fun mkAnd(other: Guard): Guard =
+        with(otherGuard.ctx) {
+            val commonKeys = other.symbolToConcreteValues.keys intersect symbolToConcreteValues.keys
 
-        val disjointMap = symbolToConcreteValues.minus(other.symbolToConcreteValues.keys).putAll(
-            other.symbolToConcreteValues.minus(symbolToConcreteValues.keys)
-        )
+            val disjointMap =
+                symbolToConcreteValues.minus(other.symbolToConcreteValues.keys).putAll(
+                    other.symbolToConcreteValues.minus(symbolToConcreteValues.keys)
+                )
 
-        val intersection = commonKeys.associateWith {
-            SymbolValues(
-                specificValues = symbolToConcreteValues[it]!!.specificValues.addAll(other.symbolToConcreteValues[it]!!.specificValues),
-                forbiddenValues = symbolToConcreteValues[it]!!.forbiddenValues.addAll(other.symbolToConcreteValues[it]!!.forbiddenValues),
+            val intersection =
+                commonKeys.associateWith {
+                    SymbolValues(
+                        specificValues =
+                            symbolToConcreteValues[it]!!.specificValues.addAll(
+                                other.symbolToConcreteValues[it]!!.specificValues
+                            ),
+                        forbiddenValues =
+                            symbolToConcreteValues[it]!!.forbiddenValues.addAll(
+                                other.symbolToConcreteValues[it]!!.forbiddenValues
+                            )
+                    )
+                }
+
+            val values = disjointMap.putAll(intersection)
+
+            return Guard(
+                symbolToConcreteValues = values,
+                otherGuard = otherGuard and other.otherGuard
             )
         }
-
-        val values = disjointMap.putAll(intersection)
-
-        return Guard(
-            symbolToConcreteValues = values,
-            otherGuard = otherGuard and other.otherGuard,
-        )
-    }
 
     companion object {
-        private fun specificValue(expr: UExpr<UBvSort>, value: KBitVecValue<UBvSort>): Guard = with(expr.ctx) {
-            Guard(
-                symbolToConcreteValues = persistentMapOf(
-                    expr to SymbolValues(
-                        forbiddenValues = persistentSetOf(),
-                        specificValues = persistentSetOf(value)
-                    )
-                ),
-                otherGuard = trueExpr,
-            )
-        }
+        private fun specificValue(
+            expr: UExpr<UBvSort>,
+            value: KBitVecValue<UBvSort>,
+        ): Guard =
+            with(expr.ctx) {
+                Guard(
+                    symbolToConcreteValues =
+                        persistentMapOf(
+                            expr to
+                                SymbolValues(
+                                    forbiddenValues = persistentSetOf(),
+                                    specificValues = persistentSetOf(value)
+                                )
+                        ),
+                    otherGuard = trueExpr
+                )
+            }
 
-        private fun forbiddenValue(expr: UExpr<UBvSort>, value: KBitVecValue<UBvSort>): Guard = with(expr.ctx) {
-            Guard(
-                symbolToConcreteValues = persistentMapOf(
-                    expr to SymbolValues(
-                        forbiddenValues = persistentSetOf(value),
-                        specificValues = persistentSetOf()
-                    )
-                ),
-                otherGuard = trueExpr,
-            )
-        }
+        private fun forbiddenValue(
+            expr: UExpr<UBvSort>,
+            value: KBitVecValue<UBvSort>,
+        ): Guard =
+            with(expr.ctx) {
+                Guard(
+                    symbolToConcreteValues =
+                        persistentMapOf(
+                            expr to
+                                SymbolValues(
+                                    forbiddenValues = persistentSetOf(value),
+                                    specificValues = persistentSetOf()
+                                )
+                        ),
+                    otherGuard = trueExpr
+                )
+            }
 
         fun fromUBoolExpr(guard: UBoolExpr): Guard {
             if (guard is KEqExpr<*> && guard.lhs is KBitVecValue) {

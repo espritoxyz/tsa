@@ -9,12 +9,12 @@ import org.usvm.machine.TvmContext
 sealed interface TvmCellDataTypeReadValue
 
 class UExprReadResult<Sort : KSort>(
-    val expr: UExpr<Sort>
+    val expr: UExpr<Sort>,
 ) : TvmCellDataTypeReadValue
 
 class UExprPairReadResult<Sort1 : KSort, Sort2 : KSort>(
     val first: UExpr<Sort1>,
-    val second: UExpr<Sort2>
+    val second: UExpr<Sort2>,
 ) : TvmCellDataTypeReadValue
 
 fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
@@ -22,15 +22,21 @@ fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
     condition: UBoolExpr,
     trueBranch: ReadResult,
     falseBranch: ReadResult,
-): ReadResult = when (trueBranch) {
-    is UExprReadResult<*> -> {
-        mkUExprIte<KSort>(ctx, condition, trueBranch.uncheckedCast(), falseBranch.uncheckedCast()).uncheckedCast()
+): ReadResult =
+    when (trueBranch) {
+        is UExprReadResult<*> -> {
+            mkUExprIte<KSort>(ctx, condition, trueBranch.uncheckedCast(), falseBranch.uncheckedCast()).uncheckedCast()
+        }
+        is UExprPairReadResult<*, *> -> {
+            mkUExprPairIte<KSort, KSort>(
+                ctx,
+                condition,
+                trueBranch.uncheckedCast(),
+                falseBranch.uncheckedCast()
+            ).uncheckedCast()
+        }
+        else -> error("Unexpected value: $trueBranch")
     }
-    is UExprPairReadResult<*, *> -> {
-        mkUExprPairIte<KSort, KSort>(ctx, condition, trueBranch.uncheckedCast(), falseBranch.uncheckedCast()).uncheckedCast()
-    }
-    else -> error("Unexpected value: $trueBranch")
-}
 
 fun <Sort : KSort> mkUExprIte(
     ctx: TvmContext,
@@ -41,7 +47,6 @@ fun <Sort : KSort> mkUExprIte(
     val expr = ctx.mkIte(condition, trueBranch = { trueBranch.expr }, falseBranch = { falseBranch.expr })
     return UExprReadResult(expr)
 }
-
 
 fun <Sort1 : KSort, Sort2 : KSort> mkUExprPairIte(
     ctx: TvmContext,

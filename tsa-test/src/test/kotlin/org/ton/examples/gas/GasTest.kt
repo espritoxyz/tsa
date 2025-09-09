@@ -1,13 +1,13 @@
 package org.ton.examples.gas
 
-import java.nio.file.FileVisitResult
-import java.nio.file.Path
 import org.ton.test.utils.compileFiftCodeBlocksContract
 import org.ton.test.utils.executionCode
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.runFiftCodeBlock
 import org.ton.test.utils.testConcreteOptions
 import org.usvm.machine.analyzeAllMethods
+import java.nio.file.FileVisitResult
+import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.exists
 import kotlin.io.path.extension
@@ -18,21 +18,24 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class GasTest {
-
     @Test
     fun testGasUsage() {
         val (fiftFiles, fiftWorkDir) = findFiftTestFiles()
-        val codeBlocks = fiftFiles.flatMap { fiftFunctions(it) }.distinct()
-            // filter out the blocks that call other blocks, as each block is executed separately
-            .filterNot { it.contains("CALLDICT") }
+        val codeBlocks =
+            fiftFiles
+                .flatMap { fiftFunctions(it) }
+                .distinct()
+                // filter out the blocks that call other blocks, as each block is executed separately
+                .filterNot { it.contains("CALLDICT") }
 
         val concreteResults = codeBlocks.map { runFiftCodeBlock(fiftWorkDir, it) }
         val contract = compileFiftCodeBlocksContract(fiftWorkDir, codeBlocks)
 
-        val symbolicResult = analyzeAllMethods(
-            contract,
-            tvmOptions = testConcreteOptions
-        )
+        val symbolicResult =
+            analyzeAllMethods(
+                contract,
+                tvmOptions = testConcreteOptions
+            )
 
         for ((methodId, _, tests) in symbolicResult) {
             val methodIdInt = methodId.toInt()
@@ -60,7 +63,8 @@ class GasTest {
                     "demo",
                     "fift-with-input",
                     "hash",
-                    "continuations" -> FileVisitResult.SKIP_SUBTREE
+                    "continuations",
+                    -> FileVisitResult.SKIP_SUBTREE
                     else -> FileVisitResult.CONTINUE
                 }
             }

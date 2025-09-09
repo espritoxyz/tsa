@@ -31,7 +31,6 @@ import org.usvm.test.resolver.endCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
 
-
 class TvmValueFixator(
     private val resolver: TvmTestStateResolver,
     private val ctx: TvmContext,
@@ -82,23 +81,26 @@ class TvmValueFixator(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestSliceValue,
-    ): UBoolExpr? = with(ctx) {
-        val dataPosSymbolic = scope.calcOnState {
-            memory.readField(ref, TvmContext.sliceDataPosField, sizeSort)
-        }
-        val refPosSymbolic = scope.calcOnState {
-            memory.readField(ref, TvmContext.sliceRefPosField, sizeSort)
-        }
-        val cellRef = scope.calcOnState { memory.readField(ref, TvmContext.sliceCellField, addressSort) }
+    ): UBoolExpr? =
+        with(ctx) {
+            val dataPosSymbolic =
+                scope.calcOnState {
+                    memory.readField(ref, TvmContext.sliceDataPosField, sizeSort)
+                }
+            val refPosSymbolic =
+                scope.calcOnState {
+                    memory.readField(ref, TvmContext.sliceRefPosField, sizeSort)
+                }
+            val cellRef = scope.calcOnState { memory.readField(ref, TvmContext.sliceCellField, addressSort) }
 
-        fixateConcreteValueForDataCell(
-            scope,
-            cellRef,
-            truncateSliceCell(value),
-            dataPosSymbolic,
-            refPosSymbolic
-        )
-    }
+            fixateConcreteValueForDataCell(
+                scope,
+                cellRef,
+                truncateSliceCell(value),
+                dataPosSymbolic,
+                refPosSymbolic
+            )
+        }
 
     private fun fixateConcreteValueForDataCell(
         scope: TvmStepScopeManager,
@@ -106,93 +108,106 @@ class TvmValueFixator(
         value: TvmTestDataCellValue,
         dataOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
         refsOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
-    ): UBoolExpr? = with(ctx) {
-        val childrenCond = value.refs.foldIndexed(trueExpr as UBoolExpr) { index, acc, child ->
-            val childRef = scope.calcOnState { readCellRef(ref, mkSizeAddExpr(mkSizeExpr(index), refsOffset)) }
-            val currentConstraint = fixateConcreteValue(scope, childRef, child)
-                ?: return@with null
-            acc and currentConstraint
+    ): UBoolExpr? =
+        with(ctx) {
+            val childrenCond =
+                value.refs.foldIndexed(trueExpr as UBoolExpr) { index, acc, child ->
+                    val childRef = scope.calcOnState { readCellRef(ref, mkSizeAddExpr(mkSizeExpr(index), refsOffset)) }
+                    val currentConstraint =
+                        fixateConcreteValue(scope, childRef, child)
+                            ?: return@with null
+                    acc and currentConstraint
+                }
+
+            val symbolicRefNumber =
+                scope.calcOnState {
+                    mkSizeSubExpr(
+                        memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort),
+                        refsOffset
+                    )
+                }
+            val refCond = symbolicRefNumber eq mkSizeExpr(value.refs.size)
+
+            val dataCond =
+                if (!structuralConstraintsOnly) {
+                    val symbolicDataLength =
+                        scope.calcOnState {
+                            mkSizeSubExpr(
+                                fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, ref),
+                                dataOffset
+                            )
+                        }
+
+                    val bitsCond =
+                        if (value.data.isEmpty()) {
+                            trueExpr
+                        } else {
+                            val symbolicData =
+                                scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
+                                    ?: return@with null
+
+                            val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
+                            (symbolicData eq concreteData)
+                        }
+
+                    bitsCond and (symbolicDataLength eq mkSizeExpr(value.data.length))
+                } else {
+                    trueExpr
+                }
+
+            childrenCond and refCond and dataCond
         }
-
-        val symbolicRefNumber = scope.calcOnState {
-            mkSizeSubExpr(
-                memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort),
-                refsOffset,
-            )
-        }
-        val refCond = symbolicRefNumber eq mkSizeExpr(value.refs.size)
-
-        val dataCond = if (!structuralConstraintsOnly) {
-
-            val symbolicDataLength = scope.calcOnState {
-                mkSizeSubExpr(
-                    fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, ref),
-                    dataOffset,
-                )
-            }
-
-            val bitsCond = if (value.data.isEmpty()) {
-                trueExpr
-            } else {
-                val symbolicData = scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
-                    ?: return@with null
-
-                val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
-                (symbolicData eq concreteData)
-            }
-
-            bitsCond and (symbolicDataLength eq mkSizeExpr(value.data.length))
-        } else {
-            trueExpr
-        }
-
-        childrenCond and refCond and dataCond
-    }
 
     private fun fixateConcreteValueForDictCell(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestDictCellValue,
-    ): UBoolExpr? = with(ctx) {
-        val keyLength = scope.calcOnState {
-            memory.readField(ref, TvmContext.dictKeyLengthField, sizeSort)
-        }
-        var result = keyLength eq mkSizeExpr(value.keyLength)
+    ): UBoolExpr? =
+        with(ctx) {
+            val keyLength =
+                scope.calcOnState {
+                    memory.readField(ref, TvmContext.dictKeyLengthField, sizeSort)
+                }
+            var result = keyLength eq mkSizeExpr(value.keyLength)
 
-        val model = resolver.model
-        val modelRef = model.eval(ref) as UConcreteHeapRef
+            val model = resolver.model
+            val modelRef = model.eval(ref) as UConcreteHeapRef
 
-        result = result and (ref eq modelRef)
+            result = result and (ref eq modelRef)
 
-        val dictId = DictId(value.keyLength)
-        val keySort = mkBvSort(value.keyLength.toUInt())
-        val entries = scope.calcOnState {
-            dictKeyEntries(model, memory, modelRef, dictId, keySort)
-        }
+            val dictId = DictId(value.keyLength)
+            val keySort = mkBvSort(value.keyLength.toUInt())
+            val entries =
+                scope.calcOnState {
+                    dictKeyEntries(model, memory, modelRef, dictId, keySort)
+                }
 
-        entries.forEach { entry ->
-            val key = entry.setElement
-            val keyContains = scope.calcOnState {
-                dictContainsKey(ref, dictId, key)
+            entries.forEach { entry ->
+                val key = entry.setElement
+                val keyContains =
+                    scope.calcOnState {
+                        dictContainsKey(ref, dictId, key)
+                    }
+                val entryValue =
+                    scope.calcOnState {
+                        dictGetValue(ref, dictId, key)
+                    }
+
+                val concreteKey = TvmTestIntegerValue(model.eval(key).bigIntValue())
+
+                val keyConstraint = model.eval(key) eq key
+
+                val concreteValue = value.entries[concreteKey]
+                if (concreteValue == null) {
+                    result = result and keyContains.not() and keyConstraint
+                } else {
+                    val valueConstraint =
+                        fixateConcreteValue(scope, entryValue, concreteValue)
+                            ?: return@with null
+                    result = result and keyContains and valueConstraint and keyConstraint
+                }
             }
-            val entryValue = scope.calcOnState {
-                dictGetValue(ref, dictId, key)
-            }
 
-            val concreteKey = TvmTestIntegerValue(model.eval(key).bigIntValue())
-
-            val keyConstraint = model.eval(key) eq key
-
-            val concreteValue = value.entries[concreteKey]
-            if (concreteValue == null) {
-                result = result and keyContains.not() and keyConstraint
-            } else {
-                val valueConstraint = fixateConcreteValue(scope, entryValue, concreteValue)
-                    ?: return@with null
-                result = result and keyContains and valueConstraint and keyConstraint
-            }
+            return result
         }
-
-        return result
-    }
 }

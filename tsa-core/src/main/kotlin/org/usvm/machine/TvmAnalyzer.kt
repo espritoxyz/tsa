@@ -43,7 +43,15 @@ sealed interface TvmAnalyzer<SourcesDescription> {
         takeEmptyTests: Boolean = false,
     ): TvmContractSymbolicTestResult {
         val contract = convertToTvmContractCode(sources)
-        return analyzeAllMethods(contract, methodsBlackList, methodsWhiteList, concreteGeneralData, concreteContractData, inputInfo, tvmOptions)
+        return analyzeAllMethods(
+            contract,
+            methodsBlackList,
+            methodsWhiteList,
+            concreteGeneralData,
+            concreteContractData,
+            inputInfo,
+            tvmOptions
+        )
     }
 
     fun analyzeSpecificMethod(
@@ -55,7 +63,14 @@ sealed interface TvmAnalyzer<SourcesDescription> {
         tvmOptions: TvmOptions = TvmOptions(quietMode = true, timeout = 10.minutes),
     ): TvmSymbolicTestSuite {
         val contract = convertToTvmContractCode(sources)
-        return analyzeSpecificMethod(contract, methodId, concreteGeneralData, concreteContractData, inputInfo, tvmOptions)
+        return analyzeSpecificMethod(
+            contract,
+            methodId,
+            concreteGeneralData,
+            concreteContractData,
+            inputInfo,
+            tvmOptions
+        )
     }
 
     fun convertToTvmContractCode(sources: SourcesDescription): TsaContractCode
@@ -68,7 +83,7 @@ data class TactSourcesDescription(
 )
 
 class TactAnalyzer(
-    private val tactExecutable: String = DEFAULT_TACT_EXECUTABLE
+    private val tactExecutable: String = DEFAULT_TACT_EXECUTABLE,
 ) : TvmAnalyzer<TactSourcesDescription> {
     override fun convertToTvmContractCode(sources: TactSourcesDescription): TsaContractCode {
         compileTact(sources.configPath)
@@ -78,9 +93,10 @@ class TactAnalyzer(
 
     fun getBocAbsolutePath(sources: TactSourcesDescription): Path {
         val config = readTactConfig(sources.configPath)
-        val project = config.projects.firstOrNull {
-            it.name == sources.projectName
-        } ?: error("Project with name ${sources.projectName} not found.")
+        val project =
+            config.projects.firstOrNull {
+                it.name == sources.projectName
+            } ?: error("Project with name ${sources.projectName} not found.")
         val curDirectory = sources.configPath.getParentNonNullAbsolutePath()
         val outputDir = curDirectory / project.output
         val bocFileName = "${sources.projectName}_${sources.contractName}.code.boc"
@@ -90,19 +106,21 @@ class TactAnalyzer(
 
     private fun readTactConfig(configPath: Path): TactConfig {
         val fileContent = configPath.toFile().readText()
-        val configJson = Json {
-            ignoreUnknownKeys = true
-        }
+        val configJson =
+            Json {
+                ignoreUnknownKeys = true
+            }
         return configJson.decodeFromString(fileContent)
     }
 
     private fun compileTact(configFile: Path) {
         val tactCommand = "$tactExecutable --config ${configFile.absolutePathString()}"
-        val (exitValue, completedInTime, output, errors) = executeCommandWithTimeout(
-            tactCommand,
-            COMPILER_TIMEOUT,
-            processWorkingDirectory = configFile.getParentNonNullAbsolutePath().toFile(),
-        )
+        val (exitValue, completedInTime, output, errors) =
+            executeCommandWithTimeout(
+                tactCommand,
+                COMPILER_TIMEOUT,
+                processWorkingDirectory = configFile.getParentNonNullAbsolutePath().toFile()
+            )
 
         check(completedInTime) {
             "Tact compilation process has not finished in $COMPILER_TIMEOUT seconds"
@@ -114,7 +132,9 @@ class TactAnalyzer(
     }
 
     @Serializable
-    private data class TactConfig(val projects: List<TactProject>)
+    private data class TactConfig(
+        val projects: List<TactProject>,
+    )
 
     @Serializable
     private data class TactProject(
@@ -145,13 +165,17 @@ class FuncAnalyzer(
         }
     }
 
-    fun compileFuncSourceToFift(funcSourcesPath: Path, fiftFilePath: Path) {
+    fun compileFuncSourceToFift(
+        funcSourcesPath: Path,
+        fiftFilePath: Path,
+    ) {
         val funcCommand = "$funcExecutablePath -AP ${funcSourcesPath.absolutePathString()}"
-        val (exitValue, completedInTime, output, errors) = executeCommandWithTimeout(
-            funcCommand,
-            COMPILER_TIMEOUT,
-            processWorkingDirectory = funcSourcesPath.getParentNonNullAbsolutePath().toFile()
-        )
+        val (exitValue, completedInTime, output, errors) =
+            executeCommandWithTimeout(
+                funcCommand,
+                COMPILER_TIMEOUT,
+                processWorkingDirectory = funcSourcesPath.getParentNonNullAbsolutePath().toFile()
+            )
 
         check(completedInTime) {
             "FunC compilation to Fift has not finished in $COMPILER_TIMEOUT seconds"
@@ -166,14 +190,18 @@ class FuncAnalyzer(
         fiftFilePath.writeText(fiftCode)
     }
 
-    fun compileFuncSourceToBoc(funcSourcesPath: Path, bocFilePath: Path) {
+    fun compileFuncSourceToBoc(
+        funcSourcesPath: Path,
+        bocFilePath: Path,
+    ) {
         val funcCommand =
             "$funcExecutablePath -W ${bocFilePath.absolutePathString()} ${funcSourcesPath.absolutePathString()}"
-        val (exitValue, completedInTime, output, errors) = executeCommandWithTimeout(
-            funcCommand,
-            COMPILER_TIMEOUT,
-            processWorkingDirectory = funcSourcesPath.getParentNonNullAbsolutePath().toFile(),
-        )
+        val (exitValue, completedInTime, output, errors) =
+            executeCommandWithTimeout(
+                funcCommand,
+                COMPILER_TIMEOUT,
+                processWorkingDirectory = funcSourcesPath.getParentNonNullAbsolutePath().toFile()
+            )
 
         check(completedInTime) {
             "FunC compilation to Fift has not finished in $COMPILER_TIMEOUT seconds"
@@ -181,10 +209,10 @@ class FuncAnalyzer(
 
         check(exitValue == 0 && errors.isEmpty()) {
             """
-                FunC compilation to Fift failed with an error, exit code $exitValue, errors: 
-                ${errors.toText()}
-                Command:
-                $funcCommand
+            FunC compilation to Fift failed with an error, exit code $exitValue, errors: 
+            ${errors.toText()}
+            Command:
+            $funcCommand
             """.trimIndent()
         }
 
@@ -241,11 +269,15 @@ class FiftAnalyzer(
      *
      * Note: the result Gas usage includes additional runvmx cost.
      * */
-    fun runFiftMethod(fiftPath: Path, methodId: Int): FiftInterpreterResult {
-        val fiftTextWithOutputCommand = """
-        ${fiftPath.readText()}
-        <s $methodId swap 0x41 runvmx $FINAL_STACK_STATE_MARKER .s
-    """.trimIndent()
+    fun runFiftMethod(
+        fiftPath: Path,
+        methodId: Int,
+    ): FiftInterpreterResult {
+        val fiftTextWithOutputCommand =
+            """
+            ${fiftPath.readText()}
+            <s $methodId swap 0x41 runvmx $FINAL_STACK_STATE_MARKER .s
+            """.trimIndent()
 
         return runFiftInterpreter(fiftPath.parent, fiftTextWithOutputCommand)
     }
@@ -253,21 +285,28 @@ class FiftAnalyzer(
     /**
      * [codeBlock] -- block of FIFT instructions, surrounded with <{ ... }>
      * */
-    fun runFiftCodeBlock(fiftWorkDir: Path, codeBlock: String): FiftInterpreterResult {
+    fun runFiftCodeBlock(
+        fiftWorkDir: Path,
+        codeBlock: String,
+    ): FiftInterpreterResult {
         check(fiftWorkDir.resolve("Asm.fif").exists()) { "No Asm.fif" }
         check(fiftWorkDir.resolve("Fift.fif").exists()) { "No Fift.fif" }
 
-        val fiftTextWithOutputCommand = """
-        "Fift.fif" include
-        "Asm.fif" include
+        val fiftTextWithOutputCommand =
+            """
+            "Fift.fif" include
+            "Asm.fif" include
 
-        ${codeBlock.trim()}s runvmcode $FINAL_STACK_STATE_MARKER .s
-    """.trimIndent()
+            ${codeBlock.trim()}s runvmcode $FINAL_STACK_STATE_MARKER .s
+            """.trimIndent()
 
         return runFiftInterpreter(fiftWorkDir, fiftTextWithOutputCommand)
     }
 
-    fun compileFiftToBoc(fiftPath: Path, bocFilePath: Path) {
+    fun compileFiftToBoc(
+        fiftPath: Path,
+        bocFilePath: Path,
+    ) {
         val fiftStdin = "\"$fiftPath\" include boc>B \"$bocFilePath\" B>file"
 
         val fiftCommand = "$fiftExecutablePath"
@@ -277,48 +316,62 @@ class FiftAnalyzer(
     /**
      * [codeBlocks] -- blocks of FIFT instructions, surrounded with <{ ... }>
      * */
-    private fun compileFiftCodeBlocks(fiftWorkDir: Path, codeBlocks: List<String>, bocFilePath: Path) {
+    private fun compileFiftCodeBlocks(
+        fiftWorkDir: Path,
+        codeBlocks: List<String>,
+        bocFilePath: Path,
+    ) {
         check(fiftWorkDir.resolve("Asm.fif").exists()) { "No Asm.fif" }
         check(fiftWorkDir.resolve("Fift.fif").exists()) { "No Fift.fif" }
 
         val methodIds = codeBlocks.indices.map { "$it DECLMETHOD cb_$it" }
         val blocks = codeBlocks.mapIndexed { index, block -> "cb_$index PROC:$block" }
 
-        val fiftCode = """
-        "Fift.fif" include
-        "Asm.fif" include
-        
-        PROGRAM{
-          ${methodIds.joinToString("\n")}
-          
-          ${blocks.joinToString("\n")}
-        }END>c
-        """.trimIndent()
+        val fiftCode =
+            """
+            "Fift.fif" include
+            "Asm.fif" include
+            
+            PROGRAM{
+              ${methodIds.joinToString("\n")}
+              
+              ${blocks.joinToString("\n")}
+            }END>c
+            """.trimIndent()
 
         compileFiftCodeToBoc(fiftCode, bocFilePath)
     }
 
-    private fun compileFiftCodeToBoc(fiftCode: String, bocFilePath: Path) {
-        val fiftTextWithOutputCommand = """
-        $fiftCode
-        2 boc+>B "$bocFilePath" B>file
-        """.trimIndent()
+    private fun compileFiftCodeToBoc(
+        fiftCode: String,
+        bocFilePath: Path,
+    ) {
+        val fiftTextWithOutputCommand =
+            """
+            $fiftCode
+            2 boc+>B "$bocFilePath" B>file
+            """.trimIndent()
 
         val fiftCommand = "$fiftExecutablePath -n"
         performFiftCommand(fiftCommand, bocFilePath, fiftTextWithOutputCommand)
     }
 
-    private fun performFiftCommand(fiftCommand: String, bocFilePath: Path, stdinContent: String) {
+    private fun performFiftCommand(
+        fiftCommand: String,
+        bocFilePath: Path,
+        stdinContent: String,
+    ) {
         val tmpStdinFile = createTempFile(".txt")
         try {
             tmpStdinFile.writeText(stdinContent)
 
-            val (exitValue, completedInTime, _, errors) = executeCommandWithTimeout(
-                fiftCommand,
-                COMPILER_TIMEOUT,
-                fiftStdlibPath.toFile(),
-                inputFile = tmpStdinFile.toFile(),
-            )
+            val (exitValue, completedInTime, _, errors) =
+                executeCommandWithTimeout(
+                    fiftCommand,
+                    COMPILER_TIMEOUT,
+                    fiftStdlibPath.toFile(),
+                    inputFile = tmpStdinFile.toFile()
+                )
 
             check(completedInTime) {
                 "Fift compilation has not finished in $COMPILER_TIMEOUT seconds"
@@ -334,7 +387,6 @@ class FiftAnalyzer(
             check(exitValue == 0 && bocFilePath.exists() && bocFilePath.readBytes().isNotEmpty()) {
                 "Fift compilation failed with an error, exit code $exitValue, errors: \n${errors.toText()}"
             }
-
         } finally {
             tmpStdinFile.deleteIfExists()
         }
@@ -342,21 +394,22 @@ class FiftAnalyzer(
 
     private fun runFiftInterpreter(
         fiftWorkDir: Path,
-        fiftInterpreterCommand: String
+        fiftInterpreterCommand: String,
     ): FiftInterpreterResult {
         val tmpStdinFile = createTempFile(suffix = ".txt")
-        val (exitValue, completedInTime, output, errors) = try {
-            tmpStdinFile.writeText(fiftInterpreterCommand)
-            executeCommandWithTimeout(
-                "$fiftExecutablePath -n",
-                COMPILER_TIMEOUT,
-                fiftWorkDir.toFile(),
-                mapOf("FIFTPATH" to fiftStdlibPath.toString()),
-                inputFile = tmpStdinFile.toFile(),
-            )
-        } finally {
-            tmpStdinFile.deleteIfExists()
-        }
+        val (exitValue, completedInTime, output, errors) =
+            try {
+                tmpStdinFile.writeText(fiftInterpreterCommand)
+                executeCommandWithTimeout(
+                    "$fiftExecutablePath -n",
+                    COMPILER_TIMEOUT,
+                    fiftWorkDir.toFile(),
+                    mapOf("FIFTPATH" to fiftStdlibPath.toString()),
+                    inputFile = tmpStdinFile.toFile()
+                )
+            } finally {
+                tmpStdinFile.deleteIfExists()
+            }
 
         check(completedInTime) {
             "`fift` process has not has not finished in $COMPILER_TIMEOUT seconds"
@@ -366,21 +419,26 @@ class FiftAnalyzer(
             "`fift` process failed with an error, exit code $exitValue, errors: \n${errors.toText()}"
         }
 
-        val finalStackState = output
-            .lastOrNull { it.trim().endsWith(FINAL_STACK_STATE_MARKER) }
-            ?.trim()?.removeSuffix(FINAL_STACK_STATE_MARKER)?.trim()
-            ?: error("No final stack state")
+        val finalStackState =
+            output
+                .lastOrNull { it.trim().endsWith(FINAL_STACK_STATE_MARKER) }
+                ?.trim()
+                ?.removeSuffix(FINAL_STACK_STATE_MARKER)
+                ?.trim()
+                ?: error("No final stack state")
 
         val stackEntries = finalStackState.split(' ').map { it.trim() }
-        val exitCode = stackEntries.lastOrNull()?.toIntOrNull()
-            ?: error("Incorrect exit code: $finalStackState")
+        val exitCode =
+            stackEntries.lastOrNull()?.toIntOrNull()
+                ?: error("Incorrect exit code: $finalStackState")
 
         val stackEntriesWithoutExitCode = stackEntries.dropLast(1)
 
-        val tvmState = errors
-            .mapNotNull { TVM_EXECUTION_STATUS_PATTERN.matchEntire(it) }
-            .lastOrNull()
-            ?: error("No TVM state")
+        val tvmState =
+            errors
+                .mapNotNull { TVM_EXECUTION_STATUS_PATTERN.matchEntire(it) }
+                .lastOrNull()
+                ?: error("No TVM state")
 
         val (_, steps, gasUsage) = tvmState.groupValues
 
@@ -394,13 +452,9 @@ class FiftAnalyzer(
 }
 
 data object BocAnalyzer : TvmAnalyzer<Path> {
-    override fun convertToTvmContractCode(sources: Path): TsaContractCode {
-        return loadContractFromBoc(sources)
-    }
+    override fun convertToTvmContractCode(sources: Path): TsaContractCode = loadContractFromBoc(sources)
 
-    fun loadContractFromBoc(bocFilePath: Path): TsaContractCode {
-        return TsaContractCode.construct(bocFilePath)
-    }
+    fun loadContractFromBoc(bocFilePath: Path): TsaContractCode = TsaContractCode.construct(bocFilePath)
 }
 
 private fun runAnalysisInCatchingBlock(
@@ -416,15 +470,18 @@ private fun runAnalysisInCatchingBlock(
 
         val states = analysisRun(coverageStatistics)
 
-        val coverage = TvmMethodCoverage(
-            coverageStatistics.getMethodCoveragePercents(methodId),
-            coverageStatistics.getTransitiveCoveragePercents(),
-            coverageStatistics.getMainMethodCoveragePercents(),
-        )
+        val coverage =
+            TvmMethodCoverage(
+                coverageStatistics.getMethodCoveragePercents(methodId),
+                coverageStatistics.getTransitiveCoveragePercents(),
+                coverageStatistics.getMainMethodCoveragePercents()
+            )
 
         if (logInfoAboutAnalysis) {
             logger.info("Method {}", methodId)
-            logger.info("Coverage: ${coverage.coverage}, transitive coverage: ${coverage.transitiveCoverage}, main method coverage: ${coverage.coverageOfMainMethod}")
+            logger.info(
+                "Coverage: ${coverage.coverage}, transitive coverage: ${coverage.transitiveCoverage}, main method coverage: ${coverage.coverageOfMainMethod}"
+            )
         }
         val exceptionalStates = states.filter { state -> state.isExceptional }
         logger.debug("States: ${states.size}, exceptional: ${exceptionalStates.size}")
@@ -458,26 +515,27 @@ fun analyzeInterContract(
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
     val startContractCode = contracts[startContractId]
-    val (states, coverage) = runAnalysisInCatchingBlock(
-        contractIdForCoverageStats = startContractId,
-        contractForCoverageStats = startContractCode,
-        methodId = methodId,
-        logInfoAboutAnalysis = false,
-        throwNotImplementedError = throwNotImplementedError,
-    ) { coverageStatistics ->
-        machine.analyze(
-            contracts,
-            startContractId,
-            concreteGeneralData = TvmConcreteGeneralData(),
-            concreteContractData = concreteContractData,
-            coverageStatistics,
-            methodId,
-            inputInfo = inputInfo,
-            additionalStopStrategy = additionalStopStrategy,
-            additionalObserver = additionalObserver,
-            manualStateProcessor = manualStateProcessor,
-        )
-    }
+    val (states, coverage) =
+        runAnalysisInCatchingBlock(
+            contractIdForCoverageStats = startContractId,
+            contractForCoverageStats = startContractCode,
+            methodId = methodId,
+            logInfoAboutAnalysis = false,
+            throwNotImplementedError = throwNotImplementedError
+        ) { coverageStatistics ->
+            machine.analyze(
+                contracts,
+                startContractId,
+                concreteGeneralData = TvmConcreteGeneralData(),
+                concreteContractData = concreteContractData,
+                coverageStatistics,
+                methodId,
+                inputInfo = inputInfo,
+                additionalStopStrategy = additionalStopStrategy,
+                additionalObserver = additionalObserver,
+                manualStateProcessor = manualStateProcessor
+            )
+        }
 
     machine.close()
     return TvmTestResolver.resolveSingleMethod(methodId, states, coverage)
@@ -498,19 +556,20 @@ fun analyzeAllMethods(
     }
 
     val methodsExceptDictPushConst = contract.methods.filterKeys { it !in methodsBlackList }
-    val methodTests = methodsExceptDictPushConst.values.mapNotNull { method ->
-        if (methodWhitelist?.let { method.id in it } == false) {
-            return@mapNotNull null
+    val methodTests =
+        methodsExceptDictPushConst.values.mapNotNull { method ->
+            if (methodWhitelist?.let { method.id in it } == false) {
+                return@mapNotNull null
+            }
+            analyzeSpecificMethod(
+                contract,
+                method.id,
+                concreteGeneralData,
+                concreteContractData,
+                inputInfo[method.id] ?: TvmInputInfo(),
+                tvmOptions
+            )
         }
-        analyzeSpecificMethod(
-            contract,
-            method.id,
-            concreteGeneralData,
-            concreteContractData,
-            inputInfo[method.id] ?: TvmInputInfo(),
-            tvmOptions
-        )
-    }
 
     return TvmTestResolver.groupTestSuites(methodTests, takeEmptyTests)
 }
@@ -525,23 +584,24 @@ fun analyzeSpecificMethod(
     manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = tvmOptions)
-    val (states, coverage) = machine.use {
-        runAnalysisInCatchingBlock(
-            contractIdForCoverageStats = 0,
-            contract,
-            methodId,
-        ) { coverageStatistics ->
-            machine.analyze(
+    val (states, coverage) =
+        machine.use {
+            runAnalysisInCatchingBlock(
+                contractIdForCoverageStats = 0,
                 contract,
-                concreteGeneralData,
-                concreteContractData,
-                coverageStatistics,
-                methodId,
-                inputInfo,
-                manualStateProcessor,
-            )
+                methodId
+            ) { coverageStatistics ->
+                machine.analyze(
+                    contract,
+                    concreteGeneralData,
+                    concreteContractData,
+                    coverageStatistics,
+                    methodId,
+                    inputInfo,
+                    manualStateProcessor
+                )
+            }
         }
-    }
 
     return TvmTestResolver.resolveSingleMethod(methodId, states, coverage)
 }
@@ -549,26 +609,27 @@ fun analyzeSpecificMethod(
 fun getFuncContract(
     path: Path,
     fiftStdlibPath: Path,
-    isTSAChecker: Boolean = false
-): TsaContractCode = FuncAnalyzer(fiftStdlibPath).convertToTvmContractCode(path).also {
-    if (isTSAChecker) {
-        setTSACheckerFunctions(it)
+    isTSAChecker: Boolean = false,
+): TsaContractCode =
+    FuncAnalyzer(fiftStdlibPath).convertToTvmContractCode(path).also {
+        if (isTSAChecker) {
+            setTSACheckerFunctions(it)
+        }
     }
-}
 
-fun getTactContract(
-    srcDescription: TactSourcesDescription
-): TsaContractCode = TactAnalyzer().convertToTvmContractCode(srcDescription)
+fun getTactContract(srcDescription: TactSourcesDescription): TsaContractCode =
+    TactAnalyzer().convertToTvmContractCode(srcDescription)
 
 class NoSelectedMethodsToAnalyze : RuntimeException() {
-    override val message: String = "No selected methods can be extracted from this contract. Please specify a method to analyze."
+    override val message: String =
+        "No selected methods can be extracted from this contract. Please specify a method to analyze."
 }
 
 data class FiftInterpreterResult(
     val exitCode: Int,
     val gasUsage: Int,
     val steps: Int,
-    val stack: List<String>
+    val stack: List<String>,
 )
 
 private const val COMPILER_TIMEOUT = 30.toLong() // seconds

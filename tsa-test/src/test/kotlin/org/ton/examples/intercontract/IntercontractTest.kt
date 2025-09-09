@@ -19,27 +19,31 @@ class IntercontractTest {
 
     @Test
     fun testIntercontract() {
-        val sources = listOf(
-            extractResource(rootPath),
-            extractResource(contract1Path),
-            extractResource(contract2Path)
-        )
+        val sources =
+            listOf(
+                extractResource(rootPath),
+                extractResource(contract1Path),
+                extractResource(contract2Path)
+            )
 
         val schemeJson = extractResource(schemePath).readText()
         val scheme = communicationSchemeFromJson(schemeJson)
         val options = TvmOptions(intercontractOptions = IntercontractOptions(scheme), enableOutMessageAnalysis = true)
 
-        val resultStates = analyzeFuncIntercontract(
-            sources = sources,
-            options = options,
-            startContract = 0,
-        )
-        val failedPaths = resultStates.mapNotNull { test ->
-            val result = test.result as? TvmMethodFailure
-                ?: return@mapNotNull null
+        val resultStates =
+            analyzeFuncIntercontract(
+                sources = sources,
+                options = options,
+                startContract = 0
+            )
+        val failedPaths =
+            resultStates.mapNotNull { test ->
+                val result =
+                    test.result as? TvmMethodFailure
+                        ?: return@mapNotNull null
 
-            result.exitCode to test.intercontractPath
-        }
+                result.exitCode to test.intercontractPath
+            }
 
         val invalidatedInvariantCode = 999
 

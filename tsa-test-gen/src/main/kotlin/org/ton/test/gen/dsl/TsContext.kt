@@ -1,12 +1,12 @@
 package org.ton.test.gen.dsl
 
-import java.math.BigInteger
-import java.util.Collections.newSetFromMap
-import java.util.IdentityHashMap
 import org.ton.test.gen.dsl.models.TsBooleanValue
 import org.ton.test.gen.dsl.models.TsVariable
 import org.ton.test.gen.dsl.models.toTsValue
 import org.usvm.test.resolver.TvmTestDataCellValue
+import java.math.BigInteger
+import java.util.Collections.newSetFromMap
+import java.util.IdentityHashMap
 
 // TODO: create all elements only through context to collect properties
 class TsContext {

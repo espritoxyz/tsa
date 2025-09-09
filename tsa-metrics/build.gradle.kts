@@ -1,5 +1,6 @@
 plugins {
     id("tsa.kotlin-conventions")
+    id("org.jmailen.kotlinter") version Versions.kotlinterPluginVersion
 }
 
 dependencies {
@@ -20,4 +21,11 @@ tasks.register("checkMetrics") {
             mainClass = "org.ton.DumpTsaUnsupportedInstructionsKt"
         }
     }
+}
+
+tasks.register("formatAndLintAll") {
+    group = "formatting"
+
+    dependsOn(tasks.findByName("formatKotlin"))
+    dependsOn(tasks.findByName("lintKotlin"))
 }

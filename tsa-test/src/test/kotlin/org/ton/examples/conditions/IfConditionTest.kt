@@ -5,7 +5,6 @@ import org.ton.test.utils.compileAndAnalyzeFift
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.runFiftMethod
 import org.ton.test.utils.testConcreteOptions
-import kotlin.io.path.Path
 import kotlin.test.Test
 
 class IfConditionTest {

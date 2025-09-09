@@ -23,7 +23,6 @@ import io.ksmt.utils.asExpr
 import io.ksmt.utils.powerOfTwo
 import io.ksmt.utils.toBigInteger
 import org.ton.bytecode.MethodId
-import java.math.BigInteger
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
 import org.ton.bytecode.TvmQuitContinuation
@@ -52,10 +51,9 @@ import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
-import org.usvm.machine.types.dp.AbstractGuard
-import org.usvm.machine.types.dp.AbstractionForUExpr
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
+import java.math.BigInteger
 
 // TODO: There is no size sort in TVM because of absence of arrays, but we need to represent cell data as boolean arrays
 //  with size no more than 1023
@@ -118,6 +116,7 @@ class TvmContext(
     val maxMessageCurrencyValue = MAX_MESSAGE_CURRENCY.toBv257()
 
     private var inputStackEntryCounter: Int = 0
+
     fun nextInputStackEntryId(): Int = inputStackEntryCounter++
 
     val nullValue: UConcreteHeapRef = mkConcreteHeapRef(NULL_ADDRESS)
@@ -146,22 +145,22 @@ class TvmContext(
 
     val sendMsgFeeEstimationFlag = powerOfTwo(10u).toBv257()
 
-    fun UBoolExpr.toBv257Bool(): UExpr<TvmInt257Sort> = with(ctx) {
-        mkIte(
-            condition = this@toBv257Bool,
-            trueBranch = trueValue,
-            falseBranch = falseValue,
-        )
-    }
+    fun UBoolExpr.toBv257Bool(): UExpr<TvmInt257Sort> =
+        with(ctx) {
+            mkIte(
+                condition = this@toBv257Bool,
+                trueBranch = trueValue,
+                falseBranch = falseValue
+            )
+        }
 
     fun Number.toBv257(): KBitVecValue<TvmInt257Sort> = mkBv(toBigInteger(), int257sort)
+
     fun Number.toCellSort(): KBitVecValue<TvmCellDataSort> = mkBv(toBigInteger(), cellDataSort)
 
-    fun <Sort : UBvSort> UExpr<Sort>.signedExtendToInteger(): UExpr<TvmInt257Sort> =
-        signExtendToSort(int257sort)
+    fun <Sort : UBvSort> UExpr<Sort>.signedExtendToInteger(): UExpr<TvmInt257Sort> = signExtendToSort(int257sort)
 
-    fun <Sort : UBvSort> UExpr<Sort>.unsignedExtendToInteger(): UExpr<TvmInt257Sort> =
-        zeroExtendToSort(int257sort)
+    fun <Sort : UBvSort> UExpr<Sort>.unsignedExtendToInteger(): UExpr<TvmInt257Sort> = zeroExtendToSort(int257sort)
 
     fun <InSort : UBvSort, OutSort : UBvSort> UExpr<InSort>.zeroExtendToSort(sort: OutSort): UExpr<OutSort> {
         require(this.sort.sizeBits <= sort.sizeBits)
@@ -175,11 +174,9 @@ class TvmContext(
         return mkBvSignExtensionExpr(extensionSize.toInt(), this).asExpr(sort)
     }
 
-    fun <Sort : UBvSort> UExpr<Sort>.extractToSizeSort(): UExpr<TvmSizeSort> =
-        extractToSort(sizeSort)
+    fun <Sort : UBvSort> UExpr<Sort>.extractToSizeSort(): UExpr<TvmSizeSort> = extractToSort(sizeSort)
 
-    fun <Sort : UBvSort> UExpr<Sort>.extractToInt257Sort(): UExpr<TvmInt257Sort> =
-        extractToSort(int257sort)
+    fun <Sort : UBvSort> UExpr<Sort>.extractToInt257Sort(): UExpr<TvmInt257Sort> = extractToSort(int257sort)
 
     fun <InSort : UBvSort, OutSort : UBvSort> UExpr<InSort>.extractToSort(sort: OutSort): UExpr<OutSort> {
         require(this.sort.sizeBits >= sort.sizeBits)
@@ -187,15 +184,20 @@ class TvmContext(
         return mkBvExtractExpr(sort.sizeBits.toInt() - 1, 0, this).asExpr(sort)
     }
 
-    override fun mkBvSort(sizeBits: UInt): KBvSort = when (sizeBits) {
-        INT_BITS -> int257sort
-        CELL_DATA_BITS -> cellDataSort
-        INT_EXT1_BITS -> int257Ext1Sort
-        INT_EXT256_BITS -> int257Ext256Sort
-        else -> super.mkBvSort(sizeBits)
-    }
+    override fun mkBvSort(sizeBits: UInt): KBvSort =
+        when (sizeBits) {
+            INT_BITS -> int257sort
+            CELL_DATA_BITS -> cellDataSort
+            INT_EXT1_BITS -> int257Ext1Sort
+            INT_EXT256_BITS -> int257Ext256Sort
+            else -> super.mkBvSort(sizeBits)
+        }
 
-    override fun <T : KBvSort> mkBvExtractExpr(high: Int, low: Int, value: KExpr<T>): KExpr<KBvSort> {
+    override fun <T : KBvSort> mkBvExtractExpr(
+        high: Int,
+        low: Int,
+        value: KExpr<T>,
+    ): KExpr<KBvSort> {
         if (value is KBvLogicalShiftRightExpr && value.shift is KBitVecValue) {
             val maxSizeBits = value.sort.sizeBits.toInt()
             val shiftBI = (value.shift as KBitVecValue).toBigIntegerSigned()
@@ -214,7 +216,7 @@ class TvmContext(
     private fun tvmSimplifyBoolIte(
         condition: KExpr<KBoolSort>,
         trueBranch: KExpr<KBoolSort>,
-        falseBranch: KExpr<KBoolSort>
+        falseBranch: KExpr<KBoolSort>,
     ): KExpr<KBoolSort> =
         simplifyBoolIteConstBranches(
             condition = condition,
@@ -237,7 +239,7 @@ class TvmContext(
     private fun <T : KSort> tvmSimplifyIte(
         condition: KExpr<KBoolSort>,
         trueBranch: KExpr<T>,
-        falseBranch: KExpr<T>
+        falseBranch: KExpr<T>,
     ): KExpr<T> =
         simplifyIteNotCondition(condition, trueBranch, falseBranch) { condition2, trueBranch2, falseBranch2 ->
             simplifyIteLight(condition2, trueBranch2, falseBranch2) { condition3, trueBranch3, falseBranch3 ->
@@ -248,14 +250,22 @@ class TvmContext(
                     { a, b, c -> tvmSimplifyIte(a, b, c) },
                     { a, b -> simplifyOr(a, b, flat = false) }
                 ) { condition4, trueBranch4, falseBranch4 ->
-                    simplifyIteBool(condition4, trueBranch4, falseBranch4, { a, b, c -> tvmSimplifyBoolIte(a, b, c) }, ::mkIteNoSimplify)
+                    simplifyIteBool(
+                        condition4,
+                        trueBranch4,
+                        falseBranch4,
+                        { a, b, c -> tvmSimplifyBoolIte(a, b, c) },
+                        ::mkIteNoSimplify
+                    )
                 }
             }
         }
 
-    override fun <T : KSort> mkIte(condition: KExpr<KBoolSort>, trueBranch: KExpr<T>, falseBranch: KExpr<T>): KExpr<T> {
-        return tvmSimplifyIte(condition, trueBranch, falseBranch)
-    }
+    override fun <T : KSort> mkIte(
+        condition: KExpr<KBoolSort>,
+        trueBranch: KExpr<T>,
+        falseBranch: KExpr<T>,
+    ): KExpr<T> = tvmSimplifyIte(condition, trueBranch, falseBranch)
 
     companion object {
         const val MAX_DATA_LENGTH: Int = 1023
@@ -324,10 +334,20 @@ class TvmContext(
         fun KContext.tctx(): TvmContext = this as TvmContext
     }
 
-    class TvmInt257Sort(ctx: KContext) : KBvCustomSizeSort(ctx, INT_BITS)
-    class TvmCellDataSort(ctx: KContext) : KBvCustomSizeSort(ctx, CELL_DATA_BITS)
+    class TvmInt257Sort(
+        ctx: KContext,
+    ) : KBvCustomSizeSort(ctx, INT_BITS)
+
+    class TvmCellDataSort(
+        ctx: KContext,
+    ) : KBvCustomSizeSort(ctx, CELL_DATA_BITS)
 
     // Utility sorts for arith operations
-    class TvmInt257Ext1Sort(ctx: KContext) : KBvCustomSizeSort(ctx, INT_EXT1_BITS)
-    class TvmInt257Ext256Sort(ctx: KContext) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
+    class TvmInt257Ext1Sort(
+        ctx: KContext,
+    ) : KBvCustomSizeSort(ctx, INT_EXT1_BITS)
+
+    class TvmInt257Ext256Sort(
+        ctx: KContext,
+    ) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
 }

@@ -19,24 +19,35 @@ fun runAnalysisAndExtractFailingExecutions(
     useRecvInternalInput: Boolean = true,
     manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
 ): List<TvmSymbolicTest> {
-    val postProcessor = object : TvmManualStateProcessor() {
-        override fun postProcessBeforePartialConcretization(state: TvmState): List<TvmState> = manualStatePostProcess(state)
-    }
+    val postProcessor =
+        object : TvmManualStateProcessor() {
+            override fun postProcessBeforePartialConcretization(state: TvmState): List<TvmState> =
+                manualStatePostProcess(state)
+        }
     val additionalStopStrategy = FirstFailureTerminator()
-    val analysisResult = analyzeInterContract(
-        contracts,
-        startContractId = 0,
-        methodId = MethodId.ZERO,
-        additionalStopStrategy = if (stopWhenFoundOneConflictingExecution) additionalStopStrategy else StopStrategy { false },
-        additionalObserver = if (stopWhenFoundOneConflictingExecution) additionalStopStrategy else null,
-        options = TvmOptions(
-            turnOnTLBParsingChecks = false,
-            useReceiverInputs = useRecvInternalInput
-        ),
-        inputInfo = inputInfo ?: TvmInputInfo(),
-        manualStateProcessor = postProcessor,
-        throwNotImplementedError = true,
-    )
+    val analysisResult =
+        analyzeInterContract(
+            contracts,
+            startContractId = 0,
+            methodId = MethodId.ZERO,
+            additionalStopStrategy =
+                if (stopWhenFoundOneConflictingExecution) {
+                    additionalStopStrategy
+                } else {
+                    StopStrategy {
+                        false
+                    }
+                },
+            additionalObserver = if (stopWhenFoundOneConflictingExecution) additionalStopStrategy else null,
+            options =
+                TvmOptions(
+                    turnOnTLBParsingChecks = false,
+                    useReceiverInputs = useRecvInternalInput
+                ),
+            inputInfo = inputInfo ?: TvmInputInfo(),
+            manualStateProcessor = postProcessor,
+            throwNotImplementedError = true
+        )
     val foundTests = analysisResult.tests
     val result = foundTests.filter { it.result is TvmMethodFailure }
     return result

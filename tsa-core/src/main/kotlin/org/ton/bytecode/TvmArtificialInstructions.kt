@@ -75,7 +75,7 @@ data class TsaArtificialJmpToContInst(
 
 class TsaArtificialExecuteContInst(
     override val cont: TvmContinuation,
-    override val location: TvmInstLocation
+    override val location: TvmInstLocation,
 ) : TsaArtificialContInst {
     override val mnemonic: String get() = "artificial_execute_$cont"
 

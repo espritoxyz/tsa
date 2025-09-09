@@ -11,7 +11,6 @@ import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.C7Register
 import org.usvm.machine.state.TvmStack
 
-
 data class TvmRegisterSavelist(
     val c0: C0Register? = null,
     val c1: C1Register? = null,
@@ -34,7 +33,7 @@ sealed interface TvmContinuation {
     fun update(
         newSavelist: TvmRegisterSavelist = savelist,
         newStack: TvmStack? = stack,
-        newNargs: UInt? = nargs
+        newNargs: UInt? = nargs,
     ): TvmContinuation
 }
 
@@ -42,7 +41,7 @@ sealed interface TvmContinuation {
  * A continuation used to mark the end of a successful program execution with exit code [exitCode]
  */
 data class TvmQuitContinuation(
-    val exitCode: UInt
+    val exitCode: UInt,
 ) : TvmContinuation {
     override val savelist
         get() = TvmRegisterSavelist.EMPTY
@@ -56,7 +55,7 @@ data class TvmQuitContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmQuitContinuation = this
 }
 
@@ -76,7 +75,7 @@ data object TvmExceptionContinuation : TvmContinuation {
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmExceptionContinuation = this
 }
 
@@ -98,7 +97,7 @@ data class TvmOrdContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmOrdContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }
 
@@ -119,7 +118,7 @@ data class TvmMethodReturnContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmMethodReturnContinuation = copy(returnSite = returnSite.update(newSavelist, newStack, newNargs))
 }
 
@@ -140,17 +139,18 @@ data class TvmLoopEntranceContinuation(
     override val nargs: UInt?
         get() = null
 
-    val codeBlock = TvmLambda(
-        mutableListOf(
-            TsaArtificialLoopEntranceInst(id, TvmInstLambdaLocation(0).also { it.parent = parentLocation }),
-            TsaArtificialJmpToContInst(loopBody, TvmInstLambdaLocation(1).also { it.parent = parentLocation }),
+    val codeBlock =
+        TvmLambda(
+            mutableListOf(
+                TsaArtificialLoopEntranceInst(id, TvmInstLambdaLocation(0).also { it.parent = parentLocation }),
+                TsaArtificialJmpToContInst(loopBody, TvmInstLambdaLocation(1).also { it.parent = parentLocation })
+            )
         )
-    )
 
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmLoopEntranceContinuation = error("Unexpected call")
 }
 
@@ -164,7 +164,7 @@ data class TvmUntilContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmUntilContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }
 
@@ -179,7 +179,7 @@ data class TvmRepeatContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmRepeatContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }
 
@@ -198,7 +198,7 @@ data class TvmWhileContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmWhileContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }
 
@@ -211,6 +211,6 @@ data class TvmAgainContinuation(
     override fun update(
         newSavelist: TvmRegisterSavelist,
         newStack: TvmStack?,
-        newNargs: UInt?
+        newNargs: UInt?,
     ): TvmAgainContinuation = copy(savelist = newSavelist, stack = newStack, nargs = newNargs)
 }

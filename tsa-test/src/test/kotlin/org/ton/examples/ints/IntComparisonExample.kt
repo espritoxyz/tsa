@@ -21,11 +21,14 @@ class IntComparisonExample {
         val symbolicResult = funcCompileAndAnalyzeAllMethods(sourceResourcePath)
         assertEquals(13, symbolicResult.testSuites.size)
         symbolicResult.forEach { (methodId, _, tests) ->
-            if (methodId.toInt() == 0)
+            if (methodId.toInt() == 0) {
                 return@forEach
-            val results = tests.flatMap { test ->
-                test.result.stack.map { (it as TvmTestIntegerValue).value.toInt() }
-            }.sorted()
+            }
+            val results =
+                tests
+                    .flatMap { test ->
+                        test.result.stack.map { (it as TvmTestIntegerValue).value.toInt() }
+                    }.sorted()
             assertEquals(listOf(1, 2), results)
         }
     }

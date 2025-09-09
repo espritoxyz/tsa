@@ -19,11 +19,12 @@ class BadTypesTests {
     fun testBadTypes() {
         val fiftResourcePath = extractResource(fiftPath)
 
-        val symbolicResult = compileAndAnalyzeFift(
-            fiftResourcePath,
-            methodsBlackList = setOf(BigInteger.ZERO),
-            tvmOptions = testOptionsToAnalyzeSpecificMethod
-        )
+        val symbolicResult =
+            compileAndAnalyzeFift(
+                fiftResourcePath,
+                methodsBlackList = setOf(BigInteger.ZERO),
+                tvmOptions = testOptionsToAnalyzeSpecificMethod
+            )
 
         assertEquals(1, symbolicResult.testSuites.size)
 

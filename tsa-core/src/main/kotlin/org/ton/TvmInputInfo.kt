@@ -7,5 +7,5 @@ package org.ton
  * */
 @JvmInline
 value class TvmInputInfo(
-    val parameterInfos: Map<Int, TvmParameterInfo> = emptyMap()
+    val parameterInfos: Map<Int, TvmParameterInfo> = emptyMap(),
 )

@@ -28,18 +28,19 @@ sealed interface TvmTestInput {
         val createdAt: TvmTestIntegerValue,
     ) : TvmTestInput {
         override val usedParameters: List<TvmTestValue>
-            get() = listOf(
-                srcAddress,
-                msgBody,
-                msgValue,
-                TvmTestBooleanValue(bounce),
-                TvmTestBooleanValue(bounced),
-                TvmTestBooleanValue(ihrDisabled),
-                ihrFee,
-                fwdFee,
-                createdLt,
-                createdAt
-            )
+            get() =
+                listOf(
+                    srcAddress,
+                    msgBody,
+                    msgValue,
+                    TvmTestBooleanValue(bounce),
+                    TvmTestBooleanValue(bounced),
+                    TvmTestBooleanValue(ihrDisabled),
+                    ihrFee,
+                    fwdFee,
+                    createdLt,
+                    createdAt
+                )
     }
 
     @Serializable

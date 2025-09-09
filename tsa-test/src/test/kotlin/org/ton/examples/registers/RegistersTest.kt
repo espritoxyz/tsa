@@ -62,11 +62,12 @@ class RegistersTest {
         try {
             compileFuncToFift(resourcePath, tmpFiftFile)
 
-            val symbolicResult = compileAndAnalyzeFift(
-                tmpFiftFile,
-                methodsBlackList = methodsBlackList,
-                tvmOptions = testConcreteOptions
-            )
+            val symbolicResult =
+                compileAndAnalyzeFift(
+                    tmpFiftFile,
+                    methodsBlackList = methodsBlackList,
+                    tvmOptions = testConcreteOptions
+                )
 
             compareSymbolicAndConcreteResults(setOf(0), symbolicResult) { methodId ->
                 runFiftMethod(tmpFiftFile, methodId)

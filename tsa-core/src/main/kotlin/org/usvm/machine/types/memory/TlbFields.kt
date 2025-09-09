@@ -55,7 +55,7 @@ data class SwitchField(
 
 data class UnknownBlockField(
     override val structureId: Int,
-    override val pathToStructure: List<Int>
+    override val pathToStructure: List<Int>,
 ) : TlbField {
     override fun getSort(ctx: TvmContext) = ctx.cellDataSort
 }

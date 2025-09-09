@@ -31,7 +31,6 @@ import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestStateResolver
 
-
 fun TvmContext.generateCellDataConstraint(
     struct: KnownTypePrefix,
     param: AbstractionForUExprWithCellDataPrefix,
@@ -58,22 +57,24 @@ fun TvmContext.generateCellDataConstraint(
             val typeArgs = struct.typeArgs(state, addr, path)
             val intSize = struct.typeLabel.bitSize(state.ctx, typeArgs)
 
-            val intFromData = state.loadIntFromCellWithoutChecksAndStructuralAsserts(
-                addr,
-                prefixSize,
-                intSize.zeroExtendToSort(int257sort),
-                struct.typeLabel.isSigned
-            )
+            val intFromData =
+                state.loadIntFromCellWithoutChecksAndStructuralAsserts(
+                    addr,
+                    prefixSize,
+                    intSize.zeroExtendToSort(int257sort),
+                    struct.typeLabel.isSigned
+                )
 
             val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
             val sort = field.getSort(this)
 
             val intFromTlbField = state.memory.readField(addr, field, sort)
-            val extendedIntFromTlbInt = if (struct.typeLabel.isSigned) {
-                intFromTlbField.signedExtendToInteger()
-            } else {
-                intFromTlbField.unsignedExtendToInteger()
-            }
+            val extendedIntFromTlbInt =
+                if (struct.typeLabel.isSigned) {
+                    intFromTlbField.signedExtendToInteger()
+                } else {
+                    intFromTlbField.unsignedExtendToInteger()
+                }
 
             intFromData eq extendedIntFromTlbInt
         }
@@ -83,13 +84,14 @@ fun TvmContext.generateCellDataConstraint(
         }
     }
 
-
-private fun TlbCompositeLabel.getStructureById(id: Int): TlbStructure {
-    return getStructureById(id, internalStructure)
+private fun TlbCompositeLabel.getStructureById(id: Int): TlbStructure =
+    getStructureById(id, internalStructure)
         ?: error("Id $id not found in structure of $this")
-}
 
-private fun getStructureById(id: Int, structure: TlbStructure): TlbStructure? {
+private fun getStructureById(
+    id: Int,
+    structure: TlbStructure,
+): TlbStructure? {
     if (structure is TlbStructure.CompositeNode && structure.id == id) {
         return structure
     }
@@ -105,26 +107,27 @@ fun KnownTypePrefix.typeArgs(
     state: TvmState,
     address: UConcreteHeapRef,
     path: List<Int>,
-): List<UExpr<TvmSizeSort>> = with(state.ctx) {
-    typeArgIds.map {
-        val typeArgStruct = owner.getStructureById(it)
-        check(typeArgStruct is KnownTypePrefix) {
-            "Only KnownTypePrefix can be used as type argument, but found $typeArgStruct"
+): List<UExpr<TvmSizeSort>> =
+    with(state.ctx) {
+        typeArgIds.map {
+            val typeArgStruct = owner.getStructureById(it)
+            check(typeArgStruct is KnownTypePrefix) {
+                "Only KnownTypePrefix can be used as type argument, but found $typeArgStruct"
+            }
+            val label = typeArgStruct.typeLabel
+            check(label is TlbIntegerLabelOfConcreteSize && !label.isSigned) {
+                "Only unsigned integer of concrete size can be used as type argument, but found $label"
+            }
+            val bitSize = label.concreteSize
+            check(bitSize <= 31) {
+                "Only integers of size <= 31 can be used as type argument, but found $label of size $bitSize"
+            }
+            val field = ConcreteSizeBlockField(bitSize, it, path)
+            val sort = field.getSort(this)
+            val intValue = state.memory.readField(address, field, sort)
+            intValue.zeroExtendToSort(sizeSort)
         }
-        val label = typeArgStruct.typeLabel
-        check(label is TlbIntegerLabelOfConcreteSize && !label.isSigned) {
-            "Only unsigned integer of concrete size can be used as type argument, but found $label"
-        }
-        val bitSize = label.concreteSize
-        check(bitSize <= 31) {
-            "Only integers of size <= 31 can be used as type argument, but found $label of size $bitSize"
-        }
-        val field = ConcreteSizeBlockField(bitSize, it, path)
-        val sort = field.getSort(this)
-        val intValue = state.memory.readField(address, field, sort)
-        intValue.zeroExtendToSort(sizeSort)
     }
-}
 
 fun TvmContext.generateGuardForSwitch(
     switch: TlbStructure,
@@ -191,78 +194,107 @@ fun generateTlbFieldConstraints(
     path: PersistentList<Int>,
     possibleSwitchVariants: List<Map<SwitchPrefix, List<SwitchPrefix.SwitchVariant>>>,
     maxTlbDepth: Int,
-): UBoolExpr = with(state.ctx) {
-    when (structure) {
-        is TlbStructure.Unknown, is TlbStructure.Empty -> {
-            trueExpr
-        }
-
-        is LoadRef -> {
-            generateTlbFieldConstraints(state, ref, structure.rest, path, possibleSwitchVariants, maxTlbDepth)
-        }
-
-        is SwitchPrefix -> {
-            val possibleVariants = possibleSwitchVariants[maxTlbDepth][structure]
-                ?: error("Possible variants for switch $structure not found")
-            possibleVariants.fold(trueExpr as UBoolExpr) { acc, (_, variant) ->
-                acc and generateTlbFieldConstraints(state, ref, variant, path, possibleSwitchVariants, maxTlbDepth)
+): UBoolExpr =
+    with(state.ctx) {
+        when (structure) {
+            is TlbStructure.Unknown, is TlbStructure.Empty -> {
+                trueExpr
             }
-        }
 
-        is KnownTypePrefix -> {
-            when (structure.typeLabel) {
-                is FixedSizeDataLabel -> {
-                    generateTlbFieldConstraints(state, ref, structure.rest, path, possibleSwitchVariants, maxTlbDepth)
+            is LoadRef -> {
+                generateTlbFieldConstraints(state, ref, structure.rest, path, possibleSwitchVariants, maxTlbDepth)
+            }
+
+            is SwitchPrefix -> {
+                val possibleVariants =
+                    possibleSwitchVariants[maxTlbDepth][structure]
+                        ?: error("Possible variants for switch $structure not found")
+                possibleVariants.fold(trueExpr as UBoolExpr) { acc, (_, variant) ->
+                    acc and generateTlbFieldConstraints(state, ref, variant, path, possibleSwitchVariants, maxTlbDepth)
                 }
+            }
 
-                is TlbCompositeLabel -> {
-                    val internal = if (maxTlbDepth > 0) {
+            is KnownTypePrefix -> {
+                when (structure.typeLabel) {
+                    is FixedSizeDataLabel -> {
                         generateTlbFieldConstraints(
                             state,
                             ref,
-                            structure.typeLabel.internalStructure,
-                            path.add(structure.id),
+                            structure.rest,
+                            path,
                             possibleSwitchVariants,
-                            maxTlbDepth - 1
+                            maxTlbDepth
                         )
-                    } else {
-                        trueExpr
-                    }
-                    internal and generateTlbFieldConstraints(state, ref, structure.rest, path, possibleSwitchVariants, maxTlbDepth)
-                }
-
-                is TlbIntegerLabelOfSymbolicSize -> {
-                    val typeArgs = structure.typeArgs(state, ref, path)
-                    val bitSize = structure.typeLabel.bitSize(this, typeArgs)
-
-                    val field = SymbolicSizeBlockField(structure.typeLabel.lengthUpperBound, structure.id, path)
-                    val fieldValue = state.memory.readField(ref, field, field.getSort(this))
-                    val bits = field.getSort(this).sizeBits
-
-                    val oneValue = mkBv(1, bits)
-
-                    val valueConstraint = if (structure.typeLabel.isSigned) {
-                        val sort = mkBvSort(bits)
-                        val minValue = bvMinValueSignedExtended(bitSize.zeroExtendToSort(sort))
-                        val maxValue = bvMaxValueSignedExtended(bitSize.zeroExtendToSort(sort))
-
-                        mkBvSignedLessOrEqualExpr(fieldValue, maxValue) and mkBvSignedGreaterOrEqualExpr(fieldValue, minValue)
-
-                    } else {
-                        val shift = bitSize.zeroExtendToSort(mkBvSort(bits))
-                        val maxValue = mkBvSubExpr(mkBvShiftLeftExpr(oneValue, shift), oneValue)
-
-                        mkBvUnsignedLessOrEqualExpr(fieldValue, maxValue)
                     }
 
-                    val cur = mkBvUnsignedLessOrEqualExpr(bitSize, mkSizeExpr(structure.typeLabel.lengthUpperBound)) and valueConstraint
-                    cur and generateTlbFieldConstraints(state, ref, structure.rest, path, possibleSwitchVariants, maxTlbDepth)
-                }
+                    is TlbCompositeLabel -> {
+                        val internal =
+                            if (maxTlbDepth > 0) {
+                                generateTlbFieldConstraints(
+                                    state,
+                                    ref,
+                                    structure.typeLabel.internalStructure,
+                                    path.add(structure.id),
+                                    possibleSwitchVariants,
+                                    maxTlbDepth - 1
+                                )
+                            } else {
+                                trueExpr
+                            }
+                        internal and
+                            generateTlbFieldConstraints(
+                                state,
+                                ref,
+                                structure.rest,
+                                path,
+                                possibleSwitchVariants,
+                                maxTlbDepth
+                            )
+                    }
 
-                is TlbBitArrayByRef, is TlbAddressByRef -> {
-                    error("Cannot generate tlb field constraints for TlbBitArrayByRef and TlbAddressByRef")
+                    is TlbIntegerLabelOfSymbolicSize -> {
+                        val typeArgs = structure.typeArgs(state, ref, path)
+                        val bitSize = structure.typeLabel.bitSize(this, typeArgs)
+
+                        val field = SymbolicSizeBlockField(structure.typeLabel.lengthUpperBound, structure.id, path)
+                        val fieldValue = state.memory.readField(ref, field, field.getSort(this))
+                        val bits = field.getSort(this).sizeBits
+
+                        val oneValue = mkBv(1, bits)
+
+                        val valueConstraint =
+                            if (structure.typeLabel.isSigned) {
+                                val sort = mkBvSort(bits)
+                                val minValue = bvMinValueSignedExtended(bitSize.zeroExtendToSort(sort))
+                                val maxValue = bvMaxValueSignedExtended(bitSize.zeroExtendToSort(sort))
+
+                                mkBvSignedLessOrEqualExpr(fieldValue, maxValue) and
+                                    mkBvSignedGreaterOrEqualExpr(fieldValue, minValue)
+                            } else {
+                                val shift = bitSize.zeroExtendToSort(mkBvSort(bits))
+                                val maxValue = mkBvSubExpr(mkBvShiftLeftExpr(oneValue, shift), oneValue)
+
+                                mkBvUnsignedLessOrEqualExpr(fieldValue, maxValue)
+                            }
+
+                        val cur =
+                            mkBvUnsignedLessOrEqualExpr(bitSize, mkSizeExpr(structure.typeLabel.lengthUpperBound)) and
+                                valueConstraint
+                        cur and
+                            generateTlbFieldConstraints(
+                                state,
+                                ref,
+                                structure.rest,
+                                path,
+                                possibleSwitchVariants,
+                                maxTlbDepth
+                            )
+                    }
+
+                    is TlbBitArrayByRef, is TlbAddressByRef -> {
+                        error("Cannot generate tlb field constraints for TlbBitArrayByRef and TlbAddressByRef")
+                    }
                 }
             }
         }
     }
-}

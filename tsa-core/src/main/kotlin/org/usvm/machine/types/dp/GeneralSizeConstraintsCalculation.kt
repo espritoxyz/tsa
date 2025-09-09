@@ -29,74 +29,83 @@ fun calculateSizeInfoForLeaves(
     dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
     childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
-): List<Pair<TlbStructure.Leaf, VertexCalculatedSize>> = with(state.ctx) {
-    val result = mutableListOf<Pair<TlbStructure.Leaf, VertexCalculatedSize>>()
+): List<Pair<TlbStructure.Leaf, VertexCalculatedSize>> =
+    with(state.ctx) {
+        val result = mutableListOf<Pair<TlbStructure.Leaf, VertexCalculatedSize>>()
 
-    val bfsQueue = ArrayDeque(listOf(structure to VertexCalculatedSize(trueExpr, zeroSizeExpr, zeroSizeExpr)))
+        val bfsQueue = ArrayDeque(listOf(structure to VertexCalculatedSize(trueExpr, zeroSizeExpr, zeroSizeExpr)))
 
-    while (bfsQueue.isNotEmpty()) {
-        val (curStruct, curSize) = bfsQueue.removeFirst()
+        while (bfsQueue.isNotEmpty()) {
+            val (curStruct, curSize) = bfsQueue.removeFirst()
 
-        when (curStruct) {
-            is TlbStructure.Leaf -> {
-                result.add(curStruct to curSize)
-            }
-
-            is TlbStructure.LoadRef -> {
-                val nextStruct = curStruct.rest
-                val newSize = VertexCalculatedSize(
-                    curSize.guard,
-                    dataLength = curSize.dataLength,
-                    refsLength = mkSizeAddExpr(curSize.refsLength, oneSizeExpr),
-                )
-                bfsQueue.add(nextStruct to newSize)
-            }
-
-            is TlbStructure.KnownTypePrefix -> {
-                val nextStruct = curStruct.rest
-                val (curDataOffset, curRefsOffset) = when (val label = curStruct.typeLabel) {
-                    is TlbAtomicLabel -> {
-                        val args = curStruct.typeArgs(state, address, emptyList())
-                        label.dataLength(state, args) to zeroSizeExpr
-                    }
-                    is TlbCompositeLabel -> {
-                        val dataOffset = dataLengthsFromPreviousDepth[label]
-                            ?: error("dataLengthsFromPreviousDepth for $label must be calculated")
-                        val childrenStructure = childrenStructureFromPreviousDepth[label]
-                            ?: error("childrenStructureFromPreviousDepth for $label must be calculated")
-                        val param = SimpleAbstractionForUExpr(address, persistentListOf(curStruct.id), state)
-                        val refsOffset = childrenStructure.numberOfChildren(this).apply(param)
-                        dataOffset.apply(param) to refsOffset
-                    }
+            when (curStruct) {
+                is TlbStructure.Leaf -> {
+                    result.add(curStruct to curSize)
                 }
-                val newSize = VertexCalculatedSize(
-                    curSize.guard,
-                    dataLength = mkSizeAddExpr(curSize.dataLength, curDataOffset),
-                    refsLength = mkSizeAddExpr(curSize.refsLength, curRefsOffset),
-                )
-                bfsQueue.add(nextStruct to newSize)
-            }
 
-            is TlbStructure.SwitchPrefix -> {
-                val newDataLength = mkSizeAddExpr(curSize.dataLength, mkSizeExpr(curStruct.switchSize))
-                val possibleVariants = possibleSwitchVariants[curStruct]
-                    ?: error("Switch variants not found for switch $curStruct")
-
-                possibleVariants.forEachIndexed { idx, (_, nextStruct) ->
-                    val switchGuard = generateGuardForSwitch(curStruct, idx, possibleVariants, state, address, persistentListOf())
-                    val newSize = VertexCalculatedSize(
-                        curSize.guard and switchGuard,
-                        dataLength = newDataLength,
-                        refsLength = curSize.refsLength,
-                    )
+                is TlbStructure.LoadRef -> {
+                    val nextStruct = curStruct.rest
+                    val newSize =
+                        VertexCalculatedSize(
+                            curSize.guard,
+                            dataLength = curSize.dataLength,
+                            refsLength = mkSizeAddExpr(curSize.refsLength, oneSizeExpr)
+                        )
                     bfsQueue.add(nextStruct to newSize)
+                }
+
+                is TlbStructure.KnownTypePrefix -> {
+                    val nextStruct = curStruct.rest
+                    val (curDataOffset, curRefsOffset) =
+                        when (val label = curStruct.typeLabel) {
+                            is TlbAtomicLabel -> {
+                                val args = curStruct.typeArgs(state, address, emptyList())
+                                label.dataLength(state, args) to zeroSizeExpr
+                            }
+                            is TlbCompositeLabel -> {
+                                val dataOffset =
+                                    dataLengthsFromPreviousDepth[label]
+                                        ?: error("dataLengthsFromPreviousDepth for $label must be calculated")
+                                val childrenStructure =
+                                    childrenStructureFromPreviousDepth[label]
+                                        ?: error("childrenStructureFromPreviousDepth for $label must be calculated")
+                                val param = SimpleAbstractionForUExpr(address, persistentListOf(curStruct.id), state)
+                                val refsOffset = childrenStructure.numberOfChildren(this).apply(param)
+                                dataOffset.apply(param) to refsOffset
+                            }
+                        }
+                    val newSize =
+                        VertexCalculatedSize(
+                            curSize.guard,
+                            dataLength = mkSizeAddExpr(curSize.dataLength, curDataOffset),
+                            refsLength = mkSizeAddExpr(curSize.refsLength, curRefsOffset)
+                        )
+                    bfsQueue.add(nextStruct to newSize)
+                }
+
+                is TlbStructure.SwitchPrefix -> {
+                    val newDataLength = mkSizeAddExpr(curSize.dataLength, mkSizeExpr(curStruct.switchSize))
+                    val possibleVariants =
+                        possibleSwitchVariants[curStruct]
+                            ?: error("Switch variants not found for switch $curStruct")
+
+                    possibleVariants.forEachIndexed { idx, (_, nextStruct) ->
+                        val switchGuard =
+                            generateGuardForSwitch(curStruct, idx, possibleVariants, state, address, persistentListOf())
+                        val newSize =
+                            VertexCalculatedSize(
+                                curSize.guard and switchGuard,
+                                dataLength = newDataLength,
+                                refsLength = curSize.refsLength
+                            )
+                        bfsQueue.add(nextStruct to newSize)
+                    }
                 }
             }
         }
-    }
 
-    return result
-}
+        return result
+    }
 
 data class VertexCalculatedSize(
     val guard: UBoolExpr,
@@ -111,30 +120,34 @@ fun calculateGeneralSizeConstraints(
     dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
     childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
-): UBoolExpr = with(state.ctx) {
-    val dataLengthField =
-        state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
-    val refsLengthField = state.memory.readField(address, TvmContext.cellRefsLengthField, sizeSort)
+): UBoolExpr =
+    with(state.ctx) {
+        val dataLengthField =
+            state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
+        val refsLengthField = state.memory.readField(address, TvmContext.cellRefsLengthField, sizeSort)
 
-    val info = calculateSizeInfoForLeaves(
-        address,
-        state,
-        structure,
-        dataLengthsFromPreviousDepth,
-        childrenStructureFromPreviousDepth,
-        possibleSwitchVariants
-    )
+        val info =
+            calculateSizeInfoForLeaves(
+                address,
+                state,
+                structure,
+                dataLengthsFromPreviousDepth,
+                childrenStructureFromPreviousDepth,
+                possibleSwitchVariants
+            )
 
-    return info.fold(trueExpr as UBoolExpr) { acc, (leaf, sizeInfo) ->
-        when (leaf) {
-            is TlbStructure.Unknown -> {
-                val newGuard = mkSizeGeExpr(dataLengthField, sizeInfo.dataLength) and mkSizeGeExpr(refsLengthField, sizeInfo.refsLength)
-                acc and (sizeInfo.guard implies newGuard)
-            }
-            is TlbStructure.Empty -> {
-                val newGuard = (dataLengthField eq sizeInfo.dataLength) and (refsLengthField eq sizeInfo.refsLength)
-                acc and (sizeInfo.guard implies newGuard)
+        return info.fold(trueExpr as UBoolExpr) { acc, (leaf, sizeInfo) ->
+            when (leaf) {
+                is TlbStructure.Unknown -> {
+                    val newGuard =
+                        mkSizeGeExpr(dataLengthField, sizeInfo.dataLength) and
+                            mkSizeGeExpr(refsLengthField, sizeInfo.refsLength)
+                    acc and (sizeInfo.guard implies newGuard)
+                }
+                is TlbStructure.Empty -> {
+                    val newGuard = (dataLengthField eq sizeInfo.dataLength) and (refsLengthField eq sizeInfo.refsLength)
+                    acc and (sizeInfo.guard implies newGuard)
+                }
             }
         }
     }
-}

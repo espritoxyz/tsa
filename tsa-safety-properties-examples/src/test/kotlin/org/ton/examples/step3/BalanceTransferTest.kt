@@ -30,20 +30,22 @@ class BalanceTransferTest {
 
         val communicationSchemePath = getResourcePath<BalanceTransferTest>(intercontractSchemePath)
         val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
-        val options = TvmOptions(
-            intercontractOptions = IntercontractOptions(communicationScheme),
-            turnOnTLBParsingChecks = false,
-            enableOutMessageAnalysis = true,
-        )
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true
+            )
 
         // Count wallet contract twice to distinguish between different accounts
         val contracts = listOf(checkerCode, walletContractCode, walletContractCode)
-        val result = analyzeInterContract(
-            contracts,
-            startContractId = 0, // Checker contract is the first to analyze
-            methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            options = options,
-        )
+        val result =
+            analyzeInterContract(
+                contracts,
+                startContractId = 0, // Checker contract is the first to analyze
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options
+            )
         val failures = result.tests.filter { it.result is TvmMethodFailure }
         val nonTransferredBalanceExecution = failures.single { (it.result as TvmMethodFailure).exitCode == 257 }
 

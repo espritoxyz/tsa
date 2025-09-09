@@ -25,8 +25,9 @@ private fun getPossibleSwitchVariantsForGivenDepth(
 ): List<SwitchVariant> =
     switch.variants.filter { (_, variant) ->
         constructionIsPossible(variant) {
-            val minDepth = minTlbDepths[it]
-                ?: error("minTlbDepth must be known for $it, but it is not")
+            val minDepth =
+                minTlbDepths[it]
+                    ?: error("minTlbDepth must be known for $it, but it is not")
             minDepth <= tlbDepth - 1
         }
     }

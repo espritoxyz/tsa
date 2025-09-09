@@ -11,10 +11,11 @@ class TactJettonTest {
 
     @Test
     fun testMinter() {
-        val symbolicResult = tactCompileAndAnalyzeAllMethods(
-            TactSourcesDescription(tactConfigPath, "Jetton", "JettonMinter"),
-            takeEmptyTests = true,
-        )
+        val symbolicResult =
+            tactCompileAndAnalyzeAllMethods(
+                TactSourcesDescription(tactConfigPath, "Jetton", "JettonMinter"),
+                takeEmptyTests = true
+            )
         assertTrue {
             symbolicResult.testSuites.all { it.tests.isNotEmpty() }
         }
@@ -22,10 +23,11 @@ class TactJettonTest {
 
     @Test
     fun testWallet() {
-        val symbolicResult = tactCompileAndAnalyzeAllMethods(
-            TactSourcesDescription(tactConfigPath, "Jetton", "JettonWallet"),
-            takeEmptyTests = true,
-        )
+        val symbolicResult =
+            tactCompileAndAnalyzeAllMethods(
+                TactSourcesDescription(tactConfigPath, "Jetton", "JettonWallet"),
+                takeEmptyTests = true
+            )
         assertTrue {
             symbolicResult.testSuites.all { it.tests.isNotEmpty() }
         }

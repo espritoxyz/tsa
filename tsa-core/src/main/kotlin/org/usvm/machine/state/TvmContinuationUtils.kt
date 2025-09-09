@@ -1,8 +1,8 @@
 package org.usvm.machine.state
 
 import org.ton.bytecode.TsaArtificialCheckerReturn
-import org.ton.bytecode.TvmAgainContinuation
 import org.ton.bytecode.TsaArtificialJmpToContInst
+import org.ton.bytecode.TvmAgainContinuation
 import org.ton.bytecode.TvmCellValue
 import org.ton.bytecode.TvmContinuation
 import org.ton.bytecode.TvmExceptionContinuation
@@ -26,39 +26,39 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.utils.intValueOrNull
 
-
 fun TvmState.extractCurrentContinuation(
     stmt: TvmInst,
     saveC0: Boolean = false,
     saveC1: Boolean = false,
     saveC2: Boolean = false,
-): TvmOrdContinuation = with(ctx) {
-    var c0: C0Register? = null
-    var c1: C1Register? = null
-    var c2: C2Register? = null
+): TvmOrdContinuation =
+    with(ctx) {
+        var c0: C0Register? = null
+        var c1: C1Register? = null
+        var c2: C2Register? = null
 
-    val registers = registersOfCurrentContract
+        val registers = registersOfCurrentContract
 
-    if (saveC0) {
-        c0 = registers.c0
-        registers.c0 = C0Register(quit0Cont)
+        if (saveC0) {
+            c0 = registers.c0
+            registers.c0 = C0Register(quit0Cont)
+        }
+
+        if (saveC1) {
+            c1 = registers.c1
+            registers.c1 = C1Register(quit1Cont)
+        }
+
+        if (saveC2) {
+            c2 = registers.c2
+
+            // this line is commented in the tvm interpreter
+            // https://github.com/ton-blockchain/ton/blob/5c392e0f2d946877bb79a09ed35068f7b0bd333a/crypto/vm/vm.cpp#L382
+            // registers.c2 = C2Register(TvmExceptionContinuation)
+        }
+
+        TvmOrdContinuation(stmt.nextStmt(), sourceCell = null, TvmRegisterSavelist(c0, c1, c2))
     }
-
-    if (saveC1) {
-        c1 = registers.c1
-        registers.c1 = C1Register(quit1Cont)
-    }
-
-    if (saveC2) {
-        c2 = registers.c2
-
-        // this line is commented in the tvm interpreter
-        // https://github.com/ton-blockchain/ton/blob/5c392e0f2d946877bb79a09ed35068f7b0bd333a/crypto/vm/vm.cpp#L382
-        // registers.c2 = C2Register(TvmExceptionContinuation)
-    }
-
-    TvmOrdContinuation(stmt.nextStmt(), sourceCell = null, TvmRegisterSavelist(c0, c1, c2))
-}
 
 fun TvmStepScopeManager.callMethod(
     stmt: TvmInst,
@@ -68,24 +68,27 @@ fun TvmStepScopeManager.callMethod(
     val nextContinuation = TvmOrdContinuation(methodToCall, sourceCell = null)
 
     doWithState {
-        val retCont = TvmOrdContinuation(
-            stmt = stmt.nextStmt(),
-            savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
-            sourceCell = null,
-        )
-        val wrappedRet = if (checkerMemorySavelist != null) {
-            val location = TvmInstLambdaLocation(0)
-            location.parent = stmt.location
-            val lambda = TvmLambda(mutableListOf(TsaArtificialCheckerReturn(location, checkerMemorySavelist)))
-            val wrappedCont = TvmOrdContinuation(
-                stmt = lambda.instList.first(),
-                savelist = TvmRegisterSavelist(C0Register(retCont)),
-                sourceCell = null,
+        val retCont =
+            TvmOrdContinuation(
+                stmt = stmt.nextStmt(),
+                savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
+                sourceCell = null
             )
-            TvmMethodReturnContinuation(methodToCall.id, wrappedCont)
-        } else {
-            TvmMethodReturnContinuation(methodToCall.id, retCont)
-        }
+        val wrappedRet =
+            if (checkerMemorySavelist != null) {
+                val location = TvmInstLambdaLocation(0)
+                location.parent = stmt.location
+                val lambda = TvmLambda(mutableListOf(TsaArtificialCheckerReturn(location, checkerMemorySavelist)))
+                val wrappedCont =
+                    TvmOrdContinuation(
+                        stmt = lambda.instList.first(),
+                        savelist = TvmRegisterSavelist(C0Register(retCont)),
+                        sourceCell = null
+                    )
+                TvmMethodReturnContinuation(methodToCall.id, wrappedCont)
+            } else {
+                TvmMethodReturnContinuation(methodToCall.id, retCont)
+            }
         registersOfCurrentContract.c0 = C0Register(wrappedRet)
 
         callStack.push(methodToCall, returnSite = stmt)
@@ -104,7 +107,7 @@ fun TvmStepScopeManager.jumpToContinuation(cont: TvmContinuation) {
 
 fun TvmStepScopeManager.jumpToContinuationComplex(
     cont: TvmContinuation,
-    passArgs: UInt? = null
+    passArgs: UInt? = null,
 ) = doWithStateCtx {
     // TODO stack depth checks ?
 
@@ -149,11 +152,12 @@ fun TvmStepScopeManager.callContinuation(
         return@doWithState callContinuationComplex(stmt, continuation, null, null)
     }
 
-    val retCont = TvmOrdContinuation(
-        stmt = stmt.nextStmt(),
-        savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
-        sourceCell = null,
-    )
+    val retCont =
+        TvmOrdContinuation(
+            stmt = stmt.nextStmt(),
+            savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
+            sourceCell = null
+        )
     registersOfCurrentContract.c0 = C0Register(retCont)
     jump(continuation)
 }
@@ -188,41 +192,43 @@ fun TvmStepScopeManager.callContinuationComplex(
 
     // copy == null : pass whole stack, else pass top `copy` elements, drop next `skip` elements.
     val contStack = continuation.stack
-    val (newStack, remainder) = if (contStack != null) {
-        if (copy == null) {
-            // To ensure correctness stack must have concrete depth
-            copy = stack.depth()
+    val (newStack, remainder) =
+        if (contStack != null) {
+            if (copy == null) {
+                // To ensure correctness stack must have concrete depth
+                copy = stack.depth()
+            }
+
+            val newStack = contStack.clone()
+            newStack.takeValuesFromOtherStack(stack, copy.toInt())
+
+            if (skip > 0u) {
+                stack.dropLastEntries(skip)
+            }
+
+            newStack to stack
+        } else if (copy != null) {
+            val newStack = TvmStack(ctx, allowInputValues = false)
+            newStack.takeValuesFromOtherStack(stack, copy.toInt())
+            if (skip > 0u) {
+                stack.dropLastEntries(skip)
+            }
+
+            newStack to stack
+        } else {
+            stack to null
         }
-
-        val newStack = contStack.clone()
-        newStack.takeValuesFromOtherStack(stack, copy.toInt())
-
-        if (skip > 0u) {
-            stack.dropLastEntries(skip)
-        }
-
-        newStack to stack
-    } else if (copy != null) {
-        val newStack = TvmStack(ctx, allowInputValues = false)
-        newStack.takeValuesFromOtherStack(stack, copy.toInt())
-        if (skip > 0u) {
-            stack.dropLastEntries(skip)
-        }
-
-        newStack to stack
-    } else {
-        stack to null
-    }
 
     stack = newStack
 
-    val retCont = TvmOrdContinuation(
-        stmt = stmt.nextStmt(),
-        savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
-        stack = remainder,
-        nargs = returnArgs,
-        sourceCell = null,
-    )
+    val retCont =
+        TvmOrdContinuation(
+            stmt = stmt.nextStmt(),
+            savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
+            stack = remainder,
+            nargs = returnArgs,
+            sourceCell = null
+        )
     registersOfCurrentContract.c0 = C0Register(retCont)
     jump(continuation)
 }
@@ -325,22 +331,24 @@ private fun TvmStepScopeManager.jump(cont: TvmContinuation) {
     }
 }
 
-private fun TvmState.adjustRegisters(cont: TvmContinuation) = with(cont.savelist) {
-    val registers = registersOfCurrentContract
-    c0?.let { registers.c0 = it }
-    c1?.let { registers.c1 = it }
-    c2?.let { registers.c2 = it }
-    c3?.let { registers.c3 = it }
-    c4?.let { registers.c4 = it }
-    c5?.let { registers.c5 = it }
-    c7?.let { registers.c7 = it.copy() }
-}
+private fun TvmState.adjustRegisters(cont: TvmContinuation) =
+    with(cont.savelist) {
+        val registers = registersOfCurrentContract
+        c0?.let { registers.c0 = it }
+        c1?.let { registers.c1 = it }
+        c2?.let { registers.c2 = it }
+        c3?.let { registers.c3 = it }
+        c4?.let { registers.c4 = it }
+        c5?.let { registers.c5 = it }
+        c7?.let { registers.c7 = it.copy() }
+    }
 
-private fun TvmStepScopeManager.doOrdJump(cont: TvmOrdContinuation) = doWithState {
-    adjustRegisters(cont)
+private fun TvmStepScopeManager.doOrdJump(cont: TvmOrdContinuation) =
+    doWithState {
+        adjustRegisters(cont)
 
-    newStmt(cont.stmt)
-}
+        newStmt(cont.stmt)
+    }
 
 private fun TvmStepScopeManager.doMethodReturnJump(cont: TvmMethodReturnContinuation) {
     doWithState {
@@ -356,20 +364,22 @@ private fun TvmStepScopeManager.doMethodReturnJump(cont: TvmMethodReturnContinua
     doOrdJump(cont.returnSite)
 }
 
-private fun TvmStepScopeManager.doQuitJump(cont: TvmQuitContinuation) = doWithState {
-    val exit = when (cont.exitCode) {
-        0u -> TvmNormalExit
-        1u -> TvmAlternativeExit
-        else -> error("Unexpected exit code ${cont.exitCode}")
+private fun TvmStepScopeManager.doQuitJump(cont: TvmQuitContinuation) =
+    doWithState {
+        val exit =
+            when (cont.exitCode) {
+                0u -> TvmNormalExit
+                1u -> TvmAlternativeExit
+                else -> error("Unexpected exit code ${cont.exitCode}")
+            }
+
+        val registers = registersOfCurrentContract
+        val commitedState = TvmCommitedState(registers.c4, registers.c5)
+
+        lastCommitedStateOfContracts = lastCommitedStateOfContracts.put(currentContract, commitedState)
+
+        setExit(TvmMethodResult.TvmSuccess(exit, stack))
     }
-
-    val registers = registersOfCurrentContract
-    val commitedState = TvmCommitedState(registers.c4, registers.c5)
-
-    lastCommitedStateOfContracts = lastCommitedStateOfContracts.put(currentContract, commitedState)
-
-    setExit(TvmMethodResult.TvmSuccess(exit, stack))
-}
 
 private fun TvmStepScopeManager.doLoopEntranceJump(cont: TvmLoopEntranceContinuation) {
     doWithState {

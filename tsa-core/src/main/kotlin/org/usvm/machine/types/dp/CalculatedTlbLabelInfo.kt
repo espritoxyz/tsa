@@ -14,7 +14,6 @@ import org.usvm.machine.types.forEach
 import org.usvm.machine.types.memory.generateTlbFieldConstraints
 import org.usvm.test.resolver.TvmTestDataCellValue
 
-
 class CalculatedTlbLabelInfo(
     private val ctx: TvmContext,
     givenCompositeLabels: Collection<TlbCompositeLabel>,
@@ -28,7 +27,10 @@ class CalculatedTlbLabelInfo(
 
     fun minimalLabelDepth(label: TlbCompositeLabel): Int? = minTlbDepth[label]
 
-    fun maxRefSize(label: TlbCompositeLabel, maxDepth: Int = maxTlbDepth): Int? {
+    fun maxRefSize(
+        label: TlbCompositeLabel,
+        maxDepth: Int = maxTlbDepth,
+    ): Int? {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate maxRefSize for depth $maxDepth"
         }
@@ -61,8 +63,9 @@ class CalculatedTlbLabelInfo(
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate childLabel for depth $maxDepth"
         }
-        val childStructure = labelChildren[maxDepth][parentLabel]?.children?.get(childIdx)
-            ?: return null
+        val childStructure =
+            labelChildren[maxDepth][parentLabel]?.children?.get(childIdx)
+                ?: return null
         return childStructure.variants.entries.associate { (struct, abstractGuard) ->
             val guard = abstractGuard.apply(SimpleAbstractionForUExpr(address, persistentListOf(), state))
             struct to guard
@@ -78,9 +81,12 @@ class CalculatedTlbLabelInfo(
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate conditionForNumberOfChildrenExceeded for depth $maxDepth"
         }
-        val childrenStructure = labelChildren[maxDepth][parentLabel]
-            ?: return null
-        return childrenStructure.numberOfChildrenExceeded.apply(SimpleAbstractionForUExpr(address, persistentListOf(), state))
+        val childrenStructure =
+            labelChildren[maxDepth][parentLabel]
+                ?: return null
+        return childrenStructure.numberOfChildrenExceeded.apply(
+            SimpleAbstractionForUExpr(address, persistentListOf(), state)
+        )
     }
 
     fun getDataConstraints(
@@ -92,9 +98,12 @@ class CalculatedTlbLabelInfo(
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate switch constraints for depth $maxDepth"
         }
-        val abstract = dataConstraints[maxDepth][label]
-            ?: return null
-        return abstract.apply(AbstractionForUExprWithCellDataPrefix(address, ctx.zeroSizeExpr, persistentListOf(), state))
+        val abstract =
+            dataConstraints[maxDepth][label]
+                ?: return null
+        return abstract.apply(
+            AbstractionForUExprWithCellDataPrefix(address, ctx.zeroSizeExpr, persistentListOf(), state)
+        )
     }
 
     fun getTlbFieldConstraints(
@@ -111,8 +120,7 @@ class CalculatedTlbLabelInfo(
 
     fun getIndividualTlbDepthBound(label: TlbCompositeLabel): Int? = individualMaxCellTlbDepth[label]
 
-    fun getDefaultCell(label: TlbCompositeLabel): TvmTestDataCellValue? =
-        defaultCells[label]
+    fun getDefaultCell(label: TlbCompositeLabel): TvmTestDataCellValue? = defaultCells[label]
 
     fun getSizeConstraints(
         state: TvmState,
@@ -132,7 +140,7 @@ class CalculatedTlbLabelInfo(
             label.internalStructure,
             dataLengths[maxDepth - 1],
             labelChildren[maxDepth - 1],
-            possibleSwitchVariants[maxDepth],
+            possibleSwitchVariants[maxDepth]
         )
     }
 
@@ -154,7 +162,7 @@ class CalculatedTlbLabelInfo(
             label.internalStructure,
             dataLengths[maxDepth - 1],
             labelChildren[maxDepth - 1],
-            possibleSwitchVariants[maxDepth],
+            possibleSwitchVariants[maxDepth]
         )
     }
 
@@ -169,9 +177,10 @@ class CalculatedTlbLabelInfo(
             ?: error("Possible variants for switch $switch at depth $maxDepth not found.")
     }
 
-    private val hasUnknownLeaves: Map<TlbCompositeLabel, Boolean> = compositeLabels.associateWith {
-        hasUnknownLeaves(it)
-    }
+    private val hasUnknownLeaves: Map<TlbCompositeLabel, Boolean> =
+        compositeLabels.associateWith {
+            hasUnknownLeaves(it)
+        }
 
     private val labelsWithoutUnknownLeaves = compositeLabels.filter { hasUnknownLeaves[it] == false }
 
@@ -182,7 +191,8 @@ class CalculatedTlbLabelInfo(
 
     private val allSwitches = extractAllSwitches(compositeLabels)
 
-    private val possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>> =
+    private val possibleSwitchVariants:
+        List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>> =
         calculatePossibleSwitchVariants(maxTlbDepth, allSwitches, minTlbDepth)
 
     private val defaultCells: Map<TlbCompositeLabel, TvmTestDataCellValue> =
@@ -195,7 +205,13 @@ class CalculatedTlbLabelInfo(
         calculateDataLengths(ctx, labelsWithoutUnknownLeaves, individualMaxCellTlbDepth, possibleSwitchVariants)
 
     private val labelChildren: List<Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>> =
-        calculateChildrenStructures(ctx, labelsWithoutUnknownLeaves, dataLengths, individualMaxCellTlbDepth, possibleSwitchVariants)
+        calculateChildrenStructures(
+            ctx,
+            labelsWithoutUnknownLeaves,
+            dataLengths,
+            individualMaxCellTlbDepth,
+            possibleSwitchVariants
+        )
 
     private val dataConstraints: List<Map<TlbCompositeLabel, AbstractGuard<AbstractionForUExprWithCellDataPrefix>>> =
         calculateDataConstraints(ctx, compositeLabels, dataLengths, individualMaxCellTlbDepth, possibleSwitchVariants)
@@ -228,8 +244,7 @@ class CalculatedTlbLabelInfo(
     }
 }
 
-private fun hasUnknownLeaves(label: TlbCompositeLabel): Boolean =
-    hasUnknownLeaves(label.internalStructure)
+private fun hasUnknownLeaves(label: TlbCompositeLabel): Boolean = hasUnknownLeaves(label.internalStructure)
 
 private fun hasUnknownLeaves(struct: TlbStructure): Boolean =
     when (struct) {

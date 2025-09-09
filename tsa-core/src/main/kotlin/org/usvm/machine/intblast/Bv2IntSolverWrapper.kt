@@ -134,7 +134,10 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         return wrappedCheck { currentSolver.check(timeout) }
     }
 
-    override fun checkWithAssumptions(assumptions: List<KExpr<KBoolSort>>, timeout: Duration): KSolverStatus {
+    override fun checkWithAssumptions(
+        assumptions: List<KExpr<KBoolSort>>,
+        timeout: Duration,
+    ): KSolverStatus {
         require(currentScope == 1)
 
         if (isRewriteSolver && !assumptions.all { exprFilter.applyVisitor(it) }) {

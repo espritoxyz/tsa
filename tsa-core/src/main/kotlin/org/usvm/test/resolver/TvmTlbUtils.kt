@@ -1,23 +1,25 @@
 package org.usvm.test.resolver
 
-import java.math.BigInteger
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
 import org.ton.cell.CellBuilder
 import org.ton.cell.CellSlice
 import org.ton.hashmap.HashMapE
 import org.ton.tlb.TlbCodec
+import java.math.BigInteger
 
 // TODO maybe use HashMapESerializer from `ton-disassembler` after making it public
 data object HashMapESerializer : TlbCodec<Cell> {
-    override fun loadTlb(cellSlice: CellSlice): Cell {
-        return Cell(
+    override fun loadTlb(cellSlice: CellSlice): Cell =
+        Cell(
             BitString(cellSlice.bits.drop(cellSlice.bitsPosition)),
             *cellSlice.refs.drop(cellSlice.refsPosition).toTypedArray()
         )
-    }
 
-    override fun storeTlb(cellBuilder: CellBuilder, value: Cell) {
+    override fun storeTlb(
+        cellBuilder: CellBuilder,
+        value: Cell,
+    ) {
         cellBuilder.storeBits(value.bits)
         cellBuilder.storeRefs(value.refs)
     }
@@ -35,21 +37,26 @@ fun transformTestDataCellIntoCell(value: TvmTestDataCellValue): Cell {
     return Cell(binaryData, *refs.toTypedArray())
 }
 
-fun transformMapIntoHashMapE(keyLength: Int, map: Map<BigInteger, Cell>): HashMapE<Cell> {
-    val patchedContent = map.entries.associate { (key, entryValue) ->
-        val normalizedKey = key.toUnsignedDictKey(keyLength)
-        val keyPadded = normalizedKey.toString(2).padStart(length = keyLength, padChar = '0')
-        val bitArray = keyPadded.map { it == '1' }
+fun transformMapIntoHashMapE(
+    keyLength: Int,
+    map: Map<BigInteger, Cell>,
+): HashMapE<Cell> {
+    val patchedContent =
+        map.entries.associate { (key, entryValue) ->
+            val normalizedKey = key.toUnsignedDictKey(keyLength)
+            val keyPadded = normalizedKey.toString(2).padStart(length = keyLength, padChar = '0')
+            val bitArray = keyPadded.map { it == '1' }
 
-        BitString(bitArray) to entryValue
-    }
+            BitString(bitArray) to entryValue
+        }
     return HashMapE.fromMap(patchedContent)
 }
 
 fun transformTestDictCellIntoHashMapE(value: TvmTestDictCellValue): HashMapE<Cell> {
-    val patchedMap = value.entries.entries.associate { (key, slice) ->
-        key.value to transformTestDataCellIntoCell(truncateSliceCell(slice))
-    }
+    val patchedMap =
+        value.entries.entries.associate { (key, slice) ->
+            key.value to transformTestDataCellIntoCell(truncateSliceCell(slice))
+        }
 
     return transformMapIntoHashMapE(value.keyLength, patchedMap)
 }
@@ -62,5 +69,4 @@ fun transformTestDictCellIntoCell(value: TvmTestDictCellValue): Cell {
     return cellForHashMapE.refs.single()
 }
 
-private fun BigInteger.toUnsignedDictKey(keyLength: Int) =
-    this.mod(BigInteger.ONE.shiftLeft(keyLength))
+private fun BigInteger.toUnsignedDictKey(keyLength: Int) = this.mod(BigInteger.ONE.shiftLeft(keyLength))

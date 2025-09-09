@@ -23,10 +23,11 @@ class DictExampleTest {
     fun testAddAndRemove() {
         val resourcePath = getResourcePath<DictExampleTest>(addAndRemovePath)
 
-        val symbolicResult = funcCompileAndAnalyzeAllMethods(
-            resourcePath,
-            tvmOptions = testOptionsToAnalyzeSpecificMethod,
-        )
+        val symbolicResult =
+            funcCompileAndAnalyzeAllMethods(
+                resourcePath,
+                tvmOptions = testOptionsToAnalyzeSpecificMethod
+            )
         val tests = symbolicResult.testSuites.single()
         assertTrue { tests.all { it.result !is TvmSuccessfulExecution } }
     }

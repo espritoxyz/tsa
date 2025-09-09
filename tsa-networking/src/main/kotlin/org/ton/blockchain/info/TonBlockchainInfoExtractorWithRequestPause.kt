@@ -9,7 +9,10 @@ abstract class TonBlockchainInfoExtractorWithRequestPause(
 ) : TonBlockchainInfoExtractor {
     private var lastRequestTimestamp = 0L
 
-    protected fun makeTonApiRequest(query: String, failOnRequestError: Boolean = true): Pair<Int, String> {
+    protected fun makeTonApiRequest(
+        query: String,
+        failOnRequestError: Boolean = true,
+    ): Pair<Int, String> {
         val now = Date().time
         lastRequestTimestamp = Date().time
         Thread.sleep(max(0, pauseBetweenRequestsMillies - (now - lastRequestTimestamp)))

@@ -17,9 +17,8 @@ import org.usvm.memory.GuardedExpr
 import org.usvm.utils.extractAddressesSpecialized
 
 class TvmDataCellLoadedTypeInfo(
-    var addressToActions: PersistentMap<UConcreteHeapRef, PersistentList<Action>>
+    var addressToActions: PersistentMap<UConcreteHeapRef, PersistentList<Action>>,
 ) {
-
     sealed interface Action {
         val guard: UBoolExpr
         val cellAddress: UConcreteHeapRef
@@ -53,17 +52,18 @@ class TvmDataCellLoadedTypeInfo(
     ) = with(cellAddress.ctx as TvmContext) {
         val cellLeaves = extractAddressesSpecialized(cellAddress, extractAllocated = true, extractStatic = true)
 
-        val newMap = cellLeaves.fold(addressToActions) { map, (guard, ref) ->
-            val actionInstance = action(GuardedExpr(ref, guard))
-            if (actionInstance != null) {
-                actionList.add(actionInstance)
-                val oldList = map.getOrDefault(ref, persistentListOf())
-                val newList = oldList.add(actionInstance)
-                map.put(ref, newList)
-            } else {
-                map
+        val newMap =
+            cellLeaves.fold(addressToActions) { map, (guard, ref) ->
+                val actionInstance = action(GuardedExpr(ref, guard))
+                if (actionInstance != null) {
+                    actionList.add(actionInstance)
+                    val oldList = map.getOrDefault(ref, persistentListOf())
+                    val newList = oldList.add(actionInstance)
+                    map.put(ref, newList)
+                } else {
+                    map
+                }
             }
-        }
 
         addressToActions = newMap
     }
@@ -73,24 +73,25 @@ class TvmDataCellLoadedTypeInfo(
         offset: UExpr<TvmSizeSort>,
         type: TvmCellDataTypeRead<ReadResult>,
         slice: UHeapRef,
-    ): List<LoadData<ReadResult>> = with(state.ctx) {
-        val staticSliceAddresses = extractAddressesSpecialized(slice, extractAllocated = true, extractStatic = true)
+    ): List<LoadData<ReadResult>> =
+        with(state.ctx) {
+            val staticSliceAddresses = extractAddressesSpecialized(slice, extractAllocated = true, extractStatic = true)
 
-        val result = mutableListOf<LoadData<ReadResult>>()
-        staticSliceAddresses.forEach { (sliceGuard, sliceRef) ->
-            val cellAddress = state.memory.readField(sliceRef, TvmContext.sliceCellField, addressSort)
-            registerAction(cellAddress, result) { ref ->
-                val guard = (ref.guard and sliceGuard)
-                if (guard.isFalse) {
-                    null
-                } else {
-                    LoadData(guard, ref.expr, type, offset, sliceRef)
+            val result = mutableListOf<LoadData<ReadResult>>()
+            staticSliceAddresses.forEach { (sliceGuard, sliceRef) ->
+                val cellAddress = state.memory.readField(sliceRef, TvmContext.sliceCellField, addressSort)
+                registerAction(cellAddress, result) { ref ->
+                    val guard = (ref.guard and sliceGuard)
+                    if (guard.isFalse) {
+                        null
+                    } else {
+                        LoadData(guard, ref.expr, type, offset, sliceRef)
+                    }
                 }
             }
-        }
 
-        return result
-    }
+            return result
+        }
 
     fun loadRef(
         cellAddress: UHeapRef,
@@ -106,7 +107,7 @@ class TvmDataCellLoadedTypeInfo(
     fun makeEndOfCell(
         cellAddress: UHeapRef,
         offset: UExpr<TvmSizeSort>,
-        refNumber: UExpr<TvmSizeSort>
+        refNumber: UExpr<TvmSizeSort>,
     ): List<EndOfCell> {
         val result = mutableListOf<EndOfCell>()
         registerAction(cellAddress, result) { ref ->
@@ -115,8 +116,7 @@ class TvmDataCellLoadedTypeInfo(
         return result
     }
 
-    fun clone(): TvmDataCellLoadedTypeInfo =
-        TvmDataCellLoadedTypeInfo(addressToActions)
+    fun clone(): TvmDataCellLoadedTypeInfo = TvmDataCellLoadedTypeInfo(addressToActions)
 
     companion object {
         fun empty() = TvmDataCellLoadedTypeInfo(persistentMapOf())

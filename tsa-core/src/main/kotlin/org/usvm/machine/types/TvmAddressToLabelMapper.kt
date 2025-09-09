@@ -24,7 +24,7 @@ class TvmAddressToLabelMapper(
 ) {
     private val inputAddressToLabels = hashMapOf<UConcreteHeapRef, LabelInfo>()
     private val grandchildrenOfAddressInitialized = hashSetOf<UConcreteHeapRef>()
-    private val initialRefs = hashSetOf<UConcreteHeapRef>()  // will be set during init
+    private val initialRefs = hashSetOf<UConcreteHeapRef>() // will be set during init
     private val proactiveConstraintsCalculatedFor = hashSetOf<UConcreteHeapRef>()
     private val builderLabels = hashMapOf<UConcreteHeapRef, TlbStructureBuilder>()
     private val allocatedAddressToCellInfo = hashMapOf<UConcreteHeapRef, TvmParameterInfo.CellInfo>()
@@ -44,18 +44,22 @@ class TvmAddressToLabelMapper(
             inputAddressToLabels[address]
         }
 
-    private fun getChildrenAddresses(state: TvmState, ref: UConcreteHeapRef): List<UConcreteHeapRef> {
+    private fun getChildrenAddresses(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ): List<UConcreteHeapRef> {
         val parentStruct = inputAddressToLabels[ref]
         check(parentStruct != null) {
             "Must call getChildrenAddresses only for refs that TvmAddressToLabelMapper already knows about, but got $ref"
         }
-        val maxRefs = parentStruct.variants.keys.fold(0) { acc, cellInfo ->
-            if (cellInfo is TvmParameterInfo.DataCellInfo) {
-                max(acc, calculatedTlbLabelInfo.maxRefSize(cellInfo.dataCellStructure) ?: 0)
-            } else {
-                acc
+        val maxRefs =
+            parentStruct.variants.keys.fold(0) { acc, cellInfo ->
+                if (cellInfo is TvmParameterInfo.DataCellInfo) {
+                    max(acc, calculatedTlbLabelInfo.maxRefSize(cellInfo.dataCellStructure) ?: 0)
+                } else {
+                    acc
+                }
             }
-        }
 
         return List(maxRefs) {
             // resulting address is concrete because ref is concrete
@@ -63,9 +67,13 @@ class TvmAddressToLabelMapper(
         }
     }
 
-    private fun generateLabelInfoForChildren(state: TvmState, ref: UConcreteHeapRef) = with(state.ctx) {
-        val parentStruct = inputAddressToLabels[ref]
-            ?: error("CellInfo of ref $ref must be known at this point")
+    private fun generateLabelInfoForChildren(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ) = with(state.ctx) {
+        val parentStruct =
+            inputAddressToLabels[ref]
+                ?: error("CellInfo of ref $ref must be known at this point")
         check(ref !in grandchildrenOfAddressInitialized) {
             "Grandchildren must not be known yet"
         }
@@ -83,19 +91,20 @@ class TvmAddressToLabelMapper(
             }
 
             for (childIdx in childLabels.indices) {
-                val childInfo = calculatedTlbLabelInfo.getLabelChildStructure(
-                    state,
-                    ref,
-                    cellInfo.dataCellStructure,
-                    childIdx
-                ) ?: run {
-                    check(calculatedTlbLabelInfo.labelHasUnknownLeaves(cellInfo.dataCellStructure) == true) {
-                        "ChildStructure can be null only for children of labels with unknown leaves, " +
-                            "but it is null for ref $childIdx of ${cellInfo.dataCellStructure}"
+                val childInfo =
+                    calculatedTlbLabelInfo.getLabelChildStructure(
+                        state,
+                        ref,
+                        cellInfo.dataCellStructure,
+                        childIdx
+                    ) ?: run {
+                        check(calculatedTlbLabelInfo.labelHasUnknownLeaves(cellInfo.dataCellStructure) == true) {
+                            "ChildStructure can be null only for children of labels with unknown leaves, " +
+                                "but it is null for ref $childIdx of ${cellInfo.dataCellStructure}"
+                        }
+                        // TODO: add info about known children of parents with unknown leaves
+                        mapOf(TvmParameterInfo.UnknownCellInfo to trueExpr)
                     }
-                    // TODO: add info about known children of parents with unknown leaves
-                    mapOf(TvmParameterInfo.UnknownCellInfo to trueExpr)
-                }
 
                 childInfo.forEach { (childCellInfo, childGuard) ->
                     val oldChildGuard = childLabels[childIdx][childCellInfo] ?: falseExpr
@@ -109,21 +118,28 @@ class TvmAddressToLabelMapper(
         }
     }
 
-    fun getLabelFromModel(model: UModelBase<TvmType>, ref: UConcreteHeapRef): TvmParameterInfo.CellInfo {
+    fun getLabelFromModel(
+        model: UModelBase<TvmType>,
+        ref: UConcreteHeapRef,
+    ): TvmParameterInfo.CellInfo {
         val labelInfo = inputAddressToLabels[ref]
         check(labelInfo != null) {
             "Must call this method only for refs which structures are known. No info about $ref"
         }
-        return labelInfo.variants.entries.firstOrNull { (_, guard) ->
-            model.eval(guard).isTrue
-        }?.key 
+        return labelInfo.variants.entries
+            .firstOrNull { (_, guard) ->
+                model.eval(guard).isTrue
+            }?.key
             ?: error("One of the guards in LabelInfo for $ref must be true in the given model.")
     }
 
-    fun initializeConstraintsForChildren(state: TvmState, ref: UConcreteHeapRef) = with(state.ctx) {
+    fun initializeConstraintsForChildren(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ) = with(state.ctx) {
         check(!state.isTerminated) {
             "initializeAddressChildren should be called only when the state is not terminated, but " +
-                    "given state's result is ${state.methodResult}"
+                "given state's result is ${state.methodResult}"
         }
 
         if (ref !in inputAddressToLabels || ref in grandchildrenOfAddressInitialized) {
@@ -137,12 +153,13 @@ class TvmAddressToLabelMapper(
             "Children's cellInfo must be known at this point"
         }
 
-        val structuralConstraints = childAddresses.fold(trueExpr as UBoolExpr) { acc, childAddress ->
-            // generate grandchildren of [ref]
-            generateLabelInfoForChildren(state, childAddress)
+        val structuralConstraints =
+            childAddresses.fold(trueExpr as UBoolExpr) { acc, childAddress ->
+                // generate grandchildren of [ref]
+                generateLabelInfoForChildren(state, childAddress)
 
-            acc and generateProactiveStructuralConstraints(state, childAddress)
-        }
+                acc and generateProactiveStructuralConstraints(state, childAddress)
+            }
 
         state.globalStructuralConstraintsHolder.addStructuralConstraint(structuralConstraints)
     }
@@ -164,22 +181,21 @@ class TvmAddressToLabelMapper(
             ref,
             generateSizeConstraints = true,
             generateDataConstraints = false,
-            generateTlbFieldConstraints = true,
+            generateTlbFieldConstraints = true
         )
     }
 
     fun generateLazyDataConstraints(
         state: TvmState,
         ref: UConcreteHeapRef,
-    ): UBoolExpr {
-        return generateStructuralConstraints(
+    ): UBoolExpr =
+        generateStructuralConstraints(
             state,
             ref,
             generateSizeConstraints = false,
             generateDataConstraints = true,
-            generateTlbFieldConstraints = false,
+            generateTlbFieldConstraints = false
         )
-    }
 
     private fun generateStructuralConstraints(
         state: TvmState,
@@ -187,36 +203,37 @@ class TvmAddressToLabelMapper(
         generateSizeConstraints: Boolean,
         generateDataConstraints: Boolean,
         generateTlbFieldConstraints: Boolean,
-    ): UBoolExpr = with(state.ctx) {
-        val labelInfo = inputAddressToLabels[ref]
-        check(labelInfo != null) {
-            "At this point label info for $ref must be calculated"
+    ): UBoolExpr =
+        with(state.ctx) {
+            val labelInfo = inputAddressToLabels[ref]
+            check(labelInfo != null) {
+                "At this point label info for $ref must be calculated"
+            }
+
+            labelInfo.variants.entries.fold(trueExpr as UBoolExpr) { acc, (cellInfo, guard) ->
+                if (cellInfo !is TvmParameterInfo.DataCellInfo) {
+                    return@fold acc
+                }
+
+                val label = cellInfo.dataCellStructure
+
+                var curGuard = trueExpr as UBoolExpr
+                if (generateSizeConstraints) {
+                    val sizeConstraints = calculatedTlbLabelInfo.getSizeConstraints(state, ref, label)
+                    curGuard = curGuard and (sizeConstraints ?: trueExpr)
+                }
+                if (generateDataConstraints) {
+                    val dataConstraints = calculatedTlbLabelInfo.getDataConstraints(state, ref, label)
+                    curGuard = curGuard and (dataConstraints ?: trueExpr)
+                }
+                if (generateTlbFieldConstraints) {
+                    val tlbConstraints = calculatedTlbLabelInfo.getTlbFieldConstraints(state, ref, label)
+                    curGuard = curGuard and tlbConstraints
+                }
+
+                acc and (guard implies curGuard)
+            }
         }
-
-        labelInfo.variants.entries.fold(trueExpr as UBoolExpr) { acc, (cellInfo, guard) ->
-            if (cellInfo !is TvmParameterInfo.DataCellInfo) {
-                return@fold acc
-            }
-
-            val label = cellInfo.dataCellStructure
-
-            var curGuard = trueExpr as UBoolExpr
-            if (generateSizeConstraints) {
-                val sizeConstraints = calculatedTlbLabelInfo.getSizeConstraints(state, ref, label)
-                curGuard = curGuard and (sizeConstraints ?: trueExpr)
-            }
-            if (generateDataConstraints) {
-                val dataConstraints = calculatedTlbLabelInfo.getDataConstraints(state, ref, label)
-                curGuard = curGuard and (dataConstraints ?: trueExpr)
-            }
-            if (generateTlbFieldConstraints) {
-                val tlbConstraints = calculatedTlbLabelInfo.getTlbFieldConstraints(state, ref, label)
-                curGuard = curGuard and tlbConstraints
-            }
-
-            acc and (guard implies curGuard)
-        }
-    }
 
     fun getInitialStructuralConstraints(initialState: TvmState): UBoolExpr =
         initialRefs.fold(initialState.ctx.trueExpr as UBoolExpr) { acc, ref ->
@@ -224,25 +241,36 @@ class TvmAddressToLabelMapper(
             initialState.ctx.mkAnd(acc, constraint)
         }
 
-    fun addTlbBuilder(builderRef: UConcreteHeapRef, tlbStructureBuilder: TlbStructureBuilder) {
+    fun addTlbBuilder(
+        builderRef: UConcreteHeapRef,
+        tlbStructureBuilder: TlbStructureBuilder,
+    ) {
         builderLabels[builderRef] = tlbStructureBuilder
     }
 
     fun getTlbBuilder(builderRef: UConcreteHeapRef): TlbStructureBuilder? = builderLabels[builderRef]
 
-    fun setCellInfoFromBuilder(builder: UConcreteHeapRef, cellRef: UConcreteHeapRef, state: TvmState) {
+    fun setCellInfoFromBuilder(
+        builder: UConcreteHeapRef,
+        cellRef: UConcreteHeapRef,
+        state: TvmState,
+    ) {
         check(cellRef.isAllocated) {
             "Unexpected ref: $cellRef"
         }
-        val tlbBuilder = builderLabels[builder]
-            ?: return
+        val tlbBuilder =
+            builderLabels[builder]
+                ?: return
         val newLabel = TlbCompositeLabel("artificial")
         newLabel.internalStructure = tlbBuilder.end(newLabel, state, cellRef)
         val cellInfo = TvmParameterInfo.DataCellInfo(newLabel)
         setAllocatedCellInfo(cellRef, cellInfo)
     }
 
-    fun setAllocatedCellInfo(cellRef: UConcreteHeapRef, cellInfo: TvmParameterInfo.CellInfo) {
+    fun setAllocatedCellInfo(
+        cellRef: UConcreteHeapRef,
+        cellInfo: TvmParameterInfo.CellInfo,
+    ) {
         allocatedAddressToCellInfo[cellRef] = cellInfo
     }
 
@@ -250,21 +278,25 @@ class TvmAddressToLabelMapper(
 
     fun sliceIsAddress(slice: UConcreteHeapRef): Boolean = slice in addressSlices
 
-    fun addAddressSliceAndGenerateConstraint(state: TvmState, slice: UConcreteHeapRef): UBoolExpr = with(state.ctx) {
-        addAddressSlice(slice)
+    fun addAddressSliceAndGenerateConstraint(
+        state: TvmState,
+        slice: UConcreteHeapRef,
+    ): UBoolExpr =
+        with(state.ctx) {
+            addAddressSlice(slice)
 
-        val cellRef = state.memory.readField(slice, TvmContext.sliceCellField, addressSort) as UConcreteHeapRef
-        check(cellRef.isStatic) {
-            "Unexpected cell ref: $cellRef"
+            val cellRef = state.memory.readField(slice, TvmContext.sliceCellField, addressSort) as UConcreteHeapRef
+            check(cellRef.isStatic) {
+                "Unexpected cell ref: $cellRef"
+            }
+
+            inputAddressToLabels[cellRef] =
+                LabelInfo(mapOf(TvmParameterInfo.DataCellInfo(TlbFullMsgAddrLabel) to ctx.trueExpr))
+
+            // no need to generate label info for children because addresses have no children
+
+            generateProactiveStructuralConstraints(state, cellRef, checkThatConstraintWasCalculatedOnce = false)
         }
-
-        inputAddressToLabels[cellRef] =
-            LabelInfo(mapOf(TvmParameterInfo.DataCellInfo(TlbFullMsgAddrLabel) to ctx.trueExpr))
-
-        // no need to generate label info for children because addresses have no children
-
-        generateProactiveStructuralConstraints(state, cellRef, checkThatConstraintWasCalculatedOnce = false)
-    }
 
     init {
         inputInfo.cellToInfo.forEach { (ref, cellInfo) ->

@@ -3,9 +3,6 @@ package org.usvm.machine.interpreter
 import org.ton.bytecode.TvmAppCurrencyInst
 import org.ton.bytecode.TvmAppCurrencyLdgramsInst
 import org.ton.bytecode.TvmAppCurrencyStgramsInst
-import org.usvm.machine.types.TvmBuilderType
-import org.usvm.machine.types.TvmIntegerType
-import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.addOnStack
@@ -20,11 +17,17 @@ import org.usvm.machine.state.sliceLoadGramsTlb
 import org.usvm.machine.state.takeLastBuilder
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastSlice
+import org.usvm.machine.types.TvmBuilderType
+import org.usvm.machine.types.TvmIntegerType
+import org.usvm.machine.types.TvmSliceType
 
 class TvmCurrencyInterpreter(
     private val ctx: TvmContext,
 ) {
-    fun visitCurrencyInst(scope: TvmStepScopeManager, stmt: TvmAppCurrencyInst) {
+    fun visitCurrencyInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppCurrencyInst,
+    ) {
         scope.consumeDefaultGas(stmt)
 
         when (stmt) {
@@ -34,7 +37,10 @@ class TvmCurrencyInterpreter(
         }
     }
 
-    private fun visitLoadGramsInst(scope: TvmStepScopeManager, stmt: TvmAppCurrencyLdgramsInst) {
+    private fun visitLoadGramsInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppCurrencyLdgramsInst,
+    ) {
         scope.doWithStateCtx {
             val slice = takeLastSlice()
             if (slice == null) {
@@ -52,15 +58,21 @@ class TvmCurrencyInterpreter(
         }
     }
 
-    private fun visitStoreGrams(scope: TvmStepScopeManager, stmt: TvmAppCurrencyStgramsInst) = with(ctx) {
-        val grams = scope.takeLastIntOrThrowTypeError()
-            ?: return
-        val builder = scope.calcOnState { takeLastBuilder() }
-            ?: return scope.calcOnState(throwTypeCheckError)
+    private fun visitStoreGrams(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppCurrencyStgramsInst,
+    ) = with(ctx) {
+        val grams =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return
+        val builder =
+            scope.calcOnState { takeLastBuilder() }
+                ?: return scope.calcOnState(throwTypeCheckError)
 
-        val updatedBuilder = scope.calcOnState {
-            memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
-        }
+        val updatedBuilder =
+            scope.calcOnState {
+                memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
+            }
 
         builderStoreGramsTlb(scope, builder, updatedBuilder, grams)
             ?: return@with

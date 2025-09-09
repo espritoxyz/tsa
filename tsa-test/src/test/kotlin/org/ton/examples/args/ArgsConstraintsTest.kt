@@ -73,14 +73,15 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
             )
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
     }
 
-    private val stonfiAddressBits = "10000000000" +
+    private val stonfiAddressBits =
+        "10000000000" +
             BigInteger("779dcc815138d9500e449c5291e7f12738c23d575b5310000f6a253bd607384e", 16)
                 .toString(2)
                 .padStart(256, '0')
@@ -88,12 +89,14 @@ class ArgsConstraintsTest {
     @Test
     fun testConcreteMyAddress() {
         val path = getResourcePath<ArgsConstraintsTest>(myAddressPath)
-        val result = funcCompileAndAnalyzeAllMethods(
-            path,
-            concreteContractData = TvmConcreteContractData(
-                addressBits = stonfiAddressBits
+        val result =
+            funcCompileAndAnalyzeAllMethods(
+                path,
+                concreteContractData =
+                    TvmConcreteContractData(
+                        addressBits = stonfiAddressBits
+                    )
             )
-        )
 
         val tests = result.testSuites.single()
 
@@ -119,13 +122,13 @@ class ArgsConstraintsTest {
             tests,
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 }
             )
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 }
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
@@ -134,17 +137,18 @@ class ArgsConstraintsTest {
     @Test
     fun testConcreteBalance() {
         val path = getResourcePath<ArgsConstraintsTest>(balancePath)
-        val result = funcCompileAndAnalyzeAllMethods(
-            path,
-            concreteContractData = TvmConcreteContractData(initialBalance = 12345.toBigInteger()),
-        )
+        val result =
+            funcCompileAndAnalyzeAllMethods(
+                path,
+                concreteContractData = TvmConcreteContractData(initialBalance = 12345.toBigInteger())
+            )
 
         val tests = result.testSuites.single()
         assertTrue { tests.isNotEmpty() }
 
         checkInvariants(
             tests,
-            listOf { test -> test.result !is TvmSuccessfulExecution },
+            listOf { test -> test.result !is TvmSuccessfulExecution }
         )
     }
 
@@ -157,7 +161,7 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
             )
         )
 
@@ -167,10 +171,11 @@ class ArgsConstraintsTest {
     @Test
     fun testConcreteSenderAddress() {
         val path = getResourcePath<ArgsConstraintsTest>(senderAddressPath)
-        val result = funcCompileAndAnalyzeAllMethods(
-            path,
-            concreteGeneralData = TvmConcreteGeneralData(initialSenderBits = stonfiAddressBits),
-        )
+        val result =
+            funcCompileAndAnalyzeAllMethods(
+                path,
+                concreteGeneralData = TvmConcreteGeneralData(initialSenderBits = stonfiAddressBits)
+            )
 
         propertiesFound(
             result.testSuites.single(),
@@ -192,7 +197,7 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
             )
         )
 
@@ -202,10 +207,11 @@ class ArgsConstraintsTest {
     @Test
     fun testConcreteOpcode() {
         val path = getResourcePath<ArgsConstraintsTest>(opcodePath)
-        val result = funcCompileAndAnalyzeAllMethods(
-            path,
-            concreteGeneralData = TvmConcreteGeneralData(initialOpcode = 0x12345678U)
-        )
+        val result =
+            funcCompileAndAnalyzeAllMethods(
+                path,
+                concreteGeneralData = TvmConcreteGeneralData(initialOpcode = 0x12345678U)
+            )
 
         propertiesFound(
             result.testSuites.single(),
@@ -230,7 +236,7 @@ class ArgsConstraintsTest {
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 1001 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1002 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1002 }
             )
         )
 

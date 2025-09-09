@@ -13,9 +13,8 @@ import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import kotlin.io.path.readText
-import kotlin.test.Test
 import kotlin.test.Ignore
-
+import kotlin.test.Test
 
 private const val EXIT_CODE = 256
 private const val UNSUPPORTED_MESSAGE = "Verifying thrown exceptions inside checker contracts are not supported"
@@ -39,18 +38,20 @@ class CommitCheckers {
         val analyzedPath = extractResource(targetContract)
         val checkerPath = extractResource(checkerPathStr)
 
-        val checkerContract = getFuncContract(
-            checkerPath,
-            FIFT_STDLIB_RESOURCE,
-            isTSAChecker = true
-        )
+        val checkerContract =
+            getFuncContract(
+                checkerPath,
+                FIFT_STDLIB_RESOURCE,
+                isTSAChecker = true
+            )
         val analyzedContract = getFuncContract(analyzedPath, FIFT_STDLIB_RESOURCE)
 
-        val tests = analyzeInterContract(
-            listOf(checkerContract, analyzedContract),
-            startContractId = 0,
-            methodId = TvmContext.RECEIVE_INTERNAL_ID
-        )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID
+            )
 
         checkInvariants(
             tests,
@@ -67,7 +68,7 @@ class CommitCheckers {
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE }
         )
     }
 
@@ -76,30 +77,34 @@ class CommitCheckers {
         val recipientPath = extractResource(companionContract)
         val checkerPath = extractResource(checkerPathStr)
 
-        val checkerContract = getFuncContract(
-            checkerPath,
-            FIFT_STDLIB_RESOURCE,
-            isTSAChecker = true
-        )
+        val checkerContract =
+            getFuncContract(
+                checkerPath,
+                FIFT_STDLIB_RESOURCE,
+                isTSAChecker = true
+            )
         val analyzedSender = getFuncContract(senderPath, FIFT_STDLIB_RESOURCE)
         val analyzedRecipient = getFuncContract(recipientPath, FIFT_STDLIB_RESOURCE)
 
         val communicationSchemePath = extractResource(communicationSchemeJson)
         val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
 
-        val options = TvmOptions(
-            intercontractOptions = IntercontractOptions(
-                communicationScheme = communicationScheme,
-            ),
-            enableOutMessageAnalysis = true,
-        )
+        val options =
+            TvmOptions(
+                intercontractOptions =
+                    IntercontractOptions(
+                        communicationScheme = communicationScheme
+                    ),
+                enableOutMessageAnalysis = true
+            )
 
-        val tests = analyzeInterContract(
-            listOf(checkerContract, analyzedSender, analyzedRecipient),
-            startContractId = 0,
-            methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            options = options
-        )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedSender, analyzedRecipient),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options
+            )
 
         checkInvariants(
             tests,
@@ -116,7 +121,7 @@ class CommitCheckers {
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE }
         )
     }
 

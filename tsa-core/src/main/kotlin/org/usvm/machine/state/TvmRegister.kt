@@ -10,13 +10,34 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 interface TvmRegister
 
 // TODO registers should contain symbolic values, not concrete?
-data class C0Register(val value: TvmContinuation) : TvmRegister
-data class C1Register(val value: TvmContinuation) : TvmRegister
-data class C2Register(val value: TvmContinuation) : TvmRegister
-data class C3Register(val value: TvmContinuation, val code: TsaContractCode) : TvmRegister
-data class C4Register(val value: TvmCellValue) : TvmRegister
-data class C5Register(val value: TvmCellValue) : TvmRegister
-data class C7Register(val value: TvmStackTupleValueConcreteNew)
+data class C0Register(
+    val value: TvmContinuation,
+) : TvmRegister
+
+data class C1Register(
+    val value: TvmContinuation,
+) : TvmRegister
+
+data class C2Register(
+    val value: TvmContinuation,
+) : TvmRegister
+
+data class C3Register(
+    val value: TvmContinuation,
+    val code: TsaContractCode,
+) : TvmRegister
+
+data class C4Register(
+    val value: TvmCellValue,
+) : TvmRegister
+
+data class C5Register(
+    val value: TvmCellValue,
+) : TvmRegister
+
+data class C7Register(
+    val value: TvmStackTupleValueConcreteNew,
+)
 
 // TODO make them not-null?
 data class TvmRegisters(

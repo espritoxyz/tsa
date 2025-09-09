@@ -19,25 +19,33 @@ import org.usvm.utils.extractAddresses
 import org.usvm.utils.intValueOrNull
 
 class TvmCellDataLengthFieldManager(
-    private var builderLengthUpperBoundTracker: TvmBuilderLengthUpperBoundTracker = TvmBuilderLengthUpperBoundTracker(
-        persistentMapOf()
-    ),
+    private var builderLengthUpperBoundTracker: TvmBuilderLengthUpperBoundTracker =
+        TvmBuilderLengthUpperBoundTracker(
+            persistentMapOf()
+        ),
 ) {
     fun clone() = TvmCellDataLengthFieldManager(builderLengthUpperBoundTracker)
 
-    fun readCellDataLength(state: TvmState, cellRef: UHeapRef): UExpr<TvmSizeSort> = with(state.ctx) {
-        return state.memory.readField(cellRef, cellDataLengthField, sizeSort).also {
-            val bound = getUpperBound(state.ctx, cellRef)
-            val length = it.intValueOrNull
-            if (bound != null && length != null) {
-                check(length <= bound) {
-                    "Unexpected upper bound for $cellRef. Bound: $bound, length: $length."
+    fun readCellDataLength(
+        state: TvmState,
+        cellRef: UHeapRef,
+    ): UExpr<TvmSizeSort> =
+        with(state.ctx) {
+            return state.memory.readField(cellRef, cellDataLengthField, sizeSort).also {
+                val bound = getUpperBound(state.ctx, cellRef)
+                val length = it.intValueOrNull
+                if (bound != null && length != null) {
+                    check(length <= bound) {
+                        "Unexpected upper bound for $cellRef. Bound: $bound, length: $length."
+                    }
                 }
             }
         }
-    }
 
-    fun getUpperBound(ctx: TvmContext, cellRef: UHeapRef): Int? {
+    fun getUpperBound(
+        ctx: TvmContext,
+        cellRef: UHeapRef,
+    ): Int? {
         val refs = ctx.extractAddresses(cellRef, extractStatic = true, extractAllocated = true)
         return refs.maxOf {
             builderLengthUpperBoundTracker.builderRefToLengthUpperBound[it.second]
@@ -50,7 +58,7 @@ class TvmCellDataLengthFieldManager(
         memory: UWritableMemory<TvmType>,
         cellRef: UConcreteHeapRef,
         value: UExpr<TvmSizeSort>,
-        upperBound: Int?
+        upperBound: Int?,
     ) = with(ctx) {
         if (upperBound != null) {
             builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(cellRef, upperBound)
@@ -62,19 +70,24 @@ class TvmCellDataLengthFieldManager(
         state: TvmState,
         cellRef: UConcreteHeapRef,
         value: UExpr<TvmSizeSort>,
-        upperBound: Int?
+        upperBound: Int?,
     ) {
         writeCellDataLength(state.ctx, state.memory, cellRef, value, upperBound)
     }
 
-    fun copyLength(state: TvmState, from: UHeapRef, to: UConcreteHeapRef) = with(state.ctx) {
+    fun copyLength(
+        state: TvmState,
+        from: UHeapRef,
+        to: UConcreteHeapRef,
+    ) = with(state.ctx) {
         val value = readCellDataLength(state, from)
         val fromRefs = extractAddresses(from, extractAllocated = true, extractStatic = true).map { it.second }
-        val upperBound = run {
-            fromRefs.maxOf {
-                builderLengthUpperBoundTracker.builderRefToLengthUpperBound[it] ?: return@run null
+        val upperBound =
+            run {
+                fromRefs.maxOf {
+                    builderLengthUpperBoundTracker.builderRefToLengthUpperBound[it] ?: return@run null
+                }
             }
-        }
         writeCellDataLength(state, to, value, upperBound)
     }
 

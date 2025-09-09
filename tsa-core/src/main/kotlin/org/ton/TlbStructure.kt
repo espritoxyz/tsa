@@ -15,8 +15,10 @@ sealed interface TlbStructure {
         val typeArgIds: List<Int>,
         val rest: TlbStructure,
         override val owner: TlbCompositeLabel,
-    ) : TlbStructure, CompositeNode {
+    ) : TlbStructure,
+        CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
+
         override fun hashCode(): Int = calculateHash()
     }
 
@@ -25,8 +27,10 @@ sealed interface TlbStructure {
         val ref: TvmParameterInfo.CellInfo,
         val rest: TlbStructure,
         override val owner: TlbCompositeLabel,
-    ) : TlbStructure, CompositeNode {
+    ) : TlbStructure,
+        CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
+
         override fun hashCode(): Int = calculateHash()
     }
 
@@ -35,8 +39,10 @@ sealed interface TlbStructure {
         val switchSize: Int,
         givenVariants: Map<String, TlbStructure>,
         override val owner: TlbCompositeLabel,
-    ) : TlbStructure, CompositeNode {
+    ) : TlbStructure,
+        CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
+
         override fun hashCode(): Int = calculateHash()
 
         val variants: List<SwitchVariant> = givenVariants.entries.map { SwitchVariant(it.key, it.value) }
@@ -64,8 +70,9 @@ sealed interface TlbStructure {
         val owner: TlbCompositeLabel
 
         fun performEquals(other: Any?): Boolean {
-            if (other !is CompositeNode)
+            if (other !is CompositeNode) {
                 return false
+            }
             return id == other.id
         }
 

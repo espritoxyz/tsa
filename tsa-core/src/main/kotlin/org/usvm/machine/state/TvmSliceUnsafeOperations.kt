@@ -19,14 +19,16 @@ fun TvmState.preloadDataBitsFromCellWithoutStructuralAsserts(
     cell: UHeapRef,
     offset: UExpr<TvmSizeSort>,
     sizeBits: UExpr<TvmSizeSort>,
-): UExpr<TvmCellDataSort> = with(ctx) {
-    val cellData = fieldManagers
-        .cellDataFieldManager
-        .readCellDataWithoutAsserts(this@preloadDataBitsFromCellWithoutStructuralAsserts, cell)
-    val endOffset = mkSizeAddExpr(offset, sizeBits)
-    val offsetDataPos = mkSizeSubExpr(maxDataLengthSizeExpr, endOffset)
-    mkBvLogicalShiftRightExpr(cellData, offsetDataPos.zeroExtendToSort(cellDataSort))
-}
+): UExpr<TvmCellDataSort> =
+    with(ctx) {
+        val cellData =
+            fieldManagers
+                .cellDataFieldManager
+                .readCellDataWithoutAsserts(this@preloadDataBitsFromCellWithoutStructuralAsserts, cell)
+        val endOffset = mkSizeAddExpr(offset, sizeBits)
+        val offsetDataPos = mkSizeSubExpr(maxDataLengthSizeExpr, endOffset)
+        mkBvLogicalShiftRightExpr(cellData, offsetDataPos.zeroExtendToSort(cellDataSort))
+    }
 
 /**
  * This should be used only in core TL-B logic!
@@ -35,10 +37,11 @@ fun TvmState.preloadDataBitsFromCellWithoutStructuralAsserts(
     cell: UHeapRef,
     offset: UExpr<TvmSizeSort>,
     sizeBits: Int,
-): UExpr<KBvSort> = with(ctx) {
-    val shiftedData = preloadDataBitsFromCellWithoutStructuralAsserts(cell, offset, mkSizeExpr(sizeBits))
-    mkBvExtractExpr(high = sizeBits - 1, low = 0, shiftedData)
-}
+): UExpr<KBvSort> =
+    with(ctx) {
+        val shiftedData = preloadDataBitsFromCellWithoutStructuralAsserts(cell, offset, mkSizeExpr(sizeBits))
+        mkBvExtractExpr(high = sizeBits - 1, low = 0, shiftedData)
+    }
 
 /**
  * This should be used only in core TL-B logic!
@@ -47,8 +50,9 @@ fun TvmState.loadIntFromCellWithoutChecksAndStructuralAsserts(
     cell: UHeapRef,
     offset: UExpr<TvmSizeSort>,
     sizeBits: UExpr<TvmInt257Sort>,
-    isSigned: Boolean
-): UExpr<TvmInt257Sort> = with(ctx) {
-    val shiftedData = preloadDataBitsFromCellWithoutStructuralAsserts(cell, offset, sizeBits.extractToSizeSort())
-    extractIntFromShiftedData(shiftedData, sizeBits, isSigned)
-}
+    isSigned: Boolean,
+): UExpr<TvmInt257Sort> =
+    with(ctx) {
+        val shiftedData = preloadDataBitsFromCellWithoutStructuralAsserts(cell, offset, sizeBits.extractToSizeSort())
+        extractIntFromShiftedData(shiftedData, sizeBits, isSigned)
+    }

@@ -10,10 +10,13 @@ import java.net.URI
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
-fun makeRequest(query: String, failOnRequestError: Boolean = true): Pair<Int, String> {
-
-    val connection = URI(query).toURL().openConnection() as? HttpURLConnection
-        ?: error("Could not cast connection to HttpURLConnection")
+fun makeRequest(
+    query: String,
+    failOnRequestError: Boolean = true,
+): Pair<Int, String> {
+    val connection =
+        URI(query).toURL().openConnection() as? HttpURLConnection
+            ?: error("Could not cast connection to HttpURLConnection")
 
     val responseCode = connection.responseCode
     if (!failOnRequestError && responseCode !in 200..<300) {
@@ -25,25 +28,19 @@ fun makeRequest(query: String, failOnRequestError: Boolean = true): Pair<Int, St
     return responseCode to connection.inputStream.readBytes().decodeToString()
 }
 
-fun readableAddressToHex(address: String): String {
-    return AddrStd.parse(address).address.toHex()
-}
+fun readableAddressToHex(address: String): String = AddrStd.parse(address).address.toHex()
 
 @OptIn(ExperimentalEncodingApi::class)
-fun ByteArray.toBase64() =
-    Base64.Default.encode(this)
+fun ByteArray.toBase64() = Base64.Default.encode(this)
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalEncodingApi::class)
-fun String.base64ToHex() =
-    Base64.Default.decode(this).toHexString()
+fun String.base64ToHex() = Base64.Default.decode(this).toHexString()
 
 @OptIn(ExperimentalEncodingApi::class)
-fun String.fromBase64() =
-    Base64.Default.decode(this)
+fun String.fromBase64() = Base64.Default.decode(this)
 
 @OptIn(ExperimentalStdlibApi::class)
-fun String.hexToBase64() =
-    hexToByteArray().toBase64()
+fun String.hexToBase64() = hexToByteArray().toBase64()
 
 fun String.toUrlAddress() = replace(":", "%3A")
 

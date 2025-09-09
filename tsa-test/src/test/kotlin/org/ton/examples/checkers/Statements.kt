@@ -36,23 +36,28 @@ class Statements {
         return opCodeStr.toInt(2)
     }
 
-    private fun checkFailedSendInStatement(checkerPathStr: String, possibleOpcodesList: List<List<Int>>) {
+    private fun checkFailedSendInStatement(
+        checkerPathStr: String,
+        possibleOpcodesList: List<List<Int>>,
+    ) {
         val analyzedPath = extractResource(targetContract)
         val checkerPath = extractResource(checkerPathStr)
 
-        val checkerContract = getFuncContract(
-            checkerPath,
-            FIFT_STDLIB_RESOURCE,
-            isTSAChecker = true
-        )
+        val checkerContract =
+            getFuncContract(
+                checkerPath,
+                FIFT_STDLIB_RESOURCE,
+                isTSAChecker = true
+            )
         val analyzedContract = getFuncContract(analyzedPath, FIFT_STDLIB_RESOURCE)
 
-        val tests = analyzeInterContract(
-            listOf(checkerContract, analyzedContract),
-            startContractId = 0,
-            methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT),
-        )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT)
+            )
 
         checkInvariants(
             tests,
@@ -65,7 +70,13 @@ class Statements {
                     }
                     val inputs = test.additionalInputs
                     // This list contains the opcode for each of the discovered messages, in that order
-                    val foundOpcodes = inputs.map { input -> input.value as RecvInternalInput }.map { input -> extractOpcode(input.msgBody.cell.data) }
+                    val foundOpcodes =
+                        inputs
+                            .map { input ->
+                                input.value as RecvInternalInput
+                            }.map { input ->
+                                extractOpcode(input.msgBody.cell.data)
+                            }
                     // At least one of the possible opcode lists must coincide with the discovered opcodes
                     possibleOpcodesList.any { possibleOpcodes -> possibleOpcodes == foundOpcodes }
                 } else {
@@ -77,7 +88,7 @@ class Statements {
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE }
         )
     }
 
@@ -85,19 +96,21 @@ class Statements {
         val analyzedPath = extractResource(targetContract)
         val checkerPath = extractResource(checkerPathStr)
 
-        val checkerContract = getFuncContract(
-            checkerPath,
-            FIFT_STDLIB_RESOURCE,
-            isTSAChecker = true
-        )
+        val checkerContract =
+            getFuncContract(
+                checkerPath,
+                FIFT_STDLIB_RESOURCE,
+                isTSAChecker = true
+            )
         val analyzedContract = getFuncContract(analyzedPath, FIFT_STDLIB_RESOURCE)
 
-        val tests = analyzeInterContract(
-            listOf(checkerContract, analyzedContract),
-            startContractId = 0,
-            methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT),
-        )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT)
+            )
 
         // There should not exist a test
         assertTrue(tests.isEmpty())
@@ -142,7 +155,7 @@ class Statements {
                 listOf(102, 103, 103),
                 listOf(102, 103, 102),
                 listOf(102, 102, 103),
-                listOf(102, 102, 102),
+                listOf(102, 102, 102)
             )
         )
     }
@@ -206,7 +219,7 @@ class Statements {
                 listOf(102, 103, 103),
                 listOf(102, 103, 102),
                 listOf(102, 102, 103),
-                listOf(102, 102, 102),
+                listOf(102, 102, 102)
             )
         )
     }

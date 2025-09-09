@@ -3,7 +3,6 @@ package org.usvm
 import org.ton.bytecode.TsaContractCode
 import org.usvm.checkers.TvmChecker
 import org.usvm.machine.BocAnalyzer
-import org.usvm.machine.FuncAnalyzer
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmMethodResult
@@ -27,14 +26,20 @@ fun getContractFromBytes(bytes: ByteArray): TsaContractCode {
 
 const val FIFT_STDLIB_PATH = "/fiftstdlib"
 
-class FirstFailureTerminator : StopStrategy, UMachineObserver<TvmState> {
+class FirstFailureTerminator :
+    StopStrategy,
+    UMachineObserver<TvmState> {
     private var shouldStop: Boolean = false
 
     override fun shouldStop(): Boolean = shouldStop
 
-    override fun onStateTerminated(state: TvmState, stateReachable: Boolean) {
-        if (!stateReachable)
+    override fun onStateTerminated(
+        state: TvmState,
+        stateReachable: Boolean,
+    ) {
+        if (!stateReachable) {
             return
+        }
         val result = state.methodResult
         if (result is TvmMethodResult.TvmFailure && result.type !in forbiddenTypes) {
             shouldStop = true
@@ -44,10 +49,11 @@ class FirstFailureTerminator : StopStrategy, UMachineObserver<TvmState> {
     override fun stopReason(): String = "Found conflicting execution"
 
     companion object {
-        val forbiddenTypes = listOf(
-            TvmFailureType.FixedStructuralError,
-            TvmFailureType.SymbolicStructuralError,
-        )
+        val forbiddenTypes =
+            listOf(
+                TvmFailureType.FixedStructuralError,
+                TvmFailureType.SymbolicStructuralError
+            )
     }
 }
 

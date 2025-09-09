@@ -7,9 +7,10 @@ class TvmFieldManagers(
     val cellDataFieldManager: TvmCellDataFieldManager = TvmCellDataFieldManager(ctx),
     val cellDataLengthFieldManager: TvmCellDataLengthFieldManager = TvmCellDataLengthFieldManager(),
 ) {
-    fun clone() = TvmFieldManagers(
-        ctx,
-        cellDataFieldManager.clone(),
-        cellDataLengthFieldManager.clone(),
-    )
+    fun clone() =
+        TvmFieldManagers(
+            ctx,
+            cellDataFieldManager.clone(),
+            cellDataLengthFieldManager.clone()
+        )
 }

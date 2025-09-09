@@ -24,9 +24,7 @@ data class TvmConcreteContractData(
 }
 
 @OptIn(ExperimentalStdlibApi::class)
-fun String.hexToCell(): Cell {
-    return BagOfCells(this.hexToByteArray()).roots.single()
-}
+fun String.hexToCell(): Cell = BagOfCells(this.hexToByteArray()).roots.single()
 
 private fun checkAddressBits(addressBits: String?) {
     check(addressBits?.matches(addressBitsRegex) != false) {

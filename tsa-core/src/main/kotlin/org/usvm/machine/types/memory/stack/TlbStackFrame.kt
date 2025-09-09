@@ -11,7 +11,6 @@ import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
 
-
 fun buildFrameForStructure(
     ctx: TvmContext,
     struct: TlbStructure,
@@ -36,7 +35,7 @@ fun buildFrameForStructure(
                 ctx,
                 struct.rest,
                 path,
-                leftTlbDepth,
+                leftTlbDepth
             )
         }
 
@@ -58,14 +57,18 @@ fun buildFrameForStructure(
 sealed interface TlbStackFrame {
     val path: List<Int>
     val leftTlbDepth: Int
+
     fun <ReadResult : TvmCellDataTypeReadValue> step(
         state: TvmState,
-        loadData: LimitedLoadData<ReadResult>
+        loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>>
 
     fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame?
+
     val isSkippable: Boolean
+
     fun skipLabel(ctx: TvmContext): TlbStackFrame?
+
     fun readInModel(read: TlbStack.ConcreteReadInfo): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>>
 
     data class GuardedResult<ReadResult : TvmCellDataTypeReadValue>(
@@ -75,12 +78,15 @@ sealed interface TlbStackFrame {
     )
 }
 
-
 sealed interface StackFrameStepResult<out ReadResult>
 
-data class StepError(val error: TvmStructuralError?) : StackFrameStepResult<Nothing>
+data class StepError(
+    val error: TvmStructuralError?,
+) : StackFrameStepResult<Nothing>
 
-data class NextFrame(val frame: TlbStackFrame) : StackFrameStepResult<Nothing>
+data class NextFrame(
+    val frame: TlbStackFrame,
+) : StackFrameStepResult<Nothing>
 
 data object EndOfStackFrame : StackFrameStepResult<Nothing>
 
@@ -90,14 +96,14 @@ data class PassLoadToNextFrame<ReadResult : TvmCellDataTypeReadValue>(
 
 data class LimitedLoadData<ReadResult : TvmCellDataTypeReadValue>(
     val cellAddress: UConcreteHeapRef,
-    val type: TvmCellDataTypeRead<ReadResult>
+    val type: TvmCellDataTypeRead<ReadResult>,
 ) {
     companion object {
         fun <ReadResult : TvmCellDataTypeReadValue> fromLoadData(
-            loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>
+            loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>,
         ) = LimitedLoadData(
-                type = loadData.type,
-                cellAddress = loadData.cellAddress,
-            )
+            type = loadData.type,
+            cellAddress = loadData.cellAddress
+        )
     }
 }

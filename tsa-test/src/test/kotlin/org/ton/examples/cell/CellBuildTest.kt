@@ -27,7 +27,7 @@ class CellBuildTest {
             result.testSuites.single(),
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 129 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 130 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 130 }
             )
         )
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)

@@ -6,5 +6,5 @@ class TonApiAndEmulationBlockchainAnalyzer(
     emulatorLibPath: String,
     override val infoExtractor: TonBlockchainInfoExtractor,
 ) : TvmBlockchainAnalyzerBase(
-    emulatorLibPath = emulatorLibPath
-)
+        emulatorLibPath = emulatorLibPath
+    )

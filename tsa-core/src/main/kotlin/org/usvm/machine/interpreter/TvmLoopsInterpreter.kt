@@ -38,10 +38,15 @@ import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.takeLastContinuation
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 
-class TvmLoopsInterpreter(private val ctx: TvmContext) {
+class TvmLoopsInterpreter(
+    private val ctx: TvmContext,
+) {
     private var loopIdx = 0u
 
-    fun visitTvmContLoopsInst(scope: TvmStepScopeManager, stmt: TvmContLoopsInst) {
+    fun visitTvmContLoopsInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmContLoopsInst,
+    ) {
         scope.consumeDefaultGas(stmt)
 
         when (stmt) {
@@ -67,7 +72,10 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
     /**
      * Registers a loop breakpoint by setting the c1 register
      */
-    private fun TvmState.registerBreakpoint(cont: TvmContinuation, hasBreak: Boolean): TvmContinuation {
+    private fun TvmState.registerBreakpoint(
+        cont: TvmContinuation,
+        hasBreak: Boolean,
+    ): TvmContinuation {
         if (!hasBreak) {
             return cont
         }
@@ -83,25 +91,25 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
     private fun visitRepeatInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = doRepeat(
         scope = scope,
         extractBody = { stack.takeLastContinuation() },
         extractAfter = { extractCurrentContinuation(stmt, saveC0 = true) },
         hasBreak = hasBreak,
-        parentLocation = stmt.location,
+        parentLocation = stmt.location
     )
 
     private fun visitRepeatEndInst(
         scope: TvmStepScopeManager,
         stmt: TvmContLoopsInst,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = doRepeat(
         scope = scope,
         extractBody = { extractCurrentContinuation(stmt) },
         extractAfter = { registersOfCurrentContract.c0.value },
         hasBreak = hasBreak,
-        parentLocation = stmt.location,
+        parentLocation = stmt.location
     )
 
     private inline fun doRepeat(
@@ -109,10 +117,11 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
         parentLocation: TvmInstLocation,
         crossinline extractBody: TvmState.() -> TvmContinuation?,
         crossinline extractAfter: TvmState.() -> TvmContinuation,
-        hasBreak: Boolean
+        hasBreak: Boolean,
     ) = with(ctx) {
-        val body = scope.calcOnState { extractBody() }
-            ?: return@with scope.doWithState(throwTypeCheckError)
+        val body =
+            scope.calcOnState { extractBody() }
+                ?: return@with scope.doWithState(throwTypeCheckError)
 
         val wrappedBody = TvmLoopEntranceContinuation(body, loopIdx++, parentLocation)
         val count = scope.takeLastIntOrThrowTypeError() ?: return
@@ -139,7 +148,7 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
         extractBody = { stack.takeLastContinuation() },
         extractAfter = { extractCurrentContinuation(stmt, saveC0 = true) },
         hasBreak = hasBreak,
-        parentLocation = stmt.location,
+        parentLocation = stmt.location
     )
 
     private fun visitUntilEndInst(
@@ -151,7 +160,7 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
         extractBody = { extractCurrentContinuation(stmt) },
         extractAfter = { registersOfCurrentContract.c0.value },
         hasBreak = hasBreak,
-        parentLocation = stmt.location,
+        parentLocation = stmt.location
     )
 
     private inline fun doUntil(
@@ -161,8 +170,9 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
         hasBreak: Boolean,
         parentLocation: TvmInstLocation,
     ) {
-        val body = scope.calcOnState { extractBody() }
-            ?: return scope.doWithState(ctx.throwTypeCheckError)
+        val body =
+            scope.calcOnState { extractBody() }
+                ?: return scope.doWithState(ctx.throwTypeCheckError)
         val wrappedBody = TvmLoopEntranceContinuation(body, loopIdx++, parentLocation)
 
         scope.doWithState {
@@ -184,7 +194,7 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
         extractBody = { stack.takeLastContinuation() },
         extractAfter = { extractCurrentContinuation(stmt, saveC0 = true) },
         hasBreak = hasBreak,
-        parentLocation = stmt.location,
+        parentLocation = stmt.location
     )
 
     private fun visitWhileEndInst(
@@ -196,7 +206,7 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
         extractBody = { extractCurrentContinuation(stmt) },
         extractAfter = { registersOfCurrentContract.c0.value },
         hasBreak = hasBreak,
-        parentLocation = stmt.location,
+        parentLocation = stmt.location
     )
 
     private inline fun doWhile(
@@ -206,10 +216,12 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
         hasBreak: Boolean,
         parentLocation: TvmInstLocation,
     ) {
-        val body = scope.calcOnState { extractBody() }
-            ?: return scope.doWithState(ctx.throwTypeCheckError)
-        val cond = scope.calcOnState { stack.takeLastContinuation() }
-            ?: return scope.doWithState(ctx.throwTypeCheckError)
+        val body =
+            scope.calcOnState { extractBody() }
+                ?: return scope.doWithState(ctx.throwTypeCheckError)
+        val cond =
+            scope.calcOnState { stack.takeLastContinuation() }
+                ?: return scope.doWithState(ctx.throwTypeCheckError)
         val wrappedCond = TvmLoopEntranceContinuation(cond, loopIdx++, parentLocation)
 
         scope.doWithState {
@@ -227,8 +239,9 @@ class TvmLoopsInterpreter(private val ctx: TvmContext) {
         stmt: TvmContLoopsInst,
         hasBreak: Boolean,
     ) {
-        val body = scope.calcOnState { stack.takeLastContinuation() }
-            ?: return scope.doWithState(ctx.throwTypeCheckError)
+        val body =
+            scope.calcOnState { stack.takeLastContinuation() }
+                ?: return scope.doWithState(ctx.throwTypeCheckError)
         val wrappedBody = TvmLoopEntranceContinuation(body, loopIdx++, stmt.location)
 
         if (hasBreak) {

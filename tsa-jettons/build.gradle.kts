@@ -4,6 +4,7 @@ plugins {
     id("tsa.kotlin-conventions")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("org.jmailen.kotlinter") version Versions.kotlinterPluginVersion
 }
 
 dependencies {
@@ -59,4 +60,11 @@ tasks.withType<ShadowJar> {
         into("resources")
         exclude("META_INF/**", mainClassName)
     }
+}
+
+tasks.register("formatAndLintAll") {
+    group = "formatting"
+
+    dependsOn(tasks.findByName("formatKotlin"))
+    dependsOn(tasks.findByName("lintKotlin"))
 }

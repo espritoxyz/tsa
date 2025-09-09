@@ -29,7 +29,7 @@ data class TvmTlbTypeDefinition(
 data class TvmTlbTypeConstructor(
     val name: String,
     val tag: String,
-    val fields: List<TvmTlbField>
+    val fields: List<TvmTlbField>,
 )
 
 @Serializable
@@ -46,13 +46,13 @@ sealed interface TvmTlbTypeExpr
 @SerialName("type")
 data class TvmTlbType(
     val id: Int,
-    val args: List<TvmTlbTypeExpr>
+    val args: List<TvmTlbTypeExpr>,
 ) : TvmTlbTypeExpr
 
 @Serializable
 @SerialName("ref")
 data class TvmTlbReference(
-    val ref: TvmTlbTypeExpr
+    val ref: TvmTlbTypeExpr,
 ) : TvmTlbTypeExpr
 
 @Serializable

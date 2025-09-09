@@ -23,18 +23,20 @@ class BalanceReductionTest {
         val checkerPath = getResourcePath<BalanceReductionTest>(checkerResourcePath)
         val checkerCode = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
 
-        val options = TvmOptions(
-            intercontractOptions = IntercontractOptions(communicationScheme = null),
-            turnOnTLBParsingChecks = false,
-        )
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = null),
+                turnOnTLBParsingChecks = false
+            )
 
         val contracts = listOf(checkerCode, storageContractCode)
-        val result = analyzeInterContract(
-            contracts,
-            startContractId = 0, // Checker contract is the first to analyze
-            methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            options = options,
-        )
+        val result =
+            analyzeInterContract(
+                contracts,
+                startContractId = 0, // Checker contract is the first to analyze
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options
+            )
         val failures = result.tests.filter { it.result is TvmMethodFailure }
 
         val balanceReductionExecutions = failures.filter { (it.result as TvmMethodFailure).exitCode == 256 }

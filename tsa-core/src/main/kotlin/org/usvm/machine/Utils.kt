@@ -24,12 +24,17 @@ import java.nio.file.Paths
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun UExpr<out UBvSort>.bigIntValue() = (this as KBitVecValue<*>).toBigIntegerSigned()
+
 @Suppress("NOTHING_TO_INLINE")
 inline fun UExpr<out UBvSort>.intValue() = bigIntValue().toInt()
 
 fun TvmCodeBlock.extractMethodIdOrNull(): MethodId? = (this as? TvmMethod)?.id
 
-inline fun <T> tryCatchIf(condition: Boolean, body: () -> T, exceptionHandler: (Throwable) -> T): T {
+inline fun <T> tryCatchIf(
+    condition: Boolean,
+    body: () -> T,
+    exceptionHandler: (Throwable) -> T,
+): T {
     if (!condition) {
         return body()
     }
@@ -39,18 +44,18 @@ inline fun <T> tryCatchIf(condition: Boolean, body: () -> T, exceptionHandler: (
     }.getOrElse(exceptionHandler)
 }
 
-inline fun <reified T> getResourcePath(path: String): Path {
-    return getResourcePath(T::class.java, path)
-}
+inline fun <reified T> getResourcePath(path: String): Path = getResourcePath(T::class.java, path)
 
-fun getResourcePath(cls: Class<*>, path: String): Path {
-    return cls.getResource(path)?.let {
+fun getResourcePath(
+    cls: Class<*>,
+    path: String,
+): Path =
+    cls.getResource(path)?.let {
         // This way paths are parsed correctly on Windows.
         // String fields like [path] or [file] of [URL] class
         // shouldn't be used here.
         File(it.toURI()).toPath()
     } ?: error("Resource $path was not found")
-}
 
 fun TvmInst.getRootLocation(): TvmInstLocation {
     var curLoc = location
@@ -66,11 +71,11 @@ fun Cell.toTvmCell(): TvmCell {
     return TvmCell(data, children)
 }
 
-fun UExpr<UBoolSort>.asIntValue(): UExpr<TvmInt257Sort> = with(ctx.tctx()) {
-    mkIte(this@asIntValue, oneValue, zeroValue)
-}
+fun UExpr<UBoolSort>.asIntValue(): UExpr<TvmInt257Sort> =
+    with(ctx.tctx()) {
+        mkIte(this@asIntValue, oneValue, zeroValue)
+    }
 
 fun maxUnsignedValue(bits: UInt): BigInteger = powerOfTwo(bits).minus(BigInteger.ONE)
 
-fun Path.getParentNonNullAbsolutePath(): Path =
-    (parent ?: Paths.get("")).toAbsolutePath()
+fun Path.getParentNonNullAbsolutePath(): Path = (parent ?: Paths.get("")).toAbsolutePath()

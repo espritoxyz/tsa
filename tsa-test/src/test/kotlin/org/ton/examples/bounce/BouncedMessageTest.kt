@@ -21,15 +21,15 @@ class BouncedMessageTest {
 
         checkInvariants(
             tests,
-            listOf {
-                test -> test.result is TvmSuccessfulExecution
+            listOf { test ->
+                test.result is TvmSuccessfulExecution
             }
         )
 
         propertiesFound(
             tests,
-            listOf {
-                test -> (test.input as? TvmTestInput.RecvInternalInput)?.bounced == true
+            listOf { test ->
+                (test.input as? TvmTestInput.RecvInternalInput)?.bounced == true
             }
         )
     }

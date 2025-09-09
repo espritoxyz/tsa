@@ -19,10 +19,17 @@ fun extractJettonContractInfo(rawAddress: String): JettonContractInfo {
     return runCatching {
         val jsonArray = Json.parseToJsonElement(response).jsonObject["stack"]!!.jsonArray
         val code = jsonArray[4].jsonObject["cell"]!!.jsonPrimitive.content
-        val codeHash = Base64.Default.encode(BagOfCells(code.hexToByteArray()).roots.first().hash().toByteArray())
+        val codeHash =
+            Base64.Default.encode(
+                BagOfCells(code.hexToByteArray())
+                    .roots
+                    .first()
+                    .hash()
+                    .toByteArray()
+            )
         JettonContractInfo(
             contractBytesHex = code,
-            jettonWalletCodeHashBase64 = codeHash,
+            jettonWalletCodeHashBase64 = codeHash
         )
     }.getOrElse {
         error("Could not extract jetton-wallet code from query response (exception $it): $response")
@@ -30,8 +37,9 @@ fun extractJettonContractInfo(rawAddress: String): JettonContractInfo {
 }
 
 fun makeRequest(query: String): String {
-    val connection = URI(query).toURL().openConnection() as? HttpURLConnection
-        ?: error("Could not cast connection to HttpURLConnection")
+    val connection =
+        URI(query).toURL().openConnection() as? HttpURLConnection
+            ?: error("Could not cast connection to HttpURLConnection")
     val responseCode = connection.responseCode
     check(responseCode in 200..<300) {
         "Request $query returned response code $responseCode"

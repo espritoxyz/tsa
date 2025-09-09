@@ -23,8 +23,9 @@ private const val DEFAULT_REPORT_PATH: String = "unsupported-instructions.csv"
 
 // TODO use kmetr with ClickHouse?
 fun main() {
-    val reportPath = System.getenv("TSA_UNSUPPORTED_INSTRUCTIONS_REPORT_PATH")
-        ?: DEFAULT_REPORT_PATH
+    val reportPath =
+        System.getenv("TSA_UNSUPPORTED_INSTRUCTIONS_REPORT_PATH")
+            ?: DEFAULT_REPORT_PATH
 
     TvmComponents(TvmOptions()).use { dummyComponents ->
         TvmContext(TvmOptions(), dummyComponents).use { ctx ->
@@ -37,20 +38,27 @@ fun main() {
                 insts.forEach {
                     logger.debug { "Checking ${it.mnemonic}..." }
 
-                    val code = TsaContractCode(
-                        mainMethod = TvmMainMethod(mutableListOf(it)),
-                        methods = mapOf(MethodId.ZERO to TvmMethod(MethodId.ZERO, mutableListOf(it))),
-                        codeCell = dummyCodeCell
-                    )
+                    val code =
+                        TsaContractCode(
+                            mainMethod = TvmMainMethod(mutableListOf(it)),
+                            methods = mapOf(MethodId.ZERO to TvmMethod(MethodId.ZERO, mutableListOf(it))),
+                            codeCell = dummyCodeCell
+                        )
 
-                    val dummyInterpreter = TvmInterpreter(
-                        ctx,
-                        listOf(code),
-                        dummyComponents.typeSystem,
-                        TvmInputInfo(),
-                    )
+                    val dummyInterpreter =
+                        TvmInterpreter(
+                            ctx,
+                            listOf(code),
+                            dummyComponents.typeSystem,
+                            TvmInputInfo()
+                        )
                     val dummyState =
-                        dummyInterpreter.getInitialState(startContractId = 0, TvmConcreteGeneralData(), listOf(TvmConcreteContractData()), BigInteger.ZERO)
+                        dummyInterpreter.getInitialState(
+                            startContractId = 0,
+                            TvmConcreteGeneralData(),
+                            listOf(TvmConcreteContractData()),
+                            BigInteger.ZERO
+                        )
 
                     runCatching {
                         try {
@@ -65,7 +73,8 @@ fun main() {
 
             val reportFile = File(reportPath)
             reportFile.parentFile?.mkdirs()
-            reportFile.createNewFile() // Ensure that for each run we have a fresh report file even if all instructions are implemented
+            // Ensure that for each run we have a fresh report file even if all instructions are implemented
+            reportFile.createNewFile()
 
             if (result.isEmpty()) {
                 logger.info { "All instructions are implemented!" }

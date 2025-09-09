@@ -32,7 +32,10 @@ data class SimpleStackOperations(
     val takeFromNewStack: Int,
 ) : StackOperations
 
-data class NewReceiverInput(val inputId: Int, val type: ReceiverType) : StackOperations
+data class NewReceiverInput(
+    val inputId: Int,
+    val type: ReceiverType,
+) : StackOperations
 
 enum class ReceiverType {
     Internal,

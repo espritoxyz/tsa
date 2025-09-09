@@ -27,8 +27,13 @@ import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.TvmSliceType
 
-class TvmCryptoInterpreter(private val ctx: TvmContext) {
-    fun visitCryptoStmt(scope: TvmStepScopeManager, stmt: TvmAppCryptoInst) {
+class TvmCryptoInterpreter(
+    private val ctx: TvmContext,
+) {
+    fun visitCryptoStmt(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppCryptoInst,
+    ) {
         when (stmt) {
             is TvmAppCryptoHashsuInst -> visitSingleHashInst(scope, stmt, operandType = TvmSliceType)
             is TvmAppCryptoHashcuInst -> visitSingleHashInst(scope, stmt, operandType = TvmCellType)
@@ -41,7 +46,7 @@ class TvmCryptoInterpreter(private val ctx: TvmContext) {
     private fun visitSingleHashInst(
         scope: TvmStepScopeManager,
         stmt: TvmAppCryptoInst,
-        operandType: TvmRealReferenceType
+        operandType: TvmRealReferenceType,
     ) {
         require(operandType != TvmBuilderType) {
             "A single hash function for builders does not exist"
@@ -50,14 +55,16 @@ class TvmCryptoInterpreter(private val ctx: TvmContext) {
         scope.consumeDefaultGas(stmt)
 
         scope.calcOnState {
-            val value = takeLastRef(operandType)
-                ?: return@calcOnState scope.calcOnState(ctx.throwTypeCheckError)
+            val value =
+                takeLastRef(operandType)
+                    ?: return@calcOnState scope.calcOnState(ctx.throwTypeCheckError)
 
-            val hash = addressToHash[value] ?: run {
-                val res = makeSymbolicPrimitive(ctx.int257sort)
-                addressToHash = addressToHash.put(value, res)
-                res
-            }
+            val hash =
+                addressToHash[value] ?: run {
+                    val res = makeSymbolicPrimitive(ctx.int257sort)
+                    addressToHash = addressToHash.put(value, res)
+                    res
+                }
 
             // Hash is a 256-bit unsigned integer
             scope.assert(
@@ -70,19 +77,26 @@ class TvmCryptoInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun visitCheckSignatureInst(scope: TvmStepScopeManager, stmt: TvmAppCryptoChksignuInst) = with(ctx) {
+    private fun visitCheckSignatureInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppCryptoChksignuInst,
+    ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
-        val key = scope.takeLastIntOrThrowTypeError()
-            ?: return@with
-        val signature = scope.calcOnState { takeLastSlice() }
-            ?: return scope.doWithState(throwTypeCheckError)
-        val hash = scope.takeLastIntOrThrowTypeError()
-            ?: return@with
+        val key =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return@with
+        val signature =
+            scope.calcOnState { takeLastSlice() }
+                ?: return scope.doWithState(throwTypeCheckError)
+        val hash =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return@with
 
         // Check that signature is correct - it contains at least 512 bits
-        val signatureBits = scope.slicePreloadDataBits(signature, bits = 512)
-            ?: return@with
+        val signatureBits =
+            scope.slicePreloadDataBits(signature, bits = 512)
+                ?: return@with
 
         val intArgumentBits = 256u
 
@@ -117,12 +131,16 @@ class TvmCryptoInterpreter(private val ctx: TvmContext) {
         }
     }
 
-    private fun visitHashExtSha256Inst(scope: TvmStepScopeManager, stmt: TvmAppCryptoHashextSha256Inst) = with(ctx) {
+    private fun visitHashExtSha256Inst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppCryptoHashextSha256Inst,
+    ) = with(ctx) {
         // TODO fix gas
         scope.doWithState { consumeGas(256) }
 
-        val refsToTake = scope.takeLastIntOrThrowTypeError()?.intValue()
-            ?: return@with
+        val refsToTake =
+            scope.takeLastIntOrThrowTypeError()?.intValue()
+                ?: return@with
 
         scope.calcOnState {
             // TODO correct implementation

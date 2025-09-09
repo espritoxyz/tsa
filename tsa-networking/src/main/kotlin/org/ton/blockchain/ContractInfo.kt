@@ -17,7 +17,14 @@ data class JettonContractInfo(
 
     @OptIn(ExperimentalEncodingApi::class)
     val jettonWalletCodeHashBase64: String
-        get() = Base64.Default.encode(BagOfCells(walletContractBytes).roots.first().hash().toByteArray())
+        get() =
+            Base64.Default.encode(
+                BagOfCells(walletContractBytes)
+                    .roots
+                    .first()
+                    .hash()
+                    .toByteArray()
+            )
 }
 
 data class ContractState(
@@ -30,9 +37,9 @@ data class JettonWalletInfo(
     val address: String,
     val owner: String,
     val jettonBalance: String,
-    val state: ContractState
+    val state: ContractState,
 )
 
-const val getWalletAddressGetMethodName = "get_wallet_address"
-const val getJettonDataGetMethodName = "get_jetton_data"
-const val getWalletDataGetMethodName = "get_wallet_data"
+const val GET_WALLET_ADDRESS_METHOD_NAME = "get_wallet_address"
+const val GET_JETTON_DATA_METHOD_NAME = "get_jetton_data"
+const val GET_WALLET_DATA_METHOD_NAME = "get_wallet_data"

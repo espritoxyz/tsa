@@ -11,7 +11,6 @@ import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestIntegerValue
 import java.math.BigInteger
-import kotlin.io.path.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -52,11 +51,12 @@ class ContinuationTest {
         val someThrowingMethodId = BigInteger.valueOf(42)
         // Analyze only `test_try_catch` method - ignore `some_throwing` and `main` methods,
         // and a method that was artificially created with disassembler
-        val symbolicResult = compileAndAnalyzeFift(
-            fiftResourcePath,
-            methodsBlackList = setOf(BigInteger.ZERO, someThrowingMethodId),
-            tvmOptions = testOptionsToAnalyzeSpecificMethod
-        )
+        val symbolicResult =
+            compileAndAnalyzeFift(
+                fiftResourcePath,
+                methodsBlackList = setOf(BigInteger.ZERO, someThrowingMethodId),
+                tvmOptions = testOptionsToAnalyzeSpecificMethod
+            )
 
         // We have analyzed just one method, retrieve its executions
         val executions = symbolicResult.testSuites.single()
@@ -72,24 +72,46 @@ class ContinuationTest {
                 // op == 1 -> nothing is thrown, simple return -> successful try -> [1337] is a resulting stack
                 { execution ->
                     val op = (execution.input.usedParameters.single() as TvmTestIntegerValue).value
-                    val stackResultValues = ((execution.result as TvmSuccessfulExecution).stack.map { (it as TvmTestIntegerValue).value })
+                    val stackResultValues = (
+                        (execution.result as TvmSuccessfulExecution).stack.map {
+                            (it as TvmTestIntegerValue)
+                                .value
+                        }
+                    )
 
-                    op == BigInteger.ONE && stackResultValues.size == 1 && stackResultValues.single() == BigInteger.valueOf(1337)
+                    op == BigInteger.ONE &&
+                        stackResultValues.size == 1 &&
+                        stackResultValues.single() == BigInteger.valueOf(1337)
                 },
                 // op == 2 -> nothing is thrown but alternative return -> successful try -> [1337] is a resulting stack
                 { execution ->
                     val op = (execution.input.usedParameters.single() as TvmTestIntegerValue).value
-                    val stackResultValues = ((execution.result as TvmSuccessfulExecution).stack.map { (it as TvmTestIntegerValue).value })
+                    val stackResultValues = (
+                        (execution.result as TvmSuccessfulExecution).stack.map {
+                            (it as TvmTestIntegerValue)
+                                .value
+                        }
+                    )
 
-                    op == BigInteger.valueOf(2) && stackResultValues.size == 1 && stackResultValues.single() == BigInteger.valueOf(1337)
+                    op == BigInteger.valueOf(2) &&
+                        stackResultValues.size == 1 &&
+                        stackResultValues.single() == BigInteger.valueOf(1337)
                 },
                 // op != 1 && op != 2 -> 1 is thrown -> going to the catch block -> [42] is a resulting stack
                 { execution ->
                     val op = (execution.input.usedParameters.single() as TvmTestIntegerValue).value
-                    val stackResultValues = ((execution.result as TvmSuccessfulExecution).stack.map { (it as TvmTestIntegerValue).value })
+                    val stackResultValues = (
+                        (execution.result as TvmSuccessfulExecution).stack.map {
+                            (it as TvmTestIntegerValue)
+                                .value
+                        }
+                    )
 
-                    op != BigInteger.ONE && op != BigInteger.valueOf(2) && stackResultValues.size == 1 && stackResultValues.single() == BigInteger.valueOf(42)
-                },
+                    op != BigInteger.ONE &&
+                        op != BigInteger.valueOf(2) &&
+                        stackResultValues.size == 1 &&
+                        stackResultValues.single() == BigInteger.valueOf(42)
+                }
             )
         )
     }
