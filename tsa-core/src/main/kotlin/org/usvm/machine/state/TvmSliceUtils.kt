@@ -240,6 +240,7 @@ fun setBuilderLengthOrThrowCellOverflow(
     newBuilder: UConcreteHeapRef,
     writeSizeBits: UExpr<TvmSizeSort>,
     writeSizeBitsUpperBound: Int?,
+    doNotUpdateLength: Boolean = false,
     quietBlock: (TvmState.() -> Unit)? = null,
 ): Unit? = with(scope.ctx) {
     val oldBuilderUpperBound = scope.calcOnState {
@@ -264,9 +265,13 @@ fun setBuilderLengthOrThrowCellOverflow(
         ) ?: return@with null
     }
 
-    scope.calcOnState {
-        fieldManagers.cellDataLengthFieldManager.writeCellDataLength(this, newBuilder, newLength, newUpperBound)
+    if (!doNotUpdateLength) {
+        scope.calcOnState {
+            fieldManagers.cellDataLengthFieldManager.writeCellDataLength(this, newBuilder, newLength, newUpperBound)
+        }
     }
+
+    return Unit
 }
 
 fun TvmStepScopeManager.assertDataLengthConstraintWithoutError(
@@ -764,6 +769,7 @@ fun TvmStepScopeManager.builderStoreDataBits(
         newBuilder = builder,
         writeSizeBits = mkSizeExpr(sizeBits),
         writeSizeBitsUpperBound = sizeBits,
+        doNotUpdateLength = true,
     ) ?: return null
 
     calcOnState {
