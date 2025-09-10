@@ -19,8 +19,8 @@ import org.usvm.machine.state.builderToCell
 class RecvExternalInput(
     state: TvmState,
     concreteGeneralData: TvmConcreteGeneralData,
-    contractId: ContractId,
-) : ReceiverInput(contractId, concreteGeneralData, state) {
+    receiverContractId: ContractId,
+) : ReceiverInput(receiverContractId, concreteGeneralData, state) {
     private val ctx = state.ctx
 
     override val msgValue: UExpr<TvmContext.TvmInt257Sort>

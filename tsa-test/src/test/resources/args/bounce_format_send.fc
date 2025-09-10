@@ -1,14 +1,14 @@
 #include "../imports/stdlib.fc";
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
-    
+
     slice cs = in_msg_full.begin_parse();
     slice cs1 = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     if (flags & 1) {
         set_data(begin_cell().store_uint(1, 1).end_cell()); ;; Set the flag that bounced message was received
 
-        int prefix = msg_body~load_uint(32); 
+        int prefix = msg_body~load_uint(32);
         throw_if(257, prefix != 0xFFFFFFFF); ;; We should catch the standard prefix
 
         int op = msg_body~load_uint(32);
@@ -16,8 +16,8 @@
 
         int the_rest = msg_body~load_uint(224); ;; The rest should be filled of zeros
         throw_if(259, the_rest != 0);
- 
-        throw_if(260, ~msg_body.slice_empty?()); ;; And this should be the end of the slice
+
+        throw_unless(260, msg_body.slice_empty?()); ;; And this should be the end of the slice
 
         cs1~skip_bits(1); ;; Skip the first zero bit
 
@@ -31,25 +31,25 @@
         throw_if(263, bounced != 1); ;; But is a bounced message
 
         slice src = cs1~load_msg_addr();
-        throw_if(264, ~equal_slice_bits(src, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a)); ;; Source of the message should be written correctly
+        throw_unless(264, equal_slice_bits(src, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a)); ;; Source of the message should be written correctly
 
         slice dest = cs1~load_msg_addr();
-        throw_if(265, ~equal_slice_bits(dest, my_address())); ;; Destination of the message should be written correctly
-    }
+        throw_unless(265, equal_slice_bits(dest, my_address())); ;; Destination of the message should be written correctly
+    } else {
+        int op = msg_body~load_uint(32);
+        if (op == 100) {
+            cell msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; the address of the recipient contract
+                .store_coins(100000000)
+                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+                .store_uint(200, 32)
+                .store_uint(1, 225) ;; fill the rest 224 bits of bounced message with zeros and add 1 at the end.
+                .end_cell();
 
-    int op = msg_body~load_uint(32);
-    if (op == 100) {
-        cell msg = begin_cell()
-        .store_uint(0x18, 6)
-        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; the address of the recipient contract
-        .store_coins(100000000)
-        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
-        .store_uint(200, 32)
-        .store_uint(225, 1) ;; fill the rest 224 bits of bounced message with zeros and add 1 at the end.
-        .end_cell();    
+            send_raw_message(msg, 0);
 
-        send_raw_message(msg, 0);
-
-        return();
+            return ();
+        }
     }
 }

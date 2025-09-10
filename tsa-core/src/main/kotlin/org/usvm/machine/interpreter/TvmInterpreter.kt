@@ -293,6 +293,7 @@ import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.killCurrentState
 import org.usvm.machine.state.lastStmt
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.returnAltFromContinuation
@@ -542,7 +543,7 @@ class TvmInterpreter(
 
                 // Save msgBody for inter-contract
                 if (ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-                    state.lastMsgBodySlice = input.msgBodySliceMaybeBounced
+                    state.receivedMessage = ReceivedMessage.InputMessage(input)
                 }
             }
 

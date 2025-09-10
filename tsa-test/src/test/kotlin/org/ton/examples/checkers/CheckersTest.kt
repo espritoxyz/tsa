@@ -1,6 +1,8 @@
 package org.ton.examples.checkers
 
+import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
+import org.ton.bytecode.TsaContractCode
 import org.ton.cell.Cell
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
@@ -16,6 +18,8 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getTactContract
+import org.usvm.machine.state.ContractId
+import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
@@ -35,7 +39,8 @@ class CheckersTest {
     private val getC4CheckerPath = "/checkers/get_c4.fc"
     private val emptyContractPath = "/empty_contract.fc"
     private val senderBouncePath = "/args/send_bounce_true.fc"
-    private val recepientBouncePath = "/args/receive_bounce_msg.fc"
+    private val recipientBouncePath = "/args/receive_bounce_msg.fc"
+    private val recipientBounceSoftFailurePath = "/args/receive_bounce_msg_with_soft_failure.fc"
     private val bounceTestScheme = "/checkers/bounce-test-scheme.json"
     private val remainingBalanceContract = "/args/send_remaining_balance.fc"
     private val remainingBalanceChecker = "/checkers/remaining_balance.fc"
@@ -167,19 +172,11 @@ class CheckersTest {
         )
     }
 
-    @Ignore("Transactions rollback is not supported")
     @Test
     fun transactionRollBackTest() {
-        val sender = extractResource(TransactionRollBackTestData.SENDER)
-        val receiver = extractResource(TransactionRollBackTestData.RECEIVER)
-        val senderContract =
-            getFuncContract(
-                sender,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
-            )
-        val receiverContract = getFuncContract(receiver, FIFT_STDLIB_RESOURCE)
-        val options = TvmOptions()
+        val senderContract = extractCheckerContractFromResource(TransactionRollBackTestData.SENDER)
+        val receiverContract = extractFuncContractFromResource(TransactionRollBackTestData.RECEIVER)
+        val options = TvmOptions(stopOnFirstError = false)
         val tests =
             analyzeInterContract(
                 listOf(senderContract, receiverContract),
@@ -204,37 +201,37 @@ class CheckersTest {
         )
     }
 
-    @Ignore("Bounced messages in intercontracts communication are not supported")
+    private fun extractCheckerContractFromResource(checkerResourcePath: String): TsaContractCode {
+        val checkerPath = extractResource(checkerResourcePath)
+        val checkerContract = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
+        return checkerContract
+    }
+
+    private fun extractFuncContractFromResource(contractResourcePath: String): TsaContractCode {
+        val contractPath = extractResource(contractResourcePath)
+        val checkerContract = getFuncContract(contractPath, FIFT_STDLIB_RESOURCE)
+        return checkerContract
+    }
+
+    private fun extractCommunicationSchemeFromResource(
+        communicationSchemeResourcePath: String,
+    ): Map<ContractId, TvmContractHandlers> {
+        val communicationSchemePath = extractResource(communicationSchemeResourcePath)
+        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
+        return communicationScheme
+    }
+
     @Test
     fun bounceTest() {
-        val pathSender = extractResource(senderBouncePath)
-        val pathRecepient = extractResource(recepientBouncePath)
-        val checkerPath = extractResource(bounceCheckerPath)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
-            )
-        val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
-        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
-
-        val communicationSchemePath = extractResource(bounceTestScheme)
-        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
-
-        val options =
-            TvmOptions(
-                intercontractOptions =
-                    IntercontractOptions(
-                        communicationScheme = communicationScheme
-                    ),
-                enableOutMessageAnalysis = true
-            )
+        val checkerContract = extractCheckerContractFromResource(bounceCheckerPath)
+        val analyzedSender = extractFuncContractFromResource(senderBouncePath)
+        val analyzedRecipient = extractFuncContractFromResource(recipientBouncePath)
+        val communicationScheme = extractCommunicationSchemeFromResource(bounceTestScheme)
+        val options = createIntercontractOptions(communicationScheme)
 
         val tests =
             analyzeInterContract(
-                listOf(checkerContract, analyzedSender, analyzedRecepient),
+                listOf(checkerContract, analyzedSender, analyzedRecipient),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
@@ -257,34 +254,48 @@ class CheckersTest {
         )
     }
 
-    @Ignore("Bounced messages in intercontracts communication are not supported")
+    @Test
+    fun `message does not bounce on soft failure`() {
+        val checkerContract = extractCheckerContractFromResource(bounceCheckerPath)
+        val analyzedSender = extractFuncContractFromResource(senderBouncePath)
+        val analyzedRecipient = extractFuncContractFromResource(recipientBounceSoftFailurePath)
+        val communicationScheme = extractCommunicationSchemeFromResource(bounceTestScheme)
+        val options = createIntercontractOptions(communicationScheme)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedSender, analyzedRecipient),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+                        TvmConcreteContractData()
+                    )
+            )
+
+        assertTrue(tests.tests.isNotEmpty())
+        checkInvariants(
+            tests,
+            listOf { test ->
+                val receivedBounceOnSoftFailureExitCode = 258
+                val messageDidNotBounce =
+                    (test.result as? TvmMethodFailure)?.exitCode != receivedBounceOnSoftFailureExitCode
+                val softFailureOccurred = test.result is TvmExecutionWithSoftFailure
+                messageDidNotBounce && softFailureOccurred
+            }
+        )
+    }
+
     @Test
     fun bounceFormatTest() {
-        val pathSender = extractResource(bounceFormatContract)
-        val pathRecepient = extractResource(recepientBouncePath)
-        val checkerPath = extractResource(bounceFormatChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
-            )
-        val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
-        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
-
-        val communicationSchemePath = extractResource(bounceFormatScheme)
-        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
-
-        val options =
-            TvmOptions(
-                intercontractOptions =
-                    IntercontractOptions(
-                        communicationScheme = communicationScheme
-                    ),
-                enableOutMessageAnalysis = true
-            )
-
+        val checkerContract = extractCheckerContractFromResource(bounceFormatChecker)
+        val analyzedSender = extractFuncContractFromResource(bounceFormatContract)
+        val analyzedRecepient = extractFuncContractFromResource(recipientBouncePath)
+        val communicationScheme = extractCommunicationSchemeFromResource(bounceFormatScheme)
+        val options = createIntercontractOptions(communicationScheme)
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedSender, analyzedRecepient),
@@ -301,18 +312,15 @@ class CheckersTest {
 
         propertiesFound(
             tests,
-            listOf(
-                // the recepient contract should fail and bounce the message
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 256 },
-                // the target contract should change its persistent data
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 }
-            )
+            // the target contract should change its persistent data
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 }
         )
         // TODO: adjust the test to disallow the given intermediate exit codes
         // when event logging will be supported
         checkInvariants(
             tests,
-            listOf( // see bounce_format_send.fc
+            listOf(
+                // see bounce_format_send.fc
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 258 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 259 },
@@ -325,6 +333,16 @@ class CheckersTest {
             )
         )
     }
+
+    private fun createIntercontractOptions(communicationScheme: Map<ContractId, TvmContractHandlers>): TvmOptions =
+        TvmOptions(
+            intercontractOptions =
+                IntercontractOptions(
+                    communicationScheme = communicationScheme
+                ),
+            enableOutMessageAnalysis = true,
+            stopOnFirstError = false
+        )
 
     @Ignore("SendRemainingBalance mode is not supported")
     @Test
@@ -428,7 +446,7 @@ class CheckersTest {
     @Test
     fun sendIgnoreErrorTest() {
         val pathSender = extractResource(ignoreErrorsContract)
-        val pathRecepient = extractResource(recepientBouncePath)
+        val pathRecepient = extractResource(recipientBouncePath)
         val checkerPath = extractResource(ignoreErrorsChecker)
 
         val checkerContract =

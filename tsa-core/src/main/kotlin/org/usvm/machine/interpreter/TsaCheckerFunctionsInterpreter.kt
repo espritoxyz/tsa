@@ -29,6 +29,7 @@ import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.switchToFirstMethodInContract
@@ -377,7 +378,7 @@ class TsaCheckerFunctionsInterpreter(
             val input =
                 state.additionalInputs[stackOperations.inputId]
                     ?: error("Input with id ${stackOperations.inputId} not found")
-            lastMsgBodySlice = input.msgBodySliceMaybeBounced
+            receivedMessage = ReceivedMessage.InputMessage(input)
             currentInput = input
         }
 

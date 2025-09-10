@@ -27,12 +27,13 @@ import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
-import org.usvm.machine.interpreter.OutMessage
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
+import org.usvm.machine.state.messages.OutMessage
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.types.GlobalStructuralConstraintsHolder
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -79,8 +80,7 @@ class TvmState(
     var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
     var unprocessedMessages: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
     // inter-contract fields
-    var messageQueue: PersistentList<Pair<ContractId, OutMessage>> = persistentListOf(),
-    var lastMsgBodySlice: UHeapRef? = null,
+    var messageQueue: PersistentList<ReceivedMessage.MessageFromOtherContract> = persistentListOf(),
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
     // post-process fields
     var addressToHash: PersistentMap<UHeapRef, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
@@ -89,6 +89,7 @@ class TvmState(
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
     var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
+    var receivedMessage: ReceivedMessage? = null,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -185,14 +186,14 @@ class TvmState(
             additionalFlags = additionalFlags,
             fieldManagers = fieldManagers.clone(),
             messageQueue = messageQueue,
-            lastMsgBodySlice = lastMsgBodySlice,
             intercontractPath = intercontractPath,
             phase = phase,
             analysisOfGetMethod = analysisOfGetMethod,
             unprocessedMessages = unprocessedMessages,
             additionalInputs = additionalInputs,
             currentInput = currentInput,
-            acceptedInputs = acceptedInputs
+            acceptedInputs = acceptedInputs,
+            receivedMessage = receivedMessage
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -232,6 +233,7 @@ class TvmState(
 enum class TvmPhase {
     COMPUTE_PHASE,
     ACTION_PHASE,
+    BOUNCE_PHASE,
     EXIT_PHASE,
     TERMINATED,
 }

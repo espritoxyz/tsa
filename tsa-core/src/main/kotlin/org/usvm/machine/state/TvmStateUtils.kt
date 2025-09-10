@@ -34,6 +34,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.maxUnsignedValue
 import org.usvm.machine.state.TvmPhase.ACTION_PHASE
+import org.usvm.machine.state.TvmPhase.BOUNCE_PHASE
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.toTvmCell
@@ -101,6 +102,7 @@ fun TvmState.setExit(methodResult: TvmMethodResult) =
     when (phase) {
         COMPUTE_PHASE -> newStmt(TsaArtificialActionPhaseInst(methodResult, lastStmt.location))
         ACTION_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
+        BOUNCE_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
         else -> error("Unexpected exit on phase: $phase")
     }
 
@@ -120,9 +122,7 @@ fun TvmStepScopeManager.doWithStateCtx(block: context(TvmContext) TvmState.() ->
     }
 
 fun TvmState.generateSymbolicCell(): UConcreteHeapRef =
-    generateSymbolicRef(TvmCellType).also {
-        initializeSymbolicCell(it)
-    }
+    generateSymbolicRef(TvmCellType).also { initializeSymbolicCell(it) }
 
 fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) =
     ensureSymbolicRefInitialized(ref, TvmCellType) { initializeSymbolicCell(it) }
@@ -452,7 +452,12 @@ fun TvmStepScopeManager.assertDictType(
 }
 
 fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? =
-    assertConcreteCellType(value, newType = TvmDataCellType, badType = TvmDictCellType, TvmDataCellOperationOnDict)
+    assertConcreteCellType(
+        value,
+        newType = TvmDataCellType,
+        badType = TvmDictCellType,
+        TvmDataCellOperationOnDict
+    )
 
 fun TvmStepScopeManager.killCurrentState() =
     doWithCtx {

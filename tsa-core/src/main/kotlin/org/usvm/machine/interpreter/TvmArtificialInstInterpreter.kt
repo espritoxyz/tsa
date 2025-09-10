@@ -1,6 +1,8 @@
 package org.usvm.machine.interpreter
 
+import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialActionPhaseInst
+import org.ton.bytecode.TsaArtificialBouncePhaseInst
 import org.ton.bytecode.TsaArtificialCheckerReturn
 import org.ton.bytecode.TsaArtificialExecuteContInst
 import org.ton.bytecode.TsaArtificialExitInst
@@ -13,29 +15,46 @@ import org.ton.bytecode.TvmArtificialInst
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
+import org.usvm.machine.state.TvmPhase
 import org.usvm.machine.state.TvmPhase.ACTION_PHASE
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.EXIT_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
+import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.allocEmptyBuilder
+import org.usvm.machine.state.allocSliceFromCell
+import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getBalance
+import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.initializeContractExecutionMemory
+import org.usvm.machine.state.input.RecvInternalInput
+import org.usvm.machine.state.input.constructMessageFromContent
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
+import org.usvm.machine.state.messages.OutMessage
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
+import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.returnFromContinuation
+import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
+import org.usvm.sizeSort
 
 class TvmArtificialInstInterpreter(
     val ctx: TvmContext,
@@ -55,31 +74,43 @@ class TvmArtificialInstInterpreter(
                 scope.consumeDefaultGas(stmt)
                 scope.doWithState { newStmt(stmt.nextStmt()) }
             }
+
             is TsaArtificialImplicitRetInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.returnFromContinuation()
             }
+
             is TsaArtificialJmpToContInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.jumpToContinuation(stmt.cont)
             }
+
             is TsaArtificialExecuteContInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 scope.callContinuation(stmt, stmt.cont)
             }
+
             is TsaArtificialActionPhaseInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 visitActionPhaseInst(scope, stmt)
             }
+
+            is TsaArtificialBouncePhaseInst -> {
+                scope.consumeDefaultGas(stmt)
+
+                visitBouncePhaseInst(scope, stmt)
+            }
+
             is TsaArtificialExitInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 visitExitInst(scope, stmt)
             }
+
             is TsaArtificialCheckerReturn -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -109,7 +140,142 @@ class TvmArtificialInstInterpreter(
         }
 
         scope.doWithState {
-            newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+            newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
+        }
+    }
+
+    private fun visitBouncePhaseInst(
+        scope: TvmStepScopeManager,
+        stmt: TsaArtificialBouncePhaseInst,
+    ) {
+        scope.calcOnState { phase = TvmPhase.BOUNCE_PHASE }
+        addBounceMessageIfNeeded(scope, stmt.computePhaseResult, stmt)
+    }
+
+    fun addBounceMessageIfNeeded(
+        scope: TvmStepScopeManager,
+        result: TvmMethodResult,
+        stmt: TsaArtificialBouncePhaseInst,
+    ) {
+        if (scope.ctx.tvmOptions.stopOnFirstError) {
+            // sending bounced messages is only considered when the message handling ended with an exception
+            // if we stop on the first error, the potential bouncing won't be considered
+            scope.doWithState {
+                newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+            }
+            return
+        }
+        scope.calcOnState {
+            with(ctx) {
+                if (result is TvmFailure) {
+                    val (sender, _, receivedMsgData) =
+                        receivedMessage as? ReceivedMessage.MessageFromOtherContract
+                            ?: run {
+                                newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                                return@calcOnState
+                            }
+                    // if is bounceable, bounce back to sender
+                    val fullMsgData =
+                        fieldManagers.cellDataFieldManager.readCellData(scope, receivedMsgData.fullMsgCell)
+                            ?: return@calcOnState
+                    val isBounceable =
+                        mkBvAndExpr(
+                            fullMsgData,
+                            mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort())
+                        )
+
+                    val bouncedMessage =
+                        constructBouncedMessage(scope, receivedMsgData, sender)
+                            ?: return@with
+                    scope.fork(
+                        isBounceable.neq(zeroCellValue),
+                        falseStateIsExceptional = true,
+                        blockOnTrueState = {
+                            messageQueue =
+                                messageQueue.add(
+                                    ReceivedMessage.MessageFromOtherContract(
+                                        sender = currentContract,
+                                        receiver = sender,
+                                        message = bouncedMessage
+                                    )
+                                )
+                            newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                        },
+                        blockOnFalseState = {
+                            newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                        }
+                    )
+                } else {
+                    scope.doWithState {
+                        newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun constructBouncedMessage(
+        scope: TvmStepScopeManager,
+        oldMessage: OutMessage,
+        sender: ContractId,
+    ): OutMessage? {
+        val msgCellAndBodySliceOrNull =
+            with(ctx) {
+                val builder = scope.calcOnState { allocEmptyBuilder() }
+                scope.builderStoreDataBits(builder, bouncedMessageTagLong.toBv(32u))
+                    ?: error("Unexpected cell overflow")
+                val dataPos =
+                    scope.calcOnState {
+                        readSliceDataPos(oldMessage.msgBodySlice)
+                    }
+                val cellLength =
+                    scope.calcOnState {
+                        fieldManagers.cellDataLengthFieldManager.readCellDataLength(
+                            this,
+                            readSliceCell(oldMessage.msgBodySlice)
+                        )
+                    }
+                val length = mkBvSubExpr(cellLength, dataPos)
+                val leftLength =
+                    mkIte(
+                        mkBvSignedGreaterExpr(length, 256.toBv()),
+                        256.toBv(ctx.sizeSort),
+                        length
+                    )
+                val leftData =
+                    scope.slicePreloadDataBits(oldMessage.msgBodySlice, leftLength)
+                        ?: return@with null
+                scope.builderStoreDataBits(builder, builder, leftData, leftLength, null)
+                val bodySlice =
+                    scope.calcOnState {
+                        allocSliceFromCell(builderToCell(builder))
+                    }
+                val destinationCell =
+                    scope.calcOnState {
+                        getContractInfoParamOf(ADDRESS_PARAMETER_IDX, sender).cellValue ?: error("no destination :(")
+                    }
+                // TODO fill the ihrFee, msgValue, ... with reasonable values
+                val content =
+                    RecvInternalInput.MessageContent(
+                        flags = 0b0101.toBv257(),
+                        srcAddressSlice = oldMessage.destAddrSlice,
+                        dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationCell) },
+                        msgValue = zeroValue,
+                        ihrFee = zeroValue,
+                        fwdFee = zeroValue,
+                        createdLt = zeroValue,
+                        createdAt = zeroValue,
+                        bodyDataSlice = bodySlice
+                    )
+                constructMessageFromContent(scope.calcOnState { this }, content) to bodySlice
+            }
+        return msgCellAndBodySliceOrNull?.let { (msgCell, bodySlice) ->
+            OutMessage(
+                msgValue = oldMessage.msgValue,
+                fullMsgCell = msgCell,
+                msgBodySlice = bodySlice,
+                destAddrSlice = oldMessage.destAddrSlice
+            )
         }
     }
 
@@ -138,14 +304,14 @@ class TvmArtificialInstInterpreter(
             }
 
             val commitedState = lastCommitedStateOfContracts[currentContract]
+            val shouldTerminateBecauseOfFail = commitedState == null && ctx.tvmOptions.stopOnFirstError
 
-            // TODO stop at failure state or at state without commitedState
+            val failureInActionPhase = result is TvmFailure && result.phase == ACTION_PHASE
+            val softFailureInActionPhase = result is TvmAbstractSoftFailure && result.phase == ACTION_PHASE
             if (analysisOfGetMethod ||
-                commitedState == null ||
-                result is TvmFailure &&
-                result.phase == ACTION_PHASE ||
-                result is TvmMethodResult.TvmAbstractSoftFailure &&
-                result.phase == ACTION_PHASE
+                shouldTerminateBecauseOfFail ||
+                failureInActionPhase ||
+                softFailureInActionPhase
             ) {
                 phase = TERMINATED
                 methodResult = result
@@ -154,45 +320,50 @@ class TvmArtificialInstInterpreter(
 
             contractEpilogue()
 
-            val (nextContract, message) = messageQueue.first()
-            val nextContractCode =
-                contractsCode.getOrNull(nextContract)
-                    ?: error("Contract with id $nextContract was not found")
-
+            val (sender, receiver, message) = messageQueue.first()
             messageQueue = messageQueue.removeAt(0)
-            intercontractPath = intercontractPath.add(nextContract)
-
-            val prevStack = stack
-            // Update current contract to the next contract
-            currentContract = nextContract
-            val newMemory =
-                initializeContractExecutionMemory(
-                    contractsCode,
-                    this,
-                    currentContract,
-                    allowInputStackValues = false,
-                    newMsgValue = message.msgValue
-                )
-            stack = newMemory.stack
-            stack.copyInputValues(prevStack)
-            registersOfCurrentContract = newMemory.registers
-
-            // TODO update balance using message value
-            val balance =
-                getBalance()
-                    ?: error("Unexpected incorrect config balance value")
-
-            stack.addInt(balance)
-            stack.addInt(message.msgValue)
-            addOnStack(message.fullMsgCell, TvmCellType)
-            addOnStack(message.msgBodySlice, TvmSliceType)
-
-            lastMsgBodySlice = message.msgBodySlice
-            currentInput = null
-
-            phase = COMPUTE_PHASE
-            switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
+            executeContractTriggeredByMessage(receiver, message, sender)
         }
+    }
+
+    private fun TvmState.executeContractTriggeredByMessage(
+        receiver: ContractId,
+        message: OutMessage,
+        sender: ContractId,
+    ) {
+        val nextContractCode =
+            contractsCode.getOrNull(receiver)
+                ?: error("Contract with id $receiver was not found")
+        intercontractPath = intercontractPath.add(receiver)
+
+        val prevStack = stack
+        // Update current contract to the next contract
+        currentContract = receiver
+        val newMemory =
+            initializeContractExecutionMemory(
+                contractsCode,
+                this,
+                currentContract,
+                allowInputStackValues = false,
+                newMsgValue = message.msgValue
+            )
+        stack = newMemory.stack
+        stack.copyInputValues(prevStack)
+        registersOfCurrentContract = newMemory.registers
+
+        // TODO update balance using message value
+        val balance =
+            getBalance()
+                ?: error("Unexpected incorrect config balance value")
+
+        stack.addInt(balance)
+        stack.addInt(message.msgValue)
+        addOnStack(message.fullMsgCell, TvmCellType)
+        addOnStack(message.msgBodySlice, TvmSliceType)
+        currentInput = null
+        receivedMessage = ReceivedMessage.MessageFromOtherContract(sender, currentContract, message)
+        phase = COMPUTE_PHASE
+        switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
     }
 
     private fun processNewMessages(
@@ -204,7 +375,12 @@ class TvmArtificialInstInterpreter(
                 ?: return null
 
         scope.doWithState {
-            messageQueue = messageQueue.addAll(messageDestinations)
+            messageQueue =
+                messageQueue.addAll(
+                    messageDestinations.map { (receiver, message) ->
+                        ReceivedMessage.MessageFromOtherContract(currentContract, receiver, message)
+                    }
+                )
             unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
         }
 
@@ -216,8 +392,14 @@ class TvmArtificialInstInterpreter(
         result: TvmMethodResult,
     ) {
         scope.doWithState {
-            // TODO: case of committed state of TvmFailure
-            if (result !is TvmMethodResult.TvmSuccess || contractStack.isEmpty()) {
+            /**
+             * if we do not enforce stopping on first error, we should not stop here and instead inspect the
+             * contract stack and continue the execution of continuations found there
+             */
+            val shouldTerminateOfFailure =
+                (ctx.tvmOptions.stopOnFirstError && result is TvmFailure) ||
+                    result is TvmAbstractSoftFailure
+            if (shouldTerminateOfFailure || contractStack.isEmpty()) {
                 phase = TERMINATED
                 methodResult = result
                 return@doWithState
@@ -226,8 +408,11 @@ class TvmArtificialInstInterpreter(
             val (prevContractId, prevInst, prevMem, expectedNumberOfOutputItems) = contractStack.last()
 
             // update global c4 and c7
-            lastCommitedStateOfContracts[currentContract]
-                ?: error("Did not find commited state of contract $currentContract")
+            if (result is TvmMethodResult.TvmSuccess) {
+                requireNotNull(lastCommitedStateOfContracts[currentContract]) {
+                    "Did not find commited state of contract $currentContract"
+                }
+            }
             contractEpilogue()
 
             val stackFromOtherContract = stack
@@ -236,13 +421,10 @@ class TvmArtificialInstInterpreter(
             currentContract = prevContractId
 
             val prevStack = prevMem.stack
-
-            // we should not touch stack from contractStack, as it is contained in other states
-            stack = prevStack.clone()
+            stack =
+                prevStack.clone() // we should not touch stack from contractStack, as it is contained in other states
             stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
-
-            // like for stack, we shouldn't touch registers
-            registersOfCurrentContract = prevMem.registers.clone()
+            registersOfCurrentContract = prevMem.registers.clone() // like for stack, we shouldn't touch registers
 
             phase = COMPUTE_PHASE
             newStmt(prevInst.nextStmt())
