@@ -198,7 +198,7 @@ fun TvmStepScopeManager.assertEndOfCell(slice: UHeapRef): Unit? {
                 noConflictCond,
                 falseStateIsExceptional = true,
                 blockOnFalseState = {
-                    setExit(TvmStructuralError(TvmUnexpectedEndOfReading, phase))
+                    setExit(TvmStructuralError(TvmUnexpectedEndOfReading, phase, stack))
                 }
             ) ?: return@calcOnStateCtx null
         }
@@ -228,7 +228,7 @@ fun TvmStepScopeManager.makeSliceRefLoad(
                     noConflictCond,
                     falseStateIsExceptional = true,
                     blockOnFalseState = {
-                        setExit(TvmStructuralError(TvmUnexpectedRefReading, phase))
+                        setExit(TvmStructuralError(TvmUnexpectedRefReading, phase, stack))
                     }
                 ) ?: return@calcOnStateCtx null
             }

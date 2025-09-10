@@ -19,7 +19,6 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getTactContract
 import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
@@ -248,9 +247,9 @@ class CheckersTest {
             tests,
             listOf { test ->
                 val checkerExitCode = test.eventsList.single { it.id == 0L }.methodResult
-                val checkerExitCodeGood = (checkerExitCode as? TvmMethodResult.TvmFailure)?.exit?.exitCode == 258
+                val checkerExitCodeGood = (checkerExitCode as? TvmMethodFailure)?.exitCode == 258
                 val thereWereThreeFailedMethod =
-                    test.eventsList.count { it.methodResult is TvmMethodResult.TvmFailure } == 3
+                    test.eventsList.count { it.methodResult is TvmMethodFailure } == 3
                 checkerExitCodeGood && thereWereThreeFailedMethod
             }
         )
@@ -300,12 +299,12 @@ class CheckersTest {
     fun bounceFormatTest() {
         val checkerContract = extractCheckerContractFromResource(bounceFormatChecker)
         val analyzedSender = extractFuncContractFromResource(bounceFormatContract)
-        val analyzedRecepient = extractFuncContractFromResource(recipientBouncePath)
+        val analyzedRecipient = extractFuncContractFromResource(recipientBouncePath)
         val communicationScheme = extractCommunicationSchemeFromResource(bounceFormatScheme)
         val options = createIntercontractOptions(communicationScheme)
         val tests =
             analyzeInterContract(
-                listOf(checkerContract, analyzedSender, analyzedRecepient),
+                listOf(checkerContract, analyzedSender, analyzedRecipient),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
@@ -322,21 +321,15 @@ class CheckersTest {
             // the target contract should change its persistent data
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 }
         )
-        // TODO: adjust the test to disallow the given intermediate exit codes
-        // when event logging will be supported
         checkInvariants(
             tests,
             listOf(
-                // see bounce_format_send.fc
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 258 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 259 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 260 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 261 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 262 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 263 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 264 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 265 }
+                { test ->
+                    test.eventsList.mapNotNull { it.methodResult as? TvmMethodFailure }.all { failedResult ->
+                        val formatViolationExitCodes = 257..265
+                        failedResult.exitCode !in formatViolationExitCodes
+                    }
+                }
             )
         )
     }

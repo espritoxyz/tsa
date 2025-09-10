@@ -65,7 +65,11 @@ data class ConstTlbStackFrame(
                         GuardedResult(
                             trueExpr,
                             StepError(
-                                TvmStructuralError(TvmReadingSwitchWithUnexpectedType(loadData.type), state.phase)
+                                TvmStructuralError(
+                                    TvmReadingSwitchWithUnexpectedType(loadData.type),
+                                    state.phase,
+                                    state.stack
+                                )
                             ),
                             value = null
                         )
@@ -118,7 +122,13 @@ data class ConstTlbStackFrame(
                 result.add(
                     GuardedResult(
                         mkSizeGtExpr(readSize, leftBits),
-                        StepError(TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), state.phase)),
+                        StepError(
+                            TvmStructuralError(
+                                TvmReadingOutOfSwitchBounds(loadData.type),
+                                state.phase,
+                                state.stack
+                            )
+                        ),
                         value = null
                     )
                 )

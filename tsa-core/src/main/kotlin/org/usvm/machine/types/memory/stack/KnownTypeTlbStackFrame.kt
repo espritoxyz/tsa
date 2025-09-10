@@ -78,7 +78,8 @@ data class KnownTypeTlbStackFrame(
                         args,
                         loadData.type
                     ),
-                    state.phase
+                    state.phase,
+                    state.stack
                 )
 
             val value =

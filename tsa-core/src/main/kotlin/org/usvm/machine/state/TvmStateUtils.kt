@@ -95,7 +95,7 @@ fun TvmContext.setFailure(
 
         val c2 = state.registersOfCurrentContract.c2.value
         if (state.c2IsDefault()) {
-            state.setExit(TvmMethodResult.TvmFailure(failure, level, state.phase))
+            state.setExit(TvmMethodResult.TvmFailure(failure, level, state.phase, state.stack, state.pathNode))
         } else {
             state.newStmt(TsaArtificialJmpToContInst(c2, state.lastStmt.location))
         }
@@ -417,7 +417,7 @@ private fun TvmStepScopeManager.assertConcreteCellType(
         ctx.mkNot(badCellTypeGuard),
         falseStateIsExceptional = true,
         blockOnFalseState = {
-            setExit(TvmMethodResult.TvmSoftFailure(exit, calcOnState { phase }))
+            setExit(TvmMethodResult.TvmSoftFailure(exit, calcOnState { phase }, stack))
         }
     ) ?: return null
 
