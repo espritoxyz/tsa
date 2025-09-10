@@ -19,6 +19,7 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getTactContract
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmMethodResult
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
@@ -245,7 +246,13 @@ class CheckersTest {
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 }
+            listOf { test ->
+                val checkerExitCode = test.eventsList.single { it.id == 0L }.methodResult
+                val checkerExitCodeGood = (checkerExitCode as? TvmMethodResult.TvmFailure)?.exit?.exitCode == 258
+                val thereWereThreeFailedMethod =
+                    test.eventsList.count { it.methodResult is TvmMethodResult.TvmFailure } == 3
+                checkerExitCodeGood && thereWereThreeFailedMethod
+            }
         )
 
         checkInvariants(

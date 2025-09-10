@@ -90,6 +90,9 @@ class TvmState(
     var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
     var receivedMessage: ReceivedMessage? = null,
+    var pseudologicalTime: Long = 0,
+    var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
+    var currentPhaseBeginTime: Long = 0,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -101,6 +104,9 @@ class TvmState(
         forkPoints,
         targets
     ) {
+    val currentEventId: EventId
+        get() = currentPhaseBeginTime
+
     override val isExceptional: Boolean
         get() =
             stateInitialized &&
@@ -193,7 +199,10 @@ class TvmState(
             additionalInputs = additionalInputs,
             currentInput = currentInput,
             acceptedInputs = acceptedInputs,
-            receivedMessage = receivedMessage
+            receivedMessage = receivedMessage,
+            pseudologicalTime = pseudologicalTime,
+            eventsLog = eventsLog,
+            currentPhaseBeginTime = currentPhaseBeginTime
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -249,6 +258,8 @@ data class TvmContractPosition(
     val executionMemory: TvmContractExecutionMemory,
     // number of entries to fetch from the upper contract (from the point of [TvmState.contractStack]) when it exited
     val stackEntriesToTake: Int,
+    val eventId: EventId,
+    val receivedMessage: ReceivedMessage?,
 )
 
 data class TvmContractExecutionMemory(
