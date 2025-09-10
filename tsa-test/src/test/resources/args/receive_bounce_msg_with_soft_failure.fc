@@ -1,0 +1,7 @@
+#include "../demo/stdlib.fc";
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    int op = msg_body.preload_uint(32);
+    ;; causes soft failure; `value` is used so it is not optimized by FunC compiler
+    var (_, value) = in_msg_full.idict_get?(1, 1);
+    throw_if(256, op + value == 200);
+}

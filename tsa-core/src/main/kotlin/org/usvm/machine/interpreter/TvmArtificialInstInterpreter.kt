@@ -40,7 +40,6 @@ import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.constructMessageFromContent
-import org.usvm.machine.state.isExceptional
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.OutMessage
@@ -167,7 +166,7 @@ class TvmArtificialInstInterpreter(
         }
         scope.calcOnState {
             with(ctx) {
-                if (result.isExceptional()) {
+                if (result is TvmFailure) {
                     val (sender, _, receivedMsgData) =
                         receivedMessage as? ReceivedMessage.MessageFromOtherContract
                             ?: run {
