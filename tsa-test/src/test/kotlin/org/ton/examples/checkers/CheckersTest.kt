@@ -19,6 +19,7 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getTactContract
 import org.usvm.machine.state.ContractId
+import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
@@ -275,10 +276,16 @@ class CheckersTest {
                     )
             )
 
-        val receivedBounceOnSoftFailureExitCode = 258
+        assertTrue(tests.tests.isNotEmpty())
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != receivedBounceOnSoftFailureExitCode }
+            listOf { test ->
+                val receivedBounceOnSoftFailureExitCode = 258
+                val messageDidNotBounce =
+                    (test.result as? TvmMethodFailure)?.exitCode != receivedBounceOnSoftFailureExitCode
+                val softFailureOccurred = test.result is TvmExecutionWithSoftFailure
+                messageDidNotBounce && softFailureOccurred
+            }
         )
     }
 

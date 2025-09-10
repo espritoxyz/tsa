@@ -18,6 +18,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.TvmPhase
 import org.usvm.machine.state.TvmPhase.ACTION_PHASE
@@ -183,7 +184,9 @@ class TvmArtificialInstInterpreter(
                             mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort())
                         )
 
-                    val bouncedMessage = constructBouncedMessage(scope, receivedMsgData, sender)
+                    val bouncedMessage =
+                        constructBouncedMessage(scope, receivedMsgData, sender)
+                            ?: return@with
                     scope.fork(
                         isBounceable.neq(zeroCellValue),
                         falseStateIsExceptional = true,
@@ -215,8 +218,8 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         oldMessage: OutMessage,
         sender: ContractId,
-    ): OutMessage {
-        val (msgCell, bodySlice) =
+    ): OutMessage? {
+        val msgCellAndBodySliceOrNull =
             with(ctx) {
                 val builder = scope.calcOnState { allocEmptyBuilder() }
                 scope.builderStoreDataBits(builder, bouncedMessageTagLong.toBv(32u))
@@ -241,7 +244,7 @@ class TvmArtificialInstInterpreter(
                     )
                 val leftData =
                     scope.slicePreloadDataBits(oldMessage.msgBodySlice, leftLength)
-                        ?: error("Unexpected cell underflow")
+                        ?: return@with null
                 scope.builderStoreDataBits(builder, builder, leftData, leftLength, null)
                 val bodySlice =
                     scope.calcOnState {
@@ -251,6 +254,7 @@ class TvmArtificialInstInterpreter(
                     scope.calcOnState {
                         getContractInfoParamOf(ADDRESS_PARAMETER_IDX, sender).cellValue ?: error("no destination :(")
                     }
+                // TODO fill the ihrFee, msgValue, ... with reasonable values
                 val content =
                     RecvInternalInput.MessageContent(
                         flags = 0b0101.toBv257(),
@@ -265,12 +269,14 @@ class TvmArtificialInstInterpreter(
                     )
                 constructMessageFromContent(scope.calcOnState { this }, content) to bodySlice
             }
-        return OutMessage(
-            msgValue = oldMessage.msgValue,
-            fullMsgCell = msgCell,
-            msgBodySlice = bodySlice,
-            destAddrSlice = oldMessage.destAddrSlice
-        )
+        return msgCellAndBodySliceOrNull?.let { (msgCell, bodySlice) ->
+            OutMessage(
+                msgValue = oldMessage.msgValue,
+                fullMsgCell = msgCell,
+                msgBodySlice = bodySlice,
+                destAddrSlice = oldMessage.destAddrSlice
+            )
+        }
     }
 
     private fun visitExitInst(
@@ -299,12 +305,13 @@ class TvmArtificialInstInterpreter(
 
             val commitedState = lastCommitedStateOfContracts[currentContract]
             val shouldTerminateBecauseOfFail = commitedState == null && ctx.tvmOptions.stopOnFirstError
+
+            val failureInActionPhase = result is TvmFailure && result.phase == ACTION_PHASE
+            val softFailureInActionPhase = result is TvmAbstractSoftFailure && result.phase == ACTION_PHASE
             if (analysisOfGetMethod ||
                 shouldTerminateBecauseOfFail ||
-                result is TvmFailure &&
-                result.phase == ACTION_PHASE ||
-                result is TvmMethodResult.TvmAbstractSoftFailure &&
-                result.phase == ACTION_PHASE
+                failureInActionPhase ||
+                softFailureInActionPhase
             ) {
                 phase = TERMINATED
                 methodResult = result
@@ -389,7 +396,9 @@ class TvmArtificialInstInterpreter(
              * if we do not enforce stopping on first error, we should not stop here and instead inspect the
              * contract stack and continue the execution of continuations found there
              */
-            val shouldTerminateOfFailure = ctx.tvmOptions.stopOnFirstError && result !is TvmMethodResult.TvmSuccess
+            val shouldTerminateOfFailure =
+                (ctx.tvmOptions.stopOnFirstError && result is TvmFailure) ||
+                    result is TvmAbstractSoftFailure
             if (shouldTerminateOfFailure || contractStack.isEmpty()) {
                 phase = TERMINATED
                 methodResult = result
