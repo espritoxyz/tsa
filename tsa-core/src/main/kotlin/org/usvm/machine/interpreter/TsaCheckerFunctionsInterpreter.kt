@@ -410,20 +410,6 @@ class TsaCheckerFunctionsInterpreter(
                             dataCellInfoStorage.mapper.addAddressSlice(it)
                         }
                     }
-                    val addressConstraint =
-                        scope.calcOnState {
-                            newInput.srcAddressSlice?.let {
-                                dataCellInfoStorage.mapper.addAddressSliceAndGenerateConstraint(
-                                    this,
-                                    it
-                                )
-                            }
-                        }
-
-                    if (addressConstraint != null) {
-                        scope.assert(addressConstraint)
-                            ?: return@with null
-                    }
 
                     scope.doWithState {
                         val configBalance =

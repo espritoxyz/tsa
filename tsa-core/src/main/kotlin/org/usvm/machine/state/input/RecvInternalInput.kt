@@ -23,6 +23,7 @@ import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderToCell
+import org.usvm.machine.state.generateSymbolicAddressCell
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.input.RecvInternalInput.MessageContent
 import org.usvm.mkSizeExpr
@@ -36,7 +37,7 @@ class RecvInternalInput(
     override val msgValue = state.makeSymbolicPrimitive(state.ctx.int257sort)
     override val srcAddressSlice =
         if (concreteGeneralData.initialSenderBits == null) {
-            state.generateSymbolicSlice()
+            state.allocSliceFromCell(state.generateSymbolicAddressCell().first)
         } else {
             state.allocSliceFromData(
                 state.ctx.mkBv(

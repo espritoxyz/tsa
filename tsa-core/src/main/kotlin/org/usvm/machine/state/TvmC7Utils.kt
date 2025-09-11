@@ -251,21 +251,7 @@ fun TvmState.initContractInfo(
 
         val (addrValue, workchain) =
             if (concreteData.addressBits == null) {
-                val workchain = makeSymbolicPrimitive(mkBv8Sort())
-                val address =
-                    allocDataCellFromData(
-                        mkBvConcatExpr(
-                            mkBvConcatExpr(
-                                // addr_std$10 anycast:(Maybe Anycast)
-                                mkBv("100", 3u),
-                                // workchain_id:int8
-                                workchain
-                            ),
-                            // address:bits256
-                            makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt()))
-                        )
-                    )
-                address to workchain
+                generateSymbolicAddressCell()
             } else {
                 val address = allocateCell(TvmCell(data = TvmCellData(concreteData.addressBits), refs = emptyList()))
                 val workchain =

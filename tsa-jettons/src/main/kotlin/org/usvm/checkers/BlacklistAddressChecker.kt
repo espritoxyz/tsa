@@ -24,7 +24,7 @@ data class BlacklistAddressChecker(
     private val fiftStdlibPath = resourcesDir.resolveResourcePath(FIFT_STDLIB_PATH)
 
     private val tlbFormat =
-        readFromJson(tlbResourcePath, "InternalMsgBody", onlyBasicAddresses = true) as? TlbCompositeLabel
+        readFromJson(tlbResourcePath, "InternalMsgBody") as? TlbCompositeLabel
             ?: error("Couldn't parse TL-B structure")
     private val inputInfo =
         TvmParameterInfo.SliceInfo(

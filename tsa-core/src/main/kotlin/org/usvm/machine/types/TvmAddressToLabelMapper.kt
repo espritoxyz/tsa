@@ -1,15 +1,11 @@
 package org.usvm.machine.types
 
 import org.ton.TlbCompositeLabel
-import org.ton.TlbFullMsgAddrLabel
 import org.ton.TvmParameterInfo
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
-import org.usvm.api.readField
 import org.usvm.isAllocated
-import org.usvm.isStatic
 import org.usvm.isTrue
-import org.usvm.machine.TvmContext
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
@@ -277,26 +273,6 @@ class TvmAddressToLabelMapper(
     fun addAddressSlice(slice: UConcreteHeapRef) = addressSlices.add(slice)
 
     fun sliceIsAddress(slice: UConcreteHeapRef): Boolean = slice in addressSlices
-
-    fun addAddressSliceAndGenerateConstraint(
-        state: TvmState,
-        slice: UConcreteHeapRef,
-    ): UBoolExpr =
-        with(state.ctx) {
-            addAddressSlice(slice)
-
-            val cellRef = state.memory.readField(slice, TvmContext.sliceCellField, addressSort) as UConcreteHeapRef
-            check(cellRef.isStatic) {
-                "Unexpected cell ref: $cellRef"
-            }
-
-            inputAddressToLabels[cellRef] =
-                LabelInfo(mapOf(TvmParameterInfo.DataCellInfo(TlbFullMsgAddrLabel) to ctx.trueExpr))
-
-            // no need to generate label info for children because addresses have no children
-
-            generateProactiveStructuralConstraints(state, cellRef, checkThatConstraintWasCalculatedOnce = false)
-        }
 
     init {
         inputInfo.cellToInfo.forEach { (ref, cellInfo) ->

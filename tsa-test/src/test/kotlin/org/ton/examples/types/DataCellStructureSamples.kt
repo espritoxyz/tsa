@@ -1,9 +1,9 @@
 package org.ton.examples.types
 
 import org.ton.Endian
+import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
-import org.ton.TlbFullMsgAddrLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbMaybeRefLabel
@@ -110,7 +110,7 @@ val wrappedMsgStructure =
         it.internalStructure =
             KnownTypePrefix(
                 id = TlbStructureIdProvider.provideId(),
-                TlbFullMsgAddrLabel,
+                TlbBasicMsgAddrLabel,
                 typeArgIds = emptyList(),
                 rest = Empty,
                 owner = it

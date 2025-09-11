@@ -7,10 +7,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentMap
 import mu.KLogging
 import org.ton.TlbBasicMsgAddrLabel
-import org.ton.TlbFullMsgAddrLabel
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo.CellInfo
-import org.ton.TvmParameterInfo.DataCellInfo
 import org.ton.TvmParameterInfo.SliceInfo
 import org.ton.TvmParameterInfo.UnknownCellInfo
 import org.ton.bytecode.MethodId
@@ -513,11 +511,6 @@ class TvmInterpreter(
                     newInputInfo[msgBodyCellNonBounced] = UnknownCellInfo
                 }
 
-                val srcAddressCell = input.srcAddressCell
-                if (srcAddressCell != null) {
-                    newInputInfo[srcAddressCell] = DataCellInfo(TlbFullMsgAddrLabel)
-                }
-
                 val dataCellInfoStorage =
                     TvmDataCellInfoStorage.build(
                         state = state,
@@ -552,7 +545,7 @@ class TvmInterpreter(
                     TvmDataCellInfoStorage.build(
                         state,
                         inputInfo,
-                        additionalLabels = setOf(TlbFullMsgAddrLabel, TlbBasicMsgAddrLabel)
+                        additionalLabels = setOf(TlbBasicMsgAddrLabel)
                     )
                 setDataCellInfoStorageAndSetModel(state, dataCellInfoStorage)
             }

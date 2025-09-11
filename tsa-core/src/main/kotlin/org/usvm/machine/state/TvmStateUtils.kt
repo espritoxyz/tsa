@@ -20,13 +20,16 @@ import org.ton.cell.Cell
 import org.ton.hashmap.HashMapE
 import org.usvm.NULL_ADDRESS
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
@@ -562,3 +565,23 @@ fun TvmState.switchToFirstMethodInContract(
         newStmt(method.instList.first())
     }
 }
+
+// second value is workchain
+fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort>> =
+    with(ctx) {
+        val workchain = mkBv(0, 8u) // TODO: consider other workchains?
+        val address =
+            allocDataCellFromData(
+                mkBvConcatExpr(
+                    mkBvConcatExpr(
+                        // addr_std$10 anycast:(Maybe Anycast)
+                        mkBv("100", 3u),
+                        // workchain_id:int8
+                        workchain
+                    ),
+                    // address:bits256
+                    makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt()))
+                )
+            )
+        return address to workchain
+    }
