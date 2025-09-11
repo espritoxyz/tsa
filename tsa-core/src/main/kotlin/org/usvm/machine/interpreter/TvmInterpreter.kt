@@ -9,7 +9,6 @@ import mu.KLogging
 import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo.CellInfo
-import org.ton.TvmParameterInfo.DataCellInfo
 import org.ton.TvmParameterInfo.SliceInfo
 import org.ton.TvmParameterInfo.UnknownCellInfo
 import org.ton.bytecode.MethodId
