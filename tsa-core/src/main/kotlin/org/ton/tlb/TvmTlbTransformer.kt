@@ -4,7 +4,6 @@ import org.ton.Endian.BigEndian
 import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
-import org.ton.TlbFullMsgAddrLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbLabel
 import org.ton.TlbMaybeRefLabel
@@ -20,7 +19,6 @@ import org.ton.TvmParameterInfo.DataCellInfo
 
 class TvmTlbTransformer(
     definitions: List<TvmTlbTypeDefinition>,
-    private val onlyBasicAddresses: Boolean = false,
 ) {
     private val typeDefinitions = definitions.associateBy { it.id }
     private val transformed = hashMapOf<Pair<TvmTlbTypeDefinition, List<TvmTlbTypeExpr>>, TlbLabel>()
@@ -131,7 +129,7 @@ class TvmTlbTransformer(
                 return label
             }
             "MsgAddress" -> {
-                return if (onlyBasicAddresses) TlbBasicMsgAddrLabel else TlbFullMsgAddrLabel
+                return TlbBasicMsgAddrLabel
             }
             "Grams", "Coins" -> { // TODO: add variant for `VarUInteger`
                 return TlbCoinsLabel
