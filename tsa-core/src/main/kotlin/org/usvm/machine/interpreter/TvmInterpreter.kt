@@ -512,11 +512,6 @@ class TvmInterpreter(
                     newInputInfo[msgBodyCellNonBounced] = UnknownCellInfo
                 }
 
-                val srcAddressCell = input.srcAddressCell
-                if (srcAddressCell != null) {
-                    newInputInfo[srcAddressCell] = DataCellInfo(TlbBasicMsgAddrLabel)
-                }
-
                 val dataCellInfoStorage =
                     TvmDataCellInfoStorage.build(
                         state = state,
