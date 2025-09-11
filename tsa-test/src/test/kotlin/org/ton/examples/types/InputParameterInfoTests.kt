@@ -1515,8 +1515,7 @@ class InputParameterInfoTests {
             tests,
             listOf(
                 { test -> test.result !is TvmExecutionWithStructuralError },
-                // asserted data for fullMsgData
-                { test -> test.numberOfAddressesWithAssertedDataConstraints == 1 }
+                { test -> test.numberOfAddressesWithAssertedDataConstraints == 0 }
             )
         )
 
