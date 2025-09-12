@@ -387,7 +387,7 @@ class TvmInterpreter(
                 memory = memory,
                 pathConstraints = pathConstraints,
                 emptyRefValue = refEmptyValue,
-                gasUsage = persistentListOf(),
+                gasUsageHistory = persistentListOf(),
                 targets = UTargetsSet.from(targets),
                 typeSystem = typeSystem,
                 currentContract = startContractId,
@@ -620,7 +620,7 @@ class TvmInterpreter(
         logger.debug("Current contract: {}", state.currentContract)
         logger.debug("Step: {}", stmt)
 
-        val initialGasUsage = state.gasUsage
+        val initialGasUsage = state.gasUsageHistory
         val globalStructuralConstraintsHolder = state.globalStructuralConstraintsHolder
 
         val allowFailures = state.allowFailures && !ctx.tvmOptions.excludeExecutionsWithFailures
@@ -647,8 +647,8 @@ class TvmInterpreter(
 
         return scope.stepResult().apply {
             if (originalStateAlive &&
-                state.gasUsage === initialGasUsage ||
-                forkedStates.any { it.gasUsage === initialGasUsage }
+                state.gasUsageHistory === initialGasUsage ||
+                forkedStates.any { it.gasUsageHistory === initialGasUsage }
             ) {
                 TODO("Gas usage was not updated after: $stmt")
             }
@@ -659,7 +659,6 @@ class TvmInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
     ) {
-        scope.calcOnState { pseudologicalTime += 1 }
         when (stmt) {
             is TvmArtificialInst -> artificialInstInterpreter.visit(scope, stmt)
             is TvmStackBasicInst -> visitBasicStackInst(scope, stmt)

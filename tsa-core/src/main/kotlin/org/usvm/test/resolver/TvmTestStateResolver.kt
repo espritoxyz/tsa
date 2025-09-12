@@ -44,6 +44,7 @@ import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcConsumedGas
+import org.usvm.machine.state.calcPhaseConsumedGas
 import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
@@ -349,6 +350,11 @@ class TvmTestStateResolver(
     }
 
     fun resolveGasUsage(): Int = model.eval(state.calcConsumedGas()).intValue()
+
+    fun resolvePhaseGasUsage(
+        eventBegin: Int,
+        eventEnd: Int,
+    ): Int = model.eval(state.calcPhaseConsumedGas(eventBegin, eventEnd)).intValue()
 
     private fun resolveStackValue(stackValue: TvmStackValue): TvmTestValue =
         when (stackValue) {

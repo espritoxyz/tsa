@@ -56,7 +56,7 @@ class TvmState(
     val emptyRefValue: TvmRefEmptyValue,
     val analysisOfGetMethod: Boolean,
     private var symbolicRefs: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
-    var gasUsage: PersistentList<UExpr<UBv32Sort>>,
+    var gasUsageHistory: PersistentList<UExpr<UBv32Sort>>,
     // TODO codepage
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
     pathConstraints: UPathConstraints<TvmType>,
@@ -90,9 +90,8 @@ class TvmState(
     var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
     var receivedMessage: ReceivedMessage? = null,
-    var pseudologicalTime: Long = 0,
     var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
-    var currentPhaseBeginTime: Long = 0,
+    var currentPhaseBeginTime: Int = 0,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -104,6 +103,8 @@ class TvmState(
         forkPoints,
         targets
     ) {
+    val pseudologicalTime: Int
+        get() = gasUsageHistory.size
     val currentEventId: EventId
         get() = currentPhaseBeginTime
 
@@ -168,7 +169,7 @@ class TvmState(
             entrypoint = entrypoint,
             emptyRefValue = emptyRefValue,
             symbolicRefs = symbolicRefs,
-            gasUsage = gasUsage,
+            gasUsageHistory = gasUsageHistory,
             callStack = callStack.clone(),
             pathConstraints = newPathConstraints,
             memory = newMemory,
@@ -200,7 +201,6 @@ class TvmState(
             currentInput = currentInput,
             acceptedInputs = acceptedInputs,
             receivedMessage = receivedMessage,
-            pseudologicalTime = pseudologicalTime,
             eventsLog = eventsLog,
             currentPhaseBeginTime = currentPhaseBeginTime
         ).also { newState ->

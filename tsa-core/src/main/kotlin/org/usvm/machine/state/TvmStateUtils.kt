@@ -275,7 +275,20 @@ fun TvmContext.bvMaxValueUnsignedExtended(sizeBits: UExpr<TvmInt257Sort>): UExpr
     mkBvSubExpr(mkBvShiftLeftExpr(oneValue, sizeBits), oneValue)
 
 fun TvmState.calcConsumedGas(): UExpr<TvmSizeSort> =
-    gasUsage.fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value) }
+    gasUsageHistory.fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value) }
+
+/**
+ * @property eventEnd is an exclusive end boundary of `gasUsageHistory`.
+ * After execution of the control-changing instruction X, we have already appended the
+ * gas that accounts for X instruction, and we write `gasUsageHistory.size` as the previous event end
+ * and current event begin. Thus, the eventEnd index withing gasUsageHistory does not belong to the
+ * corresponding phase and is an exclusive boundary.
+ */
+fun TvmState.calcPhaseConsumedGas(
+    eventBegin: Int,
+    eventEnd: Int,
+): UExpr<TvmSizeSort> =
+    gasUsageHistory.subList(eventBegin, eventEnd).fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value) }
 
 private data class RefInfo(
     val type: TvmType,

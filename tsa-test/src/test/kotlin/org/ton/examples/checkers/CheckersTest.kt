@@ -246,7 +246,7 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf { test ->
-                val checkerExitCode = test.eventsList.single { it.id == 0L }.methodResult
+                val checkerExitCode = test.eventsList.single { it.id == 0 }.methodResult
                 val checkerExitCodeGood = (checkerExitCode as? TvmMethodFailure)?.exitCode == 258
                 val thereWereThreeFailedMethod =
                     test.eventsList.count { it.methodResult is TvmMethodFailure } == 3

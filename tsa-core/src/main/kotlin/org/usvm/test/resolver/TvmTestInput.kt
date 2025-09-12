@@ -71,9 +71,10 @@ sealed interface TvmTestInput {
 
 data class TvmMessageDrivenContractExecutionTestEntry(
     val id: EventId,
-    val executionBegin: Long,
-    val executionEnd: Long,
+    val executionBegin: Int,
+    val executionEnd: Int,
     val contractId: ContractId,
     val incomingMessage: TvmTestInput.ReceivedTestMessage,
     val methodResult: TvmMethodSymbolicResult,
+    val gasUsageHistory: Int,
 )
