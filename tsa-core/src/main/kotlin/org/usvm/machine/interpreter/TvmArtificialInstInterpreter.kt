@@ -136,7 +136,11 @@ class TvmArtificialInstInterpreter(
             }
 
             processNewMessages(scope, commitedState)
-                ?: return
+                ?: return run {
+                    scope.doWithState {
+                        newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
+                    }
+                }
         }
 
         scope.doWithState {
@@ -405,7 +409,9 @@ class TvmArtificialInstInterpreter(
                 return@doWithState
             }
 
-            val (prevContractId, prevInst, prevMem, expectedNumberOfOutputItems) = contractStack.last()
+            val (prevContractId, prevInst, prevMem, expectedNumberOfOutputItems, receivedMessage) =
+                contractStack.last()
+            this.receivedMessage = receivedMessage
 
             // update global c4 and c7
             if (result is TvmMethodResult.TvmSuccess) {
