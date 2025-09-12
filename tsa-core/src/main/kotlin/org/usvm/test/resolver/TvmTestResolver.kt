@@ -27,7 +27,13 @@ data object TvmTestResolver {
         val model = state.models.first()
         val ctx = state.ctx
         val stateResolver =
-            TvmTestStateResolver(ctx, model, state, ctx.tvmOptions.performAdditionalChecksWhileResolving)
+            TvmTestStateResolver(
+                ctx,
+                model,
+                state.pathConstraints.composers,
+                state,
+                ctx.tvmOptions.performAdditionalChecksWhileResolving
+            )
 
         val input = stateResolver.resolveInput()
         val fetchedValues = stateResolver.resolveFetchedValues()

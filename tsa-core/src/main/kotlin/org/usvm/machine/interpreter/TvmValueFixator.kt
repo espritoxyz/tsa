@@ -1,6 +1,8 @@
 package org.usvm.machine.interpreter
 
+import io.ksmt.expr.KInterpretedValue
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -9,9 +11,10 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
+import org.usvm.machine.state.ConcreteSet
 import org.usvm.machine.state.DictId
+import org.usvm.machine.state.TvmFixationMemoryValues
 import org.usvm.machine.state.builderToCell
-import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
@@ -35,11 +38,14 @@ class TvmValueFixator(
     private val resolver: TvmTestStateResolver,
     private val ctx: TvmContext,
     private val structuralConstraintsOnly: Boolean,
+    nullRef: UHeapRef,
 ) {
+    private val emptyFixationValues = TvmFixationMemoryValues.empty(nullRef)
+
     fun fixateConcreteValue(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
-    ): UBoolExpr? {
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? {
         val value = resolver.resolveRef(ref)
         return fixateConcreteValue(scope, ref, value)
     }
@@ -48,7 +54,7 @@ class TvmValueFixator(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestReferenceValue,
-    ): UBoolExpr? =
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? =
         when (value) {
             is TvmTestDataCellValue -> {
                 fixateConcreteValueForDataCell(scope, ref, value)
@@ -68,7 +74,7 @@ class TvmValueFixator(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestBuilderValue,
-    ): UBoolExpr? {
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? {
         require(ref is UConcreteHeapRef) {
             "Unexpected non-concrete builder ref $ref"
         }
@@ -81,7 +87,7 @@ class TvmValueFixator(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestSliceValue,
-    ): UBoolExpr? =
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? =
         with(ctx) {
             val dataPosSymbolic =
                 scope.calcOnState {
@@ -108,15 +114,20 @@ class TvmValueFixator(
         value: TvmTestDataCellValue,
         dataOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
         refsOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
-    ): UBoolExpr? =
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? =
         with(ctx) {
-            val childrenCond =
-                value.refs.foldIndexed(trueExpr as UBoolExpr) { index, acc, child ->
-                    val childRef = scope.calcOnState { readCellRef(ref, mkSizeAddExpr(mkSizeExpr(index), refsOffset)) }
-                    val currentConstraint =
+            val (childrenGuard, childrenValues) =
+                value.refs.foldIndexed(
+                    (trueExpr as UBoolExpr) to emptyFixationValues
+                ) { index, (accGuard, accValues), child ->
+                    val childRef =
+                        scope.calcOnState {
+                            readCellRef(ref, mkSizeAddExpr(mkSizeExpr(index), refsOffset))
+                        }
+                    val (curGuard, curValues) =
                         fixateConcreteValue(scope, childRef, child)
                             ?: return@with null
-                    acc and currentConstraint
+                    (accGuard and curGuard) to (accValues.union(curValues))
                 }
 
             val symbolicRefNumber =
@@ -155,59 +166,74 @@ class TvmValueFixator(
                     trueExpr
                 }
 
-            childrenCond and refCond and dataCond
+            (childrenGuard and refCond and dataCond) to childrenValues
         }
 
     private fun fixateConcreteValueForDictCell(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestDictCellValue,
-    ): UBoolExpr? =
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? =
         with(ctx) {
             val keyLength =
                 scope.calcOnState {
                     memory.readField(ref, TvmContext.dictKeyLengthField, sizeSort)
                 }
-            var result = keyLength eq mkSizeExpr(value.keyLength)
+            var resultGuard = keyLength eq mkSizeExpr(value.keyLength)
 
-            val model = resolver.model
-            val modelRef = model.eval(ref) as UConcreteHeapRef
+            val modelRef = resolver.eval(ref) as UConcreteHeapRef
 
-            result = result and (ref eq modelRef)
+            resultGuard = resultGuard and (ref eq modelRef)
 
             val dictId = DictId(value.keyLength)
             val keySort = mkBvSort(value.keyLength.toUInt())
-            val entries =
+
+            val possibleEntries =
                 scope.calcOnState {
-                    dictKeyEntries(model, memory, modelRef, dictId, keySort)
+                    dictKeyEntries(resolver, modelRef, dictId, keySort)
                 }
 
-            entries.forEach { entry ->
+            var childFixValues = emptyFixationValues
+
+            val setKeys = mutableSetOf<KInterpretedValue<UBvSort>>()
+
+            possibleEntries.forEach { entry ->
                 val key = entry.setElement
-                val keyContains =
-                    scope.calcOnState {
-                        dictContainsKey(ref, dictId, key)
-                    }
-                val entryValue =
-                    scope.calcOnState {
-                        dictGetValue(ref, dictId, key)
-                    }
 
-                val concreteKey = TvmTestIntegerValue(model.eval(key).bigIntValue())
-
-                val keyConstraint = model.eval(key) eq key
-
+                val concreteKey = TvmTestIntegerValue(resolver.eval(key).bigIntValue())
                 val concreteValue = value.entries[concreteKey]
-                if (concreteValue == null) {
-                    result = result and keyContains.not() and keyConstraint
-                } else {
-                    val valueConstraint =
+
+                if (concreteValue != null) {
+                    setKeys.add(resolver.eval(key) as KInterpretedValue<UBvSort>)
+
+                    val entryValue =
+                        scope.calcOnState {
+                            dictGetValue(ref, dictId, key)
+                        }
+                    val (valueGuard, valueFixValues) =
                         fixateConcreteValue(scope, entryValue, concreteValue)
                             ?: return@with null
-                    result = result and keyContains and valueConstraint and keyConstraint
+
+                    resultGuard = resultGuard and valueGuard
+                    childFixValues = childFixValues.union(valueFixValues)
                 }
             }
 
-            return result
+            val curSet =
+                ConcreteSet(
+                    ref = modelRef,
+                    dictId = dictId,
+                    elements = setKeys
+                )
+
+            val nullRef = scope.calcOnState { nullRef }
+
+            val curFixValues =
+                TvmFixationMemoryValues(
+                    setOf(curSet),
+                    nullRef = nullRef
+                )
+
+            return resultGuard to curFixValues.union(childFixValues)
         }
 }

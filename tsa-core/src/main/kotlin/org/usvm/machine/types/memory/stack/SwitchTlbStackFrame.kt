@@ -118,7 +118,6 @@ data class SwitchTlbStackFrame(
             check(read.leftBits >= struct.switchSize)
 
             val state = read.resolver.state
-            val model = read.resolver.model
 
             val possibleVariants =
                 if (struct.variants.size > 1) {
@@ -131,7 +130,7 @@ data class SwitchTlbStackFrame(
 
             possibleVariants.forEachIndexed { idx, (key, variant) ->
                 val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, read.address, path)
-                if (model.eval(guard).isTrue) {
+                if (read.resolver.eval(guard).isTrue) {
                     val further = buildFrameForStructure(this, variant, path, leftTlbDepth)
                     val newReadInfo =
                         TlbStack.ConcreteReadInfo(

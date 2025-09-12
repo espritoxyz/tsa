@@ -26,6 +26,16 @@ class TvmStepScopeManager(
     private val forkedStates = mutableListOf<TvmState>()
     private val scope: TvmStepScope = TvmStepScope(originalState, forkBlackList, forkedStates)
 
+    fun checkAliveAndNoForks() {
+        val result = stepResult()
+        check(result.originalStateAlive) {
+            "Unexpected state death"
+        }
+        check(result.forkedStates.toList().isEmpty()) {
+            "Unexpected forks"
+        }
+    }
+
     var doNotKillScopeOnDoWithConditions: Boolean = false
 
     fun doWithState(block: TvmState.() -> Unit) = scope.doWithState(block)
