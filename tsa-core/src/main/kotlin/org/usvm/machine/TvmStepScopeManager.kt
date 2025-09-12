@@ -164,14 +164,14 @@ class TvmStepScopeManager(
                     check(state.c2IsDefault()) {
                         "c2 register was changed in forked state handler"
                     }
-                    check(state.isExceptional == action.caseIsExceptional) {
+                    check(state.isExceptionalAndFinished == action.caseIsExceptional) {
                         "action under condition ${action.condition} expected exceptional status:" +
                             " ${action.caseIsExceptional}, but actual one is: ${state.isExceptional}."
                     }
                 }
 
                 var stateAlive = true
-                if (!state.isExceptional) {
+                if (!state.isExceptionalAndFinished) {
                     val newScopeManager = TvmStepScopeManager(state, forkBlackList, allowFailuresOnCurrentStep)
                     newScopeManager.doForAllBlock(action.paramForDoForAllBlock)
 

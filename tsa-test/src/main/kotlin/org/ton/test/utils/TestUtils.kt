@@ -1,10 +1,12 @@
 package org.ton.test.utils
 
 import org.ton.TlbCompositeLabel
+import org.ton.TvmContractHandlers
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
+import org.ton.communicationSchemeFromJson
 import org.ton.tlb.readFromJson
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.FiftAnalyzer
@@ -39,6 +41,7 @@ import java.math.BigInteger
 import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.deleteIfExists
+import kotlin.io.path.readText
 import kotlin.jvm.java
 import kotlin.reflect.KClass
 import kotlin.test.assertEquals
@@ -408,4 +411,24 @@ internal fun compareSymbolicAndConcreteFromResource(
     compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
         runFiftMethod(fiftResourcePath, methodId)
     }
+}
+
+internal fun extractCheckerContractFromResource(checkerResourcePath: String): TsaContractCode {
+    val checkerPath = extractResource(checkerResourcePath)
+    val checkerContract = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
+    return checkerContract
+}
+
+internal fun extractFuncContractFromResource(contractResourcePath: String): TsaContractCode {
+    val contractPath = extractResource(contractResourcePath)
+    val checkerContract = getFuncContract(contractPath, FIFT_STDLIB_RESOURCE)
+    return checkerContract
+}
+
+internal fun extractCommunicationSchemeFromResource(
+    communicationSchemeResourcePath: String,
+): Map<ContractId, TvmContractHandlers> {
+    val communicationSchemePath = extractResource(communicationSchemeResourcePath)
+    val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
+    return communicationScheme
 }

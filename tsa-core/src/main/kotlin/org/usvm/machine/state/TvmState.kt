@@ -117,6 +117,15 @@ class TvmState(
                         it is TsaArtificialExitInst &&
                         it.result.isExceptional()
                 }
+    val isExceptionalAndFinished: Boolean
+        get() =
+            stateInitialized &&
+                lastStmt.let {
+                    it is TsaArtificialActionPhaseInst &&
+                        it.computePhaseResult is TvmMethodResult.TvmAbstractSoftFailure ||
+                        it is TsaArtificialExitInst &&
+                        it.result.isExceptional()
+                }
 
     val isTerminated: Boolean
         get() = phase == TERMINATED
