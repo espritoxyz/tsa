@@ -110,6 +110,15 @@ class TvmState(
                         it is TsaArtificialExitInst &&
                         it.result.isExceptional()
                 }
+    val isExceptionalAndFinished: Boolean
+        get() =
+            stateInitialized &&
+                lastStmt.let {
+                    it is TsaArtificialActionPhaseInst &&
+                        it.computePhaseResult is TvmMethodResult.TvmAbstractSoftFailure ||
+                        it is TsaArtificialExitInst &&
+                        it.result.isExceptional()
+                }
 
     val isTerminated: Boolean
         get() = phase == TERMINATED
@@ -249,6 +258,7 @@ data class TvmContractPosition(
     val executionMemory: TvmContractExecutionMemory,
     // number of entries to fetch from the upper contract (from the point of [TvmState.contractStack]) when it exited
     val stackEntriesToTake: Int,
+    val receivedMessage: ReceivedMessage?,
 )
 
 data class TvmContractExecutionMemory(

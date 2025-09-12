@@ -3,8 +3,24 @@
     "id": 1,
     "handlers": [
       {
-        "op": "00000500",
+        "op": "0000012c",
         "destinations": [2]
+      },
+      {
+        "op": "0000012d",
+        "destinations": [2]
+      },
+      {
+        "op": "0000012e",
+        "destinations": [2]
+      },
+      {
+        "op": "0000012f",
+        "destinations": [2, 2]
+      },
+      {
+        "op": "00000130",
+        "destinations": [2, 2]
       }
     ]
   },

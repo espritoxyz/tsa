@@ -222,6 +222,7 @@ class TsaCheckerFunctionsInterpreter(
                                         TvmConcreteGeneralData(),
                                         nextContractId
                                     )
+
                                 ReceiverType.External ->
                                     RecvExternalInput(
                                         this,
@@ -366,7 +367,8 @@ class TsaCheckerFunctionsInterpreter(
                 is NewReceiverInput -> 0
             }
 
-        contractStack = contractStack.add(TvmContractPosition(currentContract, stmt, oldMemory, takeFromNewStack))
+        contractStack =
+            contractStack.add(TvmContractPosition(currentContract, stmt, oldMemory, takeFromNewStack, receivedMessage))
         currentContract = nextContractId
         registersOfCurrentContract = newRegisters
 
@@ -391,7 +393,7 @@ class TsaCheckerFunctionsInterpreter(
         stackOperations: StackOperations,
         newInput: ReceiverInput?,
         nextContractId: Int,
-    ): Unit? =
+    ): Unit =
         with(scope.ctx) {
             when (stackOperations) {
                 is SimpleStackOperations -> {

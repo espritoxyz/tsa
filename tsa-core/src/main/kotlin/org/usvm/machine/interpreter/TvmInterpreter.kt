@@ -621,6 +621,7 @@ class TvmInterpreter(
     override fun step(state: TvmState): StepResult<TvmState> {
         val stmt = state.lastStmt
 
+        logger.debug("ContractId: {}", state.currentContract)
         logger.debug("Step: {}", stmt)
 
         val initialGasUsage = state.gasUsage
