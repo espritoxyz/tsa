@@ -472,6 +472,6 @@ private fun TvmStepScopeManager.doExceptionJump(cont: TvmExceptionContinuation) 
     doWithState {
         stack.addInt(exitCode)
 
-        setExit(TvmMethodResult.TvmFailure(failure, TvmFailureType.UnknownError, phase))
+        setExit(TvmMethodResult.TvmFailure(failure, TvmFailureType.UnknownError, phase, stack, pathNode))
     }
 }

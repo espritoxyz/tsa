@@ -17,6 +17,7 @@ import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmCommitedState
+import org.usvm.machine.state.TvmMessageDrivenContractExecutionEntry
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
@@ -43,6 +44,7 @@ import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.constructMessageFromContent
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
+import org.usvm.machine.state.messages.ContractSender
 import org.usvm.machine.state.messages.OutMessage
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
@@ -185,7 +187,7 @@ class TvmArtificialInstInterpreter(
                         )
 
                     val bouncedMessage =
-                        constructBouncedMessage(scope, receivedMsgData, sender)
+                        constructBouncedMessage(scope, receivedMsgData, sender.contractId)
                             ?: return@with
                     scope.fork(
                         isBounceable.neq(zeroCellValue),
@@ -194,8 +196,8 @@ class TvmArtificialInstInterpreter(
                             messageQueue =
                                 messageQueue.add(
                                     ReceivedMessage.MessageFromOtherContract(
-                                        sender = currentContract,
-                                        receiver = sender,
+                                        sender = ContractSender(currentContract, currentEventId),
+                                        receiver = sender.contractId,
                                         message = bouncedMessage
                                     )
                                 )
@@ -285,10 +287,25 @@ class TvmArtificialInstInterpreter(
     ) {
         scope.doWithStateCtx {
             phase = EXIT_PHASE
-
+            receivedMessage?.let { receivedMessage ->
+                val methodResult = stmt.result
+                eventsLog =
+                    eventsLog.add(
+                        TvmMessageDrivenContractExecutionEntry(
+                            id = currentPhaseBeginTime,
+                            executionBegin = currentPhaseBeginTime,
+                            executionEnd = pseudologicalTime,
+                            contractId = currentContract,
+                            incomingMessage = receivedMessage,
+                            methodResult = methodResult
+                        )
+                    )
+            }
             if (tvmOptions.intercontractOptions.isIntercontractEnabled && !messageQueue.isEmpty()) {
+                currentPhaseBeginTime = pseudologicalTime
                 processIntercontractExit(scope, stmt.result)
             } else {
+                // currentPhaseBegin will be lifted from contract stack
                 processCheckerExit(scope, stmt.result)
             }
         }
@@ -329,7 +346,7 @@ class TvmArtificialInstInterpreter(
     private fun TvmState.executeContractTriggeredByMessage(
         receiver: ContractId,
         message: OutMessage,
-        sender: ContractId,
+        sender: ContractSender,
     ) {
         val nextContractCode =
             contractsCode.getOrNull(receiver)
@@ -378,7 +395,11 @@ class TvmArtificialInstInterpreter(
             messageQueue =
                 messageQueue.addAll(
                     messageDestinations.map { (receiver, message) ->
-                        ReceivedMessage.MessageFromOtherContract(currentContract, receiver, message)
+                        ReceivedMessage.MessageFromOtherContract(
+                            ContractSender(currentContract, currentEventId),
+                            receiver,
+                            message
+                        )
                     }
                 )
             unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
@@ -405,7 +426,10 @@ class TvmArtificialInstInterpreter(
                 return@doWithState
             }
 
-            val (prevContractId, prevInst, prevMem, expectedNumberOfOutputItems) = contractStack.last()
+            val (prevContractId, prevInst, prevMem, expectedNumberOfOutputItems, eventId, receivedMessage) =
+                contractStack
+                    .last()
+            this.receivedMessage = receivedMessage
 
             // update global c4 and c7
             if (result is TvmMethodResult.TvmSuccess) {
@@ -425,7 +449,7 @@ class TvmArtificialInstInterpreter(
                 prevStack.clone() // we should not touch stack from contractStack, as it is contained in other states
             stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
             registersOfCurrentContract = prevMem.registers.clone() // like for stack, we shouldn't touch registers
-
+            currentPhaseBeginTime = eventId
             phase = COMPUTE_PHASE
             newStmt(prevInst.nextStmt())
         }

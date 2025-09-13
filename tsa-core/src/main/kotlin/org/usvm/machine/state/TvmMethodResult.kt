@@ -2,6 +2,8 @@ package org.usvm.machine.state
 
 import kotlinx.serialization.Serializable
 import org.ton.TlbBuiltinLabel
+import org.ton.bytecode.TvmInst
+import org.usvm.PathNode
 import org.usvm.UBv32Sort
 import org.usvm.UExpr
 import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
@@ -14,27 +16,32 @@ import org.usvm.machine.types.TvmStructuralExit
  * Represents a result of a method invocation.
  */
 sealed interface TvmMethodResult {
+    val stack: TvmStack?
+
     /**
      * No call was performed.
      */
-    data object NoCall : TvmMethodResult
+    data object NoCall : TvmMethodResult {
+        override val stack: TvmStack? = null
+    }
 
     /**
      * A [method] successfully returned.
      */
     data class TvmSuccess(
         val exit: TvmSuccessfulExit,
-        val stack: TvmStack,
+        override val stack: TvmStack,
     ) : TvmMethodResult
 
     /**
      * A method exited with non-successful exit code.
      */
-    @Serializable
     data class TvmFailure(
         val exit: TvmErrorExit,
         val type: TvmFailureType,
         val phase: TvmPhase,
+        override val stack: TvmStack,
+        val pathNodeAtFailurePoint: PathNode<TvmInst>,
     ) : TvmMethodResult {
         override fun toString(): String =
             if (type == TvmFailureType.UnknownError) {
@@ -63,6 +70,7 @@ sealed interface TvmMethodResult {
     data class TvmSoftFailure(
         val exit: TvmSoftFailureExit,
         override val phase: TvmPhase,
+        override val stack: TvmStack,
     ) : TvmAbstractSoftFailure
 
     sealed interface TvmSoftFailureExit {
@@ -73,6 +81,7 @@ sealed interface TvmMethodResult {
 data class TvmStructuralError(
     val exit: TvmStructuralExit<TvmCellDataTypeRead<*>, TlbBuiltinLabel>,
     override val phase: TvmPhase,
+    override val stack: TvmStack,
 ) : TvmAbstractSoftFailure
 
 data object TvmUsageOfAnycastAddress : TvmMethodResult.TvmSoftFailureExit {

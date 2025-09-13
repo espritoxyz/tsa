@@ -36,7 +36,7 @@ data class TlbStack(
                     GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
                     GuardedResult(
                         emptyRead.not(),
-                        Error(TvmStructuralError(TvmUnexpectedDataReading(loadData.type), state.phase)),
+                        Error(TvmStructuralError(TvmUnexpectedDataReading(loadData.type), state.phase, state.stack)),
                         value = null
                     )
                 )

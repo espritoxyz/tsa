@@ -63,7 +63,19 @@ data object TvmTestResolver {
             outMessages = outMessages,
             rootContract = state.rootContractId,
             contractStatesBefore = contractStatesBefore,
-            additionalInputs = additionalInputs
+            additionalInputs = additionalInputs,
+            eventsList =
+                state.eventsLog.map { entry ->
+                    TvmMessageDrivenContractExecutionTestEntry(
+                        id = entry.id,
+                        executionBegin = entry.executionBegin,
+                        executionEnd = entry.executionEnd,
+                        contractId = entry.contractId,
+                        incomingMessage = stateResolver.resolveReceivedMessage(entry.incomingMessage),
+                        methodResult = stateResolver.resolveResultStackImpl(entry.methodResult),
+                        gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd)
+                    )
+                }
         )
     }
 
@@ -144,6 +156,7 @@ data class TvmSymbolicTest(
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
     val numberOfAddressesWithAssertedDataConstraints: Int, // for testing
+    val eventsList: List<TvmMessageDrivenContractExecutionTestEntry>,
 ) {
     val initialRootContractState: TvmContractState
         get() =

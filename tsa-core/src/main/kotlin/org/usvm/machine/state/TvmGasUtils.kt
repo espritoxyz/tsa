@@ -36,5 +36,5 @@ fun TvmState.consumeDefaultGas(stmt: TvmInst) =
 fun TvmState.consumeGas(stmtGasUsage: Int) = consumeGas(ctx.mkBv(stmtGasUsage))
 
 fun TvmState.consumeGas(stmtGasUsage: UExpr<UBv32Sort>) {
-    gasUsage = gasUsage.add(stmtGasUsage)
+    gasUsageHistory = gasUsageHistory.add(stmtGasUsage)
 }

@@ -56,7 +56,7 @@ class TvmState(
     val emptyRefValue: TvmRefEmptyValue,
     val analysisOfGetMethod: Boolean,
     private var symbolicRefs: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
-    var gasUsage: PersistentList<UExpr<UBv32Sort>>,
+    var gasUsageHistory: PersistentList<UExpr<UBv32Sort>>,
     // TODO codepage
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
     pathConstraints: UPathConstraints<TvmType>,
@@ -90,6 +90,8 @@ class TvmState(
     var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
     var receivedMessage: ReceivedMessage? = null,
+    var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
+    var currentPhaseBeginTime: Int = 0,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -101,6 +103,11 @@ class TvmState(
         forkPoints,
         targets
     ) {
+    val pseudologicalTime: Int
+        get() = gasUsageHistory.size
+    val currentEventId: EventId
+        get() = currentPhaseBeginTime
+
     override val isExceptional: Boolean
         get() =
             stateInitialized &&
@@ -162,7 +169,7 @@ class TvmState(
             entrypoint = entrypoint,
             emptyRefValue = emptyRefValue,
             symbolicRefs = symbolicRefs,
-            gasUsage = gasUsage,
+            gasUsageHistory = gasUsageHistory,
             callStack = callStack.clone(),
             pathConstraints = newPathConstraints,
             memory = newMemory,
@@ -193,7 +200,9 @@ class TvmState(
             additionalInputs = additionalInputs,
             currentInput = currentInput,
             acceptedInputs = acceptedInputs,
-            receivedMessage = receivedMessage
+            receivedMessage = receivedMessage,
+            eventsLog = eventsLog,
+            currentPhaseBeginTime = currentPhaseBeginTime
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -249,6 +258,8 @@ data class TvmContractPosition(
     val executionMemory: TvmContractExecutionMemory,
     // number of entries to fetch from the upper contract (from the point of [TvmState.contractStack]) when it exited
     val stackEntriesToTake: Int,
+    val eventId: EventId,
+    val receivedMessage: ReceivedMessage?,
 )
 
 data class TvmContractExecutionMemory(

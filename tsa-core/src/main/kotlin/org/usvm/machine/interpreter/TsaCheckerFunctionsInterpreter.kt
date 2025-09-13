@@ -222,6 +222,7 @@ class TsaCheckerFunctionsInterpreter(
                                         TvmConcreteGeneralData(),
                                         nextContractId
                                     )
+
                                 ReceiverType.External ->
                                     RecvExternalInput(
                                         this,
@@ -366,7 +367,11 @@ class TsaCheckerFunctionsInterpreter(
                 is NewReceiverInput -> 0
             }
 
-        contractStack = contractStack.add(TvmContractPosition(currentContract, stmt, oldMemory, takeFromNewStack))
+        contractStack =
+            contractStack.add(
+                TvmContractPosition(currentContract, stmt, oldMemory, takeFromNewStack, currentEventId, receivedMessage)
+            )
+        currentPhaseBeginTime = pseudologicalTime
         currentContract = nextContractId
         registersOfCurrentContract = newRegisters
 

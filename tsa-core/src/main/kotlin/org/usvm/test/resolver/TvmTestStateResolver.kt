@@ -44,6 +44,7 @@ import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcConsumedGas
+import org.usvm.machine.state.calcPhaseConsumedGas
 import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
@@ -54,6 +55,8 @@ import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.lastStmt
+import org.usvm.machine.state.messages.OutMessage
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.tvmCellRefsRegion
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellDataBitArrayRead
@@ -219,12 +222,12 @@ class TvmTestStateResolver(
             ?: error("Unexpected $idx parameter value: $value")
     }
 
-    fun resolveResultStack(): TvmMethodSymbolicResult {
-        val results = stack.results
+    fun resolveResultStackImpl(methodResult: TvmMethodResult): TvmMethodSymbolicResult {
+        val results = methodResult.stack?.results ?: error("Missed result for state $state")
 
         // Do not include exit code for exceptional results to the result
         val resultsWithoutExitCode =
-            if (state.methodResult is TvmMethodResult.TvmFailure) {
+            if (methodResult is TvmMethodResult.TvmFailure) {
                 results.dropLast(
                     1
                 )
@@ -233,32 +236,56 @@ class TvmTestStateResolver(
             }
         val resolvedResults = resultsWithoutExitCode.filterNotNull().map { resolveStackValue(it) }
 
-        return when (val it = state.methodResult) {
+        return when (val it = methodResult) {
             TvmMethodResult.NoCall -> error("Missed result for state $state")
             is TvmMethodResult.TvmFailure -> {
-                var node = state.pathNode
+                var node = it.pathNodeAtFailurePoint
                 while (node.statement is TvmArtificialInst) {
                     node = node.parent
                         ?: error("Unexpected execution path without non-artificial instructions")
                 }
 
-                TvmMethodFailure(it, node.statement, it.exit.exitCode, resolvedResults)
+                TvmMethodFailure(methodResult, node.statement, methodResult.exit.exitCode, resolvedResults)
             }
+
             is TvmMethodResult.TvmSuccess -> TvmSuccessfulExecution(it.exit.exitCode, resolvedResults)
             is TvmStructuralError -> resolveTvmStructuralError(state.lastStmt, resolvedResults, it)
             is TvmMethodResult.TvmSoftFailure -> TvmExecutionWithSoftFailure(state.lastStmt, resolvedResults, it)
         }
     }
 
-    fun resolveOutMessages(): List<Pair<ContractId, TvmTestOutMessage>> =
-        state.unprocessedMessages.map { (contractId, message) ->
-            contractId to
-                TvmTestOutMessage(
-                    value = resolveInt257(message.msgValue),
-                    fullMessage = resolveCell(message.fullMsgCell),
-                    bodySlice = resolveSlice(message.msgBodySlice)
+    fun resolveResultStack(): TvmMethodSymbolicResult {
+        val methodResult = state.methodResult
+        return resolveResultStackImpl(methodResult)
+    }
+
+    private fun resolveOutMessage(message: OutMessage): TvmTestOutMessage =
+        TvmTestOutMessage(
+            value = resolveInt257(message.msgValue),
+            fullMessage = resolveCell(message.fullMsgCell),
+            bodySlice = resolveSlice(message.msgBodySlice)
+        )
+
+    fun resolveReceivedMessage(message: ReceivedMessage): TvmTestInput.ReceivedTestMessage =
+        when (message) {
+            is ReceivedMessage.InputMessage ->
+                TvmTestInput.ReceivedTestMessage.InputMessage(
+                    when (val it = message.input) {
+                        is RecvExternalInput -> resolveRecvExternalInput(it)
+                        is RecvInternalInput -> resolveRecvInternalInput(it)
+                    }
+                )
+
+            is ReceivedMessage.MessageFromOtherContract ->
+                TvmTestInput.ReceivedTestMessage.MessageFromOtherContract(
+                    message.sender,
+                    message.receiver,
+                    resolveOutMessage(message.message)
                 )
         }
+
+    fun resolveOutMessages(): List<Pair<ContractId, TvmTestOutMessage>> =
+        state.unprocessedMessages.map { (contractId, message) -> contractId to resolveOutMessage(message) }
 
     fun resolveAdditionalInputs(): Map<Int, TvmTestInput> =
         state.additionalInputs.entries.associate { (inputId, symbolicInput) ->
@@ -281,18 +308,21 @@ class TvmTestStateResolver(
                     TvmUnexpectedDataReading(
                         resolveCellDataType(structuralExit.readingType)
                     )
+
                 is TvmReadingOfUnexpectedType ->
                     TvmReadingOfUnexpectedType(
                         expectedLabel = resolveBuiltinLabel(structuralExit.expectedLabel, structuralExit.typeArgs),
                         typeArgs = emptyList(),
                         actualType = resolveCellDataType(structuralExit.actualType)
                     )
+
                 is TvmUnexpectedEndOfReading -> TvmUnexpectedEndOfReading
                 is TvmUnexpectedRefReading -> TvmUnexpectedRefReading
                 is TvmReadingOutOfSwitchBounds ->
                     TvmReadingOutOfSwitchBounds(
                         resolveCellDataType(structuralExit.readingType)
                     )
+
                 is TvmReadingSwitchWithUnexpectedType ->
                     TvmReadingSwitchWithUnexpectedType(
                         resolveCellDataType(structuralExit.readingType)
@@ -309,15 +339,22 @@ class TvmTestStateResolver(
             val concreteSize = resolveInt(label.bitSize(ctx, args))
             TlbIntegerLabelOfConcreteSize(concreteSize, label.isSigned, label.endian)
         }
+
         is TlbResolvedBuiltinLabel -> {
             label
         }
+
         is TlbBitArrayByRef -> {
             error("Cannot resolve TlbBitArrayByRef")
         }
     }
 
     fun resolveGasUsage(): Int = model.eval(state.calcConsumedGas()).intValue()
+
+    fun resolvePhaseGasUsage(
+        eventBegin: Int,
+        eventEnd: Int,
+    ): Int = model.eval(state.calcPhaseConsumedGas(eventBegin, eventEnd)).intValue()
 
     private fun resolveStackValue(stackValue: TvmStackValue): TvmTestValue =
         when (stackValue) {
@@ -326,16 +363,19 @@ class TvmTestStateResolver(
                 resolveCell(
                     stackValue.cellValue.also { state.ensureSymbolicCellInitialized(it) }
                 )
+
             is TvmStack.TvmStackSliceValue ->
                 resolveSlice(
                     stackValue.sliceValue.also { state.ensureSymbolicSliceInitialized(it) }
                 )
+
             is TvmStack.TvmStackBuilderValue ->
                 resolveBuilder(
                     stackValue.builderValue.also {
                         state.ensureSymbolicBuilderInitialized(it)
                     }
                 )
+
             is TvmStack.TvmStackNullValue -> TvmTestNullValue
             is TvmStack.TvmStackContinuationValue -> TODO()
             is TvmStackTupleValue -> resolveTuple(stackValue)
@@ -366,6 +406,7 @@ class TvmTestStateResolver(
 
                 TvmTestTupleValue(elements)
             }
+
             is TvmStack.TvmStackTupleValueInputValue -> {
                 val size = resolveInt(tuple.size)
                 val elements =
@@ -484,9 +525,11 @@ class TvmTestStateResolver(
             is TvmParameterInfo.UnknownCellInfo -> {
                 TvmTestDataCellValue()
             }
+
             is TvmParameterInfo.DictCellInfo -> {
                 getDefaultDict(cellInfo.keySize)
             }
+
             is TvmParameterInfo.DataCellInfo -> {
                 val label = cellInfo.dataCellStructure
                 val defaultValue =
@@ -565,6 +608,7 @@ class TvmTestStateResolver(
                         resolveRefUpdates(updateNode.updates, storedRefs, refsLength)
                     }
                 }
+
                 is TvmRefsMemoryRegion.TvmRefsRegionPinpointUpdateNode -> {
                     val guardValue = evaluateInModel(updateNode.guard)
                     if (guardValue.isTrue) {
@@ -604,6 +648,7 @@ class TvmTestStateResolver(
                     type.isSigned,
                     type.endian
                 )
+
             is TvmCellMaybeConstructorBitRead -> TvmTestCellDataMaybeConstructorBitRead
             is TvmCellDataBitArrayRead -> TvmTestCellDataBitArrayRead(resolveInt(type.sizeBits))
             is TvmCellDataMsgAddrRead -> TvmTestCellDataMsgAddrRead
