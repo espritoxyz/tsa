@@ -278,6 +278,7 @@ fun TvmState.calcConsumedGas(): UExpr<TvmSizeSort> =
     gasUsageHistory.fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value) }
 
 /**
+ * @property eventBegin is the beginning time of the event (see docs of [TvmMessageDrivenContractExecutionEntry])
  * @property eventEnd is an exclusive end boundary of `gasUsageHistory`.
  * After execution of the control-changing instruction X, we have already appended the
  * gas that accounts for X instruction, and we write `gasUsageHistory.size` as the previous event end

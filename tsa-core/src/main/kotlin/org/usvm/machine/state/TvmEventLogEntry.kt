@@ -28,7 +28,10 @@ sealed interface TvmEventLogEntry {
 /**
  * This class is only reasonable within the context of the state where the entry occurred.
  * For example, the gas usage history would be evaluated as
- * `state.gasUsageHistory(executionBegin, executionEnd)`
+ * `state.gasUsageHistory(executionBegin, executionEnd)`.
+ * @property executionBegin is the beginning time of the event, where the time is measured as the
+ * number of already executed instructions within this state.
+ * @see TvmState.pseudologicalTime
  */
 data class TvmMessageDrivenContractExecutionEntry(
     override val id: EventId,
