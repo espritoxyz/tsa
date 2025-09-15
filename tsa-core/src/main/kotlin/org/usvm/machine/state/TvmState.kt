@@ -7,8 +7,6 @@ import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
-import org.ton.bytecode.TsaArtificialActionPhaseInst
-import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmDisasmCodeBlock
 import org.ton.bytecode.TvmInst
