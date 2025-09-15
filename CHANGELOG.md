@@ -7,6 +7,7 @@
 - Logging contract events (compute phase results for each received message)
 - Several optimizations and fixes in core
 - Implemented `STONES` instruction
+- Fixed printing slices in SARIF report
 
 ## v0.4.24-dev - v0.4.25-dev
 
