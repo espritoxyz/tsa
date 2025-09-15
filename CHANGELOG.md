@@ -1,5 +1,13 @@
 # TSA Changelog
 
+## v0.4.25-dev - v0.4.26-dev
+
+- CLI option `--continue-on-contract-exception`
+- Implemented bouncing of messages
+- Logging contract events (compute phase results for each received message)
+- Several optimizations and fixes in core
+- Implemented `STONES` instruction
+
 ## v0.4.24-dev - v0.4.25-dev
 
 - Checker function `tsa_send_external_message`
