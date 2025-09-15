@@ -7,8 +7,6 @@ import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
-import org.ton.bytecode.TsaArtificialActionPhaseInst
-import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmDisasmCodeBlock
 import org.ton.bytecode.TvmInst
@@ -108,15 +106,7 @@ class TvmState(
     val currentEventId: EventId
         get() = currentPhaseBeginTime
 
-    override val isExceptional: Boolean
-        get() =
-            stateInitialized &&
-                lastStmt.let {
-                    it is TsaArtificialActionPhaseInst &&
-                        it.computePhaseResult.isExceptional() ||
-                        it is TsaArtificialExitInst &&
-                        it.result.isExceptional()
-                }
+    override var isExceptional: Boolean = false
 
     val isTerminated: Boolean
         get() = phase == TERMINATED
@@ -211,6 +201,7 @@ class TvmState(
             newState.contractIdToC4Register = contractIdToC4Register
             newState.stack = stack.clone()
             newState.initialInput = initialInput
+            newState.isExceptional = isExceptional
         }
     }
 

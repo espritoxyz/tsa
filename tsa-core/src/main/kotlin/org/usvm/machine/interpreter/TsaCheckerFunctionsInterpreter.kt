@@ -396,7 +396,7 @@ class TsaCheckerFunctionsInterpreter(
         stackOperations: StackOperations,
         newInput: ReceiverInput?,
         nextContractId: Int,
-    ): Unit? =
+    ): Unit =
         with(scope.ctx) {
             when (stackOperations) {
                 is SimpleStackOperations -> {

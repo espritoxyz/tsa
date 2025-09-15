@@ -81,6 +81,10 @@ class TvmStepScopeManager(
         blockOnTrueState: TvmState.() -> Unit = {},
         blockOnFalseState: TvmState.() -> Unit = {},
     ): Unit? {
+        check(!originalState.isExceptional) {
+            "Cannot fork on exceptional state"
+        }
+
         if (falseStateIsExceptional && !allowFailuresOnCurrentStep && originalState.c2IsDefault()) {
             return assert(condition)?.run {
                 originalState.blockOnTrueState()
@@ -144,6 +148,10 @@ class TvmStepScopeManager(
         givenConditionsWithActions: List<ActionOnCondition<T>>,
         doForAllBlock: TvmStepScopeManager.(T) -> Unit,
     ) {
+        check(!originalState.isExceptional) {
+            "Cannot perform [doWithConditions] on exceptional state"
+        }
+
         val conditionsWithActions =
             if (!allowFailuresOnCurrentStep && originalState.c2IsDefault()) {
                 givenConditionsWithActions.filter { !it.caseIsExceptional }

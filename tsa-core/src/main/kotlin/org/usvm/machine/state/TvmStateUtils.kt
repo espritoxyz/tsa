@@ -101,13 +101,17 @@ fun TvmContext.setFailure(
         }
     }
 
-fun TvmState.setExit(methodResult: TvmMethodResult) =
+fun TvmState.setExit(methodResult: TvmMethodResult) {
+    if (methodResult.isExceptional()) {
+        isExceptional = true
+    }
     when (phase) {
         COMPUTE_PHASE -> newStmt(TsaArtificialActionPhaseInst(methodResult, lastStmt.location))
         ACTION_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
         BOUNCE_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
         else -> error("Unexpected exit on phase: $phase")
     }
+}
 
 fun <R> TvmStepScopeManager.calcOnStateCtx(block: context(TvmContext) TvmState.() -> R): R =
     calcOnState {

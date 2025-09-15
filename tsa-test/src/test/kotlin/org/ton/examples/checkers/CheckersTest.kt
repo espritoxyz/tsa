@@ -2,11 +2,13 @@ package org.ton.examples.checkers
 
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
-import org.ton.bytecode.TsaContractCode
 import org.ton.cell.Cell
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.extractCheckerContractFromResource
+import org.ton.test.utils.extractCommunicationSchemeFromResource
+import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.getAddressBits
 import org.ton.test.utils.propertiesFound
@@ -199,26 +201,6 @@ class CheckersTest {
             tests,
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 }
         )
-    }
-
-    private fun extractCheckerContractFromResource(checkerResourcePath: String): TsaContractCode {
-        val checkerPath = extractResource(checkerResourcePath)
-        val checkerContract = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
-        return checkerContract
-    }
-
-    private fun extractFuncContractFromResource(contractResourcePath: String): TsaContractCode {
-        val contractPath = extractResource(contractResourcePath)
-        val checkerContract = getFuncContract(contractPath, FIFT_STDLIB_RESOURCE)
-        return checkerContract
-    }
-
-    private fun extractCommunicationSchemeFromResource(
-        communicationSchemeResourcePath: String,
-    ): Map<ContractId, TvmContractHandlers> {
-        val communicationSchemePath = extractResource(communicationSchemeResourcePath)
-        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
-        return communicationScheme
     }
 
     @Test

@@ -130,6 +130,12 @@ class TvmArtificialInstInterpreter(
                 lastCommitedStateOfContracts[currentContract]
             }
 
+        // temporarily remove isExceptional mark for further processing
+        val oldIsExceptional = scope.calcOnState { isExceptional }
+        scope.doWithState {
+            isExceptional = false
+        }
+
         val analysisOfGetMethod = scope.calcOnState { analysisOfGetMethod }
 
         if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis) {
@@ -142,6 +148,7 @@ class TvmArtificialInstInterpreter(
         }
 
         scope.doWithState {
+            isExceptional = isExceptional || oldIsExceptional
             newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
         }
     }
@@ -159,7 +166,8 @@ class TvmArtificialInstInterpreter(
         result: TvmMethodResult,
         stmt: TsaArtificialBouncePhaseInst,
     ) {
-        if (scope.ctx.tvmOptions.stopOnFirstError) {
+        val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
+        if (scope.ctx.tvmOptions.stopOnFirstError || isTsaChecker) {
             // sending bounced messages is only considered when the message handling ended with an exception
             // if we stop on the first error, the potential bouncing won't be considered
             scope.doWithState {
@@ -167,6 +175,12 @@ class TvmArtificialInstInterpreter(
             }
             return
         }
+
+        scope.doWithState {
+            // unmark state as exceptional
+            isExceptional = false
+        }
+
         scope.calcOnState {
             with(ctx) {
                 if (result is TvmFailure) {
@@ -191,7 +205,7 @@ class TvmArtificialInstInterpreter(
                             ?: return@with
                     scope.fork(
                         isBounceable.neq(zeroCellValue),
-                        falseStateIsExceptional = true,
+                        falseStateIsExceptional = false,
                         blockOnTrueState = {
                             messageQueue =
                                 messageQueue.add(
@@ -427,8 +441,7 @@ class TvmArtificialInstInterpreter(
             }
 
             val (prevContractId, prevInst, prevMem, expectedNumberOfOutputItems, eventId, receivedMessage) =
-                contractStack
-                    .last()
+                contractStack.last()
             this.receivedMessage = receivedMessage
 
             // update global c4 and c7
