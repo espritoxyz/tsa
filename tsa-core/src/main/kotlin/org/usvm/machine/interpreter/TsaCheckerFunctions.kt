@@ -9,8 +9,17 @@ const val SEND_INTERNAL_MESSAGE_ID = 6
 const val GET_C4_METHOD_ID = 7
 const val SEND_EXTERNAL_MESSAGE_ID = 8
 
+/**
+ * Were calculated using python script:
+ * ```
+ * int(pytoniq_core.crc.crc16(b"<method_name>").hex(), base=16) | 65536
+ * ```
+ * Represent the method id of the same-named method in FunC.
+ * See [TON docs](https://docs.ton.org/v3/documentation/smart-contracts/func/docs/functions)
+ */
 const val ON_INTERNAL_MESSAGE_METHOD_ID = 65621
 const val ON_EXTERNAL_MESSAGE_METHOD_ID = 97889
+const val ON_OUT_MESSAGE_METHOD_ID = 71561
 
 const val MK_SYMBOLIC_INT_METHOD_ID = 100
 

@@ -2,6 +2,7 @@ package org.ton.examples.checkers
 
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
+import org.ton.bytecode.TsaContractCode
 import org.ton.cell.Cell
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
@@ -23,6 +24,7 @@ import org.usvm.machine.getTactContract
 import org.usvm.machine.state.ContractId
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmMethodSymbolicResult
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestInput
@@ -64,6 +66,13 @@ class CheckersTest {
     private object TransactionRollBackTestData {
         const val SENDER = "/checkers/transaction-rollback/sender-checker.fc"
         const val RECEIVER = "/checkers/transaction-rollback/receiver.fc"
+    }
+
+    private object OnOutMessageTestData {
+        val checker = "/checkers/on-out-message-test/checker.fc"
+        val sender = "/checkers/on-out-message-test/sender.fc"
+        val receiver = "/checkers/on-out-message-test/receiver.fc"
+        val communicationScheme = "/checkers/on-out-message-test/communication-scheme.json"
     }
 
     @Test
@@ -201,6 +210,58 @@ class CheckersTest {
             tests,
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
         )
+    }
+
+    @Test
+    fun `on_out_message gets called`() {
+        val checkerContract = extractCheckerContractFromResource(OnOutMessageTestData.checker)
+        val senderContract = extractFuncContractFromResource(OnOutMessageTestData.sender)
+        val receiverContract = extractFuncContractFromResource(OnOutMessageTestData.receiver)
+        val communicationScheme = extractCommunicationSchemeFromResource(OnOutMessageTestData.communicationScheme)
+        val options = createIntercontractOptions(communicationScheme)
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract, receiverContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.eventsList.all { it.methodResult.exitCode() !in listOf(300, 301) } },
+        )
+        propertiesFound(
+            tests,
+            listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 400 } },
+        )
+    }
+
+    private fun TvmMethodSymbolicResult.exitCode(): Int =
+        when (this) {
+            is TvmSuccessfulExecution -> exitCode
+            is TvmMethodFailure -> exitCode
+            else -> error("Soft failure in a test")
+        }
+
+    private fun extractCheckerContractFromResource(checkerResourcePath: String): TsaContractCode {
+        val checkerPath = extractResource(checkerResourcePath)
+        val checkerContract = getFuncContract(checkerPath, FIFT_STDLIB_RESOURCE, isTSAChecker = true)
+        return checkerContract
+    }
+
+    private fun extractFuncContractFromResource(contractResourcePath: String): TsaContractCode {
+        val contractPath = extractResource(contractResourcePath)
+        val checkerContract = getFuncContract(contractPath, FIFT_STDLIB_RESOURCE)
+        return checkerContract
+    }
+
+    private fun extractCommunicationSchemeFromResource(
+        communicationSchemeResourcePath: String,
+    ): Map<ContractId, TvmContractHandlers> {
+        val communicationSchemePath = extractResource(communicationSchemeResourcePath)
+        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
+        return communicationScheme
     }
 
     @Test

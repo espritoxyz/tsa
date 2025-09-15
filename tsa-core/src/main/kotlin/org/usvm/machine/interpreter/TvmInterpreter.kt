@@ -4,6 +4,7 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentMap
 import mu.KLogging
 import org.ton.TlbBasicMsgAddrLabel
@@ -445,6 +446,7 @@ class TvmInterpreter(
                         ?: error("First element of c7 for contract $it not found")
                 TvmInitialStateData(c4.value.value, c7)
             }
+        state.contractIdToC7 = persistentMapOf()
 
         prepareMemoryForInitialState(state, startContractId)
 

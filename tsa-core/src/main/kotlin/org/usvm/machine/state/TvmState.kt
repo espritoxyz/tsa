@@ -115,6 +115,7 @@ class TvmState(
     lateinit var registersOfCurrentContract: TvmRegisters
     lateinit var contractIdToC4Register: PersistentMap<ContractId, C4Register>
     lateinit var contractIdToFirstElementOfC7: PersistentMap<ContractId, TvmStackTupleValueConcreteNew>
+    lateinit var contractIdToC7: PersistentMap<ContractId, C7Register>
     lateinit var contractIdToInitialData: Map<ContractId, TvmInitialStateData>
     lateinit var stack: TvmStack
     lateinit var initialInput: TvmInput
@@ -197,6 +198,7 @@ class TvmState(
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
             newState.contractIdToFirstElementOfC7 = contractIdToFirstElementOfC7
+            newState.contractIdToC7 = contractIdToC7
             newState.registersOfCurrentContract = registersOfCurrentContract.clone()
             newState.contractIdToC4Register = contractIdToC4Register
             newState.stack = stack.clone()
@@ -243,11 +245,14 @@ data class TvmCommitedState(
     val c5: C5Register,
 )
 
+/**
+ * @param inst is the first instruction to be executed when we pop the `TvmContractPosition` from the stack
+ * @param stackEntriesToTake number of entries to fetch from the upper contract (from the point of [TvmState.contractStack]) when it exited
+ */
 data class TvmContractPosition(
     val contractId: ContractId,
     val inst: TvmInst,
     val executionMemory: TvmContractExecutionMemory,
-    // number of entries to fetch from the upper contract (from the point of [TvmState.contractStack]) when it exited
     val stackEntriesToTake: Int,
     val eventId: EventId,
     val receivedMessage: ReceivedMessage?,

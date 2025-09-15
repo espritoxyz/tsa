@@ -28,12 +28,15 @@ import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.EXIT_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.addSlice
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderToCell
+import org.usvm.machine.state.callCheckerMethod
 import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
@@ -127,18 +130,32 @@ class TvmArtificialInstInterpreter(
         }
     }
 
+    fun <T> List<T>.splitHeadTail(): Pair<T, List<T>>? = if (isEmpty()) null else first() to drop(1)
+
     private fun visitOnOutMessageHack(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialOnOutMessageHackInst,
     ) {
         scope.doWithState {
-            val nextInst =
-                if (stmt.sentMessages.isNotEmpty()) {
-                    stmt.copy(sentMessages = stmt.sentMessages.drop(1))
-                } else {
-                    TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location)
+            if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
+                newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
+                return@doWithState
+            }
+            val (head, tail) =
+                stmt.sentMessages.splitHeadTail() ?: return@doWithState run {
+                    newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
                 }
-            newStmt(nextInst)
+            val nextInst = stmt.copy(sentMessages = tail)
+            with(ctx) {
+                stack.addCell(head.fullMsgCell)
+                stack.addSlice(head.msgBodySlice)
+                stack.addInt(currentContract.toBv257())
+            }
+
+            callCheckerMethod(ON_OUT_MESSAGE_METHOD_ID.toBigInteger(), nextInst, contractsCode)
+                ?: return@doWithState run {
+                    newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
+                }
         }
     }
 
@@ -336,12 +353,20 @@ class TvmArtificialInstInterpreter(
                         ),
                     )
             }
-            if (tvmOptions.intercontractOptions.isIntercontractEnabled && !messageQueue.isEmpty()) {
+            val checkerContractId =
+                contractsCode
+                    .mapIndexedNotNull { index, code ->
+                        if (code.isContractWithTSACheckerFunctions) index else null
+                    }.singleOrNull() ?: -1
+            val isReturnFromHandler = contractStack.isNotEmpty() && contractStack.last().contractId != checkerContractId
+            if (isReturnFromHandler) {
+                processContractStackReturn(scope, stmt.result)
+            } else if (tvmOptions.intercontractOptions.isIntercontractEnabled && !messageQueue.isEmpty()) {
                 currentPhaseBeginTime = pseudologicalTime
                 processIntercontractExit(scope, stmt.result)
             } else {
                 // currentPhaseBegin will be lifted from contract stack
-                processCheckerExit(scope, stmt.result)
+                processContractStackReturn(scope, stmt.result)
             }
         }
     }
@@ -446,7 +471,7 @@ class TvmArtificialInstInterpreter(
         return messageDestinations.map { it.second }
     }
 
-    private fun processCheckerExit(
+    private fun processContractStackReturn(
         scope: TvmStepScopeManager,
         result: TvmMethodResult,
     ) {
@@ -464,8 +489,9 @@ class TvmArtificialInstInterpreter(
                 return@doWithState
             }
 
-            val (prevContractId, prevInst, prevMem, expectedNumberOfOutputItems, eventId, receivedMessage) =
-                contractStack.last()
+            val (prevContractId, currentInst, prevMem, expectedNumberOfOutputItems, eventId, receivedMessage) =
+                contractStack
+                    .last()
             this.receivedMessage = receivedMessage
 
             // update global c4 and c7
@@ -486,9 +512,13 @@ class TvmArtificialInstInterpreter(
                 prevStack.clone() // we should not touch stack from contractStack, as it is contained in other states
             stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
             registersOfCurrentContract = prevMem.registers.clone() // like for stack, we shouldn't touch registers
+            val storedC7 = contractIdToC7.get(currentContract)
+            if (storedC7 != null && contractsCode[currentContract].isContractWithTSACheckerFunctions) {
+                registersOfCurrentContract.c7 = storedC7
+            }
             currentPhaseBeginTime = eventId
             phase = COMPUTE_PHASE
-            newStmt(prevInst.nextStmt())
+            newStmt(currentInst)
         }
     }
 }
