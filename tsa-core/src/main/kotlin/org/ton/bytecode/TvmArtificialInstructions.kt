@@ -3,6 +3,7 @@ package org.ton.bytecode
 import kotlinx.serialization.Serializable
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
 import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.messages.OutMessage
 
 sealed interface TsaArtificialInst : TvmArtificialInst
 
@@ -39,6 +40,18 @@ data class TsaArtificialActionPhaseInst(
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_action_phase"
+
+    init {
+        checkLocationInitialized()
+    }
+}
+
+data class TsaArtificialOnOutMessageHackInst(
+    val computePhaseResult: TvmMethodResult,
+    override val location: TvmInstLocation,
+    val sentMessages: List<OutMessage>,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "on_out_message_hack"
 
     init {
         checkLocationInitialized()

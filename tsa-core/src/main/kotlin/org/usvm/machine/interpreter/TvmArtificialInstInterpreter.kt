@@ -10,6 +10,7 @@ import org.ton.bytecode.TsaArtificialImplicitRetInst
 import org.ton.bytecode.TsaArtificialInst
 import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TsaArtificialLoopEntranceInst
+import org.ton.bytecode.TsaArtificialOnOutMessageHackInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
 import org.usvm.machine.TvmContext
@@ -95,6 +96,11 @@ class TvmArtificialInstInterpreter(
                 scope.callContinuation(stmt, stmt.cont)
             }
 
+            is TsaArtificialOnOutMessageHackInst -> {
+                scope.consumeDefaultGas(stmt)
+                visitOnOutMessageHack(scope, stmt)
+            }
+
             is TsaArtificialActionPhaseInst -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -121,6 +127,21 @@ class TvmArtificialInstInterpreter(
         }
     }
 
+    private fun visitOnOutMessageHack(
+        scope: TvmStepScopeManager,
+        stmt: TsaArtificialOnOutMessageHackInst,
+    ) {
+        scope.doWithState {
+            val nextInst =
+                if (stmt.sentMessages.isNotEmpty()) {
+                    stmt.copy(sentMessages = stmt.sentMessages.drop(1))
+                } else {
+                    TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location)
+                }
+            newStmt(nextInst)
+        }
+    }
+
     private fun visitActionPhaseInst(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialActionPhaseInst,
@@ -137,19 +158,19 @@ class TvmArtificialInstInterpreter(
         }
 
         val analysisOfGetMethod = scope.calcOnState { analysisOfGetMethod }
-
+        var sentMessages = listOf<OutMessage>()
         if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis) {
             scope.doWithState {
                 phase = ACTION_PHASE
             }
 
-            processNewMessages(scope, commitedState)
+            sentMessages = processNewMessages(scope, commitedState)
                 ?: return
         }
 
         scope.doWithState {
             isExceptional = isExceptional || oldIsExceptional
-            newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
+            newStmt(TsaArtificialOnOutMessageHackInst(stmt.computePhaseResult, lastStmt.location, sentMessages))
         }
     }
 
@@ -397,10 +418,13 @@ class TvmArtificialInstInterpreter(
         switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
     }
 
+    /**
+     * @return sent messages
+     */
     private fun processNewMessages(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
-    ): Unit? {
+    ): List<OutMessage>? {
         val (newUnprocessedMessages, messageDestinations) =
             transactionInterpreter.parseActionsToDestinations(scope, commitedState)
                 ?: return null
@@ -419,7 +443,7 @@ class TvmArtificialInstInterpreter(
             unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
         }
 
-        return Unit
+        return messageDestinations.map { it.second }
     }
 
     private fun processCheckerExit(
