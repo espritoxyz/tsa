@@ -108,24 +108,7 @@ class TvmState(
     val currentEventId: EventId
         get() = currentPhaseBeginTime
 
-    override val isExceptional: Boolean
-        get() =
-            stateInitialized &&
-                lastStmt.let {
-                    it is TsaArtificialActionPhaseInst &&
-                        it.computePhaseResult.isExceptional() ||
-                        it is TsaArtificialExitInst &&
-                        it.result.isExceptional()
-                }
-    val isExceptionalAndFinished: Boolean
-        get() =
-            stateInitialized &&
-                lastStmt.let {
-                    it is TsaArtificialActionPhaseInst &&
-                        it.computePhaseResult is TvmMethodResult.TvmAbstractSoftFailure ||
-                        it is TsaArtificialExitInst &&
-                        it.result.isExceptional()
-                }
+    override var isExceptional: Boolean = false
 
     val isTerminated: Boolean
         get() = phase == TERMINATED
@@ -220,6 +203,7 @@ class TvmState(
             newState.contractIdToC4Register = contractIdToC4Register
             newState.stack = stack.clone()
             newState.initialInput = initialInput
+            newState.isExceptional = isExceptional
         }
     }
 
