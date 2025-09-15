@@ -68,11 +68,11 @@ data class ConstTlbStackFrame(
                                 TvmStructuralError(
                                     TvmReadingSwitchWithUnexpectedType(loadData.type),
                                     state.phase,
-                                    state.stack
-                                )
+                                    state.stack,
+                                ),
                             ),
-                            value = null
-                        )
+                            value = null,
+                        ),
                     )
                 }
 
@@ -82,7 +82,7 @@ data class ConstTlbStackFrame(
                     state.ctx,
                     nextStruct,
                     path,
-                    leftTlbDepth
+                    leftTlbDepth,
                 )?.let {
                     NextFrame(it)
                 } ?: EndOfStackFrame
@@ -94,15 +94,15 @@ data class ConstTlbStackFrame(
                     GuardedResult(
                         mkSizeLtExpr(readSize, leftBits),
                         NextFrame(
-                            ConstTlbStackFrame(data, nextStruct, mkSizeAddExpr(offset, readSize), path, leftTlbDepth)
+                            ConstTlbStackFrame(data, nextStruct, mkSizeAddExpr(offset, readSize), path, leftTlbDepth),
                         ),
-                        value
+                        value,
                     ),
                     GuardedResult(
                         readSize eq leftBits,
                         stepResult,
-                        value
-                    )
+                        value,
+                    ),
                 )
 
             if (loadData.type is TvmCellDataBitArrayRead) {
@@ -112,11 +112,11 @@ data class ConstTlbStackFrame(
                         PassLoadToNextFrame(
                             LimitedLoadData(
                                 loadData.cellAddress,
-                                TvmCellDataBitArrayRead(mkSizeSubExpr(readSize, leftBits)).uncheckedCast()
-                            )
+                                TvmCellDataBitArrayRead(mkSizeSubExpr(readSize, leftBits)).uncheckedCast(),
+                            ),
                         ),
-                        value = null
-                    )
+                        value = null,
+                    ),
                 )
             } else {
                 result.add(
@@ -126,11 +126,11 @@ data class ConstTlbStackFrame(
                             TvmStructuralError(
                                 TvmReadingOutOfSwitchBounds(loadData.type),
                                 state.phase,
-                                state.stack
-                            )
+                                state.stack,
+                            ),
                         ),
-                        value = null
-                    )
+                        value = null,
+                    ),
                 )
             }
 
@@ -152,7 +152,7 @@ data class ConstTlbStackFrame(
             TlbStack.ConcreteReadInfo(
                 read.address,
                 read.resolver,
-                read.leftBits - data.length
+                read.leftBits - data.length,
             )
         val further = buildFrameForStructure(read.resolver.state.ctx, nextStruct, path, leftTlbDepth)
         val newFrames = further?.let { listOf(it) } ?: emptyList()

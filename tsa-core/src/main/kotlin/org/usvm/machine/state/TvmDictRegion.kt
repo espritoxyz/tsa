@@ -169,7 +169,7 @@ fun TvmState.initializeConcreteDict(
                 setContent,
                 trueExpr,
                 ownership,
-                makeDisjointCheck = false
+                makeDisjointCheck = false,
             )
 
         memory.setRegion(setRegionId, newRegion)

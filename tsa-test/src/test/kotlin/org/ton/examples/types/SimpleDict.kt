@@ -22,7 +22,7 @@ class SimpleDict {
         val results =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
-                tvmOptions = testOptionsToAnalyzeSpecificMethod
+                tvmOptions = testOptionsToAnalyzeSpecificMethod,
             )
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -36,7 +36,7 @@ class SimpleDict {
                 val someCell = param.cell
                 val anotherCell = someCell.refs.firstOrNull() ?: return@listOf false
                 anotherCell is TvmTestDictCellValue
-            }
+            },
         )
     }
 }

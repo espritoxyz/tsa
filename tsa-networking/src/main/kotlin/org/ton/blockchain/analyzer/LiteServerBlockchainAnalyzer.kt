@@ -14,7 +14,7 @@ class LiteServerBlockchainAnalyzer(
     override val infoExtractor: LiteServerBlockchainInfoExtractor =
         LiteServerBlockchainInfoExtractor(
             pathToTonLibJson,
-            pathToConfig
+            pathToConfig,
         )
 
     override fun processLibraryCells(jettonContractInfo: JettonContractInfo): JettonContractInfo {

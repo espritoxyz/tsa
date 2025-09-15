@@ -34,7 +34,7 @@ class BalanceTransferTest {
             TvmOptions(
                 intercontractOptions = IntercontractOptions(communicationScheme),
                 turnOnTLBParsingChecks = false,
-                enableOutMessageAnalysis = true
+                enableOutMessageAnalysis = true,
             )
 
         // Count wallet contract twice to distinguish between different accounts
@@ -44,7 +44,7 @@ class BalanceTransferTest {
                 contracts,
                 startContractId = 0, // Checker contract is the first to analyze
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = options
+                options = options,
             )
         val failures = result.tests.filter { it.result is TvmMethodFailure }
         val nonTransferredBalanceExecution = failures.single { (it.result as TvmMethodFailure).exitCode == 257 }

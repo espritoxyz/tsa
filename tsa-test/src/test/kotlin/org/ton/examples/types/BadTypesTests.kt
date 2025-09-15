@@ -23,7 +23,7 @@ class BadTypesTests {
             compileAndAnalyzeFift(
                 fiftResourcePath,
                 methodsBlackList = setOf(BigInteger.ZERO),
-                tvmOptions = testOptionsToAnalyzeSpecificMethod
+                tvmOptions = testOptionsToAnalyzeSpecificMethod,
             )
 
         assertEquals(1, symbolicResult.testSuites.size)

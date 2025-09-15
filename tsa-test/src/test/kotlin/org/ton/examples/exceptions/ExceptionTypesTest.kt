@@ -33,15 +33,15 @@ class ExceptionTypesTest {
             testSuite,
             listOf { test ->
                 (test.result as? TvmMethodFailure)?.failure?.type != TvmFailureType.FixedStructuralError
-            }
+            },
         )
 
         propertiesFound(
             testSuite,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.RealError },
-                { test -> test.result is TvmSuccessfulExecution }
-            )
+                { test -> test.result is TvmSuccessfulExecution },
+            ),
         )
     }
 
@@ -52,7 +52,7 @@ class ExceptionTypesTest {
         val results =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
-                tvmOptions = testOptionsToAnalyzeSpecificMethod
+                tvmOptions = testOptionsToAnalyzeSpecificMethod,
             )
         assertEquals(1, results.testSuites.size)
         val testSuite = results.testSuites.first()
@@ -67,16 +67,16 @@ class ExceptionTypesTest {
                     val isEmpty = param.data.isEmpty() && param.refs.isEmpty()
                     !isEmpty || (test.result as? TvmMethodFailure)?.failure?.type != TvmFailureType.FixedStructuralError
                 },
-                { test -> test.result !is TvmSuccessfulExecution }
-            )
+                { test -> test.result !is TvmSuccessfulExecution },
+            ),
         )
 
         propertiesFound(
             testSuite,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.FixedStructuralError },
-                { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.RealError }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.RealError },
+            ),
         )
     }
 
@@ -93,15 +93,15 @@ class ExceptionTypesTest {
             listOf { test ->
                 val type = (test.result as? TvmMethodFailure)?.failure?.type
                 type != TvmFailureType.RealError && type != TvmFailureType.UnknownError
-            }
+            },
         )
 
         propertiesFound(
             testSuite,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.FixedStructuralError },
-                { test -> test.result is TvmSuccessfulExecution }
-            )
+                { test -> test.result is TvmSuccessfulExecution },
+            ),
         )
     }
 
@@ -118,7 +118,7 @@ class ExceptionTypesTest {
             listOf { test ->
                 val type = (test.result as? TvmMethodFailure)?.failure?.type
                 type != TvmFailureType.RealError && type != TvmFailureType.UnknownError
-            }
+            },
         )
 
         propertiesFound(
@@ -126,8 +126,8 @@ class ExceptionTypesTest {
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.FixedStructuralError },
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.SymbolicStructuralError },
-                { test -> test.result is TvmSuccessfulExecution }
-            )
+                { test -> test.result is TvmSuccessfulExecution },
+            ),
         )
     }
 
@@ -144,15 +144,15 @@ class ExceptionTypesTest {
             listOf { test ->
                 val type = (test.result as? TvmMethodFailure)?.failure?.type
                 type != TvmFailureType.RealError && type != TvmFailureType.UnknownError
-            }
+            },
         )
 
         propertiesFound(
             testSuite,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.FixedStructuralError },
-                { test -> test.result is TvmSuccessfulExecution }
-            )
+                { test -> test.result is TvmSuccessfulExecution },
+            ),
         )
     }
 
@@ -169,7 +169,7 @@ class ExceptionTypesTest {
             listOf { test ->
                 val type = (test.result as? TvmMethodFailure)?.failure?.type
                 type != TvmFailureType.UnknownError
-            }
+            },
         )
 
         propertiesFound(
@@ -177,8 +177,8 @@ class ExceptionTypesTest {
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.FixedStructuralError },
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.RealError },
-                { test -> test.result is TvmSuccessfulExecution }
-            )
+                { test -> test.result is TvmSuccessfulExecution },
+            ),
         )
     }
 
@@ -195,8 +195,8 @@ class ExceptionTypesTest {
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.FixedStructuralError },
                 { test -> (test.result as? TvmMethodFailure)?.failure?.type == TvmFailureType.RealError },
-                { test -> test.result is TvmSuccessfulExecution }
-            )
+                { test -> test.result is TvmSuccessfulExecution },
+            ),
         )
     }
 }

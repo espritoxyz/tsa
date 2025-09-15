@@ -121,7 +121,7 @@ internal inline fun <Sort : USort> UHeapRef.mapWithStaticAsConcrete(
         concreteMapper,
         staticMapper = concreteMapper,
         symbolicMapper,
-        ignoreNullRefs
+        ignoreNullRefs,
     )
 
 internal fun <SetType, KeySort : USort, Reg : Region<Reg>> UWritableMemory<*>.setUnion(

@@ -14,7 +14,7 @@ fun checkOutOfRange(
         falseStateIsExceptional = true,
         blockOnFalseState = {
             ctx.throwIntegerOutOfRangeError(this)
-        }
+        },
     )
 
 fun checkOutOfRange(
@@ -28,7 +28,7 @@ fun checkOutOfRange(
     scope.fork(
         cond,
         falseStateIsExceptional = true,
-        blockOnFalseState = throwIntegerOutOfRangeError
+        blockOnFalseState = throwIntegerOutOfRangeError,
     )
 }
 
@@ -39,7 +39,7 @@ fun checkOverflow(
     scope.fork(
         noOverflowExpr,
         falseStateIsExceptional = true,
-        blockOnFalseState = { ctx.throwIntegerOverflowError(this) }
+        blockOnFalseState = { ctx.throwIntegerOverflowError(this) },
     )
 
 fun checkUnderflow(
@@ -49,5 +49,5 @@ fun checkUnderflow(
     scope.fork(
         noUnderflowExpr,
         falseStateIsExceptional = true,
-        blockOnFalseState = { ctx.throwIntegerOverflowError(this) }
+        blockOnFalseState = { ctx.throwIntegerOverflowError(this) },
     )

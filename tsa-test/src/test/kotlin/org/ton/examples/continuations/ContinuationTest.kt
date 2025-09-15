@@ -55,7 +55,7 @@ class ContinuationTest {
             compileAndAnalyzeFift(
                 fiftResourcePath,
                 methodsBlackList = setOf(BigInteger.ZERO, someThrowingMethodId),
-                tvmOptions = testOptionsToAnalyzeSpecificMethod
+                tvmOptions = testOptionsToAnalyzeSpecificMethod,
             )
 
         // We have analyzed just one method, retrieve its executions
@@ -111,8 +111,8 @@ class ContinuationTest {
                         op != BigInteger.valueOf(2) &&
                         stackResultValues.size == 1 &&
                         stackResultValues.single() == BigInteger.valueOf(42)
-                }
-            )
+                },
+            ),
         )
     }
 }

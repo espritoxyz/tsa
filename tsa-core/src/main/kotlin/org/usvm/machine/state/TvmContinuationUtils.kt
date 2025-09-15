@@ -72,7 +72,7 @@ fun TvmStepScopeManager.callMethod(
             TvmOrdContinuation(
                 stmt = stmt.nextStmt(),
                 savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
-                sourceCell = null
+                sourceCell = null,
             )
         val wrappedRet =
             if (checkerMemorySavelist != null) {
@@ -83,7 +83,7 @@ fun TvmStepScopeManager.callMethod(
                     TvmOrdContinuation(
                         stmt = lambda.instList.first(),
                         savelist = TvmRegisterSavelist(C0Register(retCont)),
-                        sourceCell = null
+                        sourceCell = null,
                     )
                 TvmMethodReturnContinuation(methodToCall.id, wrappedCont)
             } else {
@@ -156,7 +156,7 @@ fun TvmStepScopeManager.callContinuation(
         TvmOrdContinuation(
             stmt = stmt.nextStmt(),
             savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
-            sourceCell = null
+            sourceCell = null,
         )
     registersOfCurrentContract.c0 = C0Register(retCont)
     jump(continuation)
@@ -227,7 +227,7 @@ fun TvmStepScopeManager.callContinuationComplex(
             savelist = TvmRegisterSavelist(registersOfCurrentContract.c0),
             stack = remainder,
             nargs = returnArgs,
-            sourceCell = null
+            sourceCell = null,
         )
     registersOfCurrentContract.c0 = C0Register(retCont)
     jump(continuation)
@@ -398,7 +398,7 @@ private fun TvmStepScopeManager.doUntilJump(cont: TvmUntilContinuation) {
         falseStateIsExceptional = false,
         blockOnFalseState = {
             newStmt(TsaArtificialJmpToContInst(cont.after, lastStmt.location))
-        }
+        },
     ) ?: return
 
     doWithState {
@@ -420,7 +420,7 @@ private fun TvmStepScopeManager.doRepeatJump(cont: TvmRepeatContinuation) {
         falseStateIsExceptional = false,
         blockOnFalseState = {
             newStmt(TsaArtificialJmpToContInst(cont.after, lastStmt.location))
-        }
+        },
     ) ?: return
 
     doWithStateCtx {
@@ -449,7 +449,7 @@ private fun TvmStepScopeManager.doWhileJump(cont: TvmWhileContinuation) {
         falseStateIsExceptional = false,
         blockOnFalseState = {
             newStmt(TsaArtificialJmpToContInst(cont.after, lastStmt.location))
-        }
+        },
     ) ?: return
 
     jump(cont.body)

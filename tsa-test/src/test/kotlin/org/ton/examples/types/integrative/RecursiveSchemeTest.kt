@@ -43,7 +43,7 @@ class RecursiveSchemeTest {
             listOf { test ->
                 val exit = test.result as? TvmExecutionWithStructuralError ?: return@listOf false
                 exit.exit is TvmReadingOutOfSwitchBounds
-            }
+            },
         )
     }
 }

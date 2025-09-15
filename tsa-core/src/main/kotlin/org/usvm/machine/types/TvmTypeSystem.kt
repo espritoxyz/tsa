@@ -43,7 +43,7 @@ class TvmTypeSystem : UTypeSystem<TvmType> {
                 TvmSliceType,
                 TvmBuilderType,
                 TvmDataCellType,
-                TvmDictCellType
+                TvmDictCellType,
             )
     }
 }

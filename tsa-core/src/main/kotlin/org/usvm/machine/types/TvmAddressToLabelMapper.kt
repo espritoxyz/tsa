@@ -92,7 +92,7 @@ class TvmAddressToLabelMapper(
                         state,
                         ref,
                         cellInfo.dataCellStructure,
-                        childIdx
+                        childIdx,
                     ) ?: run {
                         check(calculatedTlbLabelInfo.labelHasUnknownLeaves(cellInfo.dataCellStructure) == true) {
                             "ChildStructure can be null only for children of labels with unknown leaves, " +
@@ -177,7 +177,7 @@ class TvmAddressToLabelMapper(
             ref,
             generateSizeConstraints = true,
             generateDataConstraints = false,
-            generateTlbFieldConstraints = true
+            generateTlbFieldConstraints = true,
         )
     }
 
@@ -190,7 +190,7 @@ class TvmAddressToLabelMapper(
             ref,
             generateSizeConstraints = false,
             generateDataConstraints = true,
-            generateTlbFieldConstraints = false
+            generateTlbFieldConstraints = false,
         )
 
     private fun generateStructuralConstraints(

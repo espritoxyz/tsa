@@ -197,7 +197,7 @@ fun TvmContext.signedIntegerFitsBits(
         else ->
             mkAnd(
                 mkBvSignedLessOrEqualExpr(value, powerOfTwo(bits - 1u).minus(BigInteger.ONE).toBv257()),
-                mkBvSignedGreaterOrEqualExpr(value, powerOfTwo(bits - 1u).negate().toBv257())
+                mkBvSignedGreaterOrEqualExpr(value, powerOfTwo(bits - 1u).negate().toBv257()),
             )
     }
 
@@ -214,7 +214,7 @@ fun TvmContext.unsignedIntegerFitsBits(
         else ->
             mkAnd(
                 mkBvSignedLessOrEqualExpr(value, maxUnsignedValue(bits).toBv257()),
-                mkBvSignedGreaterOrEqualExpr(value, zeroValue)
+                mkBvSignedGreaterOrEqualExpr(value, zeroValue),
             )
     }
 
@@ -227,7 +227,7 @@ fun TvmContext.signedIntegerFitsBits(
 ): UBoolExpr =
     mkAnd(
         mkBvSignedLessOrEqualExpr(bvMinValueSignedExtended(bits), value),
-        mkBvSignedLessOrEqualExpr(value, bvMaxValueSignedExtended(bits))
+        mkBvSignedLessOrEqualExpr(value, bvMaxValueSignedExtended(bits)),
     )
 
 /**
@@ -241,7 +241,7 @@ fun TvmContext.unsignedIntegerFitsBits(
 ): UBoolExpr =
     mkAnd(
         mkBvSignedLessOrEqualExpr(zeroValue, value),
-        mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(bits))
+        mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(bits)),
     )
 
 /**
@@ -253,7 +253,7 @@ fun <Sort : KBvSort> TvmContext.bvMinValueSignedExtended(sizeBits: UExpr<Sort>):
     return mkIte(
         condition = sizeBits eq zero,
         trueBranch = zero,
-        falseBranch = mkBvNegationExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one)))
+        falseBranch = mkBvNegationExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one))),
     )
 }
 
@@ -266,7 +266,7 @@ fun <Sort : KBvSort> TvmContext.bvMaxValueSignedExtended(sizeBits: UExpr<Sort>):
     return mkIte(
         condition = sizeBits eq zero,
         trueBranch = zero,
-        falseBranch = mkBvSubExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one)), one)
+        falseBranch = mkBvSubExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one)), one),
     )
 }
 
@@ -315,7 +315,7 @@ private fun TvmState.getRefLeaves(value: UHeapRef): List<RefInfo> {
         collapseHeapRefs = false,
         staticIsConcrete = true,
         blockOnConcrete = refHandler,
-        blockOnSymbolic = { _, ref -> error("Unexpected symbolic ref ${ref.expr}") }
+        blockOnSymbolic = { _, ref -> error("Unexpected symbolic ref ${ref.expr}") },
     )
 }
 
@@ -350,7 +350,7 @@ private fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell?
         val data =
             fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(
                 this@extractFullCellIfItIsConcrete,
-                ref
+                ref,
             )
         val dataLength =
             fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@extractFullCellIfItIsConcrete, ref)
@@ -436,7 +436,7 @@ private fun TvmStepScopeManager.assertConcreteCellType(
         falseStateIsExceptional = true,
         blockOnFalseState = {
             setExit(TvmMethodResult.TvmSoftFailure(exit, calcOnState { phase }, stack))
-        }
+        },
     ) ?: return null
 
     doWithState {
@@ -468,7 +468,7 @@ fun TvmStepScopeManager.assertDictType(
         value,
         newType = TvmDictCellType,
         badType = TvmDataCellType,
-        TvmDictOperationOnDataCell
+        TvmDictOperationOnDataCell,
     )
 }
 
@@ -477,7 +477,7 @@ fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? =
         value,
         newType = TvmDataCellType,
         badType = TvmDictCellType,
-        TvmDataCellOperationOnDict
+        TvmDataCellOperationOnDict,
     )
 
 fun TvmStepScopeManager.killCurrentState() =
@@ -547,8 +547,8 @@ fun initializeContractExecutionMemory(
             C3Register(TvmOrdContinuation(contractCode.mainMethod, contractCode.codeCell), contractCode),
             c4,
             C5Register(TvmCellValue(state.allocEmptyCell())),
-            C7Register(state.initC7(firstElementOfC7))
-        )
+            C7Register(state.initC7(firstElementOfC7)),
+        ),
     )
 }
 
@@ -556,7 +556,7 @@ fun TvmState.contractEpilogue() {
     contractIdToFirstElementOfC7 =
         contractIdToFirstElementOfC7.put(
             currentContract,
-            registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew
+            registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew,
         )
 
     val commitedState =
@@ -595,11 +595,11 @@ fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort
                         // addr_std$10 anycast:(Maybe Anycast)
                         mkBv("100", 3u),
                         // workchain_id:int8
-                        workchain
+                        workchain,
                     ),
                     // address:bits256
-                    makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt()))
-                )
+                    makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt())),
+                ),
             )
         return address to workchain
     }

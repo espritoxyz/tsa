@@ -15,7 +15,7 @@ fun calculateDataLengths(
 ): List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>> =
     calculateMapsByTlbDepth(
         ctx.tvmOptions.tlbOptions.maxTlbDepth,
-        labelsWithoutUnknowns
+        labelsWithoutUnknowns,
     ) { label, curDepth, prevDepthValues ->
         val tlbDepthBound =
             individualMaxCellTlbDepth[label]

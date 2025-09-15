@@ -133,7 +133,7 @@ class TvmDataCellInfoStorage private constructor(
             val addressesWithCellInfo =
                 InputParametersStructure(
                     cellToInfo = additionalCellLabels + inputAddresses.cellToInfo,
-                    sliceToCell = additionalSliceToCell + inputAddresses.sliceToCell
+                    sliceToCell = additionalSliceToCell + inputAddresses.sliceToCell,
                 )
             val labels =
                 addressesWithCellInfo.cellToInfo.values.mapNotNull {

@@ -163,7 +163,7 @@ class TvmExceptionsInterpreter(
                     stmt,
                     EmbeddedCodeExtractor(stmt.n),
                     invertCondition = true,
-                    takeParameterFromStack = true
+                    takeParameterFromStack = true,
                 )
             }
 
@@ -184,7 +184,7 @@ class TvmExceptionsInterpreter(
                     stmt,
                     EmbeddedCodeExtractor(stmt.n),
                     invertCondition = false,
-                    takeParameterFromStack = true
+                    takeParameterFromStack = true,
                 )
             }
 
@@ -224,7 +224,7 @@ class TvmExceptionsInterpreter(
                 blockOnFalseState = {
                     throwException(exceptionCode, param = param ?: ctx.zeroValue)
                     consumeGas(50)
-                }
+                },
             ) ?: return
 
             scope.doWithState { newStmt(stmt.nextStmt()) }

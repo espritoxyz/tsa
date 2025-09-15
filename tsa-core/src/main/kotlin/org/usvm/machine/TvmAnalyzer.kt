@@ -50,7 +50,7 @@ sealed interface TvmAnalyzer<SourcesDescription> {
             concreteGeneralData,
             concreteContractData,
             inputInfo,
-            tvmOptions
+            tvmOptions,
         )
     }
 
@@ -69,7 +69,7 @@ sealed interface TvmAnalyzer<SourcesDescription> {
             concreteGeneralData,
             concreteContractData,
             inputInfo,
-            tvmOptions
+            tvmOptions,
         )
     }
 
@@ -119,7 +119,7 @@ class TactAnalyzer(
             executeCommandWithTimeout(
                 tactCommand,
                 COMPILER_TIMEOUT,
-                processWorkingDirectory = configFile.getParentNonNullAbsolutePath().toFile()
+                processWorkingDirectory = configFile.getParentNonNullAbsolutePath().toFile(),
             )
 
         check(completedInTime) {
@@ -174,7 +174,7 @@ class FuncAnalyzer(
             executeCommandWithTimeout(
                 funcCommand,
                 COMPILER_TIMEOUT,
-                processWorkingDirectory = funcSourcesPath.getParentNonNullAbsolutePath().toFile()
+                processWorkingDirectory = funcSourcesPath.getParentNonNullAbsolutePath().toFile(),
             )
 
         check(completedInTime) {
@@ -200,7 +200,7 @@ class FuncAnalyzer(
             executeCommandWithTimeout(
                 funcCommand,
                 COMPILER_TIMEOUT,
-                processWorkingDirectory = funcSourcesPath.getParentNonNullAbsolutePath().toFile()
+                processWorkingDirectory = funcSourcesPath.getParentNonNullAbsolutePath().toFile(),
             )
 
         check(completedInTime) {
@@ -370,7 +370,7 @@ class FiftAnalyzer(
                     fiftCommand,
                     COMPILER_TIMEOUT,
                     fiftStdlibPath.toFile(),
-                    inputFile = tmpStdinFile.toFile()
+                    inputFile = tmpStdinFile.toFile(),
                 )
 
             check(completedInTime) {
@@ -405,7 +405,7 @@ class FiftAnalyzer(
                     COMPILER_TIMEOUT,
                     fiftWorkDir.toFile(),
                     mapOf("FIFTPATH" to fiftStdlibPath.toString()),
-                    inputFile = tmpStdinFile.toFile()
+                    inputFile = tmpStdinFile.toFile(),
                 )
             } finally {
                 tmpStdinFile.deleteIfExists()
@@ -474,13 +474,13 @@ private fun runAnalysisInCatchingBlock(
             TvmMethodCoverage(
                 coverageStatistics.getMethodCoveragePercents(methodId),
                 coverageStatistics.getTransitiveCoveragePercents(),
-                coverageStatistics.getMainMethodCoveragePercents()
+                coverageStatistics.getMainMethodCoveragePercents(),
             )
 
         if (logInfoAboutAnalysis) {
             logger.info("Method {}", methodId)
             logger.info(
-                "Coverage: ${coverage.coverage}, transitive coverage: ${coverage.transitiveCoverage}, main method coverage: ${coverage.coverageOfMainMethod}"
+                "Coverage: ${coverage.coverage}, transitive coverage: ${coverage.transitiveCoverage}, main method coverage: ${coverage.coverageOfMainMethod}",
             )
         }
         val exceptionalStates = states.filter { state -> state.isExceptional }
@@ -521,7 +521,7 @@ fun analyzeInterContract(
             contractForCoverageStats = startContractCode,
             methodId = methodId,
             logInfoAboutAnalysis = false,
-            throwNotImplementedError = throwNotImplementedError
+            throwNotImplementedError = throwNotImplementedError,
         ) { coverageStatistics ->
             machine.analyze(
                 contracts,
@@ -533,7 +533,7 @@ fun analyzeInterContract(
                 inputInfo = inputInfo,
                 additionalStopStrategy = additionalStopStrategy,
                 additionalObserver = additionalObserver,
-                manualStateProcessor = manualStateProcessor
+                manualStateProcessor = manualStateProcessor,
             )
         }
 
@@ -567,7 +567,7 @@ fun analyzeAllMethods(
                 concreteGeneralData,
                 concreteContractData,
                 inputInfo[method.id] ?: TvmInputInfo(),
-                tvmOptions
+                tvmOptions,
             )
         }
 
@@ -589,7 +589,7 @@ fun analyzeSpecificMethod(
             runAnalysisInCatchingBlock(
                 contractIdForCoverageStats = 0,
                 contract,
-                methodId
+                methodId,
             ) { coverageStatistics ->
                 machine.analyze(
                     contract,
@@ -598,7 +598,7 @@ fun analyzeSpecificMethod(
                     coverageStatistics,
                     methodId,
                     inputInfo,
-                    manualStateProcessor
+                    manualStateProcessor,
                 )
             }
         }

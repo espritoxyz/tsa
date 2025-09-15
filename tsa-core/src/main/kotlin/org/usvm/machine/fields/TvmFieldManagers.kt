@@ -11,6 +11,6 @@ class TvmFieldManagers(
         TvmFieldManagers(
             ctx,
             cellDataFieldManager.clone(),
-            cellDataLengthFieldManager.clone()
+            cellDataLengthFieldManager.clone(),
         )
 }

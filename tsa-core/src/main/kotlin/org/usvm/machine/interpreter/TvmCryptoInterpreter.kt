@@ -69,7 +69,7 @@ class TvmCryptoInterpreter(
             // Hash is a 256-bit unsigned integer
             scope.assert(
                 ctx.unsignedIntegerFitsBits(hash, 256u),
-                unsatBlock = { error("Cannot make hash fit in 256 bits") }
+                unsatBlock = { error("Cannot make hash fit in 256 bits") },
             ) ?: return@calcOnState
 
             stack.addInt(hash)
@@ -103,9 +103,9 @@ class TvmCryptoInterpreter(
         checkOutOfRange(
             mkAnd(
                 unsignedIntegerFitsBits(key, intArgumentBits),
-                unsignedIntegerFitsBits(hash, intArgumentBits)
+                unsignedIntegerFitsBits(hash, intArgumentBits),
             ),
-            scope
+            scope,
         ) ?: return@with
 
         val condition = scope.calcOnState { makeSymbolicPrimitive(ctx.boolSort) }
@@ -117,7 +117,7 @@ class TvmCryptoInterpreter(
 
                 stack.addInt(falseValue)
                 newStmt(stmt.nextStmt())
-            }
+            },
         ) ?: run {
             logger.warn { "Cannot fork on dummy constraint" }
             return
@@ -150,7 +150,7 @@ class TvmCryptoInterpreter(
             // Hash is a 256-bit unsigned integer
             scope.assert(
                 ctx.unsignedIntegerFitsBits(hash, 256u),
-                unsatBlock = { error("Cannot make hash fit in 256 bits") }
+                unsatBlock = { error("Cannot make hash fit in 256 bits") },
             ) ?: return@calcOnState
 
             stack.addInt(hash)

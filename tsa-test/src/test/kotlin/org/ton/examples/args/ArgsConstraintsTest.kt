@@ -73,8 +73,8 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            ),
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
@@ -94,20 +94,20 @@ class ArgsConstraintsTest {
                 path,
                 concreteContractData =
                     TvmConcreteContractData(
-                        addressBits = stonfiAddressBits
-                    )
+                        addressBits = stonfiAddressBits,
+                    ),
             )
 
         val tests = result.testSuites.single()
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
         )
 
         checkInvariants(
             tests,
-            listOf { test -> test.result !is TvmSuccessfulExecution }
+            listOf { test -> test.result !is TvmSuccessfulExecution },
         )
     }
 
@@ -122,13 +122,13 @@ class ArgsConstraintsTest {
             tests,
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+            ),
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
@@ -140,7 +140,7 @@ class ArgsConstraintsTest {
         val result =
             funcCompileAndAnalyzeAllMethods(
                 path,
-                concreteContractData = TvmConcreteContractData(initialBalance = 12345.toBigInteger())
+                concreteContractData = TvmConcreteContractData(initialBalance = 12345.toBigInteger()),
             )
 
         val tests = result.testSuites.single()
@@ -148,7 +148,7 @@ class ArgsConstraintsTest {
 
         checkInvariants(
             tests,
-            listOf { test -> test.result !is TvmSuccessfulExecution }
+            listOf { test -> test.result !is TvmSuccessfulExecution },
         )
     }
 
@@ -161,8 +161,8 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            ),
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
@@ -174,17 +174,17 @@ class ArgsConstraintsTest {
         val result =
             funcCompileAndAnalyzeAllMethods(
                 path,
-                concreteGeneralData = TvmConcreteGeneralData(initialSenderBits = stonfiAddressBits)
+                concreteGeneralData = TvmConcreteGeneralData(initialSenderBits = stonfiAddressBits),
             )
 
         propertiesFound(
             result.testSuites.single(),
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
         )
 
         checkInvariants(
             result.testSuites.single(),
-            listOf { test -> test.result !is TvmSuccessfulExecution }
+            listOf { test -> test.result !is TvmSuccessfulExecution },
         )
     }
 
@@ -197,8 +197,8 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            ),
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
@@ -210,17 +210,17 @@ class ArgsConstraintsTest {
         val result =
             funcCompileAndAnalyzeAllMethods(
                 path,
-                concreteGeneralData = TvmConcreteGeneralData(initialOpcode = 0x12345678U)
+                concreteGeneralData = TvmConcreteGeneralData(initialOpcode = 0x12345678U),
             )
 
         propertiesFound(
             result.testSuites.single(),
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
         )
 
         checkInvariants(
             result.testSuites.single(),
-            listOf { test -> test.result !is TvmSuccessfulExecution }
+            listOf { test -> test.result !is TvmSuccessfulExecution },
         )
     }
 
@@ -236,13 +236,13 @@ class ArgsConstraintsTest {
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 1001 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1002 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1002 },
+            ),
         )
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1003 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1003 },
         )
     }
 }

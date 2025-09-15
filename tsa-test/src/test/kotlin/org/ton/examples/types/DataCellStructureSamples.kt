@@ -36,10 +36,10 @@ val maybeStructure =
                                 id = TlbStructureIdProvider.provideId(),
                                 ref = TvmParameterInfo.UnknownCellInfo,
                                 rest = Empty,
-                                owner = it
-                            )
+                                owner = it,
+                            ),
                     ),
-                owner = it
+                owner = it,
             )
     }
 
@@ -54,7 +54,7 @@ val int64Structure =
                 TlbIntegerLabelOfConcreteSize(64, isSigned = true, Endian.BigEndian),
                 typeArgIds = emptyList(),
                 rest = Empty,
-                owner = it
+                owner = it,
             )
     }
 
@@ -69,7 +69,7 @@ val prefixInt64Structure =
                 TlbIntegerLabelOfConcreteSize(64, isSigned = true, Endian.BigEndian),
                 typeArgIds = emptyList(),
                 rest = Unknown,
-                owner = it
+                owner = it,
             )
     }
 
@@ -83,7 +83,7 @@ val someRefStructure =
                 id = TlbStructureIdProvider.provideId(),
                 rest = Empty,
                 ref = TvmParameterInfo.UnknownCellInfo,
-                owner = it
+                owner = it,
             )
     }
 
@@ -98,7 +98,7 @@ val coinsStructure =
                 TlbCoinsLabel,
                 typeArgIds = emptyList(),
                 rest = Empty,
-                owner = it
+                owner = it,
             )
     }
 
@@ -113,7 +113,7 @@ val wrappedMsgStructure =
                 TlbBasicMsgAddrLabel,
                 typeArgIds = emptyList(),
                 rest = Empty,
-                owner = it
+                owner = it,
             )
     }
 
@@ -125,11 +125,11 @@ val dict256Structure =
                 id = TlbStructureIdProvider.provideId(),
                 typeLabel =
                     TlbMaybeRefLabel(
-                        refInfo = DictCellInfo(256)
+                        refInfo = DictCellInfo(256),
                     ),
                 typeArgIds = emptyList(),
                 rest = Empty,
-                owner = it
+                owner = it,
             )
     }
 
@@ -150,7 +150,7 @@ val intSwitchStructure =
                             typeLabel = TlbIntegerLabelOfConcreteSize(64, isSigned = true, Endian.BigEndian),
                             typeArgIds = emptyList(),
                             rest = Empty,
-                            owner = it
+                            owner = it,
                         ),
                     "01" to
                         KnownTypePrefix(
@@ -158,10 +158,10 @@ val intSwitchStructure =
                             typeLabel = TlbIntegerLabelOfConcreteSize(32, isSigned = true, Endian.BigEndian),
                             typeArgIds = emptyList(),
                             rest = Empty,
-                            owner = it
-                        )
+                            owner = it,
+                        ),
                 ),
-                owner = it
+                owner = it,
             )
     }
 
@@ -174,7 +174,7 @@ val structureX =
                 typeLabel = TlbIntegerLabelOfConcreteSize(16, isSigned = true, Endian.BigEndian),
                 typeArgIds = emptyList(),
                 rest = Empty,
-                owner = it
+                owner = it,
             )
     }
 
@@ -197,11 +197,11 @@ val structureY =
                                 structureX,
                                 typeArgIds = emptyList(),
                                 rest = Empty,
-                                owner = it
+                                owner = it,
                             ),
-                        owner = it
+                        owner = it,
                     ),
-                owner = it
+                owner = it,
             )
     }
 
@@ -211,7 +211,7 @@ val structureY =
  * */
 val recursiveStructure =
     TlbCompositeLabel(
-        name = "Recursive"
+        name = "Recursive",
     ).also { label ->
         val structure =
             SwitchPrefix(
@@ -230,12 +230,12 @@ val recursiveStructure =
                                     label,
                                     typeArgIds = emptyList(),
                                     rest = Empty,
-                                    owner = label
+                                    owner = label,
                                 ),
-                            owner = label
-                        )
+                            owner = label,
+                        ),
                 ).toSortedMap(),
-                owner = label
+                owner = label,
             )
         label.internalStructure = structure
     }
@@ -246,7 +246,7 @@ val recursiveStructure =
  * */
 val recursiveWithRefStructure =
     TlbCompositeLabel(
-        name = "RecursiveWithRef"
+        name = "RecursiveWithRef",
     ).also { label ->
         val structure =
             SwitchPrefix(
@@ -264,12 +264,12 @@ val recursiveWithRefStructure =
                                     label,
                                     typeArgIds = emptyList(),
                                     rest = Empty,
-                                    owner = label
+                                    owner = label,
                                 ),
-                            owner = label
-                        )
+                            owner = label,
+                        ),
                 ).toSortedMap(),
-                owner = label
+                owner = label,
             )
         label.internalStructure = structure
     }
@@ -289,9 +289,9 @@ val refAfterRecursiveStructure =
                         id = TlbStructureIdProvider.provideId(),
                         ref = TvmParameterInfo.UnknownCellInfo,
                         rest = Empty,
-                        owner = it
+                        owner = it,
                     ),
-                owner = it
+                owner = it,
             )
     }
 
@@ -301,7 +301,7 @@ val refAfterRecursiveStructure =
  * */
 val longDataStructure =
     TlbCompositeLabel(
-        name = "LongData"
+        name = "LongData",
     ).also { label ->
         val structure =
             SwitchPrefix(
@@ -325,14 +325,14 @@ val longDataStructure =
                                             label,
                                             typeArgIds = emptyList(),
                                             rest = Empty,
-                                            owner = label
+                                            owner = label,
                                         ),
-                                    owner = label
+                                    owner = label,
                                 ),
-                            owner = label
-                        )
+                            owner = label,
+                        ),
                 ),
-                owner = label
+                owner = label,
             )
         label.internalStructure = structure
     }
@@ -343,7 +343,7 @@ val longDataStructure =
  * */
 val refListStructure =
     TlbCompositeLabel(
-        name = "RefList"
+        name = "RefList",
     ).also { label ->
         val structure =
             SwitchPrefix(
@@ -356,10 +356,10 @@ val refListStructure =
                             id = TlbStructureIdProvider.provideId(),
                             rest = Empty,
                             ref = TvmParameterInfo.DataCellInfo(label),
-                            owner = label
-                        )
+                            owner = label,
+                        ),
                 ),
-                owner = label
+                owner = label,
             )
         label.internalStructure = structure
     }
@@ -401,16 +401,16 @@ val nonRecursiveChainStructure =
                                                                             id = TlbStructureIdProvider.provideId(),
                                                                             switchSize = 5,
                                                                             owner = a,
-                                                                            givenVariants = mapOf("11011" to Empty)
+                                                                            givenVariants = mapOf("11011" to Empty),
                                                                         )
-                                                                }
-                                                            )
+                                                                },
+                                                            ),
                                                     )
-                                            }
-                                        )
+                                            },
+                                        ),
                                 )
-                        }
-                    )
+                        },
+                    ),
             )
     }
 
@@ -424,7 +424,7 @@ val structIntRef =
                 id = TlbStructureIdProvider.provideId(),
                 ref = TvmParameterInfo.DataCellInfo(int64Structure),
                 rest = Empty,
-                owner = it
+                owner = it,
             )
     }
 
@@ -438,7 +438,7 @@ val structInRefAndUnknownSuffix =
                 id = TlbStructureIdProvider.provideId(),
                 ref = TvmParameterInfo.DataCellInfo(int64Structure),
                 rest = Unknown,
-                owner = it
+                owner = it,
             )
     }
 
@@ -449,7 +449,7 @@ val symbolicIntLabel =
     TlbIntegerLabelOfSymbolicSize(
         isSigned = true,
         endian = Endian.BigEndian,
-        arity = 1
+        arity = 1,
     ) { ctx, args ->
         val n = args.single()
         check(n.sort.sizeBits == ctx.sizeSort.sizeBits)
@@ -474,9 +474,9 @@ val customVarInteger =
                         symbolicIntLabel,
                         typeArgIds = listOf(rootIdForCustomVarUInteger),
                         rest = Empty,
-                        owner = it
+                        owner = it,
                     ),
-                owner = it
+                owner = it,
             )
     }
 
@@ -485,7 +485,7 @@ val customVarInteger =
  * */
 val customVarIntegerWithSuffix =
     TlbCompositeLabel(
-        name = "CustomVarIntegerWithSuffix"
+        name = "CustomVarIntegerWithSuffix",
     ).also {
         it.internalStructure =
             KnownTypePrefix(
@@ -505,13 +505,13 @@ val customVarIntegerWithSuffix =
                                 TlbIntegerLabelOfConcreteSize(
                                     concreteSize = 4,
                                     isSigned = true,
-                                    endian = Endian.BigEndian
+                                    endian = Endian.BigEndian,
                                 ),
                                 typeArgIds = emptyList(),
                                 owner = it,
-                                rest = Empty
-                            )
-                    )
+                                rest = Empty,
+                            ),
+                    ),
             )
     }
 
@@ -532,8 +532,8 @@ val doubleCustomVarInteger =
                         customVarInteger,
                         typeArgIds = emptyList(),
                         rest = Empty,
-                        owner = it
-                    )
+                        owner = it,
+                    ),
             )
     }
 
@@ -554,8 +554,8 @@ val intAndCoins =
                         TlbCoinsLabel,
                         typeArgIds = emptyList(),
                         rest = Empty,
-                        owner = it
-                    )
+                        owner = it,
+                    ),
             )
     }
 
@@ -582,9 +582,9 @@ val doubleIntAndCoins =
                                 TlbCoinsLabel,
                                 typeArgIds = emptyList(),
                                 owner = it,
-                                rest = Empty
-                            )
-                    )
+                                rest = Empty,
+                            ),
+                    ),
             )
     }
 
@@ -605,8 +605,8 @@ val intAndInt =
                         TlbIntegerLabelOfConcreteSize(4, isSigned = true, endian = Endian.BigEndian),
                         typeArgIds = emptyList(),
                         owner = it,
-                        rest = Empty
-                    )
+                        rest = Empty,
+                    ),
             )
     }
 
@@ -633,8 +633,8 @@ val threeCoins =
                                 typeArgIds = emptyList(),
                                 typeLabel = TlbCoinsLabel,
                                 owner = it,
-                                rest = Empty
-                            )
-                    )
+                                rest = Empty,
+                            ),
+                    ),
             )
     }

@@ -81,7 +81,7 @@ class CheckersTest {
         runTestConsistentBalanceThroughChecker(
             externalCallCheckerWithCapture,
             fetchedKeys = setOf(-1),
-            balanceExternalPath
+            balanceExternalPath,
         ) {
             if (it.additionalInputs.size != 1) {
                 return@runTestConsistentBalanceThroughChecker false
@@ -107,7 +107,7 @@ class CheckersTest {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedContract = getFuncContract(path, FIFT_STDLIB_RESOURCE)
 
@@ -115,29 +115,29 @@ class CheckersTest {
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
-                methodId = TvmContext.RECEIVE_INTERNAL_ID
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
             )
 
         propertiesFound(
             tests,
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+            ),
         )
 
         checkInvariants(
             tests,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
-                additionalCheck
-            )
+                additionalCheck,
+            ),
         )
 
         val successfulTests = tests.filter { it.result is TvmSuccessfulExecution }
         checkInvariants(
             successfulTests,
-            listOf { test -> fetchedKeys.all { it in test.fetchedValues } }
+            listOf { test -> fetchedKeys.all { it in test.fetchedValues } },
         )
     }
 
@@ -150,7 +150,7 @@ class CheckersTest {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedContract = getFuncContract(path, FIFT_STDLIB_RESOURCE)
 
@@ -162,15 +162,15 @@ class CheckersTest {
                 concreteContractData =
                     listOf(
                         TvmConcreteContractData(),
-                        TvmConcreteContractData(contractC4 = Cell(BitString.of("00000100")))
-                    )
+                        TvmConcreteContractData(contractC4 = Cell(BitString.of("00000100"))),
+                    ),
             )
 
         assertTrue { tests.isNotEmpty() }
 
         checkInvariants(
             tests,
-            listOf { test -> test.result is TvmSuccessfulExecution }
+            listOf { test -> test.result is TvmSuccessfulExecution },
         )
     }
 
@@ -188,18 +188,18 @@ class CheckersTest {
                 concreteContractData =
                     listOf(
                         TvmConcreteContractData(),
-                        TvmConcreteContractData(contractC4 = Cell(BitString.of("0")))
-                    )
+                        TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
+                    ),
             )
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
         )
     }
 
@@ -221,8 +221,8 @@ class CheckersTest {
                     listOf(
                         TvmConcreteContractData(),
                         TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
-                        TvmConcreteContractData()
-                    )
+                        TvmConcreteContractData(),
+                    ),
             )
 
         propertiesFound(
@@ -233,12 +233,12 @@ class CheckersTest {
                 val thereWereThreeFailedMethod =
                     test.eventsList.count { it.methodResult is TvmMethodFailure } == 3
                 checkerExitCodeGood && thereWereThreeFailedMethod
-            }
+            },
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
         )
     }
 
@@ -260,8 +260,8 @@ class CheckersTest {
                     listOf(
                         TvmConcreteContractData(),
                         TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
-                        TvmConcreteContractData()
-                    )
+                        TvmConcreteContractData(),
+                    ),
             )
 
         assertTrue(tests.tests.isNotEmpty())
@@ -273,7 +273,7 @@ class CheckersTest {
                     (test.result as? TvmMethodFailure)?.exitCode != receivedBounceOnSoftFailureExitCode
                 val softFailureOccurred = test.result is TvmExecutionWithSoftFailure
                 messageDidNotBounce && softFailureOccurred
-            }
+            },
         )
     }
 
@@ -294,14 +294,14 @@ class CheckersTest {
                     listOf(
                         TvmConcreteContractData(),
                         TvmConcreteContractData(contractC4 = Cell(BitString.of("0"))),
-                        TvmConcreteContractData()
-                    )
+                        TvmConcreteContractData(),
+                    ),
             )
 
         propertiesFound(
             tests,
             // the target contract should change its persistent data
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 },
         )
         checkInvariants(
             tests,
@@ -311,8 +311,8 @@ class CheckersTest {
                         val formatViolationExitCodes = 257..265
                         failedResult.exitCode !in formatViolationExitCodes
                     }
-                }
-            )
+                },
+            ),
         )
     }
 
@@ -320,10 +320,10 @@ class CheckersTest {
         TvmOptions(
             intercontractOptions =
                 IntercontractOptions(
-                    communicationScheme = communicationScheme
+                    communicationScheme = communicationScheme,
                 ),
             enableOutMessageAnalysis = true,
-            stopOnFirstError = false
+            stopOnFirstError = false,
         )
 
     @Ignore("SendRemainingBalance mode is not supported")
@@ -336,7 +336,7 @@ class CheckersTest {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedContract = getFuncContract(pathContract, FIFT_STDLIB_RESOURCE)
 
@@ -344,14 +344,14 @@ class CheckersTest {
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
-                methodId = TvmContext.RECEIVE_INTERNAL_ID
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
             )
 
         assertTrue { tests.isNotEmpty() }
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
         )
     }
 
@@ -365,7 +365,7 @@ class CheckersTest {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedContract = getFuncContract(pathContract, FIFT_STDLIB_RESOURCE)
 
@@ -373,14 +373,14 @@ class CheckersTest {
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
-                methodId = TvmContext.RECEIVE_INTERNAL_ID
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
             )
 
         assertTrue { tests.isNotEmpty() }
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
         )
     }
 
@@ -393,7 +393,7 @@ class CheckersTest {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedContract = getTactContract(TactSourcesDescription(pathTactConfig, "IntOptimization", "GuessGame"))
 
@@ -401,13 +401,13 @@ class CheckersTest {
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
-                methodId = TvmContext.RECEIVE_INTERNAL_ID
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
             )
 
         // There is at least one failed execution with exit code 257
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
         )
 
         // All executions are either failed executions with exit code 257, or successful
@@ -420,7 +420,7 @@ class CheckersTest {
                 } else {
                     result is TvmSuccessfulExecution
                 }
-            }
+            },
         )
     }
 
@@ -435,7 +435,7 @@ class CheckersTest {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
         val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
@@ -447,9 +447,9 @@ class CheckersTest {
             TvmOptions(
                 intercontractOptions =
                     IntercontractOptions(
-                        communicationScheme = communicationScheme
+                        communicationScheme = communicationScheme,
                     ),
-                enableOutMessageAnalysis = true
+                enableOutMessageAnalysis = true,
             )
 
         val tests =
@@ -457,12 +457,12 @@ class CheckersTest {
                 listOf(checkerContract, analyzedSender, analyzedRecepient),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = options
+                options = options,
             )
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
         )
 
         checkInvariants(
@@ -470,8 +470,8 @@ class CheckersTest {
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 35 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode != 36 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 37 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode != 37 },
+            ),
         )
     }
 
@@ -486,7 +486,7 @@ class CheckersTest {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
         val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
@@ -498,9 +498,9 @@ class CheckersTest {
             TvmOptions(
                 intercontractOptions =
                     IntercontractOptions(
-                        communicationScheme = communicationScheme
+                        communicationScheme = communicationScheme,
                     ),
-                enableOutMessageAnalysis = true
+                enableOutMessageAnalysis = true,
             )
 
         val tests =
@@ -516,10 +516,10 @@ class CheckersTest {
                         TvmConcreteContractData(
                             addressBits =
                                 getAddressBits(
-                                    "0:fd38d098511c43015e02cd185cfcac3befffa89a2a7f20d65440638a9475b9db"
-                                )
-                        )
-                    )
+                                    "0:fd38d098511c43015e02cd185cfcac3befffa89a2a7f20d65440638a9475b9db",
+                                ),
+                        ),
+                    ),
             )
 
         assertTrue { tests.isNotEmpty() }
@@ -532,10 +532,10 @@ class CheckersTest {
                     ((((test.additionalInputs[0] as? TvmTestInput.RecvInternalInput)?.msgBody)?.cell)?.data)
                         ?.startsWith(
                             "00000000000000000000000001100100" +
-                                getAddressBits("0:fd38d098511c43015e02cd185cfcac3befffa89a2a7f20d65440638a9475b9db")
+                                getAddressBits("0:fd38d098511c43015e02cd185cfcac3befffa89a2a7f20d65440638a9475b9db"),
                         ) == true
-                }
-            )
+                },
+            ),
         )
     }
 }

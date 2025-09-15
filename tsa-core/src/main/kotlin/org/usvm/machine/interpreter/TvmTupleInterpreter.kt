@@ -106,7 +106,7 @@ class TvmTupleInterpreter(
                     stmt,
                     swapIfZero = false,
                     nullsCount = 1,
-                    skipOneEntryUnderTop = false
+                    skipOneEntryUnderTop = false,
                 )
             is TvmTupleNullswapif2Inst ->
                 doPushNullIf(
@@ -114,7 +114,7 @@ class TvmTupleInterpreter(
                     stmt,
                     swapIfZero = false,
                     nullsCount = 2,
-                    skipOneEntryUnderTop = false
+                    skipOneEntryUnderTop = false,
                 )
             is TvmTupleNullrotrifInst ->
                 doPushNullIf(
@@ -122,7 +122,7 @@ class TvmTupleInterpreter(
                     stmt,
                     swapIfZero = false,
                     nullsCount = 1,
-                    skipOneEntryUnderTop = true
+                    skipOneEntryUnderTop = true,
                 )
             is TvmTupleNullrotrif2Inst ->
                 doPushNullIf(
@@ -130,7 +130,7 @@ class TvmTupleInterpreter(
                     stmt,
                     swapIfZero = false,
                     nullsCount = 2,
-                    skipOneEntryUnderTop = true
+                    skipOneEntryUnderTop = true,
                 )
             is TvmTupleNullswapifnotInst ->
                 doPushNullIf(
@@ -138,7 +138,7 @@ class TvmTupleInterpreter(
                     stmt,
                     swapIfZero = true,
                     nullsCount = 1,
-                    skipOneEntryUnderTop = false
+                    skipOneEntryUnderTop = false,
                 )
             is TvmTupleNullswapifnot2Inst ->
                 doPushNullIf(
@@ -146,7 +146,7 @@ class TvmTupleInterpreter(
                     stmt,
                     swapIfZero = true,
                     nullsCount = 2,
-                    skipOneEntryUnderTop = false
+                    skipOneEntryUnderTop = false,
                 )
             is TvmTupleNullrotrifnotInst ->
                 doPushNullIf(
@@ -154,7 +154,7 @@ class TvmTupleInterpreter(
                     stmt,
                     swapIfZero = true,
                     nullsCount = 1,
-                    skipOneEntryUnderTop = true
+                    skipOneEntryUnderTop = true,
                 )
             is TvmTupleNullrotrifnot2Inst ->
                 doPushNullIf(
@@ -162,7 +162,7 @@ class TvmTupleInterpreter(
                     stmt,
                     swapIfZero = true,
                     nullsCount = 2,
-                    skipOneEntryUnderTop = true
+                    skipOneEntryUnderTop = true,
                 )
             is TvmTupleIndexvarInst -> {
                 val index =
@@ -331,7 +331,7 @@ class TvmTupleInterpreter(
                 with(ctx) {
                     scope.assert(
                         tuple.size eq size.toBv257(),
-                        unsatBlock = { error("Cannot make $tuple size equal to $size") }
+                        unsatBlock = { error("Cannot make $tuple size equal to $size") },
                     ) ?: return
                 }
 
@@ -413,7 +413,7 @@ class TvmTupleInterpreter(
                 } else {
                     ctx.throwIntegerOutOfRangeError(this)
                 }
-            }
+            },
         ) ?: return null
 
         scope.doWithState {
@@ -470,7 +470,7 @@ class TvmTupleInterpreter(
                 } else {
                     ctx.throwIntegerOutOfRangeError(this)
                 }
-            }
+            },
         ) ?: return
 
         val updatedTuple =
@@ -578,7 +578,7 @@ class TvmTupleInterpreter(
             blockOnFalseState = {
                 stack.addInt(value)
                 newStmt(stmt.nextStmt())
-            }
+            },
         )
     }
 }

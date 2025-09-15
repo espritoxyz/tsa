@@ -14,7 +14,7 @@ fun parseAddress(address: String): TsExpression<TsAddress> =
         executableName = "Address.parse",
         arguments = listOf(TsStringValue(address)),
         async = false,
-        type = TsAddress
+        type = TsAddress,
     )
 
 fun randomAddress(workchain: TsExpression<TsInt>) =
@@ -23,7 +23,7 @@ fun randomAddress(workchain: TsExpression<TsInt>) =
         executableName = "randomAddress",
         arguments = listOf(workchain),
         async = false,
-        type = TsAddress
+        type = TsAddress,
     )
 
 fun toNano(value: String): TsExpression<TsBigint> =
@@ -32,7 +32,7 @@ fun toNano(value: String): TsExpression<TsBigint> =
         executableName = "toNano",
         arguments = listOf(TsStringValue(value)),
         async = false,
-        type = TsBigint
+        type = TsBigint,
     )
 
 fun blockchainCreate(): TsExpression<TsBlockchain> =
@@ -41,7 +41,7 @@ fun blockchainCreate(): TsExpression<TsBlockchain> =
         executableName = "Blockchain.create",
         arguments = emptyList(),
         async = true,
-        TsBlockchain
+        TsBlockchain,
     )
 
 fun blockchainCreate(configHex: String): TsExpression<TsBlockchain> =
@@ -50,7 +50,7 @@ fun blockchainCreate(configHex: String): TsExpression<TsBlockchain> =
         executableName = "Blockchain.create",
         arguments = listOf(TsObjectInit(listOf(cellFromHex(configHex)), TsBlockchainOpts)),
         async = true,
-        TsBlockchain
+        TsBlockchain,
     )
 
 fun compileContract(target: String): TsExpression<TsCell> =
@@ -59,7 +59,7 @@ fun compileContract(target: String): TsExpression<TsCell> =
         executableName = "compileContract",
         arguments = listOf(TsStringValue(target)),
         async = true,
-        type = TsCell
+        type = TsCell,
     )
 
 fun initializeContract(
@@ -73,7 +73,7 @@ fun initializeContract(
     executableName = "initializeContract",
     arguments = listOf(blockchain, address, code, data, balance),
     async = true,
-    type = TsVoid
+    type = TsVoid,
 )
 
 fun cellFromHex(hex: String): TsExpression<TsCell> =
@@ -82,7 +82,7 @@ fun cellFromHex(hex: String): TsExpression<TsCell> =
         executableName = "cellFromHex",
         arguments = listOf(hex.toTsValue()),
         async = true,
-        type = TsCell
+        type = TsCell,
     )
 
 fun beginCell(): TsExpression<TsBuilder> =
@@ -91,7 +91,7 @@ fun beginCell(): TsExpression<TsBuilder> =
         executableName = "beginCell",
         arguments = emptyList(),
         async = false,
-        type = TsBuilder
+        type = TsBuilder,
     )
 
 fun TsExpression<TsBuilder>.storeUint(
@@ -103,7 +103,7 @@ fun TsExpression<TsBuilder>.storeUint(
         executableName = "storeUint",
         arguments = listOf(value, bits),
         async = false,
-        type = TsBuilder
+        type = TsBuilder,
     )
 
 fun TsExpression<TsBuilder>.storeInt(
@@ -115,7 +115,7 @@ fun TsExpression<TsBuilder>.storeInt(
         executableName = "storeInt",
         arguments = listOf(value, bits),
         async = false,
-        type = TsBuilder
+        type = TsBuilder,
     )
 
 fun TsExpression<TsBuilder>.storeAddress(address: TsExpression<TsAddress>): TsExpression<TsBuilder> =
@@ -124,7 +124,7 @@ fun TsExpression<TsBuilder>.storeAddress(address: TsExpression<TsAddress>): TsEx
         executableName = "storeAddress",
         arguments = listOf(address),
         async = false,
-        type = TsBuilder
+        type = TsBuilder,
     )
 
 fun TsExpression<TsBuilder>.storeCoins(coins: TsExpression<TsInt>): TsExpression<TsBuilder> =
@@ -133,7 +133,7 @@ fun TsExpression<TsBuilder>.storeCoins(coins: TsExpression<TsInt>): TsExpression
         executableName = "storeCoins",
         arguments = listOf(coins),
         async = false,
-        type = TsBuilder
+        type = TsBuilder,
     )
 
 fun TsExpression<TsBuilder>.storeRef(cell: TsExpression<TsCell>): TsExpression<TsBuilder> =
@@ -142,7 +142,7 @@ fun TsExpression<TsBuilder>.storeRef(cell: TsExpression<TsCell>): TsExpression<T
         executableName = "storeRef",
         arguments = listOf(cell),
         async = false,
-        type = TsBuilder
+        type = TsBuilder,
     )
 
 fun TsExpression<TsBuilder>.endCell(): TsExpression<TsCell> =
@@ -151,7 +151,7 @@ fun TsExpression<TsBuilder>.endCell(): TsExpression<TsCell> =
         executableName = "endCell",
         arguments = listOf(),
         async = false,
-        type = TsCell
+        type = TsCell,
     )
 
 operator fun <T : TsNum> TsExpression<T>.plus(value: TsExpression<T>): TsExpression<T> = TsNumAdd(this, value)
@@ -166,14 +166,14 @@ fun <T : TsWrapper> TsExpression<TsBlockchain>.openContract(wrapper: TsExpressio
         executableName = "openContract",
         arguments = listOf(wrapper),
         async = false,
-        type = TsSandboxContract(wrapper.type)
+        type = TsSandboxContract(wrapper.type),
     )
 
 fun TsExpression<TsBlockchain>.now(): TsFieldAccess<TsBlockchain, TsInt> =
     TsFieldAccess(
         receiver = this,
         fieldName = "now",
-        type = TsInt
+        type = TsInt,
     )
 
 fun Boolean.toTsValue(): TsBooleanValue = TsBooleanValue(this)

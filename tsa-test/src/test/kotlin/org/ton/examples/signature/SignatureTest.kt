@@ -60,8 +60,8 @@ class SignatureTest {
             tests,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+            ),
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)

@@ -26,7 +26,7 @@ class DictExampleTest {
         val symbolicResult =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
-                tvmOptions = testOptionsToAnalyzeSpecificMethod
+                tvmOptions = testOptionsToAnalyzeSpecificMethod,
             )
         val tests = symbolicResult.testSuites.single()
         assertTrue { tests.all { it.result !is TvmSuccessfulExecution } }

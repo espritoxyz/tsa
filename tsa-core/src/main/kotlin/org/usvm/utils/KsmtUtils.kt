@@ -42,7 +42,7 @@ fun TvmContext.extractAddresses(
             } else {
                 acc
             }
-        }
+        },
     )
 
 /**
@@ -147,7 +147,7 @@ private data class Guard(
 
             val disjointMap =
                 symbolToConcreteValues.minus(other.symbolToConcreteValues.keys).putAll(
-                    other.symbolToConcreteValues.minus(symbolToConcreteValues.keys)
+                    other.symbolToConcreteValues.minus(symbolToConcreteValues.keys),
                 )
 
             val intersection =
@@ -155,12 +155,12 @@ private data class Guard(
                     SymbolValues(
                         specificValues =
                             symbolToConcreteValues[it]!!.specificValues.addAll(
-                                other.symbolToConcreteValues[it]!!.specificValues
+                                other.symbolToConcreteValues[it]!!.specificValues,
                             ),
                         forbiddenValues =
                             symbolToConcreteValues[it]!!.forbiddenValues.addAll(
-                                other.symbolToConcreteValues[it]!!.forbiddenValues
-                            )
+                                other.symbolToConcreteValues[it]!!.forbiddenValues,
+                            ),
                     )
                 }
 
@@ -168,7 +168,7 @@ private data class Guard(
 
             return Guard(
                 symbolToConcreteValues = values,
-                otherGuard = otherGuard and other.otherGuard
+                otherGuard = otherGuard and other.otherGuard,
             )
         }
 
@@ -184,10 +184,10 @@ private data class Guard(
                             expr to
                                 SymbolValues(
                                     forbiddenValues = persistentSetOf(),
-                                    specificValues = persistentSetOf(value)
-                                )
+                                    specificValues = persistentSetOf(value),
+                                ),
                         ),
-                    otherGuard = trueExpr
+                    otherGuard = trueExpr,
                 )
             }
 
@@ -202,10 +202,10 @@ private data class Guard(
                             expr to
                                 SymbolValues(
                                     forbiddenValues = persistentSetOf(value),
-                                    specificValues = persistentSetOf()
-                                )
+                                    specificValues = persistentSetOf(),
+                                ),
                         ),
-                    otherGuard = trueExpr
+                    otherGuard = trueExpr,
                 )
             }
 

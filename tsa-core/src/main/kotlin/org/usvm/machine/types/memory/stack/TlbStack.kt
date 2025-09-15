@@ -37,8 +37,8 @@ data class TlbStack(
                     GuardedResult(
                         emptyRead.not(),
                         Error(TvmStructuralError(TvmUnexpectedDataReading(loadData.type), state.phase, state.stack)),
-                        value = null
-                    )
+                        value = null,
+                    ),
                 )
             }
 
@@ -58,8 +58,8 @@ data class TlbStack(
                             GuardedResult(
                                 guard and emptyRead.not(),
                                 NewStack(TlbStack(newFrames, deepestError)),
-                                value
-                            )
+                                value,
+                            ),
                         )
                     }
 
@@ -67,14 +67,14 @@ data class TlbStack(
                         val newStack =
                             TlbStack(
                                 frames.subList(0, frames.size - 1) + stackFrameStepResult.frame,
-                                deepestError
+                                deepestError,
                             )
                         result.add(
                             GuardedResult(
                                 guard and emptyRead.not(),
                                 NewStack(newStack),
-                                value
-                            )
+                                value,
+                            ),
                         )
                     }
 
@@ -89,7 +89,7 @@ data class TlbStack(
                             val newStack =
                                 TlbStack(
                                     frames + nextLevelFrame,
-                                    newDeepestError
+                                    newDeepestError,
                                 )
                             newStack.step(state, loadData).forEach { (innerGuard, stepResult, value) ->
                                 val newGuard = ctx.mkAnd(guard, innerGuard)

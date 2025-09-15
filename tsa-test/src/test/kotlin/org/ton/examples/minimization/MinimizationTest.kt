@@ -18,7 +18,7 @@ class MinimizationTest {
         val methodStates =
             funcCompileAndAnalyzeAllMethods(
                 funcResourcePath,
-                methodWhiteList = setOf(0.toMethodId())
+                methodWhiteList = setOf(0.toMethodId()),
             )
 
         val initialTest = methodStates.single().tests

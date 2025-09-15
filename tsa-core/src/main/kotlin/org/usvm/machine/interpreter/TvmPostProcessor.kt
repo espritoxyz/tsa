@@ -40,7 +40,7 @@ class TvmPostProcessor(
             assertConstraints(scope) { resolver ->
                 mkAnd(
                     generateHashConstraint(scope, resolver),
-                    generateDepthConstraint(scope, resolver)
+                    generateDepthConstraint(scope, resolver),
                 )
             } ?: return null
 

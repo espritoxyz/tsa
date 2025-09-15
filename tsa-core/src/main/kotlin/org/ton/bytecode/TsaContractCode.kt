@@ -35,7 +35,7 @@ data class TsaContractCode(
                 mainMethod = newMainMethod,
                 methods = newMethods,
                 codeCell = cell,
-                parentCode = parentCode
+                parentCode = parentCode,
             )
         }
     }

@@ -32,7 +32,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
                 ctx,
                 condition,
                 trueBranch.uncheckedCast(),
-                falseBranch.uncheckedCast()
+                falseBranch.uncheckedCast(),
             ).uncheckedCast()
         }
         else -> error("Unexpected value: $trueBranch")

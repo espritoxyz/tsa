@@ -49,7 +49,7 @@ fun calculateSizeInfoForLeaves(
                         VertexCalculatedSize(
                             curSize.guard,
                             dataLength = curSize.dataLength,
-                            refsLength = mkSizeAddExpr(curSize.refsLength, oneSizeExpr)
+                            refsLength = mkSizeAddExpr(curSize.refsLength, oneSizeExpr),
                         )
                     bfsQueue.add(nextStruct to newSize)
                 }
@@ -78,7 +78,7 @@ fun calculateSizeInfoForLeaves(
                         VertexCalculatedSize(
                             curSize.guard,
                             dataLength = mkSizeAddExpr(curSize.dataLength, curDataOffset),
-                            refsLength = mkSizeAddExpr(curSize.refsLength, curRefsOffset)
+                            refsLength = mkSizeAddExpr(curSize.refsLength, curRefsOffset),
                         )
                     bfsQueue.add(nextStruct to newSize)
                 }
@@ -96,7 +96,7 @@ fun calculateSizeInfoForLeaves(
                             VertexCalculatedSize(
                                 curSize.guard and switchGuard,
                                 dataLength = newDataLength,
-                                refsLength = curSize.refsLength
+                                refsLength = curSize.refsLength,
                             )
                         bfsQueue.add(nextStruct to newSize)
                     }
@@ -133,7 +133,7 @@ fun calculateGeneralSizeConstraints(
                 structure,
                 dataLengthsFromPreviousDepth,
                 childrenStructureFromPreviousDepth,
-                possibleSwitchVariants
+                possibleSwitchVariants,
             )
 
         return info.fold(trueExpr as UBoolExpr) { acc, (leaf, sizeInfo) ->

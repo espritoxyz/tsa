@@ -30,7 +30,7 @@ fun executeTests(
         executeCommandWithTimeout(
             command,
             testsExecutionTimeout.inWholeSeconds,
-            projectPath.toFile()
+            projectPath.toFile(),
         )
     check(completedInTime) {
         "Tests execution has not finished in $testsExecutionTimeout"

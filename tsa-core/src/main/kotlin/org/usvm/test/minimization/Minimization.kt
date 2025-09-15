@@ -33,7 +33,7 @@ fun minimizeTestCase(
         groupedExecutionsByTestSuite.flatMap { execution ->
             groupByBranchInstructions(
                 execution,
-                branchInstructionsNumber
+                branchInstructionsNumber,
             )
         }
     return groupedExecutionsByBranchInstructions.map { minimizeExecutions(it) }.flatten().map { it.test }
@@ -56,7 +56,7 @@ private fun filterOutDuplicateCoverages(executions: List<TvmExecution>): List<Tv
         // we need to group by coveredEdges and not just Coverage to not miss exceptional edges that buildMapping() function adds
         .groupBy(
             keySelector = { indexedExecution -> executionIdxToCoveredEdgesMap[indexedExecution.index] },
-            valueTransform = { indexedExecution -> indexedExecution.value }
+            valueTransform = { indexedExecution -> indexedExecution.value },
         ).values
         .map { executionsWithEqualCoverage -> executionsWithEqualCoverage.chooseOneExecution() }
 }
@@ -157,7 +157,7 @@ private fun buildMapping(executions: List<TvmExecution>): Pair<Map<Int, List<Int
         addExtraIfLastInstructionIsException( // here we add one more instruction to represent an exception.
             instructionsWithoutExtra,
             execution.test.result,
-            thrownExceptions
+            thrownExceptions,
         ).let { instructions ->
             val edges =
                 instructions.indices.map { i ->

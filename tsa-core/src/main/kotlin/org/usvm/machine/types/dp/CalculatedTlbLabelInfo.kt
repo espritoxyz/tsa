@@ -85,7 +85,7 @@ class CalculatedTlbLabelInfo(
             labelChildren[maxDepth][parentLabel]
                 ?: return null
         return childrenStructure.numberOfChildrenExceeded.apply(
-            SimpleAbstractionForUExpr(address, persistentListOf(), state)
+            SimpleAbstractionForUExpr(address, persistentListOf(), state),
         )
     }
 
@@ -102,7 +102,7 @@ class CalculatedTlbLabelInfo(
             dataConstraints[maxDepth][label]
                 ?: return null
         return abstract.apply(
-            AbstractionForUExprWithCellDataPrefix(address, ctx.zeroSizeExpr, persistentListOf(), state)
+            AbstractionForUExprWithCellDataPrefix(address, ctx.zeroSizeExpr, persistentListOf(), state),
         )
     }
 
@@ -140,7 +140,7 @@ class CalculatedTlbLabelInfo(
             label.internalStructure,
             dataLengths[maxDepth - 1],
             labelChildren[maxDepth - 1],
-            possibleSwitchVariants[maxDepth]
+            possibleSwitchVariants[maxDepth],
         )
     }
 
@@ -162,7 +162,7 @@ class CalculatedTlbLabelInfo(
             label.internalStructure,
             dataLengths[maxDepth - 1],
             labelChildren[maxDepth - 1],
-            possibleSwitchVariants[maxDepth]
+            possibleSwitchVariants[maxDepth],
         )
     }
 
@@ -210,7 +210,7 @@ class CalculatedTlbLabelInfo(
             labelsWithoutUnknownLeaves,
             dataLengths,
             individualMaxCellTlbDepth,
-            possibleSwitchVariants
+            possibleSwitchVariants,
         )
 
     private val dataConstraints: List<Map<TlbCompositeLabel, AbstractGuard<AbstractionForUExprWithCellDataPrefix>>> =

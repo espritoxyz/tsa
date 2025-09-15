@@ -99,9 +99,9 @@ class TvmTlbTransformer(
                                 switchSize = 1,
                                 mapOf(
                                     "0" to Empty,
-                                    "1" to internal
+                                    "1" to internal,
                                 ),
-                                owner = label
+                                owner = label,
                             )
                         label.internalStructure = structure
                         label.definitelyHasAny = hasAny
@@ -120,9 +120,9 @@ class TvmTlbTransformer(
                         switchSize = 1,
                         mapOf(
                             "0" to left,
-                            "1" to right
+                            "1" to right,
                         ),
-                        owner = label
+                        owner = label,
                     )
                 label.internalStructure = structure
                 label.definitelyHasAny = leftHasAny || rightHasAny
@@ -151,7 +151,7 @@ class TvmTlbTransformer(
             val structure =
                 transformConstructors(
                     def.constructors.map { ConstructorTagSuffix(it, it.tag) },
-                    owner = result
+                    owner = result,
                 )
             result.internalStructure = structure
             result.definitelyHasAny = true
@@ -159,13 +159,13 @@ class TvmTlbTransformer(
         }
 
         return TlbCompositeLabel(
-            name = def.name
+            name = def.name,
         ).also { label ->
             transformed[def to args] = label
             val structure =
                 transformConstructors(
                     def.constructors.map { ConstructorTagSuffix(it, it.tag) },
-                    owner = label
+                    owner = label,
                 )
             label.internalStructure = structure
         }
@@ -195,7 +195,7 @@ class TvmTlbTransformer(
             id = TlbStructureIdProvider.provideId(),
             minLen,
             variants,
-            owner
+            owner,
         )
     }
 
@@ -238,7 +238,7 @@ class TvmTlbTransformer(
                                     label,
                                     typeArgIds = emptyList(),
                                     last,
-                                    owner
+                                    owner,
                                 )
                             }
                         } ?: let {

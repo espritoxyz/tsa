@@ -70,8 +70,8 @@ class DictComplexTest {
                 tvmOptions =
                     TvmOptions(
                         quietMode = false,
-                        timeout = 30.seconds
-                    )
+                        timeout = 30.seconds,
+                    ),
             )
 
         assertTrue { tests.isNotEmpty() }
@@ -90,8 +90,8 @@ class DictComplexTest {
             tests,
             listOf(
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            ),
         )
 
         TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
@@ -112,8 +112,8 @@ class DictComplexTest {
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 }
-            )
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
+            ),
         )
 
         TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)

@@ -393,7 +393,7 @@ class TvmInterpreter(
                 currentContract = startContractId,
                 fieldManagers = fieldManagers,
                 intercontractPath = persistentListOf(startContractId),
-                analysisOfGetMethod = methodId != RECEIVE_INTERNAL_ID && methodId != RECEIVE_EXTERNAL_ID
+                analysisOfGetMethod = methodId != RECEIVE_INTERNAL_ID && methodId != RECEIVE_EXTERNAL_ID,
             )
 
         state.contractIdToC4Register =
@@ -472,7 +472,7 @@ class TvmInterpreter(
                 state,
                 startContractId,
                 msgValue,
-                allowInputStackValues
+                allowInputStackValues,
             )
 
         state.stack = executionMemory.stack
@@ -489,7 +489,7 @@ class TvmInterpreter(
                 // take input info only for the last parameter (msg_body)
                 if ((inputInfo.parameterInfos.keys - setOf(0)).isNotEmpty()) {
                     error(
-                        "Can take into account input info only for msg_body in case of recv_internal but got $inputInfo"
+                        "Can take into account input info only for msg_body in case of recv_internal but got $inputInfo",
                     )
                 }
 
@@ -502,7 +502,7 @@ class TvmInterpreter(
                     state.memory.readField(
                         input.msgBodySliceNonBounced,
                         sliceCellField,
-                        ctx.addressSort
+                        ctx.addressSort,
                     ) as UConcreteHeapRef
 
                 if (lastInputInfo != null) {
@@ -516,7 +516,7 @@ class TvmInterpreter(
                         state = state,
                         info = TvmInputInfo(),
                         additionalCellLabels = newInputInfo,
-                        additionalSliceToCell = mapOf(input.msgBodySliceNonBounced to msgBodyCellNonBounced)
+                        additionalSliceToCell = mapOf(input.msgBodySliceNonBounced to msgBodyCellNonBounced),
                     )
                 setDataCellInfoStorageAndSetModel(state, dataCellInfoStorage)
 
@@ -528,10 +528,10 @@ class TvmInterpreter(
                 executionMemory.stack.addInt(configBalance)
                 executionMemory.stack.addInt(input.msgValue)
                 executionMemory.stack.addStackEntry(
-                    TvmConcreteStackEntry(TvmStackCellValue(input.constructFullMessage(state)))
+                    TvmConcreteStackEntry(TvmStackCellValue(input.constructFullMessage(state))),
                 )
                 executionMemory.stack.addStackEntry(
-                    TvmConcreteStackEntry(TvmStackSliceValue(input.msgBodySliceMaybeBounced))
+                    TvmConcreteStackEntry(TvmStackSliceValue(input.msgBodySliceMaybeBounced)),
                 )
 
                 state.receivedMessage = ReceivedMessage.InputMessage(input)
@@ -542,7 +542,7 @@ class TvmInterpreter(
                     TvmDataCellInfoStorage.build(
                         state,
                         inputInfo,
-                        additionalLabels = setOf(TlbBasicMsgAddrLabel)
+                        additionalLabels = setOf(TlbBasicMsgAddrLabel),
                     )
                 setDataCellInfoStorageAndSetModel(state, dataCellInfoStorage)
             }
@@ -581,7 +581,7 @@ class TvmInterpreter(
                 this@initializeEmptyRefValues,
                 emptyCell,
                 value = zeroSizeExpr,
-                upperBound = 0
+                upperBound = 0,
             )
 
             val emptyBuilder = allocStatic(TvmBuilderType)
@@ -592,7 +592,7 @@ class TvmInterpreter(
                 this@initializeEmptyRefValues,
                 emptyBuilder,
                 value = zeroSizeExpr,
-                upperBound = 0
+                upperBound = 0,
             )
 
             val emptySlice = allocStatic(TvmSliceType)
@@ -642,7 +642,7 @@ class TvmInterpreter(
                 // clear forked states, as they can be corrupted
                 scope = TvmStepScopeManager(state, forkBlackList, allowFailures)
                 scope.killCurrentState()
-            }
+            },
         )
 
         return scope.stepResult().apply {
@@ -1175,7 +1175,7 @@ class TvmInterpreter(
                         scope.fork(
                             noPossibleOverflow,
                             falseStateIsExceptional = true,
-                            blockOnFalseState = throwIntegerOverflowError
+                            blockOnFalseState = throwIntegerOverflowError,
                         ) ?: return
 
                         mkBvNegationExpr(operand)
@@ -1266,7 +1266,7 @@ class TvmInterpreter(
                         mkIte(
                             mkBvSignedLessExpr(value, zeroValue),
                             mkBvNegationExpr(value),
-                            value
+                            value,
                         )
                     }
 
@@ -1279,7 +1279,7 @@ class TvmInterpreter(
                         mkIte(
                             condition = mkBvSignedGreaterOrEqualExpr(firstOperand, secondOperand),
                             trueBranch = firstOperand,
-                            falseBranch = secondOperand
+                            falseBranch = secondOperand,
                         )
                     }
 
@@ -1292,7 +1292,7 @@ class TvmInterpreter(
                         mkIte(
                             condition = mkBvSignedGreaterOrEqualExpr(firstOperand, secondOperand),
                             trueBranch = secondOperand,
-                            falseBranch = firstOperand
+                            falseBranch = firstOperand,
                         )
                     }
 
@@ -1306,13 +1306,13 @@ class TvmInterpreter(
                             mkIte(
                                 condition = mkBvSignedGreaterOrEqualExpr(firstOperand, secondOperand),
                                 trueBranch = secondOperand,
-                                falseBranch = firstOperand
+                                falseBranch = firstOperand,
                             )
                         val max =
                             mkIte(
                                 condition = mkBvSignedGreaterOrEqualExpr(firstOperand, secondOperand),
                                 trueBranch = firstOperand,
-                                falseBranch = secondOperand
+                                falseBranch = secondOperand,
                             )
 
                         scope.doWithState {
@@ -1350,7 +1350,7 @@ class TvmInterpreter(
                         val resNoOverflow =
                             mkAnd(
                                 mkBvSignedLessOrEqualExpr(minArgValue, value),
-                                mkBvSignedLessOrEqualExpr(value, maxArgValue)
+                                mkBvSignedLessOrEqualExpr(value, maxArgValue),
                             )
                         checkOverflow(resNoOverflow, scope) ?: return
 
@@ -1371,7 +1371,7 @@ class TvmInterpreter(
                             mkAnd(
                                 mkBvSignedLessOrEqualExpr(shift, 256.toBv257()),
                                 mkBvSignedLessOrEqualExpr(minArgValue, value),
-                                mkBvSignedLessOrEqualExpr(value, maxArgValue)
+                                mkBvSignedLessOrEqualExpr(value, maxArgValue),
                             )
 
                         checkOverflow(resNoOverflow, scope) ?: return
@@ -1426,8 +1426,8 @@ class TvmInterpreter(
                                 mkBvSignedGreaterOrEqualExpr(sizeBits, intBitsValue),
                                 mkAnd(
                                     mkBvSignedLessOrEqualExpr(bvMinValueSignedExtended(sizeBits), value),
-                                    mkBvSignedLessOrEqualExpr(value, bvMaxValueSignedExtended(sizeBits))
-                                )
+                                    mkBvSignedLessOrEqualExpr(value, bvMaxValueSignedExtended(sizeBits)),
+                                ),
                             )
                         checkOverflow(resNoOverflow, scope) ?: return
 
@@ -1463,8 +1463,8 @@ class TvmInterpreter(
                                 notNegativeValue,
                                 mkOr(
                                     mkBvSignedGreaterOrEqualExpr(sizeBits, sizeBitsUpperBound),
-                                    mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(sizeBits))
-                                )
+                                    mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(sizeBits)),
+                                ),
                             )
                         checkOverflow(resNoOverflow, scope) ?: return
 
@@ -1479,7 +1479,7 @@ class TvmInterpreter(
 
                         val disjArgs =
                             mutableListOf(
-                                mkAnd(signedIntegerFitsBits(value, 0u), symbolicSizeBits eq zeroValue)
+                                mkAnd(signedIntegerFitsBits(value, 0u), symbolicSizeBits eq zeroValue),
                             )
                         var prevMinValue: UExpr<TvmInt257Sort> = bvMinValueSignedExtended(zeroValue)
                         var prevMaxValue: UExpr<TvmInt257Sort> = bvMaxValueSignedExtended(zeroValue)
@@ -1489,13 +1489,13 @@ class TvmInterpreter(
                             val smallestCond =
                                 mkOr(
                                     mkBvSignedLessExpr(value, prevMinValue),
-                                    mkBvSignedGreaterExpr(value, prevMaxValue)
+                                    mkBvSignedGreaterExpr(value, prevMaxValue),
                                 )
                             val arg =
                                 mkAnd(
                                     smallestCond,
                                     signedIntegerFitsBits(value, sizeBits.toUInt()),
-                                    symbolicSizeBits eq sizeBits.toBv257()
+                                    symbolicSizeBits eq sizeBits.toBv257(),
                                 )
 
                             disjArgs.add(arg)
@@ -1506,7 +1506,7 @@ class TvmInterpreter(
 
                         scope.assert(
                             mkOr(disjArgs),
-                            unsatBlock = { error("Statement: $stmt; cannot assert disjunction: $disjArgs") }
+                            unsatBlock = { error("Statement: $stmt; cannot assert disjunction: $disjArgs") },
                         ) ?: return
 
                         symbolicSizeBits
@@ -1523,7 +1523,7 @@ class TvmInterpreter(
 
                         val disjArgs =
                             mutableListOf(
-                                mkAnd(unsignedIntegerFitsBits(value, 0u), symbolicSizeBits eq zeroValue)
+                                mkAnd(unsignedIntegerFitsBits(value, 0u), symbolicSizeBits eq zeroValue),
                             )
                         var prevMaxValue: UExpr<TvmInt257Sort> = bvMaxValueUnsignedExtended(zeroValue)
                         for (sizeBits in 1 until TvmContext.INT_BITS.toInt()) {
@@ -1533,7 +1533,7 @@ class TvmInterpreter(
                                 mkAnd(
                                     smallestCond,
                                     unsignedIntegerFitsBits(value, sizeBits.toUInt()),
-                                    symbolicSizeBits eq sizeBits.toBv257()
+                                    symbolicSizeBits eq sizeBits.toBv257(),
                                 )
 
                             disjArgs.add(arg)
@@ -1543,7 +1543,7 @@ class TvmInterpreter(
 
                         scope.assert(
                             mkOr(disjArgs),
-                            unsatBlock = { error("Statement: $stmt; cannot assert disjunction: $disjArgs") }
+                            unsatBlock = { error("Statement: $stmt; cannot assert disjunction: $disjArgs") },
                         ) ?: return
 
                         symbolicSizeBits
@@ -1741,7 +1741,7 @@ class TvmInterpreter(
                     scope.calcOnState {
                         fieldManagers.cellDataLengthFieldManager.readCellDataLength(
                             this,
-                            cell
+                            cell,
                         )
                     }
                 val refsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
@@ -1771,7 +1771,7 @@ class TvmInterpreter(
                 scope.doWithState {
                     scope.assert(
                         mkBvSignedGreaterOrEqualExpr(trailingZeroes, zeroValue),
-                        unsatBlock = { error("Cannot make trailing zeroes >= 0") }
+                        unsatBlock = { error("Cannot make trailing zeroes >= 0") },
                     ) ?: return@doWithState
 
                     stack.addInt(trailingZeroes)
@@ -2311,7 +2311,7 @@ class TvmInterpreter(
             blockOnTrueState = {
                 stack.addStackEntry(x)
                 newStmt(stmt.nextStmt())
-            }
+            },
         )
     }
 
@@ -2337,7 +2337,7 @@ class TvmInterpreter(
                 falseStateIsExceptional = false,
                 blockOnFalseState = {
                     newStmt(stmt.nextStmt())
-                }
+                },
             ) ?: return@with
 
             // TODO check NaN for integer overflow exception
@@ -2456,7 +2456,7 @@ class TvmInterpreter(
             falseStateIsExceptional = false,
             blockOnFalseState = {
                 newStmt(stmt.nextStmt())
-            }
+            },
         ) ?: return@with
 
         if (isJmp) {
@@ -2491,7 +2491,7 @@ class TvmInterpreter(
 //                        stack = continuation.stack
 
                     newStmt(TsaArtificialExecuteContInst(secondContinuation, stmt.location))
-                }
+                },
             )
         }
     }

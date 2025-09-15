@@ -101,7 +101,7 @@ class TvmTransactionInterpreter(
             val messagesForQueue = handler.destinations.zip(actions)
             ActionDestinationParsingResult(
                 unprocessedMessages = emptyList(),
-                messagesForQueue = messagesForQueue
+                messagesForQueue = messagesForQueue,
             )
         }
 
@@ -310,7 +310,7 @@ class TvmTransactionInterpreter(
                 externalTag eq mkBv(value = 3, sizeBits = 2u),
                 falseStateIsExceptional = true,
                 // TODO set cell deserialization failure
-                blockOnFalseState = throwStructuralCellUnderflowError
+                blockOnFalseState = throwStructuralCellUnderflowError,
             ) ?: return null
 
             // ext_out_msg_info$11
@@ -381,7 +381,7 @@ class TvmTransactionInterpreter(
                 mkIte(
                     splitDepthMaybeBit eq oneBit,
                     sixSizeExpr,
-                    oneSizeExpr
+                    oneSizeExpr,
                 )
             scope.doWithState { sliceMoveDataPtr(ptr.slice, splitDepthLen) }
 
@@ -393,7 +393,7 @@ class TvmTransactionInterpreter(
                 mkIte(
                     specialMaybeBit eq oneBit,
                     threeSizeExpr,
-                    oneSizeExpr
+                    oneSizeExpr,
                 )
             scope.doWithState { sliceMoveDataPtr(ptr.slice, specialLen) }
 
@@ -415,9 +415,9 @@ class TvmTransactionInterpreter(
                 mkSizeAddExpr(
                     mkSizeAddExpr(
                         codeMaybeBit.zeroExtendToSort(sizeSort),
-                        dataMaybeBit.zeroExtendToSort(sizeSort)
+                        dataMaybeBit.zeroExtendToSort(sizeSort),
                     ),
-                    libMaybeBit.zeroExtendToSort(sizeSort)
+                    libMaybeBit.zeroExtendToSort(sizeSort),
                 )
 
             scope.doWithState { sliceMoveRefPtr(ptr.slice, refsToSkip) }

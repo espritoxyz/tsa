@@ -29,7 +29,7 @@ class TvmCellDataFieldManager(
         TvmCellDataFieldManager(
             ctx,
             addressesWithRequestedCellDataField,
-            addressesWithAssertedCellData
+            addressesWithAssertedCellData,
         ).also {
             it.addressToLabelMapper = addressToLabelMapper
         }
@@ -58,7 +58,7 @@ class TvmCellDataFieldManager(
             if (::addressToLabelMapper.isInitialized) {
                 val hasStructuralConstraints =
                     addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(
-                        cellRef
+                        cellRef,
                     )
                 check(!hasStructuralConstraints) {
                     "readCellDataForAllocatedCell cannot be used for cells with structural constraints"

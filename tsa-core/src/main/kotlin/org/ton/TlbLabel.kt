@@ -133,10 +133,10 @@ data object TlbBasicMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel("MsgAddr")
                             TlbInternalShortStdMsgAddrLabel,
                             typeArgIds = emptyList(),
                             rest = Empty,
-                            owner = this
-                        )
+                            owner = this,
+                        ),
                 ),
-                owner = this
+                owner = this,
             )
     }
 }
@@ -158,10 +158,10 @@ class TlbMaybeRefLabel(
                                 id = TlbStructureIdProvider.provideId(),
                                 ref = refInfo,
                                 rest = Empty,
-                                owner = this
-                            )
+                                owner = this,
+                            ),
                     ),
-                owner = this
+                owner = this,
             )
     }
 }
@@ -191,7 +191,7 @@ data object TlbCoinsLabel : TlbResolvedBuiltinLabel, TlbCompositeLabel("Coins") 
                 TlbIntegerLabelOfConcreteSize(
                     concreteSize = 4,
                     isSigned = false,
-                    endian = Endian.BigEndian
+                    endian = Endian.BigEndian,
                 ),
                 typeArgIds = emptyList(),
                 rest =
@@ -201,15 +201,15 @@ data object TlbCoinsLabel : TlbResolvedBuiltinLabel, TlbCompositeLabel("Coins") 
                             isSigned = false,
                             endian = Endian.BigEndian,
                             lengthUpperBound = 120,
-                            arity = 1
+                            arity = 1,
                         ) { ctx, args ->
                             ctx.mkBvMulExpr(args.single(), ctx.mkSizeExpr(8))
                         },
                         typeArgIds = listOf(coinPrefixId),
                         rest = Empty,
-                        owner = this
+                        owner = this,
                     ),
-                owner = this
+                owner = this,
             )
     }
 }

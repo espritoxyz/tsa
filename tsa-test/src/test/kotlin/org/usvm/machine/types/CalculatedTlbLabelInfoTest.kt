@@ -48,14 +48,14 @@ class CalculatedTlbLabelInfoTest {
             ctx,
             listOf(someCode),
             dummyComponents.typeSystem,
-            TvmInputInfo()
+            TvmInputInfo(),
         )
     private val dummyState =
         dummyInterpreter.getInitialState(
             startContractId = 0,
             concreteGeneralData = TvmConcreteGeneralData(),
             concreteContractData = listOf(TvmConcreteContractData()),
-            methodId = BigInteger.ZERO
+            methodId = BigInteger.ZERO,
         )
     private val cellDataFieldManager = dummyState.fieldManagers.cellDataFieldManager
 
@@ -74,8 +74,8 @@ class CalculatedTlbLabelInfoTest {
                 longDataStructure,
                 wrappedMsgStructure,
                 customVarInteger,
-                doubleCustomVarInteger
-            )
+                doubleCustomVarInteger,
+            ),
         )
 
     private val maxTlbDepth = ctx.tvmOptions.tlbOptions.maxTlbDepth
@@ -146,7 +146,7 @@ class CalculatedTlbLabelInfoTest {
         val address = dummyState.generateSymbolicCell()
         assertEquals(
             null,
-            info.getDataCellSize(dummyState, address, prefixInt64Structure)
+            info.getDataCellSize(dummyState, address, prefixInt64Structure),
         )
 
         val cell = info.getDefaultCell(prefixInt64Structure)

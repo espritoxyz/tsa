@@ -98,7 +98,7 @@ class TvmValueFixator(
                 cellRef,
                 truncateSliceCell(value),
                 dataPosSymbolic,
-                refPosSymbolic
+                refPosSymbolic,
             )
         }
 
@@ -123,7 +123,7 @@ class TvmValueFixator(
                 scope.calcOnState {
                     mkSizeSubExpr(
                         memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort),
-                        refsOffset
+                        refsOffset,
                     )
                 }
             val refCond = symbolicRefNumber eq mkSizeExpr(value.refs.size)
@@ -134,7 +134,7 @@ class TvmValueFixator(
                         scope.calcOnState {
                             mkSizeSubExpr(
                                 fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, ref),
-                                dataOffset
+                                dataOffset,
                             )
                         }
 

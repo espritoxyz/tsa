@@ -86,7 +86,7 @@ class TvmMessageAddrInterpreter(
                 unsatBlock = {
                     // TODO Deal with non addr_std
                     logger.debug { "Non-std addr found, dropping the state" }
-                }
+                },
             ) ?: return@doWithStateCtx
 
             val anycastBit =
@@ -98,7 +98,7 @@ class TvmMessageAddrInterpreter(
                 unsatBlock = {
                     // TODO Deal with anycast
                     logger.debug { "Cannot assume no anycast" }
-                }
+                },
             ) ?: return@doWithStateCtx
 
             val workchain =
@@ -111,7 +111,7 @@ class TvmMessageAddrInterpreter(
                 workchainValueConstraint,
                 unsatBlock = {
                     error("Cannot assume valid workchain value")
-                }
+                },
             ) ?: return@doWithStateCtx
 
             val address =
@@ -126,7 +126,7 @@ class TvmMessageAddrInterpreter(
                 emptySuffixConstraint,
                 falseStateIsExceptional = true,
                 // TODO set cell deserialization failure
-                blockOnFalseState = throwUnknownCellUnderflowError
+                blockOnFalseState = throwUnknownCellUnderflowError,
             ) ?: return@doWithStateCtx
 
             stack.addInt(workchain)

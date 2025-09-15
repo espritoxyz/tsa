@@ -56,7 +56,7 @@ class TsaCheckerFunctionsInterpreter(
             oldStack = stmt.checkerMemorySavelist.oldStack,
             stackOperations = stmt.checkerMemorySavelist.stackOperations,
             newInput = stmt.checkerMemorySavelist.newInput,
-            nextContractId = stmt.checkerMemorySavelist.nextContractId
+            nextContractId = stmt.checkerMemorySavelist.nextContractId,
         ) ?: return
 
         val registers =
@@ -69,7 +69,7 @@ class TsaCheckerFunctionsInterpreter(
         val oldMemory =
             TvmContractExecutionMemory(
                 stack = stmt.checkerMemorySavelist.oldStack,
-                registers = registers
+                registers = registers,
             )
 
         scope.calcOnState {
@@ -80,7 +80,7 @@ class TsaCheckerFunctionsInterpreter(
                 oldMemory = oldMemory,
                 newRegisters = stmt.checkerMemorySavelist.newRegisters,
                 nextContractId = stmt.checkerMemorySavelist.nextContractId,
-                nextMethodId = stmt.checkerMemorySavelist.nextMethodId
+                nextMethodId = stmt.checkerMemorySavelist.nextMethodId,
             )
         }
     }
@@ -220,14 +220,14 @@ class TsaCheckerFunctionsInterpreter(
                                     RecvInternalInput(
                                         this,
                                         TvmConcreteGeneralData(),
-                                        nextContractId
+                                        nextContractId,
                                     )
 
                                 ReceiverType.External ->
                                     RecvExternalInput(
                                         this,
                                         TvmConcreteGeneralData(),
-                                        nextContractId
+                                        nextContractId,
                                     )
                             }
                         }.also {
@@ -261,7 +261,7 @@ class TsaCheckerFunctionsInterpreter(
                     this,
                     nextContractId,
                     receiverInput?.msgValue,
-                    allowInputStackValues = false
+                    allowInputStackValues = false,
                 ).also {
                     stack = it.stack
                 }
@@ -274,7 +274,7 @@ class TsaCheckerFunctionsInterpreter(
             scope.calcOnState {
                 TvmContractExecutionMemory(
                     oldStack,
-                    registersOfCurrentContract.clone()
+                    registersOfCurrentContract.clone(),
                 )
             }
 
@@ -312,7 +312,7 @@ class TsaCheckerFunctionsInterpreter(
                     newExecutionMemory.registers,
                     nextContractId,
                     nextMethodId,
-                    stmt
+                    stmt,
                 )
             scope.callMethod(stmt, handlerMethod, checkerMemorySavelist = savelist)
         } else {
@@ -324,7 +324,7 @@ class TsaCheckerFunctionsInterpreter(
                     oldMemory,
                     newExecutionMemory.registers,
                     nextContractId,
-                    nextMethodId
+                    nextMethodId,
                 )
             }
         }
@@ -358,7 +358,7 @@ class TsaCheckerFunctionsInterpreter(
         contractIdToFirstElementOfC7 =
             contractIdToFirstElementOfC7.put(
                 currentContract,
-                registersOfCurrentContract.c7.value[0, oldStack].cell(oldStack) as TvmStackTupleValueConcreteNew
+                registersOfCurrentContract.c7.value[0, oldStack].cell(oldStack) as TvmStackTupleValueConcreteNew,
             )
 
         val takeFromNewStack =
@@ -369,7 +369,14 @@ class TsaCheckerFunctionsInterpreter(
 
         contractStack =
             contractStack.add(
-                TvmContractPosition(currentContract, stmt, oldMemory, takeFromNewStack, currentEventId, receivedMessage)
+                TvmContractPosition(
+                    currentContract,
+                    stmt,
+                    oldMemory,
+                    takeFromNewStack,
+                    currentEventId,
+                    receivedMessage,
+                ),
             )
         currentPhaseBeginTime = pseudologicalTime
         currentContract = nextContractId
@@ -427,13 +434,13 @@ class TsaCheckerFunctionsInterpreter(
                             TvmConcreteStackEntry(
                                 TvmStackCellValue(
                                     newInput.constructFullMessage(
-                                        this
-                                    )
-                                )
-                            )
+                                        this,
+                                    ),
+                                ),
+                            ),
                         )
                         stack.addStackEntry(
-                            TvmConcreteStackEntry(TvmStackSliceValue(newInput.msgBodySliceMaybeBounced))
+                            TvmConcreteStackEntry(TvmStackSliceValue(newInput.msgBodySliceMaybeBounced)),
                         )
                     }
                 }

@@ -21,7 +21,7 @@ import org.usvm.utils.intValueOrNull
 class TvmCellDataLengthFieldManager(
     private var builderLengthUpperBoundTracker: TvmBuilderLengthUpperBoundTracker =
         TvmBuilderLengthUpperBoundTracker(
-            persistentMapOf()
+            persistentMapOf(),
         ),
 ) {
     fun clone() = TvmCellDataLengthFieldManager(builderLengthUpperBoundTracker)

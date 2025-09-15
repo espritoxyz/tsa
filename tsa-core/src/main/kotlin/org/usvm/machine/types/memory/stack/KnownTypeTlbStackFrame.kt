@@ -66,7 +66,7 @@ data class KnownTypeTlbStackFrame(
                     state.ctx,
                     struct.rest,
                     path,
-                    leftTlbDepth
+                    leftTlbDepth,
                 )?.let {
                     NextFrame(it)
                 } ?: EndOfStackFrame
@@ -76,10 +76,10 @@ data class KnownTypeTlbStackFrame(
                     TvmReadingOfUnexpectedType(
                         struct.typeLabel,
                         args,
-                        loadData.type
+                        loadData.type,
                     ),
                     state.phase,
-                    state.stack
+                    state.stack,
                 )
 
             val value =
@@ -89,14 +89,14 @@ data class KnownTypeTlbStackFrame(
                     loadData.cellAddress,
                     path,
                     state,
-                    leftTlbDepth
+                    leftTlbDepth,
                 )
 
             val result: MutableList<GuardedResult<ReadResult>> =
                 mutableListOf(
                     GuardedResult(frameIsEmpty, PassLoadToNextFrame(loadData), null),
                     GuardedResult(continueReadOnNextFrame.not() and accept, nextFrame, value),
-                    GuardedResult(continueReadOnNextFrame.not() and accept.not(), StepError(error), null)
+                    GuardedResult(continueReadOnNextFrame.not() and accept.not(), StepError(error), null),
                 )
 
             if (passPartOfLoadDataFurther != null) {
@@ -107,11 +107,11 @@ data class KnownTypeTlbStackFrame(
                         PassLoadToNextFrame(
                             LimitedLoadData(
                                 loadData.cellAddress,
-                                TvmCellDataBitArrayRead(passPartOfLoadDataFurther.leftBits).uncheckedCast()
-                            )
+                                TvmCellDataBitArrayRead(passPartOfLoadDataFurther.leftBits).uncheckedCast(),
+                            ),
                         ),
-                        value = null
-                    )
+                        value = null,
+                    ),
                 )
             }
 
@@ -130,7 +130,7 @@ data class KnownTypeTlbStackFrame(
                     ctx,
                     struct.typeLabel.internalStructure,
                     path.add(struct.id),
-                    leftTlbDepth - 1
+                    leftTlbDepth - 1,
                 )
             }
         }
@@ -168,7 +168,7 @@ data class KnownTypeTlbStackFrame(
                         TlbStack.ConcreteReadInfo(
                             read.address,
                             read.resolver,
-                            read.leftBits - struct.typeLabel.concreteSize
+                            read.leftBits - struct.typeLabel.concreteSize,
                         )
 
                     val newFrame = skipLabel(this)
@@ -192,7 +192,7 @@ data class KnownTypeTlbStackFrame(
                         TlbStack.ConcreteReadInfo(
                             read.address,
                             read.resolver,
-                            read.leftBits - intSize
+                            read.leftBits - intSize,
                         )
 
                     val newFrame = skipLabel(this)
@@ -214,7 +214,7 @@ data class KnownTypeTlbStackFrame(
                         TlbStack.ConcreteReadInfo(
                             read.address,
                             read.resolver,
-                            read.leftBits - curData.length
+                            read.leftBits - curData.length,
                         )
 
                     val newFrame = skipLabel(this)

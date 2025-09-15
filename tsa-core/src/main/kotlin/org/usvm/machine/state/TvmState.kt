@@ -99,7 +99,7 @@ class TvmState(
         models,
         pathNode,
         forkPoints,
-        targets
+        targets,
     ) {
     val pseudologicalTime: Int
         get() = gasUsageHistory.size
@@ -192,7 +192,7 @@ class TvmState(
             acceptedInputs = acceptedInputs,
             receivedMessage = receivedMessage,
             eventsLog = eventsLog,
-            currentPhaseBeginTime = currentPhaseBeginTime
+            currentPhaseBeginTime = currentPhaseBeginTime,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

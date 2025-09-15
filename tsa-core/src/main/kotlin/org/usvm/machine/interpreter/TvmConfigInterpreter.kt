@@ -202,7 +202,7 @@ class TvmConfigInterpreter(
         val configContainsIdx = scope.calcOnState { configContainsParam(absIdx) }
         scope.assert(
             configContainsIdx,
-            unsatBlock = { error("Config doesn't contain idx: $absIdx") }
+            unsatBlock = { error("Config doesn't contain idx: $absIdx") },
         ) ?: return@with
 
         val result =
@@ -233,7 +233,7 @@ class TvmConfigInterpreter(
             return scope.fork(
                 cond,
                 falseStateIsExceptional = true,
-                blockOnFalseState = throwIntegerOutOfRangeError
+                blockOnFalseState = throwIntegerOutOfRangeError,
             )
         }
 
@@ -296,16 +296,16 @@ class TvmConfigInterpreter(
                     condition = isMasterchainSymbolic,
                     caseIsExceptional = false,
                     paramForDoForAllBlock = true,
-                    action = {}
+                    action = {},
                 ),
                 TvmStepScopeManager.ActionOnCondition(
                     condition = isMasterchainSymbolic.not(),
                     caseIsExceptional = false,
                     paramForDoForAllBlock = false,
-                    action = {}
-                )
+                    action = {},
+                ),
             ),
-            performAction
+            performAction,
         )
     }
 
@@ -348,14 +348,14 @@ class TvmConfigInterpreter(
                     mkBvAddExpr(
                         mkBvMulExpr(
                             bits,
-                            configBitPriceSymbolic
+                            configBitPriceSymbolic,
                         ),
                         mkBvMulExpr(
                             cells,
-                            configCellPriceSymbolic
-                        )
+                            configCellPriceSymbolic,
+                        ),
                     ),
-                    div
+                    div,
                 )
 
             val result =
@@ -418,16 +418,16 @@ class TvmConfigInterpreter(
                         mkBvAddExpr(
                             mkBvMulExpr(
                                 bits,
-                                configBitPriceSymbolic
+                                configBitPriceSymbolic,
                             ),
                             mkBvMulExpr(
                                 cells,
-                                configCellPriceSymbolic
-                            )
+                                configCellPriceSymbolic,
+                            ),
                         ),
-                        seconds
+                        seconds,
                     ),
-                    div
+                    div,
                 )
             addOnStack(result.value, TvmIntegerType)
 
@@ -473,19 +473,19 @@ class TvmConfigInterpreter(
                         mkBvMulExpr(
                             mkBvSubExpr(
                                 gasUsed,
-                                configFlatGasLimitSymbolic
+                                configFlatGasLimitSymbolic,
                             ),
-                            configGasPriceExtended
+                            configGasPriceExtended,
                         ),
-                        div
-                    ).value
+                        div,
+                    ).value,
                 )
 
             val result =
                 mkIte(
                     useFlatGas,
                     trueBranch = { flatGasExpr },
-                    falseBranch = { nonFlatPrice }
+                    falseBranch = { nonFlatPrice },
                 )
 
             addOnStack(result, TvmIntegerType)

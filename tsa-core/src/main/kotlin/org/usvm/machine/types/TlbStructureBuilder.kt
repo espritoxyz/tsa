@@ -39,11 +39,11 @@ value class TlbStructureBuilder(
                     typeLabel = label,
                     typeArgIds = emptyList(),
                     rest = suffix,
-                    owner = owner
+                    owner = owner,
                 ),
                 owner,
                 state,
-                address
+                address,
             )
         }
     }
@@ -63,13 +63,13 @@ value class TlbStructureBuilder(
                     switchSize = bitString.length,
                     givenVariants =
                         mapOf(
-                            bitString to suffix
+                            bitString to suffix,
                         ),
-                    owner
+                    owner,
                 ),
                 owner,
                 state,
-                address
+                address,
             )
         }
 

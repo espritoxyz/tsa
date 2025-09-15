@@ -76,7 +76,7 @@ class TvmGasInterpreter(
                 falseStateIsExceptional = true,
                 blockOnFalseState = {
                     setFailure(TvmOutOfGas(consumedGas, gasLimit))(this)
-                }
+                },
             ) ?: return@with
 
             scope.doWithState { newStmt(stmt.nextStmt()) }

@@ -24,7 +24,7 @@ class TypeVariantsExample {
         val result =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
-                tvmOptions = testOptionsToAnalyzeSpecificMethod
+                tvmOptions = testOptionsToAnalyzeSpecificMethod,
             )
         assertEquals(1, result.testSuites.size)
         val testSuite = result.testSuites.first()
@@ -32,14 +32,14 @@ class TypeVariantsExample {
         val expectedTypeSet1 = { bitArraySize: Int ->
             listOf(
                 TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0),
-                TvmCellDataTypeLoad(TvmTestCellDataBitArrayRead(bitArraySize), 8)
+                TvmCellDataTypeLoad(TvmTestCellDataBitArrayRead(bitArraySize), 8),
             )
         }
 
         val expectedTypeSet2 = { intSize: Int ->
             listOf(
                 TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0),
-                TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(intSize, true, Endian.BigEndian), 8)
+                TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(intSize, true, Endian.BigEndian), 8),
             )
         }
 
@@ -47,39 +47,39 @@ class TypeVariantsExample {
             testSuite,
             listOf(
                 generatePredicate1(
-                    listOf(TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0))
+                    listOf(TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0)),
                 ),
                 generatePredicate1(
                     listOf(
                         TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0),
-                        TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(10, true, Endian.BigEndian), 8)
-                    )
+                        TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(10, true, Endian.BigEndian), 8),
+                    ),
                 ),
                 generatePredicate1(
                     listOf(
                         TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0),
-                        TvmCellDataTypeLoad(TvmTestCellDataMaybeConstructorBitRead, 8)
-                    )
+                        TvmCellDataTypeLoad(TvmTestCellDataMaybeConstructorBitRead, 8),
+                    ),
                 ),
                 generatePredicate1(
                     listOf(
                         TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 0),
-                        TvmCellDataTypeLoad(TvmTestCellDataBitArrayRead(100), 8)
-                    )
+                        TvmCellDataTypeLoad(TvmTestCellDataBitArrayRead(100), 8),
+                    ),
                 ),
                 generatePredicate(
                     listOf(
                         expectedTypeSet1(11),
-                        expectedTypeSet1(12)
-                    )
+                        expectedTypeSet1(12),
+                    ),
                 ),
                 generatePredicate(
                     listOf(
                         expectedTypeSet2(3),
-                        expectedTypeSet2(4)
-                    )
-                )
-            )
+                        expectedTypeSet2(4),
+                    ),
+                ),
+            ),
         )
     }
 

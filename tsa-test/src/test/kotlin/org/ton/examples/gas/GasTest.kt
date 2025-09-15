@@ -34,7 +34,7 @@ class GasTest {
         val symbolicResult =
             analyzeAllMethods(
                 contract,
-                tvmOptions = testConcreteOptions
+                tvmOptions = testConcreteOptions,
             )
 
         for ((methodId, _, tests) in symbolicResult) {

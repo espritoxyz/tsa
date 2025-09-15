@@ -23,7 +23,7 @@ class IntercontractTest {
             listOf(
                 extractResource(rootPath),
                 extractResource(contract1Path),
-                extractResource(contract2Path)
+                extractResource(contract2Path),
             )
 
         val schemeJson = extractResource(schemePath).readText()
@@ -34,7 +34,7 @@ class IntercontractTest {
             analyzeFuncIntercontract(
                 sources = sources,
                 options = options,
-                startContract = 0
+                startContract = 0,
             )
         val failedPaths =
             resultStates.mapNotNull { test ->

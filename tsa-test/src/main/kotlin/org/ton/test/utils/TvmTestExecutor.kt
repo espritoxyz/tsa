@@ -28,7 +28,7 @@ object TvmTestExecutor {
             executeTests(
                 projectPath = project,
                 testFileName = generatedTestsPath,
-                testsExecutionTimeout = TEST_EXECUTION_TIMEOUT
+                testsExecutionTimeout = TEST_EXECUTION_TIMEOUT,
             )
         val allTests = testResults.flatMap { it.assertionResults }
         val failedTests = allTests.filter { it.status == TestStatus.FAILED }
@@ -64,7 +64,7 @@ object TvmTestExecutor {
                 project,
                 sources.toAbsolutePath(),
                 contractType,
-                useMinimization = useMinimization
+                useMinimization = useMinimization,
             )
         }
     }
@@ -84,7 +84,7 @@ object TvmTestExecutor {
             executeCommandWithTimeout(
                 command = "yarn install",
                 timeoutSeconds = PROJECT_INIT_TIMEOUT.inWholeSeconds,
-                processWorkingDirectory = project
+                processWorkingDirectory = project,
             )
 
         check(exitCode == 0) {

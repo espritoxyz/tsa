@@ -315,7 +315,7 @@ class ContractsTest {
         val tests =
             BocAnalyzer.analyzeSpecificMethod(
                 bocPath,
-                methodId
+                methodId,
             )
         assertTrue { tests.isNotEmpty() }
 

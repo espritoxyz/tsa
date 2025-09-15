@@ -74,7 +74,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
                         .readField(
                             address,
                             gramsField,
-                            gramsField.getSort(this)
+                            gramsField.getSort(this),
                         ).unsignedExtendToInteger()
 
                 val lengthField = ConcreteSizeBlockField(lengthStruct.typeLabel.concreteSize, lengthStruct.id, newPath)
@@ -194,7 +194,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
                 val possibleVariants =
                     state.dataCellInfoStorage.mapper.calculatedTlbLabelInfo.getPossibleSwitchVariants(
                         switchStruct,
-                        leftTlbDepth
+                        leftTlbDepth,
                     )
                 val trueVariant = possibleVariants.indexOfFirst { it.key == "1" }
 
@@ -224,7 +224,7 @@ private fun extractInt(
         val shifted =
             mkBvLogicalShiftRightExpr(
                 bits,
-                mkSizeSubExpr(mkSizeExpr(data.length), mkSizeAddExpr(offset, length)).zeroExtendToSort(cellDataSort)
+                mkSizeSubExpr(mkSizeExpr(data.length), mkSizeAddExpr(offset, length)).zeroExtendToSort(cellDataSort),
             )
         return extractIntFromShiftedData(shifted, length.zeroExtendToSort(int257sort), isSigned)
     }
@@ -246,7 +246,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.read
                     mkIte(
                         bit eq zeroValue,
                         trueBranch = { falseExpr },
-                        falseBranch = { trueExpr }
+                        falseBranch = { trueExpr },
                     )
                 UExprReadResult(boolExpr).uncheckedCast()
             }

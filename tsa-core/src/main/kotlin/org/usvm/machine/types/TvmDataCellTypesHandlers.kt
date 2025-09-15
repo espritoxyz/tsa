@@ -130,7 +130,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoa
                         ctx,
                         guard,
                         trueBranch = value!!,
-                        falseBranch = acc
+                        falseBranch = acc,
                     )
                 }
 
@@ -148,13 +148,13 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoa
                     action = action,
                     condition = guard,
                     caseIsExceptional = outcome is Error,
-                    paramForDoForAllBlock = value
+                    paramForDoForAllBlock = value,
                 )
             },
         doForAllBlock = { param ->
             // we execute [restActions] only on states that haven't terminated yet
             restActions(param)
-        }
+        },
     )
 }
 
@@ -199,7 +199,7 @@ fun TvmStepScopeManager.assertEndOfCell(slice: UHeapRef): Unit? {
                 falseStateIsExceptional = true,
                 blockOnFalseState = {
                     setExit(TvmStructuralError(TvmUnexpectedEndOfReading, phase, stack))
-                }
+                },
             ) ?: return@calcOnStateCtx null
         }
     }
@@ -229,7 +229,7 @@ fun TvmStepScopeManager.makeSliceRefLoad(
                     falseStateIsExceptional = true,
                     blockOnFalseState = {
                         setExit(TvmStructuralError(TvmUnexpectedRefReading, phase, stack))
-                    }
+                    },
                 ) ?: return@calcOnStateCtx null
             }
         } ?: return
@@ -254,12 +254,12 @@ fun TvmStepScopeManager.makeSliceRefLoad(
                 action = { stack?.let { dataCellInfoStorage.sliceMapper.mapSliceToTlbStack(newSlice, it) } },
                 condition = guard,
                 caseIsExceptional = false,
-                paramForDoForAllBlock = Unit
+                paramForDoForAllBlock = Unit,
             )
         },
         doForAllBlock = {
             restActions()
-        }
+        },
     )
 }
 
@@ -289,18 +289,18 @@ fun TvmStepScopeManager.makeCellToSlice(
                         dataCellInfoStorage.sliceMapper.allocateInitialSlice(
                             ctx,
                             sliceAddress,
-                            label
+                            label,
                         )
                     }
                 },
                 condition = guard,
                 caseIsExceptional = false,
-                paramForDoForAllBlock = Unit
+                paramForDoForAllBlock = Unit,
             )
         },
         doForAllBlock = {
             restActions()
-        }
+        },
     )
 }
 
@@ -392,7 +392,7 @@ fun TvmState.storeCoinTlbLabelToBuilder(
             ConcreteSizeBlockField(
                 lengthStructure.typeLabel.concreteSize,
                 lengthStructure.id,
-                persistentListOf(structId)
+                persistentListOf(structId),
             )
         val lengthSort = lengthField.getSort(this)
         check(lengthSort.sizeBits == length.sort.sizeBits)
@@ -401,7 +401,7 @@ fun TvmState.storeCoinTlbLabelToBuilder(
             SymbolicSizeBlockField(
                 valueStructure.typeLabel.lengthUpperBound,
                 valueStructure.id,
-                persistentListOf(structId)
+                persistentListOf(structId),
             )
         val valueSort = valueField.getSort(this)
 
