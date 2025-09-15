@@ -102,7 +102,7 @@ class TvmConcreteEmulator(
             walletContractBytesHex = jettonWalletCodeHex,
             declaredOwner = owner,
             declaredMintable = isMintable,
-            declaredTotalSupply = totalSupply.toString()
+            declaredTotalSupply = totalSupply.toString(),
         )
     }
 
@@ -196,7 +196,7 @@ class TvmConcreteEmulator(
                     Instant.now().epochSecond,
                     state.balance,
                     randSeedHex,
-                    defaultConfig
+                    defaultConfig,
                 )
 
             check(c7Set) {

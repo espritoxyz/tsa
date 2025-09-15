@@ -47,7 +47,7 @@ class Statements {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedContract = getFuncContract(analyzedPath, FIFT_STDLIB_RESOURCE)
 
@@ -56,7 +56,7 @@ class Statements {
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT)
+                options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT),
             )
 
         checkInvariants(
@@ -82,13 +82,13 @@ class Statements {
                 } else {
                     result is TvmSuccessfulExecution
                 }
-            }
+            },
         )
 
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
         )
     }
 
@@ -100,7 +100,7 @@ class Statements {
             getFuncContract(
                 checkerPath,
                 FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
         val analyzedContract = getFuncContract(analyzedPath, FIFT_STDLIB_RESOURCE)
 
@@ -109,7 +109,7 @@ class Statements {
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT)
+                options = TvmOptions(loopIterationLimit = LOOP_ITERATION_LIMIT),
             )
 
         // There should not exist a test
@@ -155,8 +155,8 @@ class Statements {
                 listOf(102, 103, 103),
                 listOf(102, 103, 102),
                 listOf(102, 102, 103),
-                listOf(102, 102, 102)
-            )
+                listOf(102, 102, 102),
+            ),
         )
     }
 
@@ -219,8 +219,8 @@ class Statements {
                 listOf(102, 103, 103),
                 listOf(102, 103, 102),
                 listOf(102, 102, 103),
-                listOf(102, 102, 102)
-            )
+                listOf(102, 102, 102),
+            ),
         )
     }
 

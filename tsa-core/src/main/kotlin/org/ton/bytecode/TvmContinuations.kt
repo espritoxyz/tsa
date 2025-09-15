@@ -143,8 +143,8 @@ data class TvmLoopEntranceContinuation(
         TvmLambda(
             mutableListOf(
                 TsaArtificialLoopEntranceInst(id, TvmInstLambdaLocation(0).also { it.parent = parentLocation }),
-                TsaArtificialJmpToContInst(loopBody, TvmInstLambdaLocation(1).also { it.parent = parentLocation })
-            )
+                TsaArtificialJmpToContInst(loopBody, TvmInstLambdaLocation(1).also { it.parent = parentLocation }),
+            ),
         )
 
     override fun update(

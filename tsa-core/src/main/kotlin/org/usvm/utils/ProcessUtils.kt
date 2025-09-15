@@ -23,7 +23,7 @@ fun executeCommandWithTimeout(
         timeoutSeconds,
         processWorkingDirectory,
         additionalEnvironment,
-        inputFile
+        inputFile,
     )
 
 fun executeCommandWithTimeout(

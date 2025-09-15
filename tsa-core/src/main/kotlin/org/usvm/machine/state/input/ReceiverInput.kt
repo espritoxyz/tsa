@@ -67,7 +67,7 @@ sealed class ReceiverInput(
                 val msgValueConstraint =
                     mkAnd(
                         mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, msgValue),
-                        mkBvSignedLessOrEqualExpr(msgValue, maxMessageCurrencyValue)
+                        mkBvSignedLessOrEqualExpr(msgValue, maxMessageCurrencyValue),
                     )
 
                 val createdLtConstraint = unsignedIntegerFitsBits(createdLt, bits = 64u)
@@ -108,14 +108,14 @@ sealed class ReceiverInput(
                     createdLtConstraint,
                     createdAtConstraint,
                     balanceConstraints,
-                    opcodeConstraint
+                    opcodeConstraint,
                 )
             }
 
         return scope.assert(
             constraint,
             unsatBlock = { error("Cannot assert recv_internal constraints") },
-            unknownBlock = { error("Unknown result while asserting recv_internal constraints") }
+            unknownBlock = { error("Unknown result while asserting recv_internal constraints") },
         )
     }
 
@@ -131,7 +131,7 @@ sealed class ReceiverInput(
             mkAnd(
                 mkBvSignedLessOrEqualExpr(balance, maxMessageCurrencyValue),
                 mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, msgValue),
-                mkBvSignedLessOrEqualExpr(msgValue, balance)
+                mkBvSignedLessOrEqualExpr(msgValue, balance),
             )
 
         return balanceConstraints

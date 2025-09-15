@@ -79,7 +79,7 @@ private object TruncatedSliceSerializer : KSerializer<TvmTestSliceValue> {
     override val descriptor: SerialDescriptor =
         SerialDescriptor(
             "org.usvm.test.resolver.TruncatedSliceSerializer",
-            TvmTestTruncatedSliceValue.serializer().descriptor
+            TvmTestTruncatedSliceValue.serializer().descriptor,
         )
 
     override fun serialize(

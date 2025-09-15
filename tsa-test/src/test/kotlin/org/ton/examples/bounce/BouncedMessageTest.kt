@@ -23,14 +23,14 @@ class BouncedMessageTest {
             tests,
             listOf { test ->
                 test.result is TvmSuccessfulExecution
-            }
+            },
         )
 
         propertiesFound(
             tests,
             listOf { test ->
                 (test.input as? TvmTestInput.RecvInternalInput)?.bounced == true
-            }
+            },
         )
     }
 }

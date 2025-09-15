@@ -16,7 +16,7 @@ class ExceptionsTest {
     fun testExceptionInstructions() {
         compareSymbolicAndConcreteFromResource(
             testPath = exceptionsInstructionsFiftPath,
-            lastMethodIndex = 13
+            lastMethodIndex = 13,
         )
     }
 }

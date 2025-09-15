@@ -20,7 +20,7 @@ class CellParseTest {
         val symbolicResult =
             compileAndAnalyzeFift(
                 fiftResourcePath,
-                tvmOptions = testConcreteOptions
+                tvmOptions = testConcreteOptions,
             )
         val methodIds = (0..15).toSet()
 
@@ -36,7 +36,7 @@ class CellParseTest {
         val symbolicResult =
             compileAndAnalyzeFift(
                 fiftResourcePath,
-                tvmOptions = testConcreteOptions
+                tvmOptions = testConcreteOptions,
             )
         val methodIds = (0..6).toSet()
 
@@ -64,7 +64,7 @@ class CellParseTest {
         val symbolicResult =
             compileAndAnalyzeFift(
                 fiftResourcePath,
-                tvmOptions = testConcreteOptions
+                tvmOptions = testConcreteOptions,
             )
         val methodIds = (0..1).toSet()
 

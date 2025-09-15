@@ -42,7 +42,7 @@ fun main() {
                         TsaContractCode(
                             mainMethod = TvmMainMethod(mutableListOf(it)),
                             methods = mapOf(MethodId.ZERO to TvmMethod(MethodId.ZERO, mutableListOf(it))),
-                            codeCell = dummyCodeCell
+                            codeCell = dummyCodeCell,
                         )
 
                     val dummyInterpreter =
@@ -50,14 +50,14 @@ fun main() {
                             ctx,
                             listOf(code),
                             dummyComponents.typeSystem,
-                            TvmInputInfo()
+                            TvmInputInfo(),
                         )
                     val dummyState =
                         dummyInterpreter.getInitialState(
                             startContractId = 0,
                             TvmConcreteGeneralData(),
                             listOf(TvmConcreteContractData()),
-                            BigInteger.ZERO
+                            BigInteger.ZERO,
                         )
 
                     runCatching {

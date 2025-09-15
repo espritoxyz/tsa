@@ -22,7 +22,7 @@ class SimpleMaybe {
         val results =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
-                tvmOptions = testOptionsToAnalyzeSpecificMethod
+                tvmOptions = testOptionsToAnalyzeSpecificMethod,
             )
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
@@ -36,7 +36,7 @@ class SimpleMaybe {
                 val someCell = param.cell
                 val anotherCell = someCell.refs.firstOrNull() ?: return@listOf true
                 anotherCell is TvmTestDataCellValue
-            }
+            },
         )
     }
 }

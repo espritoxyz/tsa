@@ -29,8 +29,8 @@ data class BlacklistAddressChecker(
     private val inputInfo =
         TvmParameterInfo.SliceInfo(
             TvmParameterInfo.DataCellInfo(
-                tlbFormat
-            )
+                tlbFormat,
+            ),
         )
 
     override fun findConflictingExecutions(
@@ -41,7 +41,7 @@ data class BlacklistAddressChecker(
         return runAnalysisAndExtractFailingExecutions(
             listOf(checkerContract, contractUnderTest),
             stopWhenFoundOneConflictingExecution,
-            inputInfo = TvmInputInfo(mapOf(0 to inputInfo))
+            inputInfo = TvmInputInfo(mapOf(0 to inputInfo)),
         )
     }
 
@@ -68,7 +68,7 @@ data class BlacklistAddressChecker(
                 val firstAddress =
                     msgBody.data.substring(
                         firstAddressTypeLoad.offset,
-                        firstAddressTypeLoad.offset + stdMsgAddrSize
+                        firstAddressTypeLoad.offset + stdMsgAddrSize,
                     )
 
                 firstAddress.takeLast(MSG_ADDR_MAIN_PART_LENGTH)

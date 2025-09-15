@@ -42,7 +42,7 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort : USort>(
             staticMapper = { concreteRef ->
                 readRefValue(concreteRef.address, key, readingFromInputRef = true, valueInfo)
             },
-            symbolicMapper = { r -> error("Unexpected input ref $r") }
+            symbolicMapper = { r -> error("Unexpected input ref $r") },
         )
 
     fun writeRefValue(
@@ -59,7 +59,7 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort : USort>(
             blockOnConcrete = { region, (concreteRef, refGuard) ->
                 region.writeRefValue(concreteRef.address, key, value, refGuard)
             },
-            blockOnSymbolic = { _, (ref, _) -> error("Unexpected input cell $ref") }
+            blockOnSymbolic = { _, (ref, _) -> error("Unexpected input cell $ref") },
         )
 
     fun writeRefDisjointValues(
@@ -75,7 +75,7 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort : USort>(
             blockOnConcrete = { region, (concreteRef, refGuard) ->
                 region.writeRefDisjointValues(concreteRef.address, values, refGuard)
             },
-            blockOnSymbolic = { _, (ref, _) -> error("Unexpected input cell $ref") }
+            blockOnSymbolic = { _, (ref, _) -> error("Unexpected input cell $ref") },
         )
 
     private fun writeRefDisjointValues(
@@ -104,10 +104,10 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort : USort>(
                     src = concreteRef.address,
                     dst = dst.address,
                     copyFromInputRef = isStaticHeapRef(concreteRef),
-                    guard = refGuard
+                    guard = refGuard,
                 )
             },
-            blockOnSymbolic = { _, (ref, _) -> error("Unexpected input ref $ref") }
+            blockOnSymbolic = { _, (ref, _) -> error("Unexpected input ref $ref") },
         )
 
     fun getRefsUpdateNode(cell: UConcreteHeapRef): TvmRefsRegionUpdateNode<KeySort, ValueSort>? = refValue[cell.address]
@@ -190,7 +190,7 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort : USort>(
                         mkIte(
                             condition = nodeIncludesKey,
                             trueBranch = value,
-                            falseBranch = acc
+                            falseBranch = acc,
                         )
                     }
                 }
@@ -201,7 +201,7 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort : USort>(
                         trueBranch = { valueInfo.actualizeSymbolicValue(node.value) },
                         falseBranch = {
                             readPrevRefValue(node, key, readingFromInputRef, valueInfo)
-                        }
+                        },
                     )
                 }
 
@@ -213,7 +213,7 @@ class TvmRefsMemoryRegion<LValue, KeySort : USort, ValueSort : USort>(
                         },
                         falseBranch = {
                             readPrevRefValue(node, key, readingFromInputRef, valueInfo)
-                        }
+                        },
                     )
                 }
 

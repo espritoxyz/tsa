@@ -27,7 +27,7 @@ class SortTest {
         val options =
             TvmOptions(
                 intercontractOptions = IntercontractOptions(communicationScheme = null),
-                turnOnTLBParsingChecks = false
+                turnOnTLBParsingChecks = false,
             )
 
         val contracts = listOf(checkerCode, sortContractCode)
@@ -36,7 +36,7 @@ class SortTest {
                 contracts,
                 startContractId = 0, // Checker contract is the first to analyze
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = options
+                options = options,
             )
 
         val failure =
@@ -48,7 +48,7 @@ class SortTest {
 
         assertTrue(
             firstValue.value > secondValue.value,
-            "First value ${firstValue.value} is expected to be greater than second value ${secondValue.value}"
+            "First value ${firstValue.value} is expected to be greater than second value ${secondValue.value}",
         )
     }
 }

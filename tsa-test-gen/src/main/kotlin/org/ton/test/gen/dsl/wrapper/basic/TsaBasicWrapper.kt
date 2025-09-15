@@ -26,7 +26,7 @@ fun TsBasicWrapperDescriptor.constructor(
     TsConstructorCall(
         executableName = name,
         arguments = listOf(address, code, data),
-        type = wrapperType
+        type = wrapperType,
     )
 
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.internal(
@@ -57,10 +57,10 @@ fun TsExpression<TsSandboxContract<TsBasicWrapper>>.internal(
                 ihrFee,
                 forwardFee,
                 createdLt,
-                createdAt
+                createdAt,
             ),
         async = true,
-        type = TsSendMessageResult
+        type = TsSendMessageResult,
     )
 
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.external(
@@ -72,7 +72,7 @@ fun TsExpression<TsSandboxContract<TsBasicWrapper>>.external(
         executableName = "external",
         arguments = listOf(blockchain, body),
         async = true,
-        type = TsSendMessageResult
+        type = TsSendMessageResult,
     )
 
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.initializeContract(
@@ -84,5 +84,5 @@ fun TsExpression<TsSandboxContract<TsBasicWrapper>>.initializeContract(
         executableName = "initializeContract",
         arguments = listOf(blockchain, balance),
         async = true,
-        type = TsVoid
+        type = TsVoid,
     )

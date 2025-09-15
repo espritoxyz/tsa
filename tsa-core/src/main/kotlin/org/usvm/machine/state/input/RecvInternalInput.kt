@@ -42,8 +42,8 @@ class RecvInternalInput(
             state.allocSliceFromData(
                 state.ctx.mkBv(
                     concreteGeneralData.initialSenderBits,
-                    TvmContext.stdMsgAddrSize.toUInt()
-                )
+                    TvmContext.stdMsgAddrSize.toUInt(),
+                ),
             )
         }
 
@@ -68,7 +68,7 @@ class RecvInternalInput(
                 bouncedMessageTagLong.toBv257(),
                 sizeBits = sizeExpr32,
                 isSigned = false,
-                endian = Endian.BigEndian
+                endian = Endian.BigEndian,
             )
                 ?: error("Cannot store bounced message prefix")
 
@@ -80,7 +80,7 @@ class RecvInternalInput(
                 state,
                 tailCell,
                 tailSize,
-                upperBound = 256
+                upperBound = 256,
             )
             state.memory.writeField(tailCell, TvmContext.cellRefsLengthField, sizeSort, zeroSizeExpr, guard = trueExpr)
             builderStoreSliceTlb(scope, builder, builder, tail)
@@ -106,7 +106,7 @@ class RecvInternalInput(
         state.ctx.mkIte(
             condition = bounced,
             trueBranch = { msgBodySliceBounced },
-            falseBranch = { msgBodySliceNonBounced }
+            falseBranch = { msgBodySliceNonBounced },
         )
     }
 
@@ -155,7 +155,7 @@ class RecvInternalInput(
                     fwdFee = fwdFee,
                     createdLt = createdLt,
                     createdAt = createdAt,
-                    bodyDataSlice = msgBodySliceMaybeBounced
+                    bodyDataSlice = msgBodySliceMaybeBounced,
                 )
 
             return@with constructMessageFromContent(state, messageContent)
@@ -199,7 +199,7 @@ fun constructMessageFromContent(
             content.flags,
             sizeBits = fourSizeExpr,
             isSigned = false,
-            endian = Endian.BigEndian
+            endian = Endian.BigEndian,
         )
             ?: error("Cannot store flags")
 
@@ -224,7 +224,7 @@ fun constructMessageFromContent(
             zeroValue,
             sizeBits = oneSizeExpr,
             isSigned = false,
-            endian = Endian.BigEndian
+            endian = Endian.BigEndian,
         )
             ?: error("Cannot store extra currency collection")
 
@@ -244,7 +244,7 @@ fun constructMessageFromContent(
             content.createdLt,
             sizeBits = mkSizeExpr(64),
             isSigned = false,
-            endian = Endian.BigEndian
+            endian = Endian.BigEndian,
         )
             ?: error("Cannot store created_lt")
 
@@ -256,7 +256,7 @@ fun constructMessageFromContent(
             content.createdAt,
             sizeBits = mkSizeExpr(32),
             isSigned = false,
-            endian = Endian.BigEndian
+            endian = Endian.BigEndian,
         )
             ?: error("Cannot store created_at")
 
@@ -268,7 +268,7 @@ fun constructMessageFromContent(
             zeroValue,
             sizeBits = oneSizeExpr,
             isSigned = false,
-            endian = Endian.BigEndian
+            endian = Endian.BigEndian,
         )
             ?: error("Cannot store init")
 
@@ -281,7 +281,7 @@ fun constructMessageFromContent(
             oneValue,
             sizeBits = oneSizeExpr,
             isSigned = false,
-            endian = Endian.BigEndian
+            endian = Endian.BigEndian,
         )
             ?: error("Cannot store body")
 

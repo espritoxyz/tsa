@@ -25,11 +25,11 @@ fun extractJettonContractInfo(rawAddress: String): JettonContractInfo {
                     .roots
                     .first()
                     .hash()
-                    .toByteArray()
+                    .toByteArray(),
             )
         JettonContractInfo(
             contractBytesHex = code,
-            jettonWalletCodeHashBase64 = codeHash
+            jettonWalletCodeHashBase64 = codeHash,
         )
     }.getOrElse {
         error("Could not extract jetton-wallet code from query response (exception $it): $response")

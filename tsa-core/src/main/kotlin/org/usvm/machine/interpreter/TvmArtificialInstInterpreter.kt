@@ -197,7 +197,7 @@ class TvmArtificialInstInterpreter(
                     val isBounceable =
                         mkBvAndExpr(
                             fullMsgData,
-                            mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort())
+                            mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort()),
                         )
 
                     val bouncedMessage =
@@ -212,14 +212,14 @@ class TvmArtificialInstInterpreter(
                                     ReceivedMessage.MessageFromOtherContract(
                                         sender = ContractSender(currentContract, currentEventId),
                                         receiver = sender.contractId,
-                                        message = bouncedMessage
-                                    )
+                                        message = bouncedMessage,
+                                    ),
                                 )
                             newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
                         },
                         blockOnFalseState = {
                             newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
-                        }
+                        },
                     )
                 } else {
                     scope.doWithState {
@@ -248,7 +248,7 @@ class TvmArtificialInstInterpreter(
                     scope.calcOnState {
                         fieldManagers.cellDataLengthFieldManager.readCellDataLength(
                             this,
-                            readSliceCell(oldMessage.msgBodySlice)
+                            readSliceCell(oldMessage.msgBodySlice),
                         )
                     }
                 val length = mkBvSubExpr(cellLength, dataPos)
@@ -256,7 +256,7 @@ class TvmArtificialInstInterpreter(
                     mkIte(
                         mkBvSignedGreaterExpr(length, 256.toBv()),
                         256.toBv(ctx.sizeSort),
-                        length
+                        length,
                     )
                 val leftData =
                     scope.slicePreloadDataBits(oldMessage.msgBodySlice, leftLength)
@@ -281,7 +281,7 @@ class TvmArtificialInstInterpreter(
                         fwdFee = zeroValue,
                         createdLt = zeroValue,
                         createdAt = zeroValue,
-                        bodyDataSlice = bodySlice
+                        bodyDataSlice = bodySlice,
                     )
                 constructMessageFromContent(scope.calcOnState { this }, content) to bodySlice
             }
@@ -290,7 +290,7 @@ class TvmArtificialInstInterpreter(
                 msgValue = oldMessage.msgValue,
                 fullMsgCell = msgCell,
                 msgBodySlice = bodySlice,
-                destAddrSlice = oldMessage.destAddrSlice
+                destAddrSlice = oldMessage.destAddrSlice,
             )
         }
     }
@@ -311,8 +311,8 @@ class TvmArtificialInstInterpreter(
                             executionEnd = pseudologicalTime,
                             contractId = currentContract,
                             incomingMessage = receivedMessage,
-                            methodResult = methodResult
-                        )
+                            methodResult = methodResult,
+                        ),
                     )
             }
             if (tvmOptions.intercontractOptions.isIntercontractEnabled && !messageQueue.isEmpty()) {
@@ -376,7 +376,7 @@ class TvmArtificialInstInterpreter(
                 this,
                 currentContract,
                 allowInputStackValues = false,
-                newMsgValue = message.msgValue
+                newMsgValue = message.msgValue,
             )
         stack = newMemory.stack
         stack.copyInputValues(prevStack)
@@ -412,9 +412,9 @@ class TvmArtificialInstInterpreter(
                         ReceivedMessage.MessageFromOtherContract(
                             ContractSender(currentContract, currentEventId),
                             receiver,
-                            message
+                            message,
                         )
-                    }
+                    },
                 )
             unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
         }

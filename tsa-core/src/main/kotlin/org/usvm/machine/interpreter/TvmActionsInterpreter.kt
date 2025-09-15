@@ -88,11 +88,11 @@ class TvmActionsInterpreter(
             constraint =
                 mkAnd(
                     mkBvSignedLessExpr(zeroValue, fee),
-                    mkBvSignedLessOrEqualExpr(fee, maxMessageCurrencyValue)
+                    mkBvSignedLessOrEqualExpr(fee, maxMessageCurrencyValue),
                 ),
             unsatBlock = {
                 error("Cannot assume message fee constraints")
-            }
+            },
         ) ?: return@with
 
         scope.doWithState {
@@ -104,7 +104,7 @@ class TvmActionsInterpreter(
             falseStateIsExceptional = false,
             blockOnFalseState = {
                 newStmt(stmt.nextStmt())
-            }
+            },
         ) ?: return@with
 
         doSendMsg(scope, msg, normalizedMode, stmt)
@@ -172,7 +172,7 @@ class TvmActionsInterpreter(
                     updatedActions,
                     mode,
                     sizeBits = eightSizeExpr,
-                    isSigned = false
+                    isSigned = false,
                 ) {
                     error("Unexpected cell overflow during $stmt instruction")
                 } ?: return@doWithStateCtx

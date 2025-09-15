@@ -23,7 +23,7 @@ data class JettonContractInfo(
                     .roots
                     .first()
                     .hash()
-                    .toByteArray()
+                    .toByteArray(),
             )
 }
 

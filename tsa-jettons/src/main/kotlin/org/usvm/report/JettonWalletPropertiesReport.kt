@@ -30,7 +30,7 @@ fun runAnalysisAndCreateReport(address: String): JettonWalletPropertiesReport {
     return JettonWalletPropertiesReport(
         analyzedAddress = address,
         jettonWalletCodeHashBase64 = contractInfo.jettonWalletCodeHashBase64,
-        blacklistedAddresses = runAnalysisAndCreateReport(contract)
+        blacklistedAddresses = runAnalysisAndCreateReport(contract),
     )
 }
 
@@ -43,14 +43,14 @@ fun runAnalysisAndCreateReport(contract: TsaContractCode): Set<String> {
         val blacklistedAddressesExecutions =
             blacklistAddressChecker.findConflictingExecutions(
                 contract,
-                stopWhenFoundOneConflictingExecution = false
+                stopWhenFoundOneConflictingExecution = false,
             )
 
         val description =
             if (blacklistedAddressesExecutions.isNotEmpty()) {
                 val blacklistedAddressesDescription =
                     blacklistAddressChecker.getDescription(
-                        blacklistedAddressesExecutions
+                        blacklistedAddressesExecutions,
                     )
 
                 blacklistedAddressesDescription.blacklistedAddresses

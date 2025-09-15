@@ -24,8 +24,8 @@ fun getTvmDebugProfileObserver(code: TsaContractCode) =
             UDebugProfileObserver.Options(
                 printNonVisitedStatements = true,
                 padInstructionEnd = 50,
-                timeFormat = UDebugProfileObserver.TimeFormat.Milliseconds
-            )
+                timeFormat = UDebugProfileObserver.TimeFormat.Milliseconds,
+            ),
     )
 
 private class TvmStatementOperations(

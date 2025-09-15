@@ -170,7 +170,7 @@ class TsExpectToHaveTransactionBuilder(
             successful,
             aborted,
             deploy,
-            message
+            message,
         )
 }
 

@@ -250,7 +250,7 @@ fun extractInputParametersAddresses(
                     initialState.memory.readField(
                         sliceAddress,
                         sliceCellField,
-                        initialState.ctx.addressSort
+                        initialState.ctx.addressSort,
                     ) as UConcreteHeapRef
                 cells[address] = paramInfo.cellInfo
                 // sliceAddress is concrete for the same reason as cell's address

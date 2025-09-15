@@ -74,18 +74,18 @@ private fun CliktCommand.analysisTargetOption() =
     mutuallyExclusiveOptions(
         option("--method").int().help("Id of the method to analyze").convert { SpecificMethod(it) },
         option(
-            "--analyze-receivers"
+            "--analyze-receivers",
         ).flag().help("Analyze recv_internal and recv_external (default)").convert { Receivers },
         option(
-            "--analyze-all-methods"
+            "--analyze-all-methods",
         ).flag().help("Analyze all methods (applicable only for contracts with default main method)").convert {
             AllMethods
-        }
+        },
     ).single()
         .default(Receivers)
         .help(
             "Analysis target",
-            "What to analyze. By default, only receivers (recv_interval and recv_external) are analyzed."
+            "What to analyze. By default, only receivers (recv_interval and recv_external) are analyzed.",
         )
 
 class SarifOptions : OptionGroup("SARIF options") {
@@ -131,8 +131,8 @@ class TlbCLIOptions : OptionGroup("TlB scheme options") {
                 val info =
                     TvmParameterInfo.SliceInfo(
                         TvmParameterInfo.DataCellInfo(
-                            struct
-                        )
+                            struct,
+                        ),
                     )
                 mapOf(BigInteger.ZERO to TvmInputInfo(mapOf(0 to info)))
             }
@@ -147,6 +147,13 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
     val timeout by option("--timeout")
         .int()
         .help("Analysis timeout in seconds.")
+
+    val continueOnContractException by option("--continue-on-contract-exception")
+        .flag()
+        .help(
+            "Do not stop analysis if an exception occurred in some analyzed contract. " +
+                "If an exception occurred in checker contract, stop anyway.",
+        )
 }
 
 private fun <SourcesDescription> performAnalysis(
@@ -162,7 +169,8 @@ private fun <SourcesDescription> performAnalysis(
             quietMode = true,
             turnOnTLBParsingChecks = !tlbOptions.doNotPerformTlbChecks,
             analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
-            timeout = analysisOptions.timeout?.seconds ?: INFINITE
+            timeout = analysisOptions.timeout?.seconds ?: INFINITE,
+            stopOnFirstError = !analysisOptions.continueOnContractException,
         )
     val inputInfo = TlbCLIOptions.extractInputInfo(tlbOptions.tlbJsonPath)
     val methodIds: List<BigInteger>? =
@@ -179,7 +187,7 @@ private fun <SourcesDescription> performAnalysis(
             sources,
             concreteContractData = concreteData,
             inputInfo = inputInfo,
-            tvmOptions = options
+            tvmOptions = options,
         )
     } else {
         val testSets =
@@ -189,7 +197,7 @@ private fun <SourcesDescription> performAnalysis(
                     methodId,
                     concreteContractData = concreteData,
                     inputInfo = inputInfo[methodId] ?: TvmInputInfo(),
-                    tvmOptions = options
+                    tvmOptions = options,
                 )
             }
 
@@ -216,11 +224,12 @@ private fun performAnalysisInterContract(
                 analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
                 timeout = analysisOptions.timeout?.seconds ?: INFINITE,
                 useReceiverInputs = useRecvInternalInput,
+                stopOnFirstError = !analysisOptions.continueOnContractException,
                 intercontractOptions =
                     IntercontractOptions(
-                        communicationScheme = interContractSchemePath.extractIntercontractScheme()
+                        communicationScheme = interContractSchemePath.extractIntercontractScheme(),
                     ),
-                enableOutMessageAnalysis = true
+                enableOutMessageAnalysis = true,
             )
         } else {
             TvmOptions(
@@ -228,7 +237,8 @@ private fun performAnalysisInterContract(
                 quietMode = true,
                 analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
                 timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-                useReceiverInputs = useRecvInternalInput
+                useReceiverInputs = useRecvInternalInput,
+                stopOnFirstError = !analysisOptions.continueOnContractException,
             )
         }
 
@@ -238,7 +248,7 @@ private fun performAnalysisInterContract(
         methodId = methodId,
         options = options,
         inputInfo = inputInfo,
-        concreteContractData = concreteContractData
+        concreteContractData = concreteContractData,
     )
 }
 
@@ -309,7 +319,7 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
                 contractProperties.contractData,
                 target,
                 tlbOptions,
-                analysisOptions
+                analysisOptions,
             )
 
         val testGenContractType =
@@ -323,7 +333,7 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
             projectPath,
             sourcesRelativePath,
             testGenContractType,
-            useMinimization = true
+            useMinimization = true,
         )
     }
 }
@@ -331,7 +341,7 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
 class TactAnalysis :
     ErrorsSarifDetector<TactSourcesDescription>(
         name = "tact",
-        help = "Options for analyzing Tact sources of smart contracts"
+        help = "Options for analyzing Tact sources of smart contracts",
     ) {
     private val tactConfigPath by option("-c", "--config")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
@@ -353,7 +363,7 @@ class TactAnalysis :
 
         generateAndWriteSarifReport(
             analyzer = TactAnalyzer(tactOptions.tactExecutable),
-            sources = sources
+            sources = sources,
         )
     }
 }
@@ -370,12 +380,12 @@ class FuncAnalysis :
     override fun run() {
         val analyzer =
             FuncAnalyzer(
-                fiftStdlibPath = fiftOptions.fiftStdlibPath
+                fiftStdlibPath = fiftOptions.fiftStdlibPath,
             )
 
         generateAndWriteSarifReport(
             analyzer = analyzer,
-            sources = funcSourcesPath
+            sources = funcSourcesPath,
         )
     }
 }
@@ -392,12 +402,12 @@ class FiftAnalysis :
     override fun run() {
         val analyzer =
             FiftAnalyzer(
-                fiftStdlibPath = fiftOptions.fiftStdlibPath
+                fiftStdlibPath = fiftOptions.fiftStdlibPath,
             )
 
         generateAndWriteSarifReport(
             analyzer = analyzer,
-            sources = fiftSourcesPath
+            sources = fiftSourcesPath,
         )
     }
 }
@@ -414,7 +424,7 @@ class BocAnalysis :
 
         generateAndWriteSarifReport(
             analyzer = analyzer,
-            sources = bocPath
+            sources = bocPath,
         )
     }
 }
@@ -422,7 +432,7 @@ class BocAnalysis :
 class CheckerAnalysis :
     CliktCommand(
         name = "custom-checker",
-        help = "Options for using custom checkers"
+        help = "Options for using custom checkers",
     ) {
     private val fiftOptions by FiftOptions()
     private val tactOptions by TactOptions()
@@ -444,7 +454,7 @@ class CheckerAnalysis :
     private val typeOptionDescriptor = option().enum<ContractType>(ignoreCase = true)
     private val contractSources: List<ContractSources> by contractSourcesOption(
         pathOptionDescriptor,
-        typeOptionDescriptor
+        typeOptionDescriptor,
     ).multiple(required = true)
         .validate {
             if (it.size > 1) {
@@ -483,19 +493,19 @@ class CheckerAnalysis :
 
     private val fiftAnalyzer by lazy {
         FiftAnalyzer(
-            fiftStdlibPath = fiftOptions.fiftStdlibPath
+            fiftStdlibPath = fiftOptions.fiftStdlibPath,
         )
     }
 
     private val funcAnalyzer by lazy {
         FuncAnalyzer(
-            fiftStdlibPath = fiftOptions.fiftStdlibPath
+            fiftStdlibPath = fiftOptions.fiftStdlibPath,
         )
     }
 
     private val tactAnalyzer by lazy {
         TactAnalyzer(
-            tactExecutable = tactOptions.tactExecutable
+            tactExecutable = tactOptions.tactExecutable,
         )
     }
 
@@ -506,7 +516,7 @@ class CheckerAnalysis :
             getFuncContract(
                 checkerContractPath,
                 fiftOptions.fiftStdlibPath,
-                isTSAChecker = true
+                isTSAChecker = true,
             )
 
         val contractsToAnalyze =
@@ -546,14 +556,14 @@ class CheckerAnalysis :
                 inputInfo = inputInfo,
                 analysisOptions = analysisOptions,
                 turnOnTLBParsingChecks = false,
-                useRecvInternalInput = false
+                useRecvInternalInput = false,
             )
 
         val sarifReport =
             result.toSarifReport(
                 methodsMapping = emptyMap(),
                 useShortenedOutput = false,
-                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors
+                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
             )
 
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
@@ -570,7 +580,7 @@ private value class NullablePath(
 class InterContractAnalysis :
     CliktCommand(
         name = "inter-contract",
-        help = "Options for analyzing inter-contract communication of smart contracts"
+        help = "Options for analyzing inter-contract communication of smart contracts",
     ) {
     private val fiftOptions by FiftOptions()
     private val tactOptions by TactOptions()
@@ -584,19 +594,19 @@ class InterContractAnalysis :
 
     private val fiftAnalyzer by lazy {
         FiftAnalyzer(
-            fiftStdlibPath = fiftOptions.fiftStdlibPath
+            fiftStdlibPath = fiftOptions.fiftStdlibPath,
         )
     }
 
     private val funcAnalyzer by lazy {
         FuncAnalyzer(
-            fiftStdlibPath = fiftOptions.fiftStdlibPath
+            fiftStdlibPath = fiftOptions.fiftStdlibPath,
         )
     }
 
     private val tactAnalyzer by lazy {
         TactAnalyzer(
-            tactExecutable = tactOptions.tactExecutable
+            tactExecutable = tactOptions.tactExecutable,
         )
     }
 
@@ -605,7 +615,7 @@ class InterContractAnalysis :
 
     private val contractSources: List<ContractSources> by contractSourcesOption(
         pathOptionDescriptor,
-        typeOptionDescriptor
+        typeOptionDescriptor,
     ).multiple(required = true)
 
     private val startContractId: Int by option("-r", "--root")
@@ -636,14 +646,14 @@ class InterContractAnalysis :
                 inputInfo = TvmInputInfo(), // TODO: support TL-B
                 analysisOptions = analysisOptions,
                 turnOnTLBParsingChecks = false,
-                useRecvInternalInput = true
+                useRecvInternalInput = true,
             )
 
         val sarifReport =
             result.toSarifReport(
                 methodsMapping = emptyMap(),
                 useShortenedOutput = false,
-                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors
+                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
             )
 
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
@@ -725,7 +735,7 @@ private fun ParameterHolder.contractSourcesOption(
         
         -c tact path/to/tact.config.json Jetton JettonWallet
         
-        """.trimIndent()
+        """.trimIndent(),
     ).transformValues(nvalues = 2..4) { args ->
         val typeRaw = args[0]
         val type = typeOptionDescriptor.transformValue(this, typeRaw)
@@ -770,12 +780,12 @@ sealed class ErrorsSarifDetector<SourcesDescription>(
                 contractData = contractProperties.contractData,
                 target = target,
                 tlbOptions = tlbOptions,
-                analysisOptions
+                analysisOptions,
             )
         val sarifReport =
             analysisResult.toSarifReport(
                 methodsMapping = emptyMap(),
-                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors
+                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
             )
 
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
@@ -793,5 +803,5 @@ fun main(args: Array<String>) =
             BocAnalysis(),
             TestGeneration(),
             CheckerAnalysis(),
-            InterContractAnalysis()
+            InterContractAnalysis(),
         ).main(args)

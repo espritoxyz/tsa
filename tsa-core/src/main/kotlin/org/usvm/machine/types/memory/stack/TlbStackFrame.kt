@@ -35,7 +35,7 @@ fun buildFrameForStructure(
                 ctx,
                 struct.rest,
                 path,
-                leftTlbDepth
+                leftTlbDepth,
             )
         }
 
@@ -103,7 +103,7 @@ data class LimitedLoadData<ReadResult : TvmCellDataTypeReadValue>(
             loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>,
         ) = LimitedLoadData(
             type = loadData.type,
-            cellAddress = loadData.cellAddress
+            cellAddress = loadData.cellAddress,
         )
     }
 }

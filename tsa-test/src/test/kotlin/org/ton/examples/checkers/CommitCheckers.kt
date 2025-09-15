@@ -39,7 +39,7 @@ class CommitCheckers {
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = TvmOptions(stopOnFirstError = false)
+                options = TvmOptions(stopOnFirstError = false),
             )
 
         checkInvariants(
@@ -51,13 +51,13 @@ class CommitCheckers {
                 } else {
                     result is TvmSuccessfulExecution
                 }
-            }
+            },
         )
 
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
         )
     }
 
@@ -71,10 +71,10 @@ class CommitCheckers {
             TvmOptions(
                 intercontractOptions =
                     IntercontractOptions(
-                        communicationScheme = communicationScheme
+                        communicationScheme = communicationScheme,
                     ),
                 enableOutMessageAnalysis = true,
-                stopOnFirstError = false
+                stopOnFirstError = false,
             )
 
         val tests =
@@ -82,7 +82,7 @@ class CommitCheckers {
                 listOf(checkerContract, analyzedSender, analyzedRecipient),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = options
+                options = options,
             )
 
         checkInvariants(
@@ -94,13 +94,13 @@ class CommitCheckers {
                 } else {
                     result is TvmSuccessfulExecution
                 }
-            }
+            },
         )
 
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
         )
     }
 

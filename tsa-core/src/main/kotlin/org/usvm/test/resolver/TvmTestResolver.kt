@@ -73,9 +73,9 @@ data object TvmTestResolver {
                         contractId = entry.contractId,
                         incomingMessage = stateResolver.resolveReceivedMessage(entry.incomingMessage),
                         methodResult = stateResolver.resolveResultStackImpl(entry.methodResult),
-                        gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd)
+                        gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
                     )
-                }
+                },
         )
     }
 
@@ -86,7 +86,7 @@ data object TvmTestResolver {
         TvmContractSymbolicTestResult(
             testSuites.mapNotNull {
                 it.takeIf { takeEmptyTests || it.tests.isNotEmpty() }
-            }
+            },
         )
 
     fun resolveSingleMethod(
@@ -102,14 +102,14 @@ data object TvmTestResolver {
                     exceptionHandler = { exception ->
                         logger.warn(exception) { "Exception is thrown during the resolve of state $state" }
                         null
-                    }
+                    },
                 )
             }
 
         return TvmSymbolicTestSuite(
             methodId,
             coverage,
-            tests
+            tests,
         )
     }
 

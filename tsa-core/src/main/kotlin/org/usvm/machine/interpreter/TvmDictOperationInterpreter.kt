@@ -230,7 +230,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictaddgetInst ->
                 doDictSet(
@@ -239,7 +239,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictaddrefInst ->
                 doDictSet(
@@ -248,7 +248,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictaddgetrefInst ->
                 doDictSet(
@@ -257,7 +257,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictreplaceInst ->
                 doDictSet(
@@ -266,7 +266,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictreplacegetInst ->
                 doDictSet(
@@ -275,7 +275,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictreplacerefInst ->
                 doDictSet(
@@ -284,7 +284,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictreplacegetrefInst ->
                 doDictSet(
@@ -293,7 +293,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictsetInst ->
                 doDictSet(
@@ -302,7 +302,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictsetgetInst ->
                 doDictSet(
@@ -311,7 +311,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictsetrefInst ->
                 doDictSet(
@@ -320,7 +320,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictsetgetrefInst ->
                 doDictSet(
@@ -329,7 +329,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictiaddInst ->
                 doDictSet(
@@ -338,7 +338,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictiaddgetInst ->
                 doDictSet(
@@ -347,7 +347,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictiaddrefInst ->
                 doDictSet(
@@ -356,7 +356,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictiaddgetrefInst ->
                 doDictSet(
@@ -365,7 +365,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictireplaceInst ->
                 doDictSet(
@@ -374,7 +374,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictireplacegetInst ->
                 doDictSet(
@@ -383,7 +383,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictireplacerefInst ->
                 doDictSet(
@@ -392,7 +392,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictireplacegetrefInst ->
                 doDictSet(
@@ -401,7 +401,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictisetInst ->
                 doDictSet(
@@ -410,7 +410,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictisetgetInst ->
                 doDictSet(
@@ -419,7 +419,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictisetrefInst ->
                 doDictSet(
@@ -428,7 +428,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictisetgetrefInst ->
                 doDictSet(
@@ -437,7 +437,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictuaddInst ->
                 doDictSet(
@@ -446,7 +446,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictuaddgetInst ->
                 doDictSet(
@@ -455,7 +455,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictuaddrefInst ->
                 doDictSet(
@@ -464,7 +464,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictuaddgetrefInst ->
                 doDictSet(
@@ -473,7 +473,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetDictureplaceInst ->
                 doDictSet(
@@ -482,7 +482,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictureplacegetInst ->
                 doDictSet(
@@ -491,7 +491,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictureplacerefInst ->
                 doDictSet(
@@ -500,7 +500,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictureplacegetrefInst ->
                 doDictSet(
@@ -509,7 +509,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetDictusetInst ->
                 doDictSet(
@@ -518,7 +518,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictusetgetInst ->
                 doDictSet(
@@ -527,7 +527,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictusetrefInst ->
                 doDictSet(
@@ -536,7 +536,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetDictusetgetrefInst ->
                 doDictSet(
@@ -545,7 +545,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
         }
     }
@@ -562,7 +562,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetBuilderDictaddgetbInst ->
                 doDictSet(
@@ -571,7 +571,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetBuilderDictreplacebInst ->
                 doDictSet(
@@ -580,7 +580,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetBuilderDictreplacegetbInst ->
                 doDictSet(
@@ -589,7 +589,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetBuilderDictsetbInst ->
                 doDictSet(
@@ -598,7 +598,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetBuilderDictsetgetbInst ->
                 doDictSet(
@@ -607,7 +607,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetBuilderDictiaddbInst ->
                 doDictSet(
@@ -616,7 +616,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetBuilderDictiaddgetbInst ->
                 doDictSet(
@@ -625,7 +625,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetBuilderDictireplacebInst ->
                 doDictSet(
@@ -634,7 +634,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetBuilderDictireplacegetbInst ->
                 doDictSet(
@@ -643,7 +643,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetBuilderDictisetbInst ->
                 doDictSet(
@@ -652,7 +652,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetBuilderDictisetgetbInst ->
                 doDictSet(
@@ -661,7 +661,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetBuilderDictuaddbInst ->
                 doDictSet(
@@ -670,7 +670,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetBuilderDictuaddgetbInst ->
                 doDictSet(
@@ -679,7 +679,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.ADD
+                    DictSetMode.ADD,
                 )
             is TvmDictSetBuilderDictureplacebInst ->
                 doDictSet(
@@ -688,7 +688,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetBuilderDictureplacegetbInst ->
                 doDictSet(
@@ -697,7 +697,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.REPLACE
+                    DictSetMode.REPLACE,
                 )
             is TvmDictSetBuilderDictusetbInst ->
                 doDictSet(
@@ -706,7 +706,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
             is TvmDictSetBuilderDictusetgetbInst ->
                 doDictSet(
@@ -715,7 +715,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
-                    DictSetMode.SET
+                    DictSetMode.SET,
                 )
         }
     }
@@ -731,7 +731,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
-                    nullDefaultValue = false
+                    nullDefaultValue = false,
                 )
             is TvmDictGetDictgetrefInst ->
                 doDictGet(
@@ -739,7 +739,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SLICE,
                     DictValueType.CELL,
-                    nullDefaultValue = false
+                    nullDefaultValue = false,
                 )
             is TvmDictGetDictigetInst ->
                 doDictGet(
@@ -747,7 +747,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
-                    nullDefaultValue = false
+                    nullDefaultValue = false,
                 )
             is TvmDictGetDictigetrefInst ->
                 doDictGet(
@@ -755,7 +755,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
-                    nullDefaultValue = false
+                    nullDefaultValue = false,
                 )
             is TvmDictGetDictugetInst ->
                 doDictGet(
@@ -763,7 +763,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
-                    nullDefaultValue = false
+                    nullDefaultValue = false,
                 )
             is TvmDictGetDictugetrefInst ->
                 doDictGet(
@@ -771,7 +771,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
-                    nullDefaultValue = false
+                    nullDefaultValue = false,
                 )
         }
     }
@@ -787,7 +787,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SLICE,
                     DictValueType.CELL,
-                    nullDefaultValue = true
+                    nullDefaultValue = true,
                 )
             is TvmDictMayberefDictigetoptrefInst ->
                 doDictGet(
@@ -795,7 +795,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
-                    nullDefaultValue = true
+                    nullDefaultValue = true,
                 )
             is TvmDictMayberefDictugetoptrefInst ->
                 doDictGet(
@@ -803,7 +803,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
-                    nullDefaultValue = true
+                    nullDefaultValue = true,
                 )
             else -> TODO("Unknown stmt: $inst")
         }
@@ -820,7 +820,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
-                    getOldValue = false
+                    getOldValue = false,
                 )
             is TvmDictDeleteDictdelgetInst ->
                 doDictDelete(
@@ -828,7 +828,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
-                    getOldValue = true
+                    getOldValue = true,
                 )
             is TvmDictDeleteDictdelgetrefInst ->
                 doDictDelete(
@@ -836,7 +836,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SLICE,
                     DictValueType.CELL,
-                    getOldValue = true
+                    getOldValue = true,
                 )
             is TvmDictDeleteDictidelInst ->
                 doDictDelete(
@@ -844,7 +844,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
-                    getOldValue = false
+                    getOldValue = false,
                 )
             is TvmDictDeleteDictidelgetInst ->
                 doDictDelete(
@@ -852,7 +852,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
-                    getOldValue = true
+                    getOldValue = true,
                 )
             is TvmDictDeleteDictidelgetrefInst ->
                 doDictDelete(
@@ -860,7 +860,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
-                    getOldValue = true
+                    getOldValue = true,
                 )
             is TvmDictDeleteDictudelInst ->
                 doDictDelete(
@@ -868,7 +868,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
-                    getOldValue = false
+                    getOldValue = false,
                 )
             is TvmDictDeleteDictudelgetInst ->
                 doDictDelete(
@@ -876,7 +876,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
-                    getOldValue = true
+                    getOldValue = true,
                 )
             is TvmDictDeleteDictudelgetrefInst ->
                 doDictDelete(
@@ -884,7 +884,7 @@ class TvmDictOperationInterpreter(
                     scope,
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
-                    getOldValue = true
+                    getOldValue = true,
                 )
         }
     }
@@ -917,7 +917,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictimaxrefInst ->
                 doDictMinMax(
@@ -926,7 +926,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictiminInst ->
                 doDictMinMax(
@@ -935,7 +935,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictiminrefInst ->
                 doDictMinMax(
@@ -944,7 +944,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictiremmaxInst ->
                 doDictMinMax(
@@ -953,7 +953,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDictiremmaxrefInst ->
                 doDictMinMax(
@@ -962,7 +962,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDictiremminInst ->
                 doDictMinMax(
@@ -971,7 +971,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDictiremminrefInst ->
                 doDictMinMax(
@@ -980,7 +980,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDictmaxInst ->
                 doDictMinMax(
@@ -989,7 +989,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictmaxrefInst ->
                 doDictMinMax(
@@ -998,7 +998,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictminInst ->
                 doDictMinMax(
@@ -1007,7 +1007,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictminrefInst ->
                 doDictMinMax(
@@ -1016,7 +1016,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictremmaxInst ->
                 doDictMinMax(
@@ -1025,7 +1025,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDictremmaxrefInst ->
                 doDictMinMax(
@@ -1034,7 +1034,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDictremminInst ->
                 doDictMinMax(
@@ -1043,7 +1043,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDictremminrefInst ->
                 doDictMinMax(
@@ -1052,7 +1052,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDictumaxInst ->
                 doDictMinMax(
@@ -1061,7 +1061,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictumaxrefInst ->
                 doDictMinMax(
@@ -1070,7 +1070,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictuminInst ->
                 doDictMinMax(
@@ -1079,7 +1079,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDictuminrefInst ->
                 doDictMinMax(
@@ -1088,7 +1088,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
-                    removeKey = false
+                    removeKey = false,
                 )
             is TvmDictMinDicturemmaxInst ->
                 doDictMinMax(
@@ -1097,7 +1097,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDicturemmaxrefInst ->
                 doDictMinMax(
@@ -1106,7 +1106,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDicturemminInst ->
                 doDictMinMax(
@@ -1115,7 +1115,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
-                    removeKey = true
+                    removeKey = true,
                 )
             is TvmDictMinDicturemminrefInst ->
                 doDictMinMax(
@@ -1124,7 +1124,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
-                    removeKey = true
+                    removeKey = true,
                 )
         }
     }
@@ -1141,7 +1141,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
-                    allowEq = false
+                    allowEq = false,
                 )
             is TvmDictNextDictgetnexteqInst ->
                 doDictNextPrev(
@@ -1150,7 +1150,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
-                    allowEq = true
+                    allowEq = true,
                 )
             is TvmDictNextDictgetprevInst ->
                 doDictNextPrev(
@@ -1159,7 +1159,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
-                    allowEq = false
+                    allowEq = false,
                 )
             is TvmDictNextDictgetpreveqInst ->
                 doDictNextPrev(
@@ -1168,7 +1168,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SLICE,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
-                    allowEq = true
+                    allowEq = true,
                 )
             is TvmDictNextDictigetnextInst ->
                 doDictNextPrev(
@@ -1177,7 +1177,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
-                    allowEq = false
+                    allowEq = false,
                 )
             is TvmDictNextDictigetnexteqInst ->
                 doDictNextPrev(
@@ -1186,7 +1186,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
-                    allowEq = true
+                    allowEq = true,
                 )
             is TvmDictNextDictigetprevInst ->
                 doDictNextPrev(
@@ -1195,7 +1195,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
-                    allowEq = false
+                    allowEq = false,
                 )
             is TvmDictNextDictigetpreveqInst ->
                 doDictNextPrev(
@@ -1204,7 +1204,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.SIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
-                    allowEq = true
+                    allowEq = true,
                 )
             is TvmDictNextDictugetnextInst ->
                 doDictNextPrev(
@@ -1213,7 +1213,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
-                    allowEq = false
+                    allowEq = false,
                 )
             is TvmDictNextDictugetnexteqInst ->
                 doDictNextPrev(
@@ -1222,7 +1222,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
-                    allowEq = true
+                    allowEq = true,
                 )
             is TvmDictNextDictugetprevInst ->
                 doDictNextPrev(
@@ -1231,7 +1231,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
-                    allowEq = false
+                    allowEq = false,
                 )
             is TvmDictNextDictugetpreveqInst ->
                 doDictNextPrev(
@@ -1240,7 +1240,7 @@ class TvmDictOperationInterpreter(
                     DictKeyType.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
-                    allowEq = true
+                    allowEq = true,
                 )
         }
     }
@@ -1283,7 +1283,7 @@ class TvmDictOperationInterpreter(
                     }
 
                     newStmt(inst.nextStmt())
-                }
+                },
             ) ?: return@makeSliceTypeLoad
 
             // Hack: here newSlice is just to copy tlb stack from the old one.
@@ -1338,7 +1338,7 @@ class TvmDictOperationInterpreter(
 
             checkCellOverflow(
                 mkBvSignedLessOrEqualExpr(refs, mkSizeExpr(TvmContext.MAX_REFS_NUMBER)),
-                scope
+                scope,
             ) ?: return
 
             scope.calcOnState {
@@ -1415,10 +1415,10 @@ class TvmDictOperationInterpreter(
                     valueType,
                     mode,
                     getOldValue,
-                    keyContains = false
+                    keyContains = false,
                 )
                 newStmt(inst.nextStmt())
-            }
+            },
         ) ?: return
 
         require(oldValue != null) {
@@ -1441,7 +1441,7 @@ class TvmDictOperationInterpreter(
                 valueType,
                 mode,
                 getOldValue,
-                keyContains = true
+                keyContains = true,
             )
             newStmt(inst.nextStmt())
         }
@@ -1531,7 +1531,7 @@ class TvmDictOperationInterpreter(
                     addOnStack(falseValue, TvmIntegerType)
                 }
                 newStmt(inst.nextStmt())
-            }
+            },
         ) ?: return
 
         val sliceValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
@@ -1591,7 +1591,7 @@ class TvmDictOperationInterpreter(
                 addOnStack(dictCellRef, TvmCellType)
                 addOnStack(ctx.falseValue, TvmIntegerType)
                 newStmt(inst.nextStmt())
-            }
+            },
         ) ?: return
 
         val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
@@ -1626,7 +1626,7 @@ class TvmDictOperationInterpreter(
 
                 addOnStack(ctx.trueValue, TvmIntegerType)
                 newStmt(inst.nextStmt())
-            }
+            },
         )
     }
 
@@ -1699,7 +1699,7 @@ class TvmDictOperationInterpreter(
                                 compareLessThan,
                                 allowEq = true,
                                 resultElementExtended,
-                                extendDictKey(storeKey, keyType)
+                                extendDictKey(storeKey, keyType),
                             )
                         mkImplies(storedKeyContains, cmp)
                     }.let { mkAnd(it) }
@@ -1707,7 +1707,7 @@ class TvmDictOperationInterpreter(
 
         scope.assert(
             ctx.mkAnd(dictContainsResultElement, resultIsMinMax),
-            unsatBlock = { error("Dict min/max element is not in the dict") }
+            unsatBlock = { error("Dict min/max element is not in the dict") },
         ) ?: return
 
         val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, resultElement) }
@@ -1748,7 +1748,7 @@ class TvmDictOperationInterpreter(
                 storeKey(keyType, resultElement)
                 addOnStack(ctx.trueValue, TvmIntegerType)
                 newStmt(inst.nextStmt())
-            }
+            },
         )
     }
 
@@ -1859,7 +1859,7 @@ class TvmDictOperationInterpreter(
                                 compareClosestLessThan,
                                 allowEq = true,
                                 resultElementExtended,
-                                storeKeyExtended
+                                storeKeyExtended,
                             )
 
                         mkImplies(storedKeyContains and storedKeyRelevant, resultIsClosest)
@@ -1961,7 +1961,7 @@ class TvmDictOperationInterpreter(
 
             scope.assert(
                 constraint = dictKeyLength eq mkSizeExpr(keyLength),
-                unsatBlock = { throwRealDictError(this) }
+                unsatBlock = { throwRealDictError(this) },
             ) ?: run {
                 logger.warn { "Cannot assert dict key length constraint" }
                 null
@@ -1986,7 +1986,7 @@ class TvmDictOperationInterpreter(
             keyLengthExpr,
             scope,
             min = 0,
-            max = maxKeyLength
+            max = maxKeyLength,
         ) ?: return null
 
         return keyLength
@@ -2168,15 +2168,15 @@ class TvmDictOperationInterpreter(
                     caseIsExceptional = false,
                     condition = resultSetContainsNoStoredKey,
                     paramForDoForAllBlock = 1,
-                    action = {}
+                    action = {},
                 ),
                 TvmStepScopeManager.ActionOnCondition(
                     caseIsExceptional = false,
                     condition = ctx.mkNot(resultSetContainsNoStoredKey),
                     paramForDoForAllBlock = 2,
-                    action = {}
-                )
-            )
+                    action = {},
+                ),
+            ),
         ) { caseId ->
             when (caseId) {
                 1 -> {

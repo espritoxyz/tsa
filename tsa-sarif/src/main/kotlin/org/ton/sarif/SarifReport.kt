@@ -40,11 +40,11 @@ fun TvmContractSymbolicTestResult.toSarifReport(
                                     testSuites.associate {
                                         it.methodId.toString() to
                                             it.methodCoverage.transitiveCoverage
-                                    }
-                            )
-                        )
-                )
-            )
+                                    },
+                            ),
+                        ),
+                ),
+            ),
     ).let { TvmContractCode.json.encodeToString(it) }
 
 private fun TvmSymbolicTestSuite.toSarifResult(
@@ -64,9 +64,9 @@ fun List<TvmSymbolicTest>.toSarifReport(
             listOf(
                 Run(
                     tool = TsaSarifSchema.TsaSarifTool.TOOL,
-                    results = toSarifResult(methodsMapping, excludeUserDefinedErrors, useShortenedOutput)
-                )
-            )
+                    results = toSarifResult(methodsMapping, excludeUserDefinedErrors, useShortenedOutput),
+                ),
+            ),
     ).let { TvmContractCode.json.encodeToString(it) }
 
 private fun List<TvmSymbolicTest>.toSarifResult(
@@ -112,8 +112,8 @@ private fun List<TvmSymbolicTest>.toSarifResult(
                 },
                 "rootContractInitialC4" to TvmContractCode.json.encodeToJsonElement(it.rootInitialData),
                 "resultStack" to TvmContractCode.json.encodeToJsonElement(it.result.stack),
-                "additionalInputs" to TvmContractCode.json.encodeToJsonElement(it.additionalInputs)
-            ).toMap()
+                "additionalInputs" to TvmContractCode.json.encodeToJsonElement(it.additionalInputs),
+            ).toMap(),
         )
 
     if (useShortenedOutput) {
@@ -121,7 +121,7 @@ private fun List<TvmSymbolicTest>.toSarifResult(
             ruleID = ruleId,
             level = TsaSarifSchema.TsaSarifResult.LEVEL,
             message = Message(text = message),
-            properties = properties
+            properties = properties,
         )
     } else {
         Result(
@@ -141,16 +141,16 @@ private fun List<TvmSymbolicTest>.toSarifResult(
                                             mapOf(
                                                 "position" to
                                                     TvmContractCode.json.encodeToJsonElement(
-                                                        it.lastStmt?.physicalLocation
+                                                        it.lastStmt?.physicalLocation,
                                                     ),
-                                                "inst" to it.lastStmt?.mnemonic
-                                            )
-                                        )
-                                )
-                            )
-                    )
+                                                "inst" to it.lastStmt?.mnemonic,
+                                            ),
+                                        ),
+                                ),
+                            ),
+                    ),
                 ),
-            properties = properties
+            properties = properties,
         )
     }
 }

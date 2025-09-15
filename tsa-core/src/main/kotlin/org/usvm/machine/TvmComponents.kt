@@ -58,7 +58,7 @@ class TvmComponents(
                     KBv2IntSolver(
                         ctx,
                         intSolver,
-                        KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED)
+                        KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED),
                     ),
                 regularSolver = bvSolver,
                 exprFilter =
@@ -66,8 +66,8 @@ class TvmComponents(
                         ctx,
                         excludeNonConstBvand = true,
                         excludeNonConstShift = true,
-                        excludeNonlinearArith = false
-                    )
+                        excludeNonlinearArith = false,
+                    ),
             )
 
         val wrappedSolver =

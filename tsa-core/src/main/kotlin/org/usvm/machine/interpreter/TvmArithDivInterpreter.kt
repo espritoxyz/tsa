@@ -778,7 +778,7 @@ class TvmArithDivInterpreter(
         scope.fork(
             neqZero,
             falseStateIsExceptional = true,
-            blockOnFalseState = throwIntegerOverflowError
+            blockOnFalseState = throwIntegerOverflowError,
         )
     }
 
@@ -1177,7 +1177,7 @@ fun <S : UBvSort> TvmContext.makeDiv(
         mkIte(
             needToCorrect,
             trueBranch = { mkBvAddExpr(computedDiv, minusOne) },
-            falseBranch = { computedDiv }
+            falseBranch = { computedDiv },
         )
     return DivResult(result, noOverflow)
 }
@@ -1204,7 +1204,7 @@ fun <S : UBvSort> TvmContext.makeDivc(
         mkIte(
             needToCorrect,
             trueBranch = { mkBvAddExpr(computedDiv, one) },
-            falseBranch = { computedDiv }
+            falseBranch = { computedDiv },
         )
     return DivResult(value, mkBvDivNoOverflowExpr(x, y))
 }
@@ -1221,7 +1221,7 @@ fun <S : UBvSort> TvmContext.makeDivr(
         mkIte(
             isYPositive,
             trueBranch = { y },
-            falseBranch = { mkBvNegationExpr(y) }
+            falseBranch = { mkBvNegationExpr(y) },
         )
     val computedMod = makeMod(x, absY)
     val halfMod = makeDivc(absY, two).value
@@ -1231,7 +1231,7 @@ fun <S : UBvSort> TvmContext.makeDivr(
         mkIte(
             chooseFloor,
             trueBranch = { makeDiv(x, y).value }, // floor
-            falseBranch = { makeDivc(x, y).value } // ceil
+            falseBranch = { makeDivc(x, y).value }, // ceil
         )
     return DivResult(value, mkBvDivNoOverflowExpr(x, y))
 }
@@ -1250,6 +1250,6 @@ fun <S : UBvSort> TvmContext.checkInBounds(
     return scope.fork(
         inBounds,
         falseStateIsExceptional = true,
-        blockOnFalseState = throwIntegerOverflowError
+        blockOnFalseState = throwIntegerOverflowError,
     )
 }

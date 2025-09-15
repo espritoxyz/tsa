@@ -121,7 +121,7 @@ fun TvmStepScopeManager.getConfigParam(idx: UExpr<TvmInt257Sort>): UHeapRef? {
             dictGetValue(
                 configDict,
                 DictId(CONFIG_KEY_LENGTH),
-                idx.extractToSort(mkBvSort(CONFIG_KEY_LENGTH.toUInt()))
+                idx.extractToSort(mkBvSort(CONFIG_KEY_LENGTH.toUInt())),
             )
         }
 
@@ -135,7 +135,7 @@ fun TvmState.configContainsParam(idx: UExpr<TvmInt257Sort>): UBoolExpr =
         dictContainsKey(
             configDict,
             DictId(CONFIG_KEY_LENGTH),
-            idx.extractToSort(mkBvSort(CONFIG_KEY_LENGTH.toUInt()))
+            idx.extractToSort(mkBvSort(CONFIG_KEY_LENGTH.toUInt())),
         )
     }
 
@@ -168,7 +168,7 @@ fun TvmState.setGlobalVariable(
         TvmStackTupleValueConcreteNew(
             ctx,
             registers.c7.value.entries
-                .extendToSize(idx + 1)
+                .extendToSize(idx + 1),
         ).set(idx, value)
 
     registers.c7 = C7Register(updatedC7)
@@ -177,7 +177,7 @@ fun TvmState.setGlobalVariable(
 fun TvmState.initC7(contractInfo: TvmStackTupleValue): TvmStackTupleValueConcreteNew =
     TvmStackTupleValueConcreteNew(
         ctx,
-        persistentListOf(contractInfo.toStackEntry())
+        persistentListOf(contractInfo.toStackEntry()),
     )
 
 const val BIT_PRICE_PS = 1
@@ -209,8 +209,8 @@ fun makeBalanceEntry(
         ctx,
         persistentListOf(
             TvmStackIntValue(balance).toStackEntry(),
-            TvmStackNullValue.toStackEntry()
-        )
+            TvmStackNullValue.toStackEntry(),
+        ),
     )
 
 fun TvmState.initContractInfo(
@@ -258,9 +258,9 @@ fun TvmState.initContractInfo(
                     mkBv(
                         concreteData.addressBits.substring(
                             TvmContext.ADDRESS_TAG_LENGTH + 1,
-                            TvmContext.ADDRESS_TAG_LENGTH + 1 + TvmContext.STD_WORKCHAIN_BITS
+                            TvmContext.ADDRESS_TAG_LENGTH + 1 + TvmContext.STD_WORKCHAIN_BITS,
                         ),
-                        TvmContext.STD_WORKCHAIN_BITS.toUInt()
+                        TvmContext.STD_WORKCHAIN_BITS.toUInt(),
                     )
                 address to workchain
             }
@@ -323,12 +323,12 @@ fun TvmState.initContractInfo(
                 prevBlocksInfo,
                 unpackedConfigTuple,
                 duePayment,
-                gasUsageIfPrecompiled
+                gasUsageIfPrecompiled,
             )
 
         TvmStackTupleValueConcreteNew(
             ctx,
-            paramList.map { it.toStackEntry() }.toPersistentList()
+            paramList.map { it.toStackEntry() }.toPersistentList(),
         )
     }
 
@@ -368,7 +368,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
             allocCellFromFields(
                 mkBvHex("c4", tagBits), // capabilities tag
                 mkBv(9, uint32Bits), // version
-                mkBv(494, uint64Bits) // capabilities
+                mkBv(494, uint64Bits), // capabilities
             )
         addDictEntry(configDict, 8, networkVersion)
 
@@ -391,7 +391,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBv(0, sizeBits = 32u), // version
                 mkBvHex("1", hexBits), // wfmt_basic tag
                 mkBv(-1, uint32Bits), // vm_version
-                mkBv(0, uint64Bits) // vm_mode
+                mkBv(0, uint64Bits), // vm_mode
             )
         val workchainsDict = allocDict(keyLength = 32)
         addDictEntry(workchainsDict, 0, allocSliceFromCell(workchainDescr), isCellValue = false)
@@ -409,7 +409,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBvHex(value = "1a", tagBits), // complaint_prices tag
                 mkBvGrams(value = 1000000000L), // deposit
                 mkBvGrams(value = 1L), // bit_price
-                mkBvGrams(value = 500L) // cell_price
+                mkBvGrams(value = 500L), // cell_price
             )
         addDictEntry(configDict, 13, complaintPrices)
 
@@ -421,7 +421,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBv(65536, uint32Bits), // validators_elected_for
                 mkBv(32768, uint32Bits), // elections_start_before
                 mkBv(8192, uint32Bits), // elections_end_before
-                mkBv(32768, uint32Bits) // stake_held_for
+                mkBv(32768, uint32Bits), // stake_held_for
             )
         addDictEntry(configDict, 15, elections)
 
@@ -432,7 +432,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
             allocCellFromFields(
                 mkBv(400, uint16Bits), // max_validators
                 mkBv(100, uint16Bits), // max_main_validators
-                mkBv(75, uint16Bits) // min_validators
+                mkBv(75, uint16Bits), // min_validators
             )
         addDictEntry(configDict, 16, validatorsLimits)
 
@@ -444,7 +444,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBvGrams(value = 300000000000000L), // min_stake
                 mkBvGrams(value = 10000000000000000L), // max_stake
                 mkBvGrams(value = 75000000000000000L), // min_total_stake
-                mkBv(value = 196608, uint32Bits) // max_stake_factor
+                mkBv(value = 196608, uint32Bits), // max_stake_factor
             )
         addDictEntry(configDict, 17, stakeLimits)
 
@@ -458,7 +458,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBv(BIT_PRICE_PS, uint64Bits), // bit_price_ps
                 mkBv(CELL_PRICE_PS, uint64Bits), // cell_price_ps
                 mkBv(MC_BIT_PRICE_PS, uint64Bits), // mc_bit_price_ps
-                mkBv(MC_CELL_PRICE_PS, uint64Bits) // mc_cell_price_ps
+                mkBv(MC_CELL_PRICE_PS, uint64Bits), // mc_cell_price_ps
             )
         val storagePricesSlice = allocSliceFromCell(storagePrices)
         val storagePricesDict = allocDict(keyLength = 32)
@@ -481,7 +481,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBv(10000, uint64Bits), // gas_credit
                 mkBv(2500000, uint64Bits), // block_gas_limit
                 mkBv(100000000, uint64Bits), // freeze_due_limit
-                mkBv(1000000000, uint64Bits) // delete_due_limit
+                mkBv(1000000000, uint64Bits), // delete_due_limit
             )
         addDictEntry(configDict, 20, masterchainGasPrices)
 
@@ -500,7 +500,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBv(10000, uint64Bits), // gas_credit
                 mkBv(10000000, uint64Bits), // block_gas_limit
                 mkBv(100000000, uint64Bits), // freeze_due_limit
-                mkBv(1000000000, uint64Bits) // delete_due_limit
+                mkBv(1000000000, uint64Bits), // delete_due_limit
             )
         addDictEntry(configDict, 21, gasPrices)
 
@@ -515,7 +515,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBv(CELL_PRICE_MASTERCHAIN, uint64Bits), // cell_price
                 mkBv(98304, uint32Bits), // ihr_price_factor
                 mkBv(FIRST_FRAC_MASTERCHAIN, uint16Bits), // first_frac
-                mkBv(21845, uint16Bits) // next_frac
+                mkBv(21845, uint16Bits), // next_frac
             )
         addDictEntry(configDict, 24, masterchainMsgPrices)
 
@@ -530,7 +530,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBv(CELL_PRICE, uint64Bits), // cell_price
                 mkBv(98304, uint32Bits), // ihr_price_factor
                 mkBv(FIRST_FRAC, uint16Bits), // first_frac
-                mkBv(21845, uint16Bits) // next_frac
+                mkBv(21845, uint16Bits), // next_frac
             )
         addDictEntry(configDict, 25, msgPrices)
 
@@ -546,7 +546,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 mkBv(100, uint16Bits), // main
                 mkBv(1152921504606846802, uint64Bits), // total_weight
                 // TODO real dict
-                mkBv(0, sizeBits = 1u) // list
+                mkBv(0, sizeBits = 1u), // list
             )
         addDictEntry(configDict, 34, validatorSet)
 
@@ -565,7 +565,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
             allocCellFromFields(
                 mkBvHex(value = "01", tagBits), // misbehaviour_punishment_config_v1 tag
                 defaultFlatFine, // default_flat_fine
-                punishmentSuffix // default_proportional_fine, severity_flat_mult, ...
+                punishmentSuffix, // default_proportional_fine, severity_flat_mult, ...
             )
         addDictEntry(configDict, 40, misbehaviourPunishment)
 
@@ -581,7 +581,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
                 // TODO real dict
                 mkBv(0, sizeBits = 1u), // oracles
                 // external_chain_address
-                mkBvHex("000000000000000000000000582d872a1b094fc48f5de31d3b73f2d9be47def1", addressBits)
+                mkBvHex("000000000000000000000000582d872a1b094fc48f5de31d3b73f2d9be47def1", addressBits),
             )
         addDictEntry(configDict, 71, ethereumBridge)
 
@@ -591,7 +591,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
         val dns = // TODO: find documentation
             allocCellFromFields(
                 // TODO real dict
-                mkBv(0, sizeBits = 1u) // ???
+                mkBv(0, sizeBits = 1u), // ???
             )
         addDictEntry(configDict, 80, dns)
 
@@ -616,7 +616,7 @@ private fun TvmContext.mkBvGrams(value: Long): UExpr<UBvSort> {
 
     return mkBvConcatExpr(
         mkBv(length.toInt(), GRAMS_LENGTH_BITS),
-        mkBv(value, length)
+        mkBv(value, length),
     )
 }
 
@@ -655,7 +655,7 @@ private fun TvmState.addDictEntry(
         dict,
         DictId(CONFIG_KEY_LENGTH),
         mkBv(key, CONFIG_KEY_LENGTH.toUInt()),
-        sliceValue
+        sliceValue,
     )
 }
 

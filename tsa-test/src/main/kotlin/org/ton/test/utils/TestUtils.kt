@@ -53,7 +53,7 @@ val testConcreteOptions =
         turnOnTLBParsingChecks = false,
         useReceiverInputs = false,
         enableInputValues = false,
-        useMainMethodForInitialMethodJump = false
+        useMainMethodForInitialMethodJump = false,
     )
 
 val testOptionsToAnalyzeSpecificMethod = TvmOptions(useReceiverInputs = false)
@@ -81,7 +81,7 @@ fun tactCompileAndAnalyzeAllMethods(
         methodWhiteList,
         inputInfo,
         tvmOptions,
-        takeEmptyTests
+        takeEmptyTests,
     )
 
 val funcAnalyzer = FuncAnalyzer(fiftStdlibPath = FIFT_STDLIB_RESOURCE)
@@ -102,7 +102,7 @@ fun funcCompileAndAnalyzeAllMethods(
         methodsBlackList,
         methodWhiteList,
         inputInfo,
-        tvmOptions
+        tvmOptions,
     )
 
 fun compileAndAnalyzeFift(
@@ -121,7 +121,7 @@ fun compileAndAnalyzeFift(
         methodsBlackList,
         methodWhiteList,
         inputInfo,
-        tvmOptions
+        tvmOptions,
     )
 
 fun compileAndAnalyzeFift(
@@ -138,7 +138,7 @@ fun compileAndAnalyzeFift(
         concreteGeneralData,
         concreteContractData,
         inputInfo,
-        tvmOptions
+        tvmOptions,
     )
 
 /**
@@ -149,14 +149,14 @@ fun compileFiftCodeBlocksContract(
     codeBlocks: List<String>,
 ): TsaContractCode =
     FiftAnalyzer(
-        fiftStdlibPath = FIFT_STDLIB_RESOURCE
+        fiftStdlibPath = FIFT_STDLIB_RESOURCE,
     ).compileFiftCodeBlocksContract(fiftWorkDir, codeBlocks)
 
 fun compileFuncToFift(
     funcSourcesPath: Path,
     fiftFilePath: Path,
 ) = FuncAnalyzer(
-    fiftStdlibPath = FIFT_STDLIB_RESOURCE
+    fiftStdlibPath = FIFT_STDLIB_RESOURCE,
 ).compileFuncSourceToFift(funcSourcesPath, fiftFilePath)
 
 fun analyzeAllMethods(
@@ -175,7 +175,7 @@ fun analyzeAllMethods(
         methodsBlackList,
         methodWhiteList,
         inputInfo,
-        options
+        options,
     )
 
 fun analyzeFuncIntercontract(
@@ -189,7 +189,7 @@ fun analyzeFuncIntercontract(
         contracts = contracts,
         startContractId = startContract,
         methodId = TvmContext.RECEIVE_INTERNAL_ID,
-        options = options
+        options = options,
     )
 }
 
@@ -203,7 +203,7 @@ fun runFiftMethod(
     methodId: Int,
 ): FiftInterpreterResult =
     FiftAnalyzer(
-        fiftStdlibPath = FIFT_STDLIB_RESOURCE
+        fiftStdlibPath = FIFT_STDLIB_RESOURCE,
     ).runFiftMethod(fiftPath, methodId)
 
 /**
@@ -214,7 +214,7 @@ fun runFiftCodeBlock(
     codeBlock: String,
 ): FiftInterpreterResult =
     FiftAnalyzer(
-        fiftStdlibPath = FIFT_STDLIB_RESOURCE
+        fiftStdlibPath = FIFT_STDLIB_RESOURCE,
     ).runFiftCodeBlock(fiftWorkDir, codeBlock)
 
 fun getAddressBits(addressInRawForm: String): String {
@@ -247,7 +247,7 @@ internal fun compareSymbolicAndConcreteResults(
         val result = mutableListOf<TvmTestValue>()
         parseFiftStack(fiftResult.stack, result, initialIndex = 0)
         result
-    }
+    },
 )
 
 internal fun compareSymbolicAndConcreteResultsFunc(
@@ -264,7 +264,7 @@ internal fun compareSymbolicAndConcreteResultsFunc(
             compileAndAnalyzeFift(
                 tmpFiftFile,
                 methodWhiteList = methods.map { it.toMethodId() }.toSet(),
-                tvmOptions = testConcreteOptions
+                tvmOptions = testConcreteOptions,
             )
 
         compareSymbolicAndConcreteResults(methods, symbolicResult) { methodId ->
@@ -393,8 +393,8 @@ internal fun extractTlbInfo(
     val info =
         TvmParameterInfo.SliceInfo(
             TvmParameterInfo.DataCellInfo(
-                struct
-            )
+                struct,
+            ),
         )
     return mapOf(BigInteger.ZERO to TvmInputInfo(mapOf(0 to info)))
 }

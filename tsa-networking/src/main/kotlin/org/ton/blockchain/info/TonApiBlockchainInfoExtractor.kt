@@ -77,7 +77,7 @@ class TonApiBlockchainInfoExtractor(
                         .jsonObject["num"]!!
                         .jsonPrimitive.content
                         .removePrefix("0x"),
-                    16
+                    16,
                 )
             val isMintable = jsonArray[1].jsonObject["num"]!!.jsonPrimitive.content != "0x0"
             val owner = parseOwner(jsonArray[2].jsonObject["cell"]!!.jsonPrimitive.content)
@@ -87,7 +87,7 @@ class TonApiBlockchainInfoExtractor(
                 walletContractBytesHex = code,
                 declaredOwner = owner,
                 declaredMintable = isMintable,
-                declaredTotalSupply = totalSupply.toString()
+                declaredTotalSupply = totalSupply.toString(),
             )
         }.getOrElse {
             val msg = "Could not extract jetton-wallet code from query response (exception $it): $responseFromGetMethod"
@@ -133,7 +133,7 @@ class TonApiBlockchainInfoExtractor(
         val (_, response) =
             runCatching {
                 makeTonApiRequest(
-                    "$tonApiProvider/v2/jettons/${masterAddress.toUrlAddress()}/holders?limit=$limit&offset=$offset"
+                    "$tonApiProvider/v2/jettons/${masterAddress.toUrlAddress()}/holders?limit=$limit&offset=$offset",
                 )
             }.getOrElse { error ->
                 throw TonApiException("TonAPI request failed: $error", isParsingError = false)

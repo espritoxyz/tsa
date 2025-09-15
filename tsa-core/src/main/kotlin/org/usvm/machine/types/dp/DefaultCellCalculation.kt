@@ -23,8 +23,8 @@ fun getDefaultDict(keyLength: Int): TvmTestDictCellValue { // dict mustn't be em
     return TvmTestDictCellValue(
         keyLength,
         mapOf(
-            TvmTestIntegerValue(BigInteger.ZERO) to TvmTestSliceValue(TvmTestDataCellValue(), dataPos = 0, refPos = 0)
-        )
+            TvmTestIntegerValue(BigInteger.ZERO) to TvmTestSliceValue(TvmTestDataCellValue(), dataPos = 0, refPos = 0),
+        ),
     )
 }
 
@@ -53,7 +53,7 @@ fun calculateDefaultCells(
                                 maxTlbDepth,
                                 maxCellDepth,
                                 generalMaxTlbDepth,
-                                calculatedValues
+                                calculatedValues,
                             )
                         } else {
                             val params = DPParamsForDefaultCellCalculation(maxRefs, tlbDepthBound, maxCellDepth, label)
@@ -74,7 +74,7 @@ fun calculateDefaultCells(
                 maxRefs = TvmContext.MAX_REFS_NUMBER,
                 maxTlbDepth = generalMaxTlbDepth,
                 maxCellDepth = maxCellDepthForDefault,
-                label = label
+                label = label,
             )
         calculatedValues[params]?.let { result[label] = it }
     }
@@ -115,7 +115,7 @@ private fun getDefaultCell(
                                 maxRefs = TvmContext.MAX_REFS_NUMBER,
                                 maxTlbDepth = generalMaxTlbDepth,
                                 maxCellDepth = maxCellDepth - 1,
-                                label = struct.ref.dataCellStructure
+                                label = struct.ref.dataCellStructure,
                             )
                         if (params !in calculatedValues.keys) {
                             error("Needed value was not calculated when it was needed during DP process")
@@ -134,13 +134,13 @@ private fun getDefaultCell(
                     maxTlbDepth,
                     maxCellDepth,
                     generalMaxTlbDepth,
-                    calculatedValues
+                    calculatedValues,
                 )
                     ?: return null
 
             TvmTestDataCellValue(
                 data = furtherStruct.data,
-                refs = listOf(nextCell) + furtherStruct.refs
+                refs = listOf(nextCell) + furtherStruct.refs,
             )
         }
 
@@ -156,7 +156,7 @@ private fun getDefaultCell(
                             maxTlbDepth,
                             maxCellDepth,
                             generalMaxTlbDepth,
-                            calculatedValues
+                            calculatedValues,
                         )
                             ?: return null
                     if (content.length + further.data.length > TvmContext.MAX_DATA_LENGTH) {
@@ -164,7 +164,7 @@ private fun getDefaultCell(
                     }
                     TvmTestDataCellValue(
                         data = content + further.data,
-                        refs = further.refs
+                        refs = further.refs,
                     )
                 }
 
@@ -181,7 +181,7 @@ private fun getDefaultCell(
                                 maxRefs = innerRefs,
                                 maxTlbDepth = maxTlbDepth - 1,
                                 maxCellDepth = maxCellDepth,
-                                label = struct.typeLabel
+                                label = struct.typeLabel,
                             )
 
                         if (params !in calculatedValues.keys) {
@@ -200,7 +200,7 @@ private fun getDefaultCell(
                                 maxTlbDepth,
                                 maxCellDepth,
                                 generalMaxTlbDepth,
-                                calculatedValues
+                                calculatedValues,
                             )
                         if (further != null &&
                             (result == null || result.data.length > variant.data.length + further.data.length)
@@ -208,7 +208,7 @@ private fun getDefaultCell(
                             result =
                                 TvmTestDataCellValue(
                                     data = variant.data + further.data,
-                                    refs = variant.refs + further.refs
+                                    refs = variant.refs + further.refs,
                                 )
                         }
                     }
@@ -233,14 +233,14 @@ private fun getDefaultCell(
                         maxTlbDepth,
                         maxCellDepth,
                         generalMaxTlbDepth,
-                        calculatedValues
+                        calculatedValues,
                     )
 
                 if (further != null && (result == null || result.data.length > further.data.length + key.length)) {
                     result =
                         TvmTestDataCellValue(
                             data = key + further.data,
-                            further.refs
+                            further.refs,
                         )
                 }
             }

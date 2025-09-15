@@ -52,7 +52,7 @@ class FirstFailureTerminator :
         val forbiddenTypes =
             listOf(
                 TvmFailureType.FixedStructuralError,
-                TvmFailureType.SymbolicStructuralError
+                TvmFailureType.SymbolicStructuralError,
             )
     }
 }

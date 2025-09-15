@@ -33,7 +33,7 @@ class TvmMachine(
         defaultOptions.copy(
             timeout = tvmOptions.timeout,
             solverTimeout = tvmOptions.solverTimeout,
-            loopIterationLimit = tvmOptions.loopIterationLimit
+            loopIterationLimit = tvmOptions.loopIterationLimit,
         )
 
     private val components = TvmComponents(tvmOptions)
@@ -56,7 +56,7 @@ class TvmMachine(
             coverageStatistics,
             methodId,
             inputInfo,
-            manualStateProcessor = manualStateProcessor
+            manualStateProcessor = manualStateProcessor,
         )
 
     fun analyze(
@@ -76,7 +76,7 @@ class TvmMachine(
                 ctx,
                 contractsCode,
                 typeSystem = components.typeSystem,
-                inputInfo = inputInfo
+                inputInfo = inputInfo,
             )
         logger.debug("{}.analyze({})", this, contractsCode)
         val initialState =
@@ -84,7 +84,7 @@ class TvmMachine(
                 startContractId,
                 concreteGeneralData,
                 concreteContractData,
-                methodId
+                methodId,
             )
 
         val loopTracker = TvmLoopTracker()
@@ -126,7 +126,7 @@ class TvmMachine(
                         override fun successors(node: TvmInst): Sequence<TvmInst> {
                             TODO("Not yet implemented")
                         }
-                    }
+                    },
             )
 
         val stepLimit = options.stepLimit
@@ -147,7 +147,7 @@ class TvmMachine(
             when (options.stateCollectionStrategy) {
                 StateCollectionStrategy.COVERED_NEW, StateCollectionStrategy.REACHED_TARGET ->
                     TODO(
-                        "Unsupported strategy ${options.stateCollectionStrategy}"
+                        "Unsupported strategy ${options.stateCollectionStrategy}",
                     )
                 StateCollectionStrategy.ALL -> AllStatesCollector<TvmState>()
             }
@@ -166,14 +166,14 @@ class TvmMachine(
             pathSelector,
             observer = CompositeUMachineObserver(observers),
             isStateTerminated = ::isStateTerminated,
-            stopStrategy = integrativeStopStrategy
+            stopStrategy = integrativeStopStrategy,
         )
 
         var states =
             statesCollector.collectedStates.flatMap {
                 manualStateProcessor
                     .postProcessBeforePartialConcretization(
-                        it
+                        it,
                     )
             }
         states = interpreter.postProcessStates(states)
@@ -199,7 +199,7 @@ class TvmMachine(
                 loopIterativeDeepening = true,
                 loopIterationLimit = DEFAULT_LOOP_ITERATIONS_LIMIT,
                 stepLimit = null,
-                throwExceptionOnStepFailure = true
+                throwExceptionOnStepFailure = true,
             )
     }
 

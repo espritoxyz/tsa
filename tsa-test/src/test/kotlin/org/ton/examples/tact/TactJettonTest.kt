@@ -14,7 +14,7 @@ class TactJettonTest {
         val symbolicResult =
             tactCompileAndAnalyzeAllMethods(
                 TactSourcesDescription(tactConfigPath, "Jetton", "JettonMinter"),
-                takeEmptyTests = true
+                takeEmptyTests = true,
             )
         assertTrue {
             symbolicResult.testSuites.all { it.tests.isNotEmpty() }
@@ -26,7 +26,7 @@ class TactJettonTest {
         val symbolicResult =
             tactCompileAndAnalyzeAllMethods(
                 TactSourcesDescription(tactConfigPath, "Jetton", "JettonWallet"),
-                takeEmptyTests = true
+                takeEmptyTests = true,
             )
         assertTrue {
             symbolicResult.testSuites.all { it.tests.isNotEmpty() }

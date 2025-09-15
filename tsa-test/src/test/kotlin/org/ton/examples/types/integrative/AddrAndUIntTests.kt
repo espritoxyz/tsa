@@ -37,7 +37,7 @@ class AddrAndUIntTests {
             tests,
             listOf { test ->
                 test.result !is TvmExecutionWithStructuralError && test.result !is TvmMethodFailure
-            }
+            },
         )
     }
 
@@ -58,7 +58,7 @@ class AddrAndUIntTests {
             listOf { test ->
                 val result = test.result as? TvmExecutionWithStructuralError ?: return@listOf false
                 result.exit is TvmReadingOfUnexpectedType
-            }
+            },
         )
     }
 
@@ -79,7 +79,7 @@ class AddrAndUIntTests {
             listOf { test ->
                 val result = test.result as? TvmExecutionWithStructuralError ?: return@listOf false
                 result.exit is TvmUnexpectedEndOfReading
-            }
+            },
         )
     }
 
@@ -100,7 +100,7 @@ class AddrAndUIntTests {
             listOf { test ->
                 val result = test.result as? TvmExecutionWithStructuralError ?: return@listOf false
                 result.exit is TvmUnexpectedRefReading
-            }
+            },
         )
     }
 }

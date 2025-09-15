@@ -50,11 +50,11 @@ data class SwitchTlbStackFrame(
                             TvmStructuralError(
                                 TvmReadingSwitchWithUnexpectedType(loadData.type),
                                 state.phase,
-                                state.stack
-                            )
+                                state.stack,
+                            ),
                         ),
-                        value = null
-                    )
+                        value = null,
+                    ),
                 )
             }
 
@@ -66,10 +66,10 @@ data class SwitchTlbStackFrame(
                     GuardedResult(
                         mkSizeGtExpr(readSize, switchSize),
                         StepError(
-                            TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), state.phase, state.stack)
+                            TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), state.phase, state.stack),
                         ),
-                        value = null
-                    )
+                        value = null,
+                    ),
                 )
 
             possibleVariants.forEachIndexed { idx, (key, variant) ->
@@ -81,7 +81,7 @@ data class SwitchTlbStackFrame(
                         state.ctx,
                         variant,
                         path,
-                        leftTlbDepth
+                        leftTlbDepth,
                     )?.let {
                         NextFrame(it)
                     } ?: EndOfStackFrame
@@ -92,8 +92,8 @@ data class SwitchTlbStackFrame(
                     GuardedResult(
                         (readSize eq switchSize) and guard,
                         stepResult,
-                        value
-                    )
+                        value,
+                    ),
                 )
 
                 // partial read of switch
@@ -101,8 +101,8 @@ data class SwitchTlbStackFrame(
                     GuardedResult(
                         mkSizeLtExpr(readSize, switchSize) and guard,
                         NextFrame(ConstTlbStackFrame(key, variant, readSize, path, leftTlbDepth)),
-                        value
-                    )
+                        value,
+                    ),
                 )
             }
 
@@ -141,7 +141,7 @@ data class SwitchTlbStackFrame(
                         TlbStack.ConcreteReadInfo(
                             read.address,
                             read.resolver,
-                            read.leftBits - struct.switchSize
+                            read.leftBits - struct.switchSize,
                         )
                     return@with Triple(key, newReadInfo, further?.let { listOf(it) } ?: emptyList())
                 }

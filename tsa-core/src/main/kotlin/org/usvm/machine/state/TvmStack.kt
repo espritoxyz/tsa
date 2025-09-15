@@ -299,7 +299,7 @@ class TvmStack(
             // TODO should we increase size?
             return TvmStackTupleValueModifiedInputNew(
                 entries.toPersistentMap<Int, TvmStackEntry>().put(idx, value),
-                this
+                this,
             )
         }
     }

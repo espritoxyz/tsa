@@ -137,11 +137,11 @@ fun TvmStepScopeManager.takeLastTuple(): TvmStackTupleValue? =
                 val sizeConstraint =
                     mkAnd(
                         mkBvSignedLessOrEqualExpr(zeroValue, size),
-                        mkBvSignedLessOrEqualExpr(size, maxTupleSizeValue)
+                        mkBvSignedLessOrEqualExpr(size, maxTupleSizeValue),
                     )
                 assert(
                     sizeConstraint,
-                    unsatBlock = { error("Cannot assert tuple size constraints") }
+                    unsatBlock = { error("Cannot assert tuple size constraints") },
                 ) ?: return@calcOnStateCtx null
 
                 val symbolicTuple = TvmStack.TvmStackTupleValueInputNew(entries = mutableMapOf(), size = size)

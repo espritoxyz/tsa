@@ -97,7 +97,7 @@ private fun splitSizeExpr(sizeExpr: UExpr<TvmSizeSort>): Pair<GuardedExpr?, Guar
             trueValue != null && falseValue != null -> {
                 GuardedExpr(
                     mkIte(cond, trueValue.expr, falseValue.expr),
-                    (cond and trueValue.guard) or (cond.not() and falseValue.guard)
+                    (cond and trueValue.guard) or (cond.not() and falseValue.guard),
                 )
             }
 
@@ -155,7 +155,7 @@ private fun TvmContext.processCellUnderflowCheck(
             blockOnFalseState = {
                 quietBlock?.invoke(this)
                     ?: throwUnknownCellUnderflowError(this)
-            }
+            },
         )
     }
 
@@ -171,7 +171,7 @@ private fun TvmContext.processCellUnderflowCheck(
         falseStateIsExceptional = true,
         blockOnFalseState = {
             throwRealCellUnderflowError(this)
-        }
+        },
     ) ?: return null
 
     // Case of symbolic size.
@@ -193,7 +193,7 @@ private fun TvmContext.processCellUnderflowCheck(
         blockOnUnsatTrueState = { symbolicThrow = throwRealCellUnderflowError },
         blockOnFalseState = {
             symbolicThrow(this)
-        }
+        },
     )
 }
 
@@ -233,7 +233,7 @@ fun checkCellOverflow(
         blockOnFalseState = {
             quietBlock?.invoke(this)
                 ?: ctx.throwCellOverflowError(this)
-        }
+        },
     )
 
 fun setBuilderLengthOrThrowCellOverflow(
@@ -262,7 +262,7 @@ fun setBuilderLengthOrThrowCellOverflow(
             scope.calcOnState {
                 mkBvAddExpr(
                     fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, oldBuilder),
-                    writeSizeBits
+                    writeSizeBits,
                 )
             }
 
@@ -270,7 +270,7 @@ fun setBuilderLengthOrThrowCellOverflow(
             checkCellOverflow(
                 mkBvSignedLessOrEqualExpr(newLength, mkSizeExpr(MAX_DATA_LENGTH)),
                 scope,
-                quietBlock
+                quietBlock,
             ) ?: return@with null
         }
 
@@ -291,7 +291,7 @@ fun TvmStepScopeManager.assertDataLengthConstraintWithoutError(
         val correctnessConstraint =
             mkAnd(
                 mkSizeLeExpr(zeroSizeExpr, cellDataLength),
-                mkSizeLeExpr(cellDataLength, maxDataLengthSizeExpr)
+                mkSizeLeExpr(cellDataLength, maxDataLengthSizeExpr),
             )
         assert(correctnessConstraint, unsatBlock = unsatBlock)
     }
@@ -304,7 +304,7 @@ fun TvmStepScopeManager.assertRefsLengthConstraintWithoutError(
         val correctnessConstraint =
             mkAnd(
                 mkSizeLeExpr(zeroSizeExpr, cellRefsLength),
-                mkSizeLeExpr(cellRefsLength, maxRefsLengthSizeExpr)
+                mkSizeLeExpr(cellRefsLength, maxRefsLengthSizeExpr),
             )
         assert(correctnessConstraint, unsatBlock = unsatBlock)
     }
@@ -369,7 +369,7 @@ fun TvmStepScopeManager.slicePreloadDataBits(
 
         assertDataLengthConstraintWithoutError(
             cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
+            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
         ) ?: return@calcOnStateCtx null
 
         val dataPosition = memory.readField(slice, sliceDataPosField, sizeSort)
@@ -464,7 +464,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
         val constraintAndFailureList =
             listOf(
                 noAnycastIfInternal to TvmUsageOfAnycastAddress,
-                varConstraint.not() to TvmUsageOfVarAddress
+                varConstraint.not() to TvmUsageOfVarAddress,
             )
 
         for ((assumeConstraint, failure) in constraintAndFailureList) {
@@ -476,7 +476,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
                     blockOnFalseState = {
                         falseState = this
                         setExit(TvmMethodResult.TvmSoftFailure(failure, phase, stack))
-                    }
+                    },
                 ) ?: return@doWithCtx null
 
                 // if reached this, then we found state with [assumeConstraint], and we can get rid of [falseState]
@@ -490,15 +490,15 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
                     },
                     unknownBlock = {
                         error("Must not be reachable")
-                    }
+                    },
                 ) ?: return@doWithCtx null
             }
         }
 
         assert(
             mkAnd(
-                stdConstraint implies stdWorkchainConstraint
-            )
+                stdConstraint implies stdWorkchainConstraint,
+            ),
         ) ?: return@doWithCtx null
 
         stdConstraint to stdLength
@@ -532,7 +532,7 @@ private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
             mkBvExtractExpr(
                 high = prefixLen - 3,
                 low = prefixLen - 11,
-                data
+                data,
             ).zeroExtendToSort(sizeSort)
         val externLength = mkSizeAddExpr(mkSizeExpr(ADDRESS_TAG_LENGTH + 9), externAddrLength)
 
@@ -540,7 +540,7 @@ private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
             mkIte(
                 noneConstraint,
                 noneLength,
-                externLength
+                externLength,
             )
 
         (noneConstraint or externConstraint) to addrLength
@@ -557,7 +557,7 @@ fun TvmStepScopeManager.slicePreloadInternalAddrLength(slice: UHeapRef): UExpr<T
         blockOnFalseState = {
             // TODO tl-b parsing failure
             ctx.throwUnknownCellUnderflowError(this)
-        }
+        },
     ) ?: return null
 
     return length
@@ -577,7 +577,7 @@ fun TvmStepScopeManager.slicePreloadExternalAddrLength(
         blockOnFalseState = {
             // TODO tl-b parsing failure
             ctx.throwUnknownCellUnderflowError(this)
-        }
+        },
     ) ?: return null
 
     return length
@@ -602,7 +602,7 @@ fun TvmStepScopeManager.slicePreloadAddrLengthWithoutSetException(
             mkIte(
                 extConstraint,
                 extLength,
-                intLength
+                intLength,
             )
 
         length
@@ -668,7 +668,7 @@ fun TvmStepScopeManager.slicePreloadRef(
 
         assertRefsLengthConstraintWithoutError(
             refsLength,
-            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") }
+            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
         ) ?: return@calcOnStateCtx null
 
         val sliceRefPos = memory.readField(slice, sliceRefPosField, sizeSort)
@@ -786,7 +786,7 @@ private fun TvmState.builderStoreDataBitsNoOverflowCheck(
     val builderData =
         fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(
             this@builderStoreDataBitsNoOverflowCheck,
-            builder
+            builder,
         )
     val builderDataLength =
         fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@builderStoreDataBitsNoOverflowCheck, builder)
@@ -813,7 +813,7 @@ private fun TvmState.builderStoreDataBitsNoOverflowCheck(
             if (updatedDataSizeBits < CELL_DATA_BITS) {
                 mkBvConcatExpr(
                     updatedData,
-                    mkBv(0, CELL_DATA_BITS - updatedDataSizeBits)
+                    mkBv(0, CELL_DATA_BITS - updatedDataSizeBits),
                 )
             } else {
                 updatedData
@@ -827,7 +827,7 @@ private fun TvmState.builderStoreDataBitsNoOverflowCheck(
         this@builderStoreDataBitsNoOverflowCheck,
         builder,
         value = updatedLength,
-        upperBound = updatedLengthUpperBound
+        upperBound = updatedLengthUpperBound,
     )
 }
 
@@ -844,7 +844,7 @@ fun TvmStepScopeManager.builderStoreDataBits(
             newBuilder = builder,
             writeSizeBits = mkSizeExpr(sizeBits),
             writeSizeBitsUpperBound = sizeBits,
-            doNotUpdateLength = true
+            doNotUpdateLength = true,
         ) ?: return null
 
         calcOnState {
@@ -875,7 +875,7 @@ fun <S : UBvSort> TvmStepScopeManager.builderStoreDataBits(
             newBuilder = builder,
             writeSizeBits = sizeBits,
             writeSizeBitsUpperBound = writeSizeBitsUpperBound,
-            quietBlock = quietBlock
+            quietBlock = quietBlock,
         ) ?: return null
 
         val trashBits = mkSizeSubExpr(mkSizeExpr(MAX_DATA_LENGTH), sizeBits).zeroExtendToSort(cellDataSort)
@@ -913,7 +913,7 @@ fun TvmStepScopeManager.builderStoreInt(
             newBuilder = builder,
             writeSizeBits = sizeBits,
             writeSizeBitsUpperBound = sizeBitsUpperBound ?: sizeBits.intValueOrNull,
-            quietBlock = quietBlock
+            quietBlock = quietBlock,
         ) ?: return null
 
         val updatedLength = calcOnState { fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, builder) }
@@ -950,7 +950,7 @@ private fun TvmContext.updateBuilderData(
     val shiftedBits: UExpr<TvmCellDataSort> =
         mkBvShiftLeftExpr(
             bits,
-            mkBvSubExpr(maxDataLengthSizeExpr, updatedBuilderDataLength).zeroExtendToSort(builderData.sort)
+            mkBvSubExpr(maxDataLengthSizeExpr, updatedBuilderDataLength).zeroExtendToSort(builderData.sort),
         )
 
     return mkBvOrExpr(builderData, shiftedBits)
@@ -968,7 +968,7 @@ private fun TvmContext.coinPrefix(value: UExpr<TvmInt257Sort>): UExpr<UBvSort> {
         mkIte(
             mkBvSignedGreaterExpr(value, bvMaxValueUnsignedExtended(prevValueBits)),
             trueBranch = curBv,
-            falseBranch = acc
+            falseBranch = acc,
         )
     }
 }
@@ -1000,7 +1000,7 @@ fun TvmStepScopeManager.builderStoreGrams(
             coinPrefix.unsignedExtendToInteger(),
             mkSizeExpr(lenSizeBits),
             isSigned = false,
-            quietBlock = quietBlock
+            quietBlock = quietBlock,
         ) ?: return null
 
         // (len * 8)
@@ -1015,7 +1015,7 @@ fun TvmStepScopeManager.builderStoreGrams(
             valueBits,
             isSigned = false,
             sizeBitsUpperBound = sizeBitsUpperBound,
-            quietBlock
+            quietBlock,
         ) ?: return null
 
         return coinPrefix
@@ -1046,7 +1046,7 @@ fun TvmStepScopeManager.builderStoreSlice(
 
         assertDataLengthConstraintWithoutError(
             cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
+            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
         ) ?: return null
         val dataPosition = calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
 
@@ -1102,7 +1102,7 @@ fun TvmStepScopeManager.allocCellFromData(
         val shiftValue =
             mkBvSubExpr(
                 maxDataLengthSizeExpr.zeroExtendToSort(cellDataSort),
-                sizeBits.zeroExtendToSort(cellDataSort)
+                sizeBits.zeroExtendToSort(cellDataSort),
             )
         val shiftedData = mkBvShiftLeftExpr(data, shiftValue)
 
@@ -1148,7 +1148,7 @@ fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef =
                 mkBv(
                     cellValue.data.bits,
                     cellValue.data.bits.length
-                        .toUInt()
+                        .toUInt(),
                 )
             builderStoreDataBitsNoOverflowCheck(cell, data)
         }
@@ -1170,7 +1170,7 @@ fun TvmState.allocEmptyCell() =
                 this@allocEmptyCell,
                 cellRef = cell,
                 value = zeroSizeExpr,
-                upperBound = 0
+                upperBound = 0,
             )
             memory.writeField(cell, cellRefsLengthField, sizeSort, zeroSizeExpr, trueExpr)
         }
@@ -1200,7 +1200,7 @@ fun TvmState.getSliceRemainingBitsCount(slice: UHeapRef): UExpr<TvmSizeSort> =
         val dataLength =
             fieldManagers.cellDataLengthFieldManager.readCellDataLength(
                 this@getSliceRemainingBitsCount,
-                cell
+                cell,
             )
         val dataPos = memory.readField(slice, sliceDataPosField, sizeSort)
 
@@ -1285,7 +1285,7 @@ fun sliceLoadIntTlb(
     makeSliceTypeLoad(
         slice,
         TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.BigEndian),
-        updatedSlice
+        updatedSlice,
     ) { tlbValue ->
         val result =
             tlbValue?.expr ?: let {
@@ -1331,7 +1331,7 @@ fun sliceLoadAddrTlb(
                         this@makeSliceTypeLoad,
                         originalCell,
                         minSize = mkBvAddExpr(dataPos, twoSizeExpr),
-                        maxSize = null
+                        maxSize = null,
                     ) ?: return@calcOnStateCtx
 
                     val tag =
@@ -1343,7 +1343,7 @@ fun sliceLoadAddrTlb(
                     val addrLength =
                         slicePreloadAddrLengthWithoutSetException(
                             slice,
-                            mustProcessAllAddressFormats = tag is KInterpretedValue
+                            mustProcessAllAddressFormats = tag is KInterpretedValue,
                         ) ?: return@calcOnStateCtx
                     sliceMoveDataPtr(updatedSlice, addrLength)
 
@@ -1369,7 +1369,7 @@ fun sliceLoadAddrTlb(
                         this,
                         addrCell,
                         addrDataLength,
-                        upperBound = addrDataLength.intValueOrNull
+                        upperBound = addrDataLength.intValueOrNull,
                     )
                     // new refs length to ensure that the remaining slice refs count is equal to 0
                     memory.writeField(addrCell, cellRefsLengthField, sizeSort, addrRefPos, guard = trueExpr)

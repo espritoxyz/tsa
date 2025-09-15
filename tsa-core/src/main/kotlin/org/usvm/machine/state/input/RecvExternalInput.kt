@@ -48,7 +48,7 @@ class RecvExternalInput(
                 eightValue,
                 sizeBits = fourSizeExpr,
                 isSigned = false,
-                endian = Endian.BigEndian
+                endian = Endian.BigEndian,
             )
                 ?: error("Cannot store external message prefix")
 
@@ -64,7 +64,7 @@ class RecvExternalInput(
                 zeroValue,
                 sizeBits = fourSizeExpr,
                 isSigned = false,
-                endian = Endian.BigEndian
+                endian = Endian.BigEndian,
             )
                 ?: error("Cannot store import_fee")
 
@@ -77,7 +77,7 @@ class RecvExternalInput(
                 zeroValue,
                 sizeBits = oneSizeExpr,
                 isSigned = false,
-                endian = Endian.BigEndian
+                endian = Endian.BigEndian,
             )
                 ?: error("Cannot store init")
 
@@ -90,7 +90,7 @@ class RecvExternalInput(
                 oneValue,
                 sizeBits = oneSizeExpr,
                 isSigned = false,
-                endian = Endian.BigEndian
+                endian = Endian.BigEndian,
             )
                 ?: error("Cannot store body")
 

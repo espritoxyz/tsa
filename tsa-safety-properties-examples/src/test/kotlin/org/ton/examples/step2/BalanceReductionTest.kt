@@ -26,7 +26,7 @@ class BalanceReductionTest {
         val options =
             TvmOptions(
                 intercontractOptions = IntercontractOptions(communicationScheme = null),
-                turnOnTLBParsingChecks = false
+                turnOnTLBParsingChecks = false,
             )
 
         val contracts = listOf(checkerCode, storageContractCode)
@@ -35,7 +35,7 @@ class BalanceReductionTest {
                 contracts,
                 startContractId = 0, // Checker contract is the first to analyze
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = options
+                options = options,
             )
         val failures = result.tests.filter { it.result is TvmMethodFailure }
 

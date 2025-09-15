@@ -37,7 +37,7 @@ data class SimpleAbstractionForUExpr(
         SimpleAbstractionForUExpr(
             address,
             path.add(0, struct.id),
-            state
+            state,
         )
 }
 
@@ -151,7 +151,7 @@ class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
                     mkIte(
                         struct.exists().apply(param),
                         trueBranch = mkSizeExpr(childIndex + 1),
-                        falseBranch = acc
+                        falseBranch = acc,
                     )
                 }
             }
@@ -160,26 +160,26 @@ class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
     fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
         ChildrenStructure(
             children.map { it.addTlbLevel(struct) },
-            numberOfChildrenExceeded.addTlbLevel(struct)
+            numberOfChildrenExceeded.addTlbLevel(struct),
         )
 
     infix fun and(newGuard: AbstractGuard<Abstraction>) =
         ChildrenStructure(
             children.map { it and newGuard },
-            numberOfChildrenExceeded and newGuard
+            numberOfChildrenExceeded and newGuard,
         )
 
     infix fun union(other: ChildrenStructure<Abstraction>) =
         ChildrenStructure(
             (children zip other.children).map { (x, y) -> x union y },
-            numberOfChildrenExceeded or other.numberOfChildrenExceeded
+            numberOfChildrenExceeded or other.numberOfChildrenExceeded,
         )
 
     companion object {
         fun <Abstraction : AbstractionForUExpr<Abstraction>> empty(): ChildrenStructure<Abstraction> =
             ChildrenStructure(
                 List(TvmContext.MAX_REFS_NUMBER) { ChildStructure(emptyMap()) },
-                AbstractGuard.abstractFalse()
+                AbstractGuard.abstractFalse(),
             )
     }
 }
@@ -196,7 +196,7 @@ class ChildStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
         ChildStructure(
             variants.entries.associate { (struct, guard) ->
                 struct to guard.addTlbLevel(addedStruct)
-            }
+            },
         )
 
     infix fun union(other: ChildStructure<Abstraction>): ChildStructure<Abstraction> {
@@ -212,7 +212,7 @@ class ChildStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
         ChildStructure(
             variants.entries.associate { (struct, guard) ->
                 struct to (guard and newGuard)
-            }
+            },
         )
 }
 

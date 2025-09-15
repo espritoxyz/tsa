@@ -36,7 +36,7 @@ class MaybeRefTest {
             tests,
             listOf { test ->
                 test.result !is TvmExecutionWithStructuralError && test.result !is TvmMethodFailure
-            }
+            },
         )
     }
 
@@ -55,7 +55,7 @@ class MaybeRefTest {
             tests,
             listOf { test ->
                 test.result !is TvmExecutionWithStructuralError && test.result !is TvmMethodFailure
-            }
+            },
         )
     }
 
@@ -76,7 +76,7 @@ class MaybeRefTest {
             listOf { test ->
                 val result = test.result as? TvmExecutionWithStructuralError ?: return@listOf false
                 result.exit is TvmUnexpectedRefReading
-            }
+            },
         )
     }
 
@@ -97,7 +97,7 @@ class MaybeRefTest {
             listOf { test ->
                 val result = test.result as? TvmExecutionWithStructuralError ?: return@listOf false
                 result.exit is TvmUnexpectedEndOfReading
-            }
+            },
         )
     }
 }

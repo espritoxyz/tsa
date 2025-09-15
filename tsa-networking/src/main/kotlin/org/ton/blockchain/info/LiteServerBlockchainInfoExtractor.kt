@@ -42,7 +42,7 @@ class LiteServerBlockchainInfoExtractor(
         return ContractState(
             dataHex = result.account_state.data.base64ToHex(),
             codeHex = result.account_state.code.base64ToHex(),
-            balance = balance
+            balance = balance,
         )
     }
 

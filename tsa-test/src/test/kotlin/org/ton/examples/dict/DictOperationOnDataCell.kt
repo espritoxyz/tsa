@@ -31,7 +31,7 @@ class DictOperationOnDataCell {
         val symbolicResult =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
-                tvmOptions = TvmOptions(useReceiverInputs = false)
+                tvmOptions = TvmOptions(useReceiverInputs = false),
             )
         val tests = symbolicResult.single()
 
@@ -39,14 +39,14 @@ class DictOperationOnDataCell {
             tests,
             listOf { test ->
                 test.result !is TvmSuccessfulExecution
-            }
+            },
         )
 
         propertiesFound(
             tests,
             listOf { test ->
                 (test.result as? TvmExecutionWithSoftFailure)?.failure?.exit is TvmDictOperationOnDataCell
-            }
+            },
         )
     }
 
@@ -62,7 +62,7 @@ class DictOperationOnDataCell {
                 resourcePath,
                 methodId = MethodId.ZERO,
                 concreteContractData = TvmConcreteContractData(contractC4 = BagOfCells(data).roots.single()),
-                tvmOptions = TvmOptions(timeout = 3.minutes)
+                tvmOptions = TvmOptions(timeout = 3.minutes),
             )
 
         assertTrue { tests.isNotEmpty() }
@@ -71,7 +71,7 @@ class DictOperationOnDataCell {
             tests,
             listOf { test ->
                 test.result !is TvmExecutionWithSoftFailure
-            }
+            },
         )
     }
 }

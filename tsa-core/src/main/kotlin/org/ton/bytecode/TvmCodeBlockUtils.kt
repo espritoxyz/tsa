@@ -9,7 +9,7 @@ fun TvmMethod.addReturnStmt(): TvmMethod {
     instListNew.add(retStmt)
     return TvmMethod(
         id = id,
-        instListRaw = instListNew
+        instListRaw = instListNew,
     ).also {
         retStmt.location.codeBlock = it
     }
@@ -23,7 +23,7 @@ fun TvmMainMethod.addReturnStmt(): TvmMainMethod {
     val instListNew = instList.toMutableList()
     instListNew.add(retStmt)
     return TvmMainMethod(
-        instListRaw = instListNew
+        instListRaw = instListNew,
     ).also {
         retStmt.location.codeBlock = it
     }

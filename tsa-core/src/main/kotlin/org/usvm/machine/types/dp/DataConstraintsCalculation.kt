@@ -31,7 +31,7 @@ fun calculateDataConstraints(
                 label.internalStructure,
                 prevDepthValues,
                 dataLengthsFromPreviousDepth,
-                possibleSwitchVariants[curDepth]
+                possibleSwitchVariants[curDepth],
             )
         } else {
             prevDepthValues[label] ?: error("The value should be counted by now")
@@ -58,7 +58,7 @@ private fun getDataConstraints(
                     struct.rest,
                     constraintsFromPreviousDepth,
                     dataLengthsFromPreviousDepth,
-                    possibleSwitchVariants
+                    possibleSwitchVariants,
                 )
             }
 
@@ -83,7 +83,7 @@ private fun getDataConstraints(
                         struct.rest,
                         constraintsFromPreviousDepth,
                         dataLengthsFromPreviousDepth,
-                        possibleSwitchVariants
+                        possibleSwitchVariants,
                     )
 
                 innerGuard and further.shift(offset)
@@ -101,7 +101,7 @@ private fun getDataConstraints(
                             variant,
                             constraintsFromPreviousDepth,
                             dataLengthsFromPreviousDepth,
-                            possibleSwitchVariants
+                            possibleSwitchVariants,
                         ).shift(AbstractSizeExpr { switchSize })
 
                     val switchGuard =
@@ -112,7 +112,7 @@ private fun getDataConstraints(
                                 state.preloadDataBitsFromCellWithoutStructuralAsserts(
                                     address,
                                     prefixSize,
-                                    struct.switchSize
+                                    struct.switchSize,
                                 )
                             val expected = mkBv(key, struct.switchSize.toUInt())
                             val dataConstraint = data eq expected

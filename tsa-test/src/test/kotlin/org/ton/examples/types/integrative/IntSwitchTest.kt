@@ -33,7 +33,7 @@ class IntSwitchTest {
             tests,
             listOf { test ->
                 test.result !is TvmExecutionWithStructuralError && test.result !is TvmMethodFailure
-            }
+            },
         )
     }
 
@@ -54,7 +54,7 @@ class IntSwitchTest {
             listOf { test ->
                 val result = test.result as? TvmExecutionWithStructuralError ?: return@listOf false
                 result.exit is TvmReadingOfUnexpectedType
-            }
+            },
         )
     }
 }

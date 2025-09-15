@@ -121,13 +121,13 @@ class TvmTestStateResolver(
             ihrFee = resolveInt257(input.ihrFee),
             fwdFee = resolveInt257(input.fwdFee),
             createdLt = resolveInt257(input.createdLt),
-            createdAt = resolveInt257(input.createdAt)
+            createdAt = resolveInt257(input.createdAt),
         )
 
     private fun resolveRecvExternalInput(input: RecvExternalInput): TvmTestInput.RecvExternalInput =
         TvmTestInput.RecvExternalInput(
             msgBody = resolveSlice(input.msgBodySliceMaybeBounced),
-            wasAccepted = state.acceptedInputs.contains(input)
+            wasAccepted = state.acceptedInputs.contains(input),
         )
 
     fun resolveInput(): TvmTestInput =
@@ -229,7 +229,7 @@ class TvmTestStateResolver(
         val resultsWithoutExitCode =
             if (methodResult is TvmMethodResult.TvmFailure) {
                 results.dropLast(
-                    1
+                    1,
                 )
             } else {
                 results
@@ -263,7 +263,7 @@ class TvmTestStateResolver(
         TvmTestOutMessage(
             value = resolveInt257(message.msgValue),
             fullMessage = resolveCell(message.fullMsgCell),
-            bodySlice = resolveSlice(message.msgBodySlice)
+            bodySlice = resolveSlice(message.msgBodySlice),
         )
 
     fun resolveReceivedMessage(message: ReceivedMessage): TvmTestInput.ReceivedTestMessage =
@@ -273,14 +273,14 @@ class TvmTestStateResolver(
                     when (val it = message.input) {
                         is RecvExternalInput -> resolveRecvExternalInput(it)
                         is RecvInternalInput -> resolveRecvInternalInput(it)
-                    }
+                    },
                 )
 
             is ReceivedMessage.MessageFromOtherContract ->
                 TvmTestInput.ReceivedTestMessage.MessageFromOtherContract(
                     message.sender,
                     message.receiver,
-                    resolveOutMessage(message.message)
+                    resolveOutMessage(message.message),
                 )
         }
 
@@ -306,26 +306,26 @@ class TvmTestStateResolver(
             when (val structuralExit = exit.exit) {
                 is TvmUnexpectedDataReading ->
                     TvmUnexpectedDataReading(
-                        resolveCellDataType(structuralExit.readingType)
+                        resolveCellDataType(structuralExit.readingType),
                     )
 
                 is TvmReadingOfUnexpectedType ->
                     TvmReadingOfUnexpectedType(
                         expectedLabel = resolveBuiltinLabel(structuralExit.expectedLabel, structuralExit.typeArgs),
                         typeArgs = emptyList(),
-                        actualType = resolveCellDataType(structuralExit.actualType)
+                        actualType = resolveCellDataType(structuralExit.actualType),
                     )
 
                 is TvmUnexpectedEndOfReading -> TvmUnexpectedEndOfReading
                 is TvmUnexpectedRefReading -> TvmUnexpectedRefReading
                 is TvmReadingOutOfSwitchBounds ->
                     TvmReadingOutOfSwitchBounds(
-                        resolveCellDataType(structuralExit.readingType)
+                        resolveCellDataType(structuralExit.readingType),
                     )
 
                 is TvmReadingSwitchWithUnexpectedType ->
                     TvmReadingSwitchWithUnexpectedType(
-                        resolveCellDataType(structuralExit.readingType)
+                        resolveCellDataType(structuralExit.readingType),
                     )
             }
         return TvmExecutionWithStructuralError(lastStmt, stack, resolvedExit)
@@ -361,19 +361,19 @@ class TvmTestStateResolver(
             is TvmStack.TvmStackIntValue -> resolveInt257(stackValue.intValue)
             is TvmStack.TvmStackCellValue ->
                 resolveCell(
-                    stackValue.cellValue.also { state.ensureSymbolicCellInitialized(it) }
+                    stackValue.cellValue.also { state.ensureSymbolicCellInitialized(it) },
                 )
 
             is TvmStack.TvmStackSliceValue ->
                 resolveSlice(
-                    stackValue.sliceValue.also { state.ensureSymbolicSliceInitialized(it) }
+                    stackValue.sliceValue.also { state.ensureSymbolicSliceInitialized(it) },
                 )
 
             is TvmStack.TvmStackBuilderValue ->
                 resolveBuilder(
                     stackValue.builderValue.also {
                         state.ensureSymbolicBuilderInitialized(it)
-                    }
+                    },
                 )
 
             is TvmStack.TvmStackNullValue -> TvmTestNullValue
@@ -460,7 +460,7 @@ class TvmTestStateResolver(
 
             val refsLength =
                 resolveInt(
-                    memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort)
+                    memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort),
                 ).coerceAtMost(TvmContext.MAX_REFS_NUMBER)
             val refs = mutableListOf<TvmTestCellValue>()
 
@@ -646,7 +646,7 @@ class TvmTestStateResolver(
                 TvmTestCellDataIntegerRead(
                     resolveInt(type.sizeBits),
                     type.isSigned,
-                    type.endian
+                    type.endian,
                 )
 
             is TvmCellMaybeConstructorBitRead -> TvmTestCellDataMaybeConstructorBitRead
@@ -676,7 +676,7 @@ class TvmTestStateResolver(
                         val symbolicData =
                             state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
                                 state,
-                                cell
+                                cell,
                             )
                         val data = extractCellData(evaluateInModel(symbolicData))
                         val dataLength =

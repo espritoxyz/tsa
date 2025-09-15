@@ -11,7 +11,7 @@ private val pathsForTsaFunctions =
         PATH_IN_JETTON_RESOURCES,
         PATH_IN_SAFETY_PROPERTIES_EXAMPLES_TEST_RESOURCES,
         PATH_IN_TEST_RESOURCES,
-        PATH_IN_SAFETY_PROPERTIES_EXAMPLES_TEST_RESOURCES
+        PATH_IN_SAFETY_PROPERTIES_EXAMPLES_TEST_RESOURCES,
     ).map(::Path)
 
 private const val MAX_PARAMETERS = 10
@@ -110,7 +110,7 @@ fun main() {
             auxiliaryFunctions,
             firstApiFunctions,
             mkSymbolicApiFunctions,
-            callFunctions
+            callFunctions,
         ).joinToString(separator = DOUBLE_SEPARATOR)
 
     pathsForTsaFunctions.forEach { path ->

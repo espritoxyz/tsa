@@ -62,7 +62,7 @@ fun generateTests(
         sourceRelativePath,
         contractType,
         generateRecvExternalTests,
-        useMinimization
+        useMinimization,
     )
 }
 
@@ -83,7 +83,7 @@ fun generateTests(
             tests,
             sourceRelativePath.toString(),
             generateRecvExternalTests,
-            useMinimization
+            useMinimization,
         ) ?: return null
 
     val renderedTests = TsRenderer(ctx, contractType).renderTests(test)
@@ -179,7 +179,7 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
         "tsa-tests-recv-internal",
         tests,
         code,
-        blockchain
+        blockchain,
     ) { ctx ->
         val input = resolveReceiveInternalInput(ctx.test)
 
@@ -201,7 +201,7 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
             val contract =
                 newVar(
                     "contract",
-                    ctx.blockchain.openContract(wrapperDescriptor.constructor(contractAddr, ctx.code, data))
+                    ctx.blockchain.openContract(wrapperDescriptor.constructor(contractAddr, ctx.code, data)),
                 )
             +contract.initializeContract(ctx.blockchain, contractBalance)
 
@@ -221,7 +221,7 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
                     "createdAt",
                     input.input.createdAt.value
                         .toLong()
-                        .toTsValue()
+                        .toTsValue(),
                 ) // createdAt is a number, not a bigint
 
             emptyLine()
@@ -240,8 +240,8 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
                         ihrFee,
                         forwardFee,
                         createdLt,
-                        createdAt
-                    )
+                        createdAt,
+                    ),
                 )
             sendMessageResult.expectToHaveTransaction {
                 from = srcAddr
@@ -262,7 +262,7 @@ private fun TsTestFileBuilder.registerRecvExternalTests(
         "tsa-tests-recv-external",
         tests,
         code,
-        blockchain
+        blockchain,
     ) { ctx ->
         val input = resolveReceiveExternalInput(ctx.test)
 
@@ -284,7 +284,7 @@ private fun TsTestFileBuilder.registerRecvExternalTests(
             val contract =
                 newVar(
                     "contract",
-                    ctx.blockchain.openContract(wrapperDescriptor.constructor(contractAddr, ctx.code, data))
+                    ctx.blockchain.openContract(wrapperDescriptor.constructor(contractAddr, ctx.code, data)),
                 )
             +contract.initializeContract(ctx.blockchain, contractBalance)
 
@@ -297,7 +297,7 @@ private fun TsTestFileBuilder.registerRecvExternalTests(
             val sendMessageResult =
                 newVar(
                     "sendMessageResult",
-                    contract.external(ctx.blockchain, msgBody)
+                    contract.external(ctx.blockchain, msgBody),
                 )
             sendMessageResult.expectToHaveTransaction {
                 to = contractAddr
@@ -334,7 +334,7 @@ private fun resolveReceiveInternalInput(test: TvmSymbolicTest): TvmReceiveIntern
         address = contractAddress,
         srcAddress = srcAddress,
         input = input,
-        exitCode = result.exitCode
+        exitCode = result.exitCode,
     )
 }
 
@@ -385,7 +385,7 @@ private fun resolveReceiveExternalInput(test: TvmSymbolicTest): TvmReceiveExtern
         contractAddress,
         balance,
         test.time,
-        result.exitCode
+        result.exitCode,
     )
 }
 

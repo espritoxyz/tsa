@@ -97,7 +97,7 @@ class TvmLoopsInterpreter(
         extractBody = { stack.takeLastContinuation() },
         extractAfter = { extractCurrentContinuation(stmt, saveC0 = true) },
         hasBreak = hasBreak,
-        parentLocation = stmt.location
+        parentLocation = stmt.location,
     )
 
     private fun visitRepeatEndInst(
@@ -109,7 +109,7 @@ class TvmLoopsInterpreter(
         extractBody = { extractCurrentContinuation(stmt) },
         extractAfter = { registersOfCurrentContract.c0.value },
         hasBreak = hasBreak,
-        parentLocation = stmt.location
+        parentLocation = stmt.location,
     )
 
     private inline fun doRepeat(
@@ -130,7 +130,7 @@ class TvmLoopsInterpreter(
         scope.fork(
             inRangeConstraint,
             falseStateIsExceptional = true,
-            blockOnFalseState = throwIntegerOutOfRangeError
+            blockOnFalseState = throwIntegerOutOfRangeError,
         ) ?: return
 
         val after = scope.calcOnState { registerBreakpoint(extractAfter(), hasBreak) }
@@ -148,7 +148,7 @@ class TvmLoopsInterpreter(
         extractBody = { stack.takeLastContinuation() },
         extractAfter = { extractCurrentContinuation(stmt, saveC0 = true) },
         hasBreak = hasBreak,
-        parentLocation = stmt.location
+        parentLocation = stmt.location,
     )
 
     private fun visitUntilEndInst(
@@ -160,7 +160,7 @@ class TvmLoopsInterpreter(
         extractBody = { extractCurrentContinuation(stmt) },
         extractAfter = { registersOfCurrentContract.c0.value },
         hasBreak = hasBreak,
-        parentLocation = stmt.location
+        parentLocation = stmt.location,
     )
 
     private inline fun doUntil(
@@ -194,7 +194,7 @@ class TvmLoopsInterpreter(
         extractBody = { stack.takeLastContinuation() },
         extractAfter = { extractCurrentContinuation(stmt, saveC0 = true) },
         hasBreak = hasBreak,
-        parentLocation = stmt.location
+        parentLocation = stmt.location,
     )
 
     private fun visitWhileEndInst(
@@ -206,7 +206,7 @@ class TvmLoopsInterpreter(
         extractBody = { extractCurrentContinuation(stmt) },
         extractAfter = { registersOfCurrentContract.c0.value },
         hasBreak = hasBreak,
-        parentLocation = stmt.location
+        parentLocation = stmt.location,
     )
 
     private inline fun doWhile(

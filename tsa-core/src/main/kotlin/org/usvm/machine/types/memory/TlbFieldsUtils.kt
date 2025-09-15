@@ -62,7 +62,7 @@ fun TvmContext.generateCellDataConstraint(
                     addr,
                     prefixSize,
                     intSize.zeroExtendToSort(int257sort),
-                    struct.typeLabel.isSigned
+                    struct.typeLabel.isSigned,
                 )
 
             val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
@@ -184,7 +184,7 @@ fun generateTlbFieldConstraints(
     label.internalStructure,
     persistentListOf(),
     possibleSwitchVariants,
-    maxTlbDepth
+    maxTlbDepth,
 )
 
 fun generateTlbFieldConstraints(
@@ -223,7 +223,7 @@ fun generateTlbFieldConstraints(
                             structure.rest,
                             path,
                             possibleSwitchVariants,
-                            maxTlbDepth
+                            maxTlbDepth,
                         )
                     }
 
@@ -236,7 +236,7 @@ fun generateTlbFieldConstraints(
                                     structure.typeLabel.internalStructure,
                                     path.add(structure.id),
                                     possibleSwitchVariants,
-                                    maxTlbDepth - 1
+                                    maxTlbDepth - 1,
                                 )
                             } else {
                                 trueExpr
@@ -248,7 +248,7 @@ fun generateTlbFieldConstraints(
                                 structure.rest,
                                 path,
                                 possibleSwitchVariants,
-                                maxTlbDepth
+                                maxTlbDepth,
                             )
                     }
 
@@ -287,7 +287,7 @@ fun generateTlbFieldConstraints(
                                 structure.rest,
                                 path,
                                 possibleSwitchVariants,
-                                maxTlbDepth
+                                maxTlbDepth,
                             )
                     }
 

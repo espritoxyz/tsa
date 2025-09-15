@@ -202,7 +202,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = false,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParseLduqInst ->
@@ -212,7 +212,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = false,
                         preload = false,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParseLduAltInst ->
@@ -222,7 +222,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = false,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParseLdiInst ->
@@ -232,7 +232,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = true,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParseLdiqInst ->
@@ -242,7 +242,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = true,
                         preload = false,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParseLdiAltInst ->
@@ -252,7 +252,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = true,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParsePlduInst ->
@@ -262,7 +262,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = false,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParsePlduqInst ->
@@ -272,7 +272,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = false,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParsePldiInst ->
@@ -282,7 +282,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = true,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParsePldiqInst ->
@@ -292,7 +292,7 @@ class TvmCellInterpreter(
                         stmt.c + 1,
                         isSigned = true,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParseLdule4Inst ->
@@ -302,7 +302,7 @@ class TvmCellInterpreter(
                         sizeBytes = 4,
                         isSigned = false,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParseLdule4qInst ->
@@ -312,7 +312,7 @@ class TvmCellInterpreter(
                         sizeBytes = 4,
                         isSigned = false,
                         preload = false,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParseLdile4Inst ->
@@ -322,7 +322,7 @@ class TvmCellInterpreter(
                         sizeBytes = 4,
                         isSigned = true,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParseLdule8Inst ->
@@ -332,7 +332,7 @@ class TvmCellInterpreter(
                         sizeBytes = 8,
                         isSigned = false,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParseLdile8Inst ->
@@ -342,7 +342,7 @@ class TvmCellInterpreter(
                         sizeBytes = 8,
                         isSigned = true,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParsePldule4Inst ->
@@ -352,7 +352,7 @@ class TvmCellInterpreter(
                         sizeBytes = 4,
                         isSigned = false,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParsePldule4qInst ->
@@ -362,7 +362,7 @@ class TvmCellInterpreter(
                         sizeBytes = 4,
                         isSigned = false,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParsePldile4Inst ->
@@ -372,7 +372,7 @@ class TvmCellInterpreter(
                         sizeBytes = 4,
                         isSigned = true,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParsePldile4qInst ->
@@ -382,7 +382,7 @@ class TvmCellInterpreter(
                         sizeBytes = 4,
                         isSigned = true,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParsePldule8Inst ->
@@ -392,7 +392,7 @@ class TvmCellInterpreter(
                         sizeBytes = 8,
                         isSigned = false,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParsePldule8qInst ->
@@ -402,7 +402,7 @@ class TvmCellInterpreter(
                         sizeBytes = 8,
                         isSigned = false,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParsePldile8Inst ->
@@ -412,7 +412,7 @@ class TvmCellInterpreter(
                         sizeBytes = 8,
                         isSigned = true,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
 
                 is TvmCellParsePldile8qInst ->
@@ -422,7 +422,7 @@ class TvmCellInterpreter(
                         sizeBytes = 8,
                         isSigned = true,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
 
                 is TvmCellParseLduxInst ->
@@ -431,7 +431,7 @@ class TvmCellInterpreter(
                         stmt,
                         isSigned = false,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
                 is TvmCellParseLduxqInst ->
                     visitLoadIntXInst(
@@ -439,7 +439,7 @@ class TvmCellInterpreter(
                         stmt,
                         isSigned = false,
                         preload = false,
-                        quiet = true
+                        quiet = true,
                     )
                 is TvmCellParseLdixInst ->
                     visitLoadIntXInst(
@@ -447,7 +447,7 @@ class TvmCellInterpreter(
                         stmt,
                         isSigned = true,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
                 is TvmCellParseLdixqInst ->
                     visitLoadIntXInst(
@@ -455,7 +455,7 @@ class TvmCellInterpreter(
                         stmt,
                         isSigned = true,
                         preload = false,
-                        quiet = true
+                        quiet = true,
                     )
                 is TvmCellParsePlduxInst ->
                     visitLoadIntXInst(
@@ -463,7 +463,7 @@ class TvmCellInterpreter(
                         stmt,
                         isSigned = false,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
                 is TvmCellParsePlduxqInst ->
                     visitLoadIntXInst(
@@ -471,7 +471,7 @@ class TvmCellInterpreter(
                         stmt,
                         isSigned = false,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
                 is TvmCellParsePldixInst ->
                     visitLoadIntXInst(
@@ -479,7 +479,7 @@ class TvmCellInterpreter(
                         stmt,
                         isSigned = true,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
                 is TvmCellParsePldixqInst ->
                     visitLoadIntXInst(
@@ -487,7 +487,7 @@ class TvmCellInterpreter(
                         stmt,
                         isSigned = true,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
                 is TvmCellParseLdsliceInst ->
                     visitLoadSliceInst(
@@ -495,7 +495,7 @@ class TvmCellInterpreter(
                         stmt,
                         stmt.c + 1,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
                 is TvmCellParseLdsliceqInst ->
                     visitLoadSliceInst(
@@ -503,7 +503,7 @@ class TvmCellInterpreter(
                         stmt,
                         stmt.c + 1,
                         preload = false,
-                        quiet = true
+                        quiet = true,
                     )
                 is TvmCellParseLdsliceAltInst ->
                     visitLoadSliceInst(
@@ -511,7 +511,7 @@ class TvmCellInterpreter(
                         stmt,
                         stmt.c + 1,
                         preload = false,
-                        quiet = false
+                        quiet = false,
                     )
                 is TvmCellParsePldsliceInst ->
                     visitLoadSliceInst(
@@ -519,7 +519,7 @@ class TvmCellInterpreter(
                         stmt,
                         stmt.c + 1,
                         preload = true,
-                        quiet = false
+                        quiet = false,
                     )
                 is TvmCellParsePldsliceqInst ->
                     visitLoadSliceInst(
@@ -527,7 +527,7 @@ class TvmCellInterpreter(
                         stmt,
                         stmt.c + 1,
                         preload = true,
-                        quiet = true
+                        quiet = true,
                     )
                 is TvmCellParseLdslicexInst -> {
                     visitLoadSliceXWithStackSL(scope, stmt, preload = false, quiet = false, pushResultOnStack = true)
@@ -632,7 +632,7 @@ class TvmCellInterpreter(
                 quietBlock = quietBlock,
                 pushResultOnStack = pushResultOnStack,
                 sizeBits = sizeBits,
-                slice = slice
+                slice = slice,
             ) {
                 calcOnState {
                     if (quiet) {
@@ -682,9 +682,9 @@ class TvmCellInterpreter(
                         doWithState {
                             newStmt(stmt.nextStmt())
                         }
-                    }
+                    },
                 )
-            }
+            },
         )
     }
 
@@ -877,7 +877,7 @@ class TvmCellInterpreter(
         val notOutOfRangeExpr =
             mkAnd(
                 mkBvSignedLessOrEqualExpr(zeroSizeExpr, refIdx),
-                mkBvSignedLessOrEqualExpr(refIdx, mkSizeExpr(3))
+                mkBvSignedLessOrEqualExpr(refIdx, mkSizeExpr(3)),
             )
         checkOutOfRange(notOutOfRangeExpr, scope) ?: return@with
 
@@ -964,7 +964,7 @@ class TvmCellInterpreter(
                 scope.calcOnState {
                     memory
                         .allocConcrete(
-                            TvmSliceType
+                            TvmSliceType,
                         ).also { sliceCopy(slice, it) }
                 }
 
@@ -997,7 +997,7 @@ class TvmCellInterpreter(
             val notOutOfRangeExpr =
                 mkAnd(
                     mkBvSignedLessOrEqualExpr(zeroValue, sizeBits),
-                    mkBvSignedLessOrEqualExpr(sizeBits, bitsUpperBound.toInt().toBv257())
+                    mkBvSignedLessOrEqualExpr(sizeBits, bitsUpperBound.toInt().toBv257()),
                 )
             checkOutOfRange(notOutOfRangeExpr, scope) ?: return
 
@@ -1005,13 +1005,13 @@ class TvmCellInterpreter(
                 scope.calcOnState {
                     memory
                         .allocConcrete(
-                            TvmSliceType
+                            TvmSliceType,
                         ).also { sliceCopy(slice, it) }
                 }
             scope.makeSliceTypeLoad(
                 slice,
                 TvmCellDataIntegerRead(sizeBits.extractToSizeSort(), isSigned, Endian.BigEndian),
-                updatedSliceAddress
+                updatedSliceAddress,
             ) { valueFromTlb ->
                 val result =
                     valueFromTlb?.expr ?: let {
@@ -1050,7 +1050,7 @@ class TvmCellInterpreter(
         scope.makeSliceTypeLoad(
             slice,
             TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.LittleEndian),
-            updatedSliceAddress
+            updatedSliceAddress,
         ) {
             // TODO: process value from TL-B (or not?). For now, we didn't encounter TL-B for little-endian
 
@@ -1105,7 +1105,7 @@ class TvmCellInterpreter(
         scope.makeSliceTypeLoad(
             slice,
             TvmCellDataBitArrayRead(mkBv(sizeBits)),
-            updatedSliceAddress
+            updatedSliceAddress,
         ) { valueFromTlb ->
             val result =
                 valueFromTlb?.expr ?: let {
@@ -1148,13 +1148,13 @@ class TvmCellInterpreter(
                 scope.calcOnState {
                     memory
                         .allocConcrete(
-                            TvmSliceType
+                            TvmSliceType,
                         ).also { sliceCopy(slice, it) }
                 }
             scope.makeSliceTypeLoad(
                 slice,
                 TvmCellDataBitArrayRead(sizeBits.extractToSizeSort()),
-                updatedSliceAddress
+                updatedSliceAddress,
             ) { valueFromTlb ->
                 if (pushResultOnStack) {
                     val result =
@@ -1167,7 +1167,7 @@ class TvmCellInterpreter(
                                 slicePreloadDataBits(
                                     slice,
                                     sizeBits.extractToSizeSort(),
-                                    quietBlock = quietBlock
+                                    quietBlock = quietBlock,
                                 ) ?: return@makeSliceTypeLoad
 
                             val cell = calcOnState { allocEmptyCell() }
@@ -1224,13 +1224,13 @@ class TvmCellInterpreter(
             }
         scope.assertDataLengthConstraintWithoutError(
             cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
+            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
         ) ?: return
 
         val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
         scope.assertRefsLengthConstraintWithoutError(
             cellRefsLength,
-            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") }
+            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
         ) ?: return
 
         val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
@@ -1299,13 +1299,13 @@ class TvmCellInterpreter(
             }
         scope.assertDataLengthConstraintWithoutError(
             cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") }
+            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
         ) ?: return
 
         val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
         scope.assertRefsLengthConstraintWithoutError(
             cellRefsLength,
-            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") }
+            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
         ) ?: return
 
         val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
@@ -1344,7 +1344,7 @@ class TvmCellInterpreter(
                 this,
                 cutCell,
                 cutCellDataLength,
-                newCellLengthUpperBound
+                newCellLengthUpperBound,
             )
             memory.writeField(cutCell, cellRefsLengthField, sizeSort, cutCellRefsLength, guard = trueExpr)
 
@@ -1412,7 +1412,7 @@ class TvmCellInterpreter(
             preload = true,
             quietBlock = quietBlockOrNull,
             sizeBits = sizeBits.unsignedExtendToInteger(),
-            slice = slice
+            slice = slice,
         ) { tailRef ->
             val actualPrefix =
                 calcOnState {
@@ -1430,7 +1430,7 @@ class TvmCellInterpreter(
                 blockOnFalseState = {
                     quietBlockOrNull?.invoke(this)
                         ?: throwStructuralCellUnderflowError(this)
-                }
+                },
             ) ?: return@loadSliceXImpl
 
             doWithState {
@@ -1587,7 +1587,7 @@ class TvmCellInterpreter(
                             mkBvSignedLessOrEqualExpr(zeroValue, it),
                             unsatBlock = {
                                 error("Cannot make the depth not negative")
-                            }
+                            },
                         ) ?: return@doWithStateCtx
                     }
                 }
@@ -1633,7 +1633,7 @@ class TvmCellInterpreter(
             intValue,
             mkSizeExpr(bits),
             isSigned,
-            Endian.BigEndian
+            Endian.BigEndian,
         ) ?: return@with
 
         scope.doWithState {
@@ -1664,7 +1664,7 @@ class TvmCellInterpreter(
         val bitsNotOutOfRangeExpr =
             mkAnd(
                 mkBvSignedLessOrEqualExpr(zeroValue, bits),
-                mkBvSignedLessOrEqualExpr(bits, bitsUpperBound.toInt().toBv257())
+                mkBvSignedLessOrEqualExpr(bits, bitsUpperBound.toInt().toBv257()),
             )
 
         checkOutOfRange(bitsNotOutOfRangeExpr, scope) ?: return
@@ -1686,7 +1686,7 @@ class TvmCellInterpreter(
             intValue,
             bits.extractToSizeSort(),
             isSigned,
-            Endian.BigEndian
+            Endian.BigEndian,
         ) ?: return@with
 
         scope.doWithState {
@@ -1723,7 +1723,7 @@ class TvmCellInterpreter(
         val mask =
             mkBvSubExpr(
                 mkBvShiftLeftExpr(oneCellValue, lengthToCut.signExtendToSort(TvmContext.TvmCellDataSort(ctx))),
-                oneCellValue
+                oneCellValue,
             )
         val trueValueToCutFrom = mkBvAndExpr(valueToCutFrom, mask)
         val builder =
@@ -1738,7 +1738,7 @@ class TvmCellInterpreter(
             builder,
             updatedBuilder,
             trueValueToCutFrom,
-            lengthToCut.extractToSizeSort()
+            lengthToCut.extractToSizeSort(),
         )
         scope.doWithState {
             addOnStack(updatedBuilder, TvmBuilderType)

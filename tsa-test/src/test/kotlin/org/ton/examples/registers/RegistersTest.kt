@@ -66,7 +66,7 @@ class RegistersTest {
                 compileAndAnalyzeFift(
                     tmpFiftFile,
                     methodsBlackList = methodsBlackList,
-                    tvmOptions = testConcreteOptions
+                    tvmOptions = testConcreteOptions,
                 )
 
             compareSymbolicAndConcreteResults(setOf(0), symbolicResult) { methodId ->

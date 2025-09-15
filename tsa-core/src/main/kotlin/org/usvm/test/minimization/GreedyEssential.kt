@@ -33,12 +33,12 @@ class GreedyEssential private constructor(
         PriorityQueue(
             compareBy<Pair<ExecutionNumber, Int>> { executionToPriority[it.first] }
                 .thenByDescending { it.second }
-                .thenBy { it.first.number }
+                .thenBy { it.first.number },
         ).apply {
             addAll(
                 executionToCoveredLines
                     .keys
-                    .map { it to executionToUsefulLines[it]!!.size }
+                    .map { it to executionToUsefulLines[it]!!.size },
             )
         }
 

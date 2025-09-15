@@ -87,14 +87,14 @@ class TsRenderer(
         return TsRenderedTest(
             fileName = test.name + ".spec.ts",
             wrappers = wrappers,
-            code = printer.toString()
+            code = printer.toString(),
         )
     }
 
     private fun renderWrapper(wrapper: TsWrapperDescriptor<*>): TsRenderedWrapper =
         TsRenderedWrapper(
             fileName = wrapper.name + ".ts",
-            code = wrapper.renderFile()
+            code = wrapper.renderFile(),
         )
 
     private fun renderCodeBlock(codeBlock: TsBlock) {
@@ -187,7 +187,7 @@ class TsRenderer(
         val wrapperImports =
             element.wrappers.joinToString(
                 separator = System.lineSeparator(),
-                transform = ::renderWrapperImport
+                transform = ::renderWrapperImport,
             )
 
         // TODO optimize imports

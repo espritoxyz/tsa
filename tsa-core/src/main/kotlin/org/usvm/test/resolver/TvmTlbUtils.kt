@@ -13,7 +13,7 @@ data object HashMapESerializer : TlbCodec<Cell> {
     override fun loadTlb(cellSlice: CellSlice): Cell =
         Cell(
             BitString(cellSlice.bits.drop(cellSlice.bitsPosition)),
-            *cellSlice.refs.drop(cellSlice.refsPosition).toTypedArray()
+            *cellSlice.refs.drop(cellSlice.refsPosition).toTypedArray(),
         )
 
     override fun storeTlb(

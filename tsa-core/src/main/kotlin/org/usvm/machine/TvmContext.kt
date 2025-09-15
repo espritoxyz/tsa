@@ -150,7 +150,7 @@ class TvmContext(
             mkIte(
                 condition = this@toBv257Bool,
                 trueBranch = trueValue,
-                falseBranch = falseValue
+                falseBranch = falseValue,
             )
         }
 
@@ -224,7 +224,7 @@ class TvmContext(
             falseBranch = falseBranch,
             rewriteOr = { a, b -> simplifyOr(a, b, flat = false) },
             rewriteAnd = KContext::simplifyAnd,
-            rewriteNot = KContext::simplifyNot
+            rewriteNot = KContext::simplifyNot,
         ) { condition2, trueBranch2, falseBranch2 ->
             simplifyBoolIteSameConditionBranch(
                 condition = condition2,
@@ -232,7 +232,7 @@ class TvmContext(
                 falseBranch = falseBranch2,
                 rewriteAnd = KContext::simplifyAnd,
                 rewriteOr = { a, b -> simplifyOr(a, b, flat = false) },
-                cont = ::mkIteNoSimplify
+                cont = ::mkIteNoSimplify,
             )
         }
 
@@ -248,14 +248,14 @@ class TvmContext(
                     trueBranch3,
                     falseBranch3,
                     { a, b, c -> tvmSimplifyIte(a, b, c) },
-                    { a, b -> simplifyOr(a, b, flat = false) }
+                    { a, b -> simplifyOr(a, b, flat = false) },
                 ) { condition4, trueBranch4, falseBranch4 ->
                     simplifyIteBool(
                         condition4,
                         trueBranch4,
                         falseBranch4,
                         { a, b, c -> tvmSimplifyBoolIte(a, b, c) },
-                        ::mkIteNoSimplify
+                        ::mkIteNoSimplify,
                     )
                 }
             }

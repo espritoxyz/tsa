@@ -11,6 +11,6 @@ value class TvmBuilderLengthUpperBoundTracker(
         ref: UConcreteHeapRef,
         bound: Int,
     ) = TvmBuilderLengthUpperBoundTracker(
-        builderRefToLengthUpperBound.put(ref, bound)
+        builderRefToLengthUpperBound.put(ref, bound),
     )
 }

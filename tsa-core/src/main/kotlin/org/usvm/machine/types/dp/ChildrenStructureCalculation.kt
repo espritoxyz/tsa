@@ -14,7 +14,7 @@ fun calculateChildrenStructures(
 ): List<Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>> =
     calculateMapsByTlbDepth(
         ctx.tvmOptions.tlbOptions.maxTlbDepth,
-        labelsWithoutUnknowns
+        labelsWithoutUnknowns,
     ) { label, curDepth, prevDepthValues ->
         val tlbDepthBound =
             individualMaxCellTlbDepth[label]
@@ -27,7 +27,7 @@ fun calculateChildrenStructures(
                 label.internalStructure,
                 prevDepthValues,
                 dataLengthsFromPreviousDepth,
-                possibleSwitchVariants[curDepth]
+                possibleSwitchVariants[curDepth],
             )
         } else {
             prevDepthValues[label]
@@ -58,14 +58,14 @@ private fun getChildrenStructure(
                         struct.rest,
                         structuresFromPreviousDepth,
                         dataLengthsFromPreviousDepth,
-                        possibleSwitchVariants
+                        possibleSwitchVariants,
                     ) ?: return null // cannot construct with given depth
 
                 val exceededGuard = furtherChildren.children.last().exists()
 
                 val newChildren =
                     listOf(
-                        ChildStructure<SimpleAbstractionForUExpr>(mapOf(struct.ref to AbstractGuard.abstractTrue()))
+                        ChildStructure<SimpleAbstractionForUExpr>(mapOf(struct.ref to AbstractGuard.abstractTrue())),
                     ) + furtherChildren.children.subList(0, furtherChildren.children.size - 1)
 
                 ChildrenStructure(newChildren, exceededGuard)
@@ -78,7 +78,7 @@ private fun getChildrenStructure(
                         struct.rest,
                         structuresFromPreviousDepth,
                         dataLengthsFromPreviousDepth,
-                        possibleSwitchVariants
+                        possibleSwitchVariants,
                     ) ?: return null // cannot construct with given depth
 
                 if (struct.typeLabel !is TlbCompositeLabel) {
@@ -116,7 +116,7 @@ private fun getChildrenStructure(
                         ?: error("Switch variants not found for switch $struct")
                 val result =
                     possibleVariants.foldIndexed(
-                        ChildrenStructure.empty<SimpleAbstractionForUExpr>()
+                        ChildrenStructure.empty<SimpleAbstractionForUExpr>(),
                     ) { idx, acc, (key, rest) ->
                         val further =
                             getChildrenStructure(
@@ -124,7 +124,7 @@ private fun getChildrenStructure(
                                 rest,
                                 structuresFromPreviousDepth,
                                 dataLengthsFromPreviousDepth,
-                                possibleSwitchVariants
+                                possibleSwitchVariants,
                             ) ?: error("Switch variant with key $key must be reachable")
 
                         atLeastOneBranch = true

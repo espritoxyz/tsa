@@ -92,7 +92,7 @@ class TvmStepScopeManager(
         }
         return scope.fork(
             condition,
-            blockOnTrueState
+            blockOnTrueState,
         ) {
             blockOnFalseState()
 
@@ -122,7 +122,7 @@ class TvmStepScopeManager(
             condition,
             blockOnUnknownTrueState = blockOnUnknownTrueState,
             blockOnUnsatTrueState = blockOnUnsatTrueState,
-            blockOnFalseState = blockOnFalseState
+            blockOnFalseState = blockOnFalseState,
         )
     }
 
@@ -139,7 +139,7 @@ class TvmStepScopeManager(
             condition,
             blockOnUnsatFalseState = blockOnUnsatFalseState,
             blockOnUnknownFalseState = blockOnUnknownFalseState,
-            blockOnFalseState = blockOnFalseState
+            blockOnFalseState = blockOnFalseState,
         )
     }
 
@@ -288,7 +288,7 @@ class TvmStepScopeManager(
             return forkWithCheckerStatusKnowledge(
                 condition,
                 blockOnTrueState = blockOnTrueState,
-                blockOnFalseState = blockOnFalseState
+                blockOnFalseState = blockOnFalseState,
             )
         }
 
@@ -317,7 +317,7 @@ class TvmStepScopeManager(
                     unknownHappened = true
                     blockOnUnknownTrueState()
                 },
-                satBlock = blockOnTrueState
+                satBlock = blockOnTrueState,
             ) ?: run {
                 /**
                  * Hack: change [stepScopeState] to make assert with opposite constraint possible.
@@ -349,7 +349,7 @@ class TvmStepScopeManager(
                     unknownHappened = true
                     blockOnUnknownFalseState()
                 },
-                unsatBlock = blockOnUnsatFalseState
+                unsatBlock = blockOnUnsatFalseState,
             )
             if (clonedStepScope.alive) {
                 val newState = clonedStepScope.originalState
@@ -426,7 +426,7 @@ class TvmStepScopeManager(
                 registerForkPoint = false,
                 satBlock,
                 unsatBlock,
-                unknownBlock
+                unknownBlock,
             )
 
         /**

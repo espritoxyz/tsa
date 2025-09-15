@@ -24,7 +24,7 @@ class IteExample {
         val result =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
-                tvmOptions = testOptionsToAnalyzeSpecificMethod
+                tvmOptions = testOptionsToAnalyzeSpecificMethod,
             )
         assertEquals(1, result.testSuites.size)
         val testSuite = result.testSuites.first()
@@ -39,7 +39,7 @@ class IteExample {
                         casted.knownTypes ==
                             listOf(
                                 TvmCellDataTypeLoad(TvmTestCellDataMaybeConstructorBitRead, 0),
-                                TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 1)
+                                TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 1),
                             )
                     // the input dict is empty => there is no dict ref
                     predicateResult = predicateResult && casted.data.firstOrNull() == '0'
@@ -64,7 +64,7 @@ class IteExample {
                         casted.knownTypes ==
                             listOf(
                                 TvmCellDataTypeLoad(TvmTestCellDataMaybeConstructorBitRead, 0),
-                                TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 1)
+                                TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(8, true, Endian.BigEndian), 1),
                             )
                     // the input dict is not empty => the first ref is dict cell
                     predicateResult = predicateResult && casted.data.firstOrNull() == '1'
@@ -82,8 +82,8 @@ class IteExample {
                         predicateResult = predicateResult && (firstIsDict || secondIsDict)
                     }
                     predicateResult
-                }
-            )
+                },
+            ),
         )
     }
 }

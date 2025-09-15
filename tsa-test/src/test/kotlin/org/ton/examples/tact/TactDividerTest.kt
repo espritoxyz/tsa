@@ -19,7 +19,7 @@ class TactDividerTest {
         val symbolicResult =
             tactCompileAndAnalyzeAllMethods(
                 TactSourcesDescription(resourcePath, "Divider", "Divider"),
-                methodWhiteList = setOf(MethodId.valueOf(95202L))
+                methodWhiteList = setOf(MethodId.valueOf(95202L)),
             )
 
         val allTests = symbolicResult.map { it.tests }.flatten()
