@@ -205,7 +205,7 @@ class TvmArtificialInstInterpreter(
                             ?: return@with
                     scope.fork(
                         isBounceable.neq(zeroCellValue),
-                        falseStateIsExceptional = true,
+                        falseStateIsExceptional = false,
                         blockOnTrueState = {
                             messageQueue =
                                 messageQueue.add(
