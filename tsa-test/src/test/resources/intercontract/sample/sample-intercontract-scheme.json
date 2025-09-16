@@ -1,0 +1,33 @@
+[
+  {
+    "id": 0,
+    "inOpcodeToDestination": {
+      "00000000": {
+        "type": "linear",
+        "destinations": [1, 2]
+      },
+      "10000000": {
+        "type": "linear",
+        "destinations": [2]
+      }
+    }
+  },
+  {
+    "id": 1,
+    "inOpcodeToDestination": {
+      "10000000": {
+        "type": "linear",
+        "destinations": [2]
+      }
+    }
+  },
+  {
+    "id": 2,
+    "inOpcodeToDestination": {
+      "10000000": {
+        "type": "linear",
+        "destinations": [1, 2]
+      }
+    }
+  }
+]

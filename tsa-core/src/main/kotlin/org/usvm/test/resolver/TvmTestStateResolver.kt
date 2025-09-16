@@ -105,6 +105,8 @@ class TvmTestStateResolver(
 
     private val constraintVisitor = ConstraintsVisitor(ctx)
 
+    fun <T : USort> eval(expr: UExpr<T>) = model.eval(expr)
+
     init {
         // collect info about all constraints in state
         state.pathConstraints.constraints(constraintVisitor).toList()
