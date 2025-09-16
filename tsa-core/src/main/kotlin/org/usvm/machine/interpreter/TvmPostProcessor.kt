@@ -6,10 +6,17 @@ import org.ton.cell.Cell
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.TvmFixationMemoryValues
 import org.usvm.machine.state.TvmSignatureCheck
+import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.initializeConcreteDict
+import org.usvm.machine.state.initializeConcreteDictKeys
+import org.usvm.machine.types.TvmType
+import org.usvm.solver.USatResult
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestCellValue
 import org.usvm.test.resolver.TvmTestDataCellValue
@@ -35,29 +42,89 @@ class TvmPostProcessor(
     private val publicKey by lazy { privateKey.publicKey() }
     private val publicKeyHex by lazy { publicKey.key.encodeHex() }
 
-    fun postProcessState(scope: TvmStepScopeManager): Unit? =
+    fun postProcessState(state: TvmState): TvmState? =
         with(ctx) {
-            assertConstraints(scope) { resolver ->
-                mkAnd(
-                    generateHashConstraint(scope, resolver),
-                    generateDepthConstraint(scope, resolver),
-                )
-            } ?: return null
+            var result =
+                assertConstraints(state) { resolver ->
+                    val scope =
+                        TvmStepScopeManager(
+                            state,
+                            forkBlackList = UForkBlackList.createDefault(),
+                            allowFailuresOnCurrentStep = true
+                        )
+
+                    val hashConstraint =
+                        generateHashConstraint(scope, resolver)
+                            ?: return@assertConstraints null
+
+                    val depthConstraint =
+                        generateDepthConstraint(scope, resolver)
+                            ?: return@assertConstraints null
+
+                    val fixValues = hashConstraint.second.union(depthConstraint.second)
+
+                    scope.checkAliveAndNoForks()
+
+                    (hashConstraint.first and depthConstraint.first) to fixValues
+                } ?: return null
 
             // must be asserted separately since it relies on correct hash values
-            return assertConstraints(scope) { resolver ->
-                generateSignatureConstraints(scope, resolver)
-            }
+            result = assertConstraints(result) { resolver ->
+                val scope =
+                    TvmStepScopeManager(
+                        state,
+                        forkBlackList = UForkBlackList.createDefault(),
+                        allowFailuresOnCurrentStep = true
+                    )
+
+                (generateSignatureConstraints(scope, resolver) to null).also {
+                    scope.checkAliveAndNoForks()
+                }
+            } ?: return null
+
+            result
         }
 
     private inline fun assertConstraints(
-        scope: TvmStepScopeManager,
-        constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr,
-    ): Unit? {
-        val resolver = scope.calcOnState { TvmTestStateResolver(ctx, models.first(), this) }
-        val constraints = constraintsBuilder(resolver)
+        state: TvmState,
+        constraintsBuilder: (TvmTestStateResolver) -> Pair<UBoolExpr, TvmFixationMemoryValues?>?,
+    ): TvmState? {
+        val resolver = TvmTestStateResolver(ctx, state.models.first(), state.pathConstraints.composers, state)
+        val (guard, fixValues) =
+            constraintsBuilder(resolver)
+                ?: return null
 
-        return scope.assert(constraints)
+        val newState =
+            if (fixValues != null && !fixValues.isEmpty()) {
+                val newConstraints = state.pathConstraints.addFixationMemory(resolver.model, fixValues)
+                state.clone(newConstraints).also {
+                    val model =
+                        (ctx.solver<TvmType>().check(newConstraints) as? USatResult)?.model
+                            ?: return null
+                    it.models = listOf(model)
+                    fixValues.sets.forEach { set ->
+                        it.initializeConcreteDictKeys(
+                            set.ref,
+                            set.dictId,
+                            set.elements,
+                            ctx.mkBvSort(set.dictId.keyLength.toUInt()),
+                        )
+                    }
+                }
+            } else {
+                state
+            }
+
+        val scope =
+            TvmStepScopeManager(
+                newState,
+                forkBlackList = UForkBlackList.createDefault(),
+                allowFailuresOnCurrentStep = true
+            )
+        scope.assert(guard)
+            ?: return null
+
+        return newState
     }
 
     private fun generateSignatureConstraints(
@@ -77,30 +144,41 @@ class TvmPostProcessor(
     private fun generateDepthConstraint(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
-    ): UBoolExpr =
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? =
         with(ctx) {
             val addressToDepth = scope.calcOnState { addressToDepth }
 
-            addressToDepth.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
+            val emptyFixValues =
+                scope.calcOnState {
+                    TvmFixationMemoryValues.empty(memory.nullRef())
+                }
+
+            addressToDepth.entries.fold((trueExpr as UBoolExpr) to emptyFixValues) { acc, (ref, depth) ->
                 val curConstraint =
                     fixateValueAndDepth(scope, ref, depth, resolver)
-                        ?: falseExpr
-                acc and curConstraint
+                        ?: return null
+                (acc.first and curConstraint.first) to (acc.second.union(curConstraint.second))
             }
         }
 
     private fun generateHashConstraint(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
-    ): UBoolExpr =
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? =
         with(ctx) {
             val addressToHash = scope.calcOnState { addressToHash }
 
-            addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
+            val emptyFixValues =
+                scope.calcOnState {
+                    TvmFixationMemoryValues.empty(memory.nullRef())
+                }
+
+            addressToHash.entries.fold((trueExpr as UBoolExpr) to emptyFixValues) { acc, (ref, hash) ->
                 val curConstraint =
                     fixateValueAndHash(scope, ref, hash, resolver)
-                        ?: falseExpr
-                acc and curConstraint
+                        ?: return null
+
+                (acc.first and curConstraint.first) to (acc.second.union(curConstraint.second))
             }
         }
 
@@ -142,16 +220,17 @@ class TvmPostProcessor(
         ref: UHeapRef,
         hash: UExpr<TvmInt257Sort>,
         resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? =
         with(ctx) {
             val value = resolver.resolveRef(ref)
-            val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+            val nullRef = scope.calcOnState { nullRef }
+            val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false, nullRef)
             val fixateValueCond =
                 fixator.fixateConcreteValue(scope, ref)
                     ?: return@with null
             val concreteHash = calculateConcreteHash(value)
             val hashCond = hash eq concreteHash
-            return fixateValueCond and hashCond
+            return (fixateValueCond.first and hashCond) to fixateValueCond.second
         }
 
     private fun calculateConcreteHash(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =
@@ -183,16 +262,17 @@ class TvmPostProcessor(
         ref: UHeapRef,
         depth: UExpr<TvmInt257Sort>,
         resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
+    ): Pair<UBoolExpr, TvmFixationMemoryValues>? =
         with(ctx) {
             val value = resolver.resolveRef(ref)
-            val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = true)
+            val nullRef = scope.calcOnState { nullRef }
+            val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = true, nullRef)
             val fixateValueCond =
                 fixator.fixateConcreteValue(scope, ref)
                     ?: return@with null
             val concreteDepth = calculateConcreteDepth(value)
             val depthCond = depth eq concreteDepth
-            return fixateValueCond and depthCond
+            return (fixateValueCond.first and depthCond) to fixateValueCond.second
         }
 
     private fun calculateConcreteDepth(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =

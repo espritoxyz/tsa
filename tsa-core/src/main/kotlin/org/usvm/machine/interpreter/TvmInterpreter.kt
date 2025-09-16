@@ -210,7 +210,6 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.collections.immutable.internal.MutabilityOwnership
-import org.usvm.constraints.UPathConstraints
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
@@ -238,6 +237,7 @@ import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.C7Register
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmInitialStateData
+import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackCellValue
@@ -372,7 +372,7 @@ class TvmInterpreter(
                 ?: error("Contract $startContractId not found.")
 
         val initOwnership = MutabilityOwnership()
-        val pathConstraints = UPathConstraints<TvmType>(ctx, initOwnership)
+        val pathConstraints = TvmPathConstraints(ctx, initOwnership)
         val memory = UMemory<TvmType, TvmCodeBlock>(ctx, initOwnership, pathConstraints.typeConstraints)
         val fieldManagers = TvmFieldManagers(ctx)
         val cellDataFieldManager = fieldManagers.cellDataFieldManager
@@ -604,14 +604,19 @@ class TvmInterpreter(
         }
 
     fun postProcessStates(states: Collection<TvmState>): List<TvmState> {
-        return states.filter { state ->
-            val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = true)
+        return states.mapNotNull { state ->
 
-            postProcessor.postProcessState(scope)
-                ?: return@filter false
+            val newState =
+                postProcessor.postProcessState(state)
+                    ?: return@mapNotNull null
+
+            val scope =
+                TvmStepScopeManager(newState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
 
             val globalStructuralConstraintsHolder = state.globalStructuralConstraintsHolder
-            globalStructuralConstraintsHolder.applyTo(scope) != null
+            globalStructuralConstraintsHolder.applyTo(scope)?.let {
+                newState
+            }
         }
     }
 

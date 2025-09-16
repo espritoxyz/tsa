@@ -20,6 +20,7 @@ import org.usvm.NULL_ADDRESS
 import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
+import org.usvm.UComposer
 import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -45,6 +46,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcConsumedGas
 import org.usvm.machine.state.calcPhaseConsumedGas
+import org.usvm.machine.state.compose
 import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
@@ -89,6 +91,7 @@ import java.math.BigInteger
 class TvmTestStateResolver(
     private val ctx: TvmContext,
     val model: UModelBase<TvmType>,
+    val composers: List<UComposer<TvmType, TvmSizeSort>>,
     val state: TvmState,
     private val performAdditionalChecks: Boolean = false, // for testing
 ) {
@@ -104,6 +107,11 @@ class TvmTestStateResolver(
         get() = state.dataCellInfoStorage.mapper
 
     private val constraintVisitor = ConstraintsVisitor(ctx)
+
+    fun <Sort : USort> eval(expr: UExpr<Sort>): UExpr<Sort> {
+        val newExpr = composers.compose(expr)
+        return model.eval(newExpr)
+    }
 
     init {
         // collect info about all constraints in state
@@ -137,7 +145,7 @@ class TvmTestStateResolver(
             is RecvExternalInput -> resolveRecvExternalInput(input)
         }
 
-    private fun resolveBool(boolExpr: UBoolExpr): Boolean = model.eval(boolExpr).isTrue
+    private fun resolveBool(boolExpr: UBoolExpr): Boolean = eval(boolExpr).isTrue
 
     private fun resolveStackInput(): List<TvmTestValue> =
         stack.inputValues
@@ -349,7 +357,7 @@ class TvmTestStateResolver(
         }
     }
 
-    fun resolveGasUsage(): Int = model.eval(state.calcConsumedGas()).intValue()
+    fun resolveGasUsage(): Int = eval(state.calcConsumedGas()).intValue()
 
     fun resolvePhaseGasUsage(
         eventBegin: Int,
@@ -382,7 +390,7 @@ class TvmTestStateResolver(
         }
 
     fun resolveRef(ref: UHeapRef): TvmTestReferenceValue {
-        val concreteRef = evaluateInModel(ref) as UConcreteHeapRef
+        val concreteRef = eval(ref) as UConcreteHeapRef
         val possibleTypes = state.getPossibleTypes(concreteRef)
         val type = possibleTypes.first()
         require(type is TvmFinalReferenceType)
@@ -392,8 +400,6 @@ class TvmTestStateResolver(
             TvmBuilderType -> resolveBuilder(ref)
         }
     }
-
-    private fun <T : USort> evaluateInModel(expr: UExpr<T>): UExpr<T> = model.eval(expr)
 
     private fun resolveTuple(tuple: TvmStackTupleValue): TvmTestTupleValue =
         when (tuple) {
@@ -420,7 +426,7 @@ class TvmTestStateResolver(
         }
 
     private fun resolveBuilder(builder: UHeapRef): TvmTestBuilderValue {
-        val ref = evaluateInModel(builder) as UConcreteHeapRef
+        val ref = eval(builder) as UConcreteHeapRef
 
         val cached = resolvedCache[ref.address]
         check(cached is TvmTestDataCellValue?)
@@ -495,7 +501,7 @@ class TvmTestStateResolver(
             val keyLength = resolveInt(memory.readField(dict, dictKeyLengthField, sizeSort))
             val dictId = DictId(keyLength)
             val keySort = mkBvSort(keyLength.toUInt())
-            val keySetEntries = dictKeyEntries(model, memory, modelRef, dictId, keySort)
+            val keySetEntries = dictKeyEntries(this@TvmTestStateResolver, modelRef, dictId, keySort)
 
             val keySet = mutableSetOf<UExpr<UBvSort>>()
             val resultEntries = mutableMapOf<TvmTestIntegerValue, TvmTestSliceValue>()
@@ -503,8 +509,8 @@ class TvmTestStateResolver(
             for (entry in keySetEntries) {
                 val key = entry.setElement
                 val keyContains = state.dictContainsKey(dict, dictId, key)
-                if (evaluateInModel(keyContains).isTrue) {
-                    val evaluatedKey = evaluateInModel(key)
+                if (eval(keyContains).isTrue) {
+                    val evaluatedKey = eval(key)
                     if (!keySet.add(evaluatedKey)) {
                         continue
                     }
@@ -544,7 +550,7 @@ class TvmTestStateResolver(
 
     private fun resolveCell(cell: UHeapRef): TvmTestCellValue =
         with(ctx) {
-            val modelRef = evaluateInModel(cell) as UConcreteHeapRef
+            val modelRef = eval(cell) as UConcreteHeapRef
             if (modelRef.address == NULL_ADDRESS) {
                 return@with TvmTestDataCellValue()
             }
@@ -573,6 +579,9 @@ class TvmTestStateResolver(
             }
 
             if (type is TvmDictCellType) {
+                if (composers.isNotEmpty()) {
+                    println("here")
+                }
                 return resolveDictCell(modelRef, cell)
             }
 
@@ -603,14 +612,14 @@ class TvmTestStateResolver(
 
                 is TvmRefsMemoryRegion.TvmRefsRegionEmptyUpdateNode -> {}
                 is TvmRefsMemoryRegion.TvmRefsRegionCopyUpdateNode -> {
-                    val guardValue = evaluateInModel(updateNode.guard)
+                    val guardValue = eval(updateNode.guard)
                     if (guardValue.isTrue) {
                         resolveRefUpdates(updateNode.updates, storedRefs, refsLength)
                     }
                 }
 
                 is TvmRefsMemoryRegion.TvmRefsRegionPinpointUpdateNode -> {
-                    val guardValue = evaluateInModel(updateNode.guard)
+                    val guardValue = eval(updateNode.guard)
                     if (guardValue.isTrue) {
                         updateNode.values.forEach { (key, value) ->
                             val idx = resolveInt(key)
@@ -630,7 +639,7 @@ class TvmTestStateResolver(
     private fun resolveTypeLoad(loads: List<TvmDataCellLoadedTypeInfo.Action>): List<TvmCellDataTypeLoad> {
         val resolved =
             loads.mapNotNull {
-                if (it is TvmDataCellLoadedTypeInfo.LoadData<*> && model.eval(it.guard).isTrue) {
+                if (it is TvmDataCellLoadedTypeInfo.LoadData<*> && eval(it.guard).isTrue) {
                     TvmCellDataTypeLoad(resolveCellDataType(it.type), resolveInt(it.offset))
                 } else {
                     null
@@ -656,57 +665,56 @@ class TvmTestStateResolver(
         }
 
     fun resolveInt257(expr: UExpr<out USort>): TvmTestIntegerValue {
-        val value = extractInt257(evaluateInModel(expr))
+        val value = extractInt257(eval(expr))
         return TvmTestIntegerValue(value)
     }
 
-    private fun resolveCellData(cell: UHeapRef): String =
-        with(ctx) {
-            val modelRef = model.eval(cell) as UConcreteHeapRef
+    private fun resolveCellData(cell: UHeapRef): String {
+        val modelRef = eval(cell) as UConcreteHeapRef
 
-            if (labelMapper.addressWasGiven(modelRef)) {
-                val label = labelMapper.getLabelFromModel(model, modelRef)
-                if (label is TvmParameterInfo.DataCellInfo) {
-                    val valueFromTlbFields =
-                        readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
+        if (labelMapper.addressWasGiven(modelRef)) {
+            val label = labelMapper.getLabelFromModel(model, modelRef)
+            if (label is TvmParameterInfo.DataCellInfo) {
+                val valueFromTlbFields =
+                    readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
 
-                    if (performAdditionalChecks &&
-                        modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()
-                    ) {
-                        val symbolicData =
-                            state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
-                                state,
-                                cell,
-                            )
-                        val data = extractCellData(evaluateInModel(symbolicData))
-                        val dataLength =
-                            resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell))
-                                .coerceAtMost(TvmContext.MAX_DATA_LENGTH)
-                                .coerceAtLeast(0)
-                        val dataFromField = data.take(dataLength)
+                if (performAdditionalChecks &&
+                    modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()
+                ) {
+                    val symbolicData =
+                        state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
+                            state,
+                            cell
+                        )
+                    val data = extractCellData(eval(symbolicData))
+                    val dataLength =
+                        resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell))
+                            .coerceAtMost(TvmContext.MAX_DATA_LENGTH)
+                            .coerceAtLeast(0)
+                    val dataFromField = data.take(dataLength)
 
-                        check(dataFromField == valueFromTlbFields) {
-                            "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
-                                "cellDataField: $dataFromField\n" +
-                                "   tlb fields: $valueFromTlbFields"
-                        }
+                    check(dataFromField == valueFromTlbFields) {
+                        "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
+                            "cellDataField: $dataFromField\n" +
+                            "   tlb fields: $valueFromTlbFields"
                     }
-
-                    return valueFromTlbFields
                 }
+
+                return valueFromTlbFields
             }
-
-            val symbolicData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
-            val data = extractCellData(evaluateInModel(symbolicData))
-            val dataLength =
-                resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell))
-                    .coerceAtMost(TvmContext.MAX_DATA_LENGTH)
-                    .coerceAtLeast(0)
-
-            return data.take(dataLength)
         }
 
-    private fun resolveInt(expr: UExpr<out USort>): Int = extractInt(evaluateInModel(expr))
+        val symbolicData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
+        val data = extractCellData(eval(symbolicData))
+        val dataLength =
+            resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell))
+                .coerceAtMost(TvmContext.MAX_DATA_LENGTH)
+                .coerceAtLeast(0)
+
+        return data.take(dataLength)
+    }
+
+    private fun resolveInt(expr: UExpr<out USort>): Int = extractInt(eval(expr))
 
     private fun extractInt(expr: UExpr<out USort>): Int =
         (expr as? KBitVecValue)?.toBigIntegerSigned()?.toInt() ?: error("Unexpected expr $expr")

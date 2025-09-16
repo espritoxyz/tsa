@@ -33,7 +33,7 @@ data object StackFrameOfUnknown : TlbStackFrame {
             val dataSymbolic =
                 read.resolver.state.memory
                     .readField(read.address, field, field.getSort(this))
-            val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
+            val data = (read.resolver.eval(dataSymbolic) as KBitVecValue<*>).stringValue
 
             val newReadInfo = TlbStack.ConcreteReadInfo(read.address, read.resolver, leftBits = 0)
 

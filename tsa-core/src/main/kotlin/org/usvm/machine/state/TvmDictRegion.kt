@@ -35,6 +35,7 @@ import org.usvm.memory.USymbolicCollectionKeyInfo
 import org.usvm.model.UModelBase
 import org.usvm.regions.SetRegion
 import org.usvm.sizeSort
+import org.usvm.test.resolver.TvmTestStateResolver
 import org.usvm.uctx
 import usvm.hack.UModelBaseAccess
 
@@ -149,6 +150,30 @@ fun TvmState.dictAddKeyValue(
     memory.setRegion(dictValueRegionId, updatedValues)
 }
 
+fun TvmState.initializeConcreteDictKeys(
+    dictRef: UConcreteHeapRef,
+    dictId: DictId,
+    keys: Set<UExpr<UBvSort>>,
+    keySort: UBvSort,
+): Unit =
+    with(ctx) {
+        val setRegionId = USetRegionId(keySort, dictId, DictKeyInfo)
+        val oldSetRegion = memory.getRegion(setRegionId) as USetRegion<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>
+
+        val newRegion =
+            oldSetRegion.initializeAllocatedSet(
+                dictRef.address,
+                setRegionId.setType,
+                keySort,
+                keys,
+                trueExpr,
+                ownership,
+                makeDisjointCheck = false,
+            )
+
+        memory.setRegion(setRegionId, newRegion)
+    }
+
 fun TvmState.initializeConcreteDict(
     dictRef: UConcreteHeapRef,
     dictId: DictId,
@@ -156,23 +181,7 @@ fun TvmState.initializeConcreteDict(
     keySort: UBvSort,
 ): Unit =
     with(ctx) {
-        val setRegionId = USetRegionId(keySort, dictId, DictKeyInfo)
-        val oldSetRegion = memory.getRegion(setRegionId) as USetRegion<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>
-
-        val setContent = values.mapTo(mutableSetOf()) { it.first }
-
-        val newRegion =
-            oldSetRegion.initializeAllocatedSet(
-                dictRef.address,
-                setRegionId.setType,
-                keySort,
-                setContent,
-                trueExpr,
-                ownership,
-                makeDisjointCheck = false,
-            )
-
-        memory.setRegion(setRegionId, newRegion)
+        initializeConcreteDictKeys(dictRef, dictId, (values.map { it.first }).toSet(), keySort)
 
         val valueSort = addressSort
         val dictValueRegionId = TvmDictValueRegionId(dictId, keySort)
@@ -237,18 +246,21 @@ fun TvmState.copyDict(
 }
 
 fun dictKeyEntries(
-    model: UModelBase<TvmType>,
-    memory: UMemory<TvmType, TvmCodeBlock>,
+    resolver: TvmTestStateResolver,
     dict: UConcreteHeapRef,
     dictId: DictId,
     keySort: UBvSort,
 ): Set<USetEntryLValue<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>> {
     // entries stored during execution
-    val memoryEntries = memory.setEntries(dict, dictId, keySort, DictKeyInfo).entries
+    val memoryEntries = resolver.state.memory.setEntries(dict, dictId, keySort, DictKeyInfo).entries
     // input entries
-    val modelEntries = dictModelKeyEntries(model, dict, dictId, keySort)
+    val modelEntries = dictModelKeyEntries(resolver.model, dict, dictId, keySort)
+    // entries from composers
+    val composerEntries = resolver.composers.flatMap {
+        it.memory.setEntries(dict, dictId, keySort, DictKeyInfo).entries
+    }
 
-    return memoryEntries + modelEntries
+    return memoryEntries + modelEntries + composerEntries
 }
 
 private fun dictModelKeyEntries(

@@ -155,12 +155,11 @@ fun readInModelFromTlbFields(
     label: TlbCompositeLabel,
 ): String {
     val state = resolver.state
-    val model = resolver.model
     var stack = TlbStack.new(state.ctx, label)
     var result = ""
     val sizeSymbolic = state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
-    val size = model.eval(sizeSymbolic).intValue()
-    var readInfo = TlbStack.ConcreteReadInfo(model.eval(address) as UConcreteHeapRef, resolver, size)
+    val size = resolver.eval(sizeSymbolic).intValue()
+    var readInfo = TlbStack.ConcreteReadInfo(resolver.eval(address) as UConcreteHeapRef, resolver, size)
 
     while (!stack.isEmpty) {
         val (readValue, leftToRead, newStack) = stack.readInModel(readInfo)
