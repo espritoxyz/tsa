@@ -38,7 +38,6 @@ data object TvmTestResolver {
         val input = stateResolver.resolveInput()
         val fetchedValues = stateResolver.resolveFetchedValues()
         val config = stateResolver.resolveConfig()
-        val contractAddress = stateResolver.resolveContractAddress()
         val time = stateResolver.resolveTime()
         val initialData = stateResolver.resolveInitialData()
         val result = stateResolver.resolveResultStack()
@@ -54,7 +53,6 @@ data object TvmTestResolver {
         return TvmSymbolicTest(
             methodId = methodId,
             config = config,
-            contractAddress = contractAddress,
             initialData = initialData,
             time = time,
             input = input,
@@ -144,7 +142,6 @@ data class TvmMethodCoverage(
 data class TvmSymbolicTest(
     val methodId: MethodId,
     val config: TvmTestDictCellValue,
-    val contractAddress: TvmTestDataCellValue,
     val time: TvmTestIntegerValue,
     val rootContract: ContractId,
     val contractStatesBefore: Map<ContractId, TvmContractState>,
@@ -179,6 +176,7 @@ data class TvmSymbolicTest(
 data class TvmContractState(
     val data: TvmTestCellValue,
     val balance: TvmTestIntegerValue,
+    val address: TvmTestDataCellValue,
 )
 
 data class TvmTestOutMessage(

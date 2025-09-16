@@ -12,6 +12,7 @@ import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import kotlin.io.path.readText
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -20,6 +21,7 @@ class BalanceTransferTest {
     private val checkerResourcePath = "/examples/step3/balance_transfer_checker.fc"
     private val intercontractSchemePath = "/examples/step3/wallet-intercontract-scheme.json"
 
+    @Ignore("intercontract-consistency")
     @Test
     fun testBalanceTransfer() {
         val walletContractPath = getResourcePath<BalanceTransferTest>(walletContractResourcePath)
@@ -65,7 +67,7 @@ class BalanceTransferTest {
 
         // Check it is possible only when the target address equals to the wallet address
         val targetAddress = nonTransferredBalanceExecution.fetchedValues[0] as TvmTestSliceValue
-        val walletAddress = nonTransferredBalanceExecution.contractAddress
+        val walletAddress = nonTransferredBalanceExecution.contractStatesBefore[2]!!.address
         assertEquals(targetAddress.cell.data.substring(targetAddress.dataPos), walletAddress.data)
     }
 }

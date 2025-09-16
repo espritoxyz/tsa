@@ -175,13 +175,6 @@ class TvmTestStateResolver(
             ?: error("Unexpected config type")
     }
 
-    fun resolveContractAddress(): TvmTestDataCellValue {
-        val address = getInitialRootContractParam(ADDRESS_PARAMETER_IDX)
-
-        return (resolveStackValue(address) as? TvmTestDataCellValue)
-            ?: error("Unexpected address type")
-    }
-
     fun resolveInitialContractState(contract: ContractId): TvmContractState {
         val balance =
             getInitialContractParam(contract, BALANCE_PARAMETER_IDX)
@@ -194,13 +187,17 @@ class TvmTestStateResolver(
             (resolveStackValue(balance) as? TvmTestIntegerValue)
                 ?: error("Unexpected balance type")
 
+        val addressRaw = getInitialContractParam(contract, ADDRESS_PARAMETER_IDX)
+        val address = resolveStackValue(addressRaw) as? TvmTestDataCellValue
+            ?: error("Unexpected address type")
+
         val symbolicData =
             state.contractIdToInitialData[contract]
                 ?: error("Contract $contract initial data not found")
 
         val data = resolveCell(symbolicData.persistentData)
 
-        return TvmContractState(data, c7Balance)
+        return TvmContractState(data, c7Balance, address)
     }
 
     fun resolveTime(): TvmTestIntegerValue {
