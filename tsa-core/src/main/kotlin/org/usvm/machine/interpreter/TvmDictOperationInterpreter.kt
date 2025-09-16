@@ -193,6 +193,7 @@ import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
+import org.usvm.utils.extractAddresses
 
 class TvmDictOperationInterpreter(
     private val ctx: TvmContext,
@@ -1599,8 +1600,11 @@ class TvmDictOperationInterpreter(
             unwrapDictValue(scope, value, valueType)
                 ?: return
 
-        assertDictValueDoesNotOverflow(scope, dictId, value)
-            ?: return
+        val valueRefs = scope.ctx.extractAddresses(value, extractAllocated = true, extractStatic = true)
+        valueRefs.forEach {
+            assertDictValueDoesNotOverflow(scope, dictId, it.second)
+                ?: return
+        }
 
         handleDictRemoveKey(
             scope,
