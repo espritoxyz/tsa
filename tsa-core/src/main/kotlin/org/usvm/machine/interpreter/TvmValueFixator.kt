@@ -118,7 +118,7 @@ class TvmValueFixator(
         with(ctx) {
             val (childrenGuard, childrenValues) =
                 value.refs.foldIndexed(
-                    (trueExpr as UBoolExpr) to emptyFixationValues
+                    (trueExpr as UBoolExpr) to emptyFixationValues,
                 ) { index, (accGuard, accValues), child ->
                     val childRef =
                         scope.calcOnState {
@@ -223,7 +223,7 @@ class TvmValueFixator(
                 ConcreteSet(
                     ref = modelRef,
                     dictId = dictId,
-                    elements = setKeys
+                    elements = setKeys,
                 )
 
             val nullRef = scope.calcOnState { nullRef }
@@ -231,7 +231,7 @@ class TvmValueFixator(
             val curFixValues =
                 TvmFixationMemoryValues(
                     setOf(curSet),
-                    nullRef = nullRef
+                    nullRef = nullRef,
                 )
 
             return resultGuard to curFixValues.union(childFixValues)

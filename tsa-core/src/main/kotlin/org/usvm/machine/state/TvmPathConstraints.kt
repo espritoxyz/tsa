@@ -29,7 +29,7 @@ class TvmPathConstraints(
         UTypeConstraints(
             ownership,
             ctx.typeSystem(),
-            equalityConstraints
+            equalityConstraints,
         ),
     numericConstraints: UNumericConstraints<UBv32Sort> = UNumericConstraints(ctx, sort = ctx.bv32Sort, ownership),
     val composers: PersistentList<UComposer<TvmType, TvmSizeSort>> = persistentListOf(),
@@ -39,19 +39,22 @@ class TvmPathConstraints(
         logicalConstraints,
         equalityConstraints,
         typeConstraints,
-        numericConstraints
+        numericConstraints,
     ) {
     override fun plusAssign(constraint: UBoolExpr) {
         val newConstraint = composers.compose(constraint)
         super.plusAssign(newConstraint)
     }
 
-    fun addFixationMemory(model: UModelBase<TvmType>, values: TvmFixationMemoryValues): TvmPathConstraints {
+    fun addFixationMemory(
+        model: UModelBase<TvmType>,
+        values: TvmFixationMemoryValues,
+    ): TvmPathConstraints {
         val clonedEqualityConstraints = equalityConstraints.clone(ownership, ownership)
         val clonedTypeConstraints = typeConstraints.clone(clonedEqualityConstraints, ownership, ownership)
 
 //        val fixationMemory = TvmFixationMemory(ctx.tctx(), values)
-        val composer = TvmFixationComposer(ctx.tctx(), values, typeConstraints, model, ownership) // UComposer(ctx.tctx(), fixationMemory, ownership)
+        val composer = TvmFixationComposer(ctx.tctx(), values, typeConstraints, model, ownership)
 
         val newPs =
             TvmPathConstraints(
@@ -59,7 +62,7 @@ class TvmPathConstraints(
                 ownership,
                 equalityConstraints = clonedEqualityConstraints,
                 typeConstraints = clonedTypeConstraints,
-                composers = composers.add(composer)
+                composers = composers.add(composer),
             )
         logicalAndNumericConstraints().forEach { constraint ->
             newPs += constraint
@@ -84,7 +87,7 @@ class TvmPathConstraints(
             equalityConstraints = clonedEqualityConstraints,
             typeConstraints = clonedTypeConstraints,
             numericConstraints = clonedNumericConstraints,
-            composers = composers
+            composers = composers,
         )
     }
 

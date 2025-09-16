@@ -684,7 +684,7 @@ class TvmTestStateResolver(
                     val symbolicData =
                         state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
                             state,
-                            cell
+                            cell,
                         )
                     val data = extractCellData(eval(symbolicData))
                     val dataLength =

@@ -2,7 +2,6 @@ package org.usvm.machine.state
 
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.asExpr
-import org.ton.bytecode.TvmCodeBlock
 import org.usvm.INITIAL_INPUT_ADDRESS
 import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
@@ -27,7 +26,6 @@ import org.usvm.machine.setUnion
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.ULValue
-import org.usvm.memory.UMemory
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.UReadOnlyMemory
@@ -252,13 +250,17 @@ fun dictKeyEntries(
     keySort: UBvSort,
 ): Set<USetEntryLValue<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>> {
     // entries stored during execution
-    val memoryEntries = resolver.state.memory.setEntries(dict, dictId, keySort, DictKeyInfo).entries
+    val memoryEntries =
+        resolver.state.memory
+            .setEntries(dict, dictId, keySort, DictKeyInfo)
+            .entries
     // input entries
     val modelEntries = dictModelKeyEntries(resolver.model, dict, dictId, keySort)
     // entries from composers
-    val composerEntries = resolver.composers.flatMap {
-        it.memory.setEntries(dict, dictId, keySort, DictKeyInfo).entries
-    }
+    val composerEntries =
+        resolver.composers.flatMap {
+            it.memory.setEntries(dict, dictId, keySort, DictKeyInfo).entries
+        }
 
     return memoryEntries + modelEntries + composerEntries
 }

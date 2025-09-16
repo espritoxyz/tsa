@@ -32,7 +32,7 @@ data object TvmTestResolver {
                 model,
                 state.pathConstraints.composers,
                 state,
-                ctx.tvmOptions.performAdditionalChecksWhileResolving
+                ctx.tvmOptions.performAdditionalChecksWhileResolving,
             )
 
         val input = stateResolver.resolveInput()

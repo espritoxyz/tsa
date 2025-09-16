@@ -13,7 +13,6 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmFixationMemoryValues
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.initializeConcreteDict
 import org.usvm.machine.state.initializeConcreteDictKeys
 import org.usvm.machine.types.TvmType
 import org.usvm.solver.USatResult
@@ -50,7 +49,7 @@ class TvmPostProcessor(
                         TvmStepScopeManager(
                             state,
                             forkBlackList = UForkBlackList.createDefault(),
-                            allowFailuresOnCurrentStep = true
+                            allowFailuresOnCurrentStep = true,
                         )
 
                     val hashConstraint =
@@ -74,7 +73,7 @@ class TvmPostProcessor(
                     TvmStepScopeManager(
                         state,
                         forkBlackList = UForkBlackList.createDefault(),
-                        allowFailuresOnCurrentStep = true
+                        allowFailuresOnCurrentStep = true,
                     )
 
                 (generateSignatureConstraints(scope, resolver) to null).also {
@@ -119,7 +118,7 @@ class TvmPostProcessor(
             TvmStepScopeManager(
                 newState,
                 forkBlackList = UForkBlackList.createDefault(),
-                allowFailuresOnCurrentStep = true
+                allowFailuresOnCurrentStep = true,
             )
         scope.assert(guard)
             ?: return null

@@ -51,16 +51,14 @@ class TvmPartialModel(
 //    private val values: TvmFixationMemoryValues,
 //    private val typeConstraints: UTypeConstraints<TvmType>,
     regions: PersistentMap<UMemoryRegionId<*, *>, UReadOnlyMemoryRegion<*, *>>,
-    ownership: MutabilityOwnership = model.ownership
+    ownership: MutabilityOwnership = model.ownership,
 ) : UModelBase<TvmType>(ctx, model.stack, model.types, model.mocker, regions, model.nullRef, ownership) {
     private var mutableRegions: PersistentMap<UMemoryRegionId<*, *>, UReadOnlyMemoryRegion<*, *>> = regions
-
-
 
 //    constructor(
 //        ctx: TvmContext,
 //        values: TvmFixationMemoryValues,
-////        typeConstraints: UTypeConstraints<TvmType>,
+// //        typeConstraints: UTypeConstraints<TvmType>,
 //        model: UModelBase<TvmType>,
 //    ) : this(ctx, model, /*values, typeConstraints,*/ patchedRegions(model, values))
 
@@ -74,9 +72,13 @@ class TvmPartialModel(
     }
 
     override fun toWritableMemory(ownership: MutabilityOwnership): UWritableMemory<TvmType> =
-        TvmPartialModel(ctx, model, /*values, typeConstraints,*/ mutableRegions, ownership)
+        TvmPartialModel(ctx, model, mutableRegions, ownership)
 
-    override fun <Key, Sort : USort> write(lvalue: ULValue<Key, Sort>, rvalue: UExpr<Sort>, guard: UBoolExpr) {
+    override fun <Key, Sort : USort> write(
+        lvalue: ULValue<Key, Sort>,
+        rvalue: UExpr<Sort>,
+        guard: UBoolExpr,
+    ) {
         val regionId = lvalue.memoryRegionId
         val region = getRegion(regionId)
         if (region !is UMemoryRegion<Key, Sort>) {
@@ -87,42 +89,41 @@ class TvmPartialModel(
     }
 
 //    override val composer = TvmFixationComposer(ctx, values, typeConstraints, this, ownership)
-
 }
 
-//class TvmFixationComposer(
+// class TvmFixationComposer(
 //    ctx: TvmContext,
 //    values: TvmFixationMemoryValues,
 //    typeConstraints: UTypeConstraints<TvmType>,
 //    private val model: UModelBase<TvmType>,
 //    ownership: MutabilityOwnership,
-//) : UComposer<TvmType, TvmSizeSort>(
+// ) : UComposer<TvmType, TvmSizeSort>(
 //    ctx,
 //    UMemory(ctx, ownership, typeConstraints, URegistersStack(), UIndexedMocker<Nothing>(), persistentHashMapOf()),
 //    ownership
-//) {
+// ) {
 //
 //    @Suppress("UNCHECKED_CAST")
-////    private val writableMemory = this.memory as UMemory<TvmType, TvmSizeSort>
-////    private var regions: PersistentMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentMapOf()
+// //    private val writableMemory = this.memory as UMemory<TvmType, TvmSizeSort>
+// //    private var regions: PersistentMap<UMemoryRegionId<*, *>, UMemoryRegion<*, *>> = persistentMapOf()
 //    private val setsToConcretize = values.sets.map { it.ref to it.dictId }
 //
-////    init {
-////        values.sets.groupBy { it.dictId }.forEach { (dictId, sets) ->
-////            val sort = ctx.mkBvSort(dictId.keyLength.toUInt())
-////            val regionId = USetRegionId(sort, dictId, DictKeyInfo)
-////
-////            val usvmSets = mutableMapOf<UConcreteHeapRef, UAllocatedSet<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>>()
-////            sets.forEach { set ->
-////                val setId = UAllocatedSetId(set.ref.address, sort, dictId, DictKeyInfo)
-////                val newCollection = setId.initializedSet(set.elements, guard = ctx.trueExpr)
-////                usvmSets[set.ref] = newCollection
-////            }
-////
-////            writableMemory.setRegion(regionId, FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, regionId.emptyRegion()))
-////            regions = regions.put(regionId, FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, model.getRegion(regionId)))
-////        }
-////    }
+// //    init {
+// //        values.sets.groupBy { it.dictId }.forEach { (dictId, sets) ->
+// //            val sort = ctx.mkBvSort(dictId.keyLength.toUInt())
+// //            val regionId = USetRegionId(sort, dictId, DictKeyInfo)
+// //
+// //            val usvmSets = mutableMapOf<UConcreteHeapRef, UAllocatedSet<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>>()
+// //            sets.forEach { set ->
+// //                val setId = UAllocatedSetId(set.ref.address, sort, dictId, DictKeyInfo)
+// //                val newCollection = setId.initializedSet(set.elements, guard = ctx.trueExpr)
+// //                usvmSets[set.ref] = newCollection
+// //            }
+// //
+// //            writableMemory.setRegion(regionId, FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, regionId.emptyRegion()))
+// //            regions = regions.put(regionId, FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, model.getRegion(regionId)))
+// //        }
+// //    }
 //
 //    override fun <ElemSort : USort, Reg : Region<Reg>> transform(
 //        expr: UInputSetReading<TvmType, ElemSort, Reg>
@@ -131,28 +132,28 @@ class TvmPartialModel(
 //            return super.transform(expr)
 //        }
 //        val mappedKey = collection.collectionId.keyInfo().mapKey(address to element, this@TvmFixationComposer)
-////        val patchedRegions = model.regions + regions
-////        val patchedModel = UModelBase(
-////            ctx.tctx(),
-////            model.stack,
-////            model.types,
-////            model.mocker,
-////            patchedRegions,
-////            model.nullRef,
-////            model.ownership
-////        )
-////        val patchedMemory = memory.toWritableMemory(ownership)
-////        for (entry in model.regions) {
-////            patchedMemory.setRegion(entry.key, entry.value as)
-////        }
-////        for (entry in regions) {
-////            patchedMemory.setRegion(entry.key, entry.value as)
-////        }
+// //        val patchedRegions = model.regions + regions
+// //        val patchedModel = UModelBase(
+// //            ctx.tctx(),
+// //            model.stack,
+// //            model.types,
+// //            model.mocker,
+// //            patchedRegions,
+// //            model.nullRef,
+// //            model.ownership
+// //        )
+// //        val patchedMemory = memory.toWritableMemory(ownership)
+// //        for (entry in model.regions) {
+// //            patchedMemory.setRegion(entry.key, entry.value as)
+// //        }
+// //        for (entry in regions) {
+// //            patchedMemory.setRegion(entry.key, entry.value as)
+// //        }
 //        val result = collection.read(mappedKey, UComposer(ctx.tctx(), patchedMemory, ownership))
 //        return result
 //    }
 //
-//}
+// }
 
 class TvmFixationComposer(
     ctx: TvmContext,
@@ -161,11 +162,12 @@ class TvmFixationComposer(
     private val model: UModelBase<TvmType>,
     ownership: MutabilityOwnership,
 ) : UComposer<TvmType, TvmSizeSort>(
-    ctx,
-    UMemory(ctx, ownership, typeConstraints, URegistersStack(), UIndexedMocker<Nothing>(), persistentHashMapOf()),
-    ownership
-) {
+        ctx,
+        UMemory(ctx, ownership, typeConstraints, URegistersStack(), UIndexedMocker<Nothing>(), persistentHashMapOf()),
+        ownership,
+    ) {
     private var partialModel: TvmPartialModel
+
     @Suppress("UNCHECKED_CAST")
     private val writableMemory = this.memory as UMemory<TvmType, TvmSizeSort>
 
@@ -184,12 +186,18 @@ class TvmFixationComposer(
 
             val emptyRegion = regionId.emptyRegion()
 //            val partialModelRegion = FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, model.getRegion(regionId), emptyRegion)
-            writableMemory.setRegion(regionId, FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, emptyRegion, emptyRegion))
-            regions = regions.put(regionId, FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, model.getRegion(regionId), emptyRegion))
+            writableMemory.setRegion(
+                regionId,
+                FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, emptyRegion, emptyRegion),
+            )
+            regions =
+                regions.put(
+                    regionId,
+                    FixedSetRegion(ctx, sort, dictId, DictKeyInfo, usvmSets, model.getRegion(regionId), emptyRegion),
+                )
         }
         partialModel = TvmPartialModel(ctx, model, regions, ownership)
     }
-
 
 //    @Suppress("UNCHECKED_CAST")
 //    private val writableMemory = this.memory as UMemory<TvmType, TvmSizeSort>
@@ -197,12 +205,15 @@ class TvmFixationComposer(
     private val setsToConcretize = values.sets.map { it.ref to it.dictId }
 
     override fun <ElemSort : USort, Reg : Region<Reg>> transform(
-        expr: UInputSetReading<TvmType, ElemSort, Reg>
-    ): UBoolExpr = with(expr) {
-        if (expr.address to DictId((expr.collection.collectionId.elementSort as UBvSort).sizeBits.toInt()) !in setsToConcretize) {
-            return super.transform(expr)
-        }
-        val mappedKey = collection.collectionId.keyInfo().mapKey(address to element, this@TvmFixationComposer)
+        expr: UInputSetReading<TvmType, ElemSort, Reg>,
+    ): UBoolExpr =
+        with(expr) {
+            if (expr.address to DictId((expr.collection.collectionId.elementSort as UBvSort).sizeBits.toInt()) !in
+                setsToConcretize
+            ) {
+                return super.transform(expr)
+            }
+            val mappedKey = collection.collectionId.keyInfo().mapKey(address to element, this@TvmFixationComposer)
 //        val patchedRegions = model.regions + regions
 //        val patchedModel = UModelBase(
 //            ctx.tctx(),
@@ -220,16 +231,15 @@ class TvmFixationComposer(
 //        for (entry in regions) {
 //            patchedMemory.setRegion(entry.key, entry.value as)
 //        }
-        val result = collection.read(mappedKey, UComposer(ctx.tctx(), partialModel, ownership))
-        return result
-    }
-
+            val result = collection.read(mappedKey, UComposer(ctx.tctx(), partialModel, ownership))
+            return result
+        }
 }
-//class TvmFixationMemory(
+// class TvmFixationMemory(
 //    private val ctx: TvmContext,
 //    val values: TvmFixationMemoryValues,
 //    val model: UModelBase<TvmType>
-//) : UWritableMemory<TvmType> {
+// ) : UWritableMemory<TvmType> {
 //    private val nullRef = values.nullRef
 //
 //    val regions: Map<UMemoryRegionId<*, *>, UReadOnlyMemoryRegion<*, *>>
@@ -329,13 +339,14 @@ private class FixedSetRegion<ElementSort : USort>(
 
         val collection =
             sets[key.setRef]
-                ?: return readRegion.read(key) //key.memoryRegionId.emptyRegion().read(key)
+                ?: return readRegion.read(key) // key.memoryRegionId.emptyRegion().read(key)
 
         return collection.read(key.setElement)
     }
 
-    override fun allocatedSetElements(address: UConcreteHeapAddress): UAllocatedSet<DictId, ElementSort, SetRegion<UExpr<UBvSort>>> =
-        writeRegion.allocatedSetElements(address)
+    override fun allocatedSetElements(
+        address: UConcreteHeapAddress,
+    ): UAllocatedSet<DictId, ElementSort, SetRegion<UExpr<UBvSort>>> = writeRegion.allocatedSetElements(address)
 
     override fun inputSetElements(): UInputSet<DictId, ElementSort, SetRegion<UExpr<UBvSort>>> =
         writeRegion.inputSetElements()
@@ -347,17 +358,26 @@ private class FixedSetRegion<ElementSort : USort>(
         content: Set<UExpr<ElementSort>>,
         operationGuard: UBoolExpr,
         ownership: MutabilityOwnership,
-        makeDisjointCheck: Boolean
+        makeDisjointCheck: Boolean,
     ): USetRegion<DictId, ElementSort, SetRegion<UExpr<UBvSort>>> =
-        writeRegion.initializeAllocatedSet(address, setType, sort, content, operationGuard, ownership, makeDisjointCheck)
+        writeRegion.initializeAllocatedSet(
+            address,
+            setType,
+            sort,
+            content,
+            operationGuard,
+            ownership,
+            makeDisjointCheck,
+        )
 
     override fun setEntries(ref: UHeapRef): UPrimitiveSetEntries<DictId, ElementSort, SetRegion<UExpr<UBvSort>>> {
         val entries = UPrimitiveSetEntries<DictId, ElementSort, SetRegion<UExpr<UBvSort>>>()
 
         val refs = ctx.extractAddresses(ref)
         refs.forEach { (_, ref) ->
-            val set = sets[ref]
-                ?: return@forEach
+            val set =
+                sets[ref]
+                    ?: return@forEach
             val elements = USymbolicSetElementsCollector.collect(set.updates)
             elements.elements.forEach { elem ->
                 entries.add(USetEntryLValue(elementSort, ref, elem, dictId, elementInfo))
@@ -371,7 +391,7 @@ private class FixedSetRegion<ElementSort : USort>(
         srcRef: UHeapRef,
         dstRef: UHeapRef,
         operationGuard: UBoolExpr,
-        ownership: MutabilityOwnership
+        ownership: MutabilityOwnership,
     ): USetRegion<DictId, ElementSort, SetRegion<UExpr<UBvSort>>> =
         writeRegion.union(srcRef, dstRef, operationGuard, ownership)
 
@@ -379,8 +399,8 @@ private class FixedSetRegion<ElementSort : USort>(
         key: USetEntryLValue<DictId, ElementSort, SetRegion<UExpr<UBvSort>>>,
         value: UExpr<UBoolSort>,
         guard: UBoolExpr,
-        ownership: MutabilityOwnership
+        ownership: MutabilityOwnership,
     ): UMemoryRegion<USetEntryLValue<DictId, ElementSort, SetRegion<UExpr<UBvSort>>>, UBoolSort> =
         writeRegion.write(key, value, guard, ownership)
 }
-//}
+// }
