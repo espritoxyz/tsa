@@ -188,8 +188,9 @@ class TvmTestStateResolver(
                 ?: error("Unexpected balance type")
 
         val addressRaw = getInitialContractParam(contract, ADDRESS_PARAMETER_IDX)
-        val address = resolveStackValue(addressRaw) as? TvmTestDataCellValue
-            ?: error("Unexpected address type")
+        val address =
+            resolveStackValue(addressRaw) as? TvmTestDataCellValue
+                ?: error("Unexpected address type")
 
         val symbolicData =
             state.contractIdToInitialData[contract]
