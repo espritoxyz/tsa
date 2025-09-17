@@ -46,15 +46,8 @@ class CheckersTest {
     private val recipientBouncePath = "/args/receive_bounce_msg.fc"
     private val recipientBounceSoftFailurePath = "/args/receive_bounce_msg_with_soft_failure.fc"
     private val bounceTestScheme = "/checkers/bounce-test-scheme.json"
-    private val remainingBalanceContract = "/args/send_remaining_balance.fc"
-    private val remainingBalanceChecker = "/checkers/remaining_balance.fc"
-    private val remainingValueContract = "/args/send_remaining_value.fc"
-    private val remainingValueChecker = "/checkers/remaining_value.fc"
     private val tactConfig = "/tact/tact.config.json"
     private val intBlastOptimizationChecker = "/checkers/int_optimization.fc"
-    private val ignoreErrorsContract = "/args/send_ignore_error_flag.fc"
-    private val ignoreErrorsChecker = "/checkers/ignore_error.fc"
-    private val ignoreErrorTestScheme = "/checkers/ignore_error_test_scheme.json"
     private val bounceFormatContract = "/args/bounce_format_send.fc"
     private val bounceFormatChecker = "/checkers/bounce_format.fc"
     private val bounceFormatScheme = "/checkers/bounce_format_scheme.json"
@@ -366,14 +359,12 @@ class CheckersTest {
         )
         checkInvariants(
             tests,
-            listOf(
-                { test ->
-                    test.eventsList.mapNotNull { it.methodResult as? TvmMethodFailure }.all { failedResult ->
-                        val formatViolationExitCodes = 257..265
-                        failedResult.exitCode !in formatViolationExitCodes
-                    }
-                },
-            ),
+            listOf { test ->
+                test.eventsList.mapNotNull { it.methodResult as? TvmMethodFailure }.all { failedResult ->
+                    val formatViolationExitCodes = 257..265
+                    failedResult.exitCode !in formatViolationExitCodes
+                }
+            },
         )
     }
 
@@ -386,64 +377,6 @@ class CheckersTest {
             enableOutMessageAnalysis = true,
             stopOnFirstError = false,
         )
-
-    @Ignore("SendRemainingBalance mode is not supported")
-    @Test
-    fun sendRemainingBalanceTest() {
-        val pathContract = extractResource(remainingBalanceContract)
-        val checkerPath = extractResource(remainingBalanceChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true,
-            )
-        val analyzedContract = getFuncContract(pathContract, FIFT_STDLIB_RESOURCE)
-
-        val tests =
-            analyzeInterContract(
-                listOf(checkerContract, analyzedContract),
-                startContractId = 0,
-                methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            )
-
-        assertTrue { tests.isNotEmpty() }
-
-        checkInvariants(
-            tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
-        )
-    }
-
-    @Ignore("SendRemainingValue mode is not supported")
-    @Test
-    fun sendRemainingValueTest() {
-        val pathContract = extractResource(remainingValueContract)
-        val checkerPath = extractResource(remainingValueChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true,
-            )
-        val analyzedContract = getFuncContract(pathContract, FIFT_STDLIB_RESOURCE)
-
-        val tests =
-            analyzeInterContract(
-                listOf(checkerContract, analyzedContract),
-                startContractId = 0,
-                methodId = TvmContext.RECEIVE_INTERNAL_ID,
-            )
-
-        assertTrue { tests.isNotEmpty() }
-
-        checkInvariants(
-            tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
-        )
-    }
 
     @Test
     fun intBlastOptimizationTest() {
@@ -482,57 +415,6 @@ class CheckersTest {
                     result is TvmSuccessfulExecution
                 }
             },
-        )
-    }
-
-    @Ignore("SendIgnoreError flag is not supported")
-    @Test
-    fun sendIgnoreErrorTest() {
-        val pathSender = extractResource(ignoreErrorsContract)
-        val pathRecepient = extractResource(recipientBouncePath)
-        val checkerPath = extractResource(ignoreErrorsChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true,
-            )
-        val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
-        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
-
-        val communicationSchemePath = extractResource(ignoreErrorTestScheme)
-        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
-
-        val options =
-            TvmOptions(
-                intercontractOptions =
-                    IntercontractOptions(
-                        communicationScheme = communicationScheme,
-                    ),
-                enableOutMessageAnalysis = true,
-            )
-
-        val tests =
-            analyzeInterContract(
-                listOf(checkerContract, analyzedSender, analyzedRecepient),
-                startContractId = 0,
-                methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = options,
-            )
-
-        propertiesFound(
-            tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
-        )
-
-        checkInvariants(
-            tests,
-            listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 35 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 36 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 37 },
-            ),
         )
     }
 
