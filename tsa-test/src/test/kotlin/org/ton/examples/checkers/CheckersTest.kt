@@ -7,9 +7,6 @@ import org.ton.cell.Cell
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.checkInvariants
-import org.ton.test.utils.extractCheckerContractFromResource
-import org.ton.test.utils.extractCommunicationSchemeFromResource
-import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.IntercontractOptions
@@ -28,7 +25,6 @@ import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestInput
 import kotlin.io.path.readText
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
