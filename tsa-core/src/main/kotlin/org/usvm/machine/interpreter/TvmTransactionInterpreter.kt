@@ -59,40 +59,104 @@ class TvmTransactionInterpreter(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
         restActions: TvmStepScopeManager.(ActionDestinationParsingResult) -> Unit,
-    ): Unit =
-        with(ctx) {
-            val resolver = TvmTestStateResolver(ctx, scope.calcOnState { models.first() }, scope.calcOnState { this })
+    ) {
+        val resolver = TvmTestStateResolver(ctx, scope.calcOnState { models.first() }, scope.calcOnState { this })
 
-            val actions =
-                parseActions(scope, commitedState, resolver)
-                    ?: return
+        val messages =
+            parseOutMessages(scope, commitedState, resolver)
+                ?: return
 
-            if (actions.isEmpty()) {
-                return ActionDestinationParsingResult(emptyList(), emptyList()).let {
+        if (messages.isEmpty()) {
+            return ActionDestinationParsingResult(emptyList(), emptyList()).let {
+                scope.restActions(it)
+            }
+        }
+
+        if (!ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
+            return ActionDestinationParsingResult(messages, emptyList()).let {
+                scope.restActions(it)
+            }
+        }
+
+        val scheme =
+            ctx.tvmOptions.intercontractOptions.communicationScheme
+                ?: error("Communication scheme is not found")
+
+        val contractId = scope.calcOnState { currentContract }
+        val handlers =
+            scheme[contractId]
+                ?: error("Contract handlers are not found")
+
+        val msgBody =
+            scope.calcOnState { receivedMessage?.getMsgBodySlice() }
+                ?: error("Unexpected null msg_body")
+
+        val (handler, status) =
+            chooseHandlerBasedOnOpcode(
+                msgBody,
+                handlers.inOpcodeToDestination,
+                handlers.other,
+                resolver,
+                scope,
+            )
+
+        status ?: return
+
+        if (handler == null) {
+            return ActionDestinationParsingResult(messages, emptyList()).let {
+                scope.restActions(it)
+            }
+        }
+
+        return when (handler) {
+            is LinearDestinations -> {
+                check(handler.destinations.size == messages.size) {
+                    "The number of actual messages is not equal to the number of destinations in the scheme: " +
+                        "${messages.size} ${handler.destinations.size}"
+                }
+
+                val messagesForQueue = handler.destinations.zip(messages)
+                ActionDestinationParsingResult(
+                    unprocessedMessages = emptyList(),
+                    messagesForQueue = messagesForQueue,
+                ).let {
                     scope.restActions(it)
                 }
             }
 
-            if (!ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-                return ActionDestinationParsingResult(actions, emptyList()).let {
-                    scope.restActions(it)
+            is OpcodeToDestination -> {
+                messages.forEach {
+                    val destinations =
+                        chooseHandlerBasedOnOpcode(
+                            it.msgBodySlice,
+                            handler.outOpcodeToDestination,
+                            handler.other,
+                            resolver,
+                            scope,
+                        )
                 }
+
+                TODO()
             }
+        }
+    }
 
-            val scheme =
-                ctx.tvmOptions.intercontractOptions.communicationScheme
-                    ?: error("Communication scheme is not found")
-
-            val contractId = scope.calcOnState { currentContract }
-            val handlers =
-                scheme[contractId]
-                    ?: error("Contract handlers are not found")
-
-            val msgBody =
-                scope.calcOnState { receivedMessage?.getMsgBodySlice() }
-                    ?: error("Unexpected null msg_body")
-
-            val msgBodyCell = scope.calcOnState { memory.readField(msgBody, TvmContext.sliceCellField, addressSort) }
+    private fun <T> chooseHandlerBasedOnOpcode(
+        msgBodySlice: UHeapRef,
+        variants: Map<String, T>,
+        defaultVariant: T?,
+        resolver: TvmTestStateResolver,
+        scope: TvmStepScopeManager,
+    ): Pair<T?, Unit?> =
+        with(scope.ctx) {
+            val msgBodyCell =
+                scope.calcOnState {
+                    memory.readField(
+                        msgBodySlice,
+                        TvmContext.sliceCellField,
+                        addressSort,
+                    )
+                }
 
             val leftBits =
                 scope.calcOnState {
@@ -106,12 +170,12 @@ class TvmTransactionInterpreter(
                         ?: error("Unexpected solver result")
 
                     val inOpcode =
-                        sliceLoadIntTransaction(scope, msgBody, OP_BITS.toInt())?.second
-                            ?: return
+                        sliceLoadIntTransaction(scope, msgBodySlice, OP_BITS.toInt())?.second
+                            ?: return null to null
 
                     val concreteOp = resolver.eval(inOpcode)
                     val concreteOpHex = concreteOp.bigIntValue().toString(16).padStart(TvmContext.OP_BYTES.toInt(), '0')
-                    val concreteHandler = handlers.inOpcodeToDestination[concreteOpHex]
+                    val concreteHandler = variants[concreteOpHex]
 
                     if (concreteHandler != null) {
                         scope.assert(inOpcode eq concreteOp)
@@ -119,41 +183,16 @@ class TvmTransactionInterpreter(
 
                         concreteHandler
                     } else {
-                        handlers.other
+                        defaultVariant
                     }
                 } else {
-                    handlers.other
+                    defaultVariant
                 }
 
-            if (handler == null) {
-                return ActionDestinationParsingResult(actions, emptyList()).let {
-                    scope.restActions(it)
-                }
-            }
-
-            return when (handler) {
-                is LinearDestinations -> {
-                    check(handler.destinations.size == actions.size) {
-                        "The number of actual messages is not equal to the number of destinations in the scheme: " +
-                            "${actions.size} ${handler.destinations.size}"
-                    }
-
-                    val messagesForQueue = handler.destinations.zip(actions)
-                    ActionDestinationParsingResult(
-                        unprocessedMessages = emptyList(),
-                        messagesForQueue = messagesForQueue,
-                    ).let {
-                        scope.restActions(it)
-                    }
-                }
-
-                is OpcodeToDestination -> {
-                    TODO()
-                }
-            }
+            return handler to Unit
         }
 
-    private fun parseActions(
+    private fun parseOutMessages(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
         resolver: TvmTestStateResolver,
