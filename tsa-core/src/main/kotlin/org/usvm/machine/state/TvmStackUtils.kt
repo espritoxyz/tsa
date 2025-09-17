@@ -56,6 +56,14 @@ fun TvmStack.addInt(value: UExpr<TvmInt257Sort>) {
     add(value, TvmIntegerType)
 }
 
+fun TvmStack.addCell(value: UHeapRef) {
+    addStackEntry(TvmConcreteStackEntry(TvmStack.TvmStackCellValue(value)))
+}
+
+fun TvmStack.addSlice(value: UHeapRef) {
+    addStackEntry(TvmConcreteStackEntry(TvmStack.TvmStackSliceValue(value)))
+}
+
 fun TvmStack.addContinuation(value: TvmContinuation) {
     addStackEntry(TvmStack.TvmStackContinuationValue(value).toStackEntry())
 }

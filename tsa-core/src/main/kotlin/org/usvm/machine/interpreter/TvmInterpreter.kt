@@ -445,6 +445,7 @@ class TvmInterpreter(
                         ?: error("First element of c7 for contract $it not found")
                 TvmInitialStateData(c4.value.value, c7)
             }
+        state.checkerC7 = null
 
         prepareMemoryForInitialState(state, startContractId)
 

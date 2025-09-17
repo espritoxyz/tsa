@@ -15,6 +15,7 @@ import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCellValue
 import org.ton.bytecode.TvmExceptionContinuation
 import org.ton.bytecode.TvmInst
+import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmOrdContinuation
 import org.ton.cell.Cell
 import org.ton.hashmap.HashMapE
@@ -552,13 +553,15 @@ fun initializeContractExecutionMemory(
     )
 }
 
-fun TvmState.contractEpilogue() {
+fun TvmState.contractEpilogue(isChecker: Boolean) {
     contractIdToFirstElementOfC7 =
         contractIdToFirstElementOfC7.put(
             currentContract,
             registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew,
         )
-
+    if (isChecker) {
+        checkerC7 = registersOfCurrentContract.c7
+    }
     val commitedState =
         lastCommitedStateOfContracts[currentContract]
             ?: return
@@ -584,6 +587,8 @@ fun TvmState.switchToFirstMethodInContract(
     }
 }
 
+fun TvmState.switchDirectlyToMethodInContract(method: TvmMethod) = newStmt(method.instList.first())
+
 // second value is workchain
 fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort>> =
     with(ctx) {
@@ -603,3 +608,53 @@ fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort
             )
         return address to workchain
     }
+
+fun TvmState.callCheckerMethod(
+    methodId: MethodId,
+    returnStmt: TvmInst,
+    contractsCode: List<TsaContractCode>,
+): Unit? {
+    val checkerContractIds =
+        contractsCode.mapIndexedNotNull { index, code ->
+            if (code.isContractWithTSACheckerFunctions) index to code else null
+        }
+    if (checkerContractIds.size >= 2) {
+        error("Too many checker contracts (ids: ${checkerContractIds.map { it.first }})")
+    }
+    val (checkerContractId, checkerCode) = checkerContractIds.singleOrNull() ?: return null
+    require(checkerContractId != currentContract) {
+        "calCheckerMethod is expected to be called outside of checker"
+    }
+    val method = checkerCode.methods[methodId] ?: return null
+    // after this point, we always return non-null
+
+    val oldMemory = TvmContractExecutionMemory(stack, registersOfCurrentContract)
+    contractStack =
+        contractStack.add(
+            TvmContractPosition(
+                currentContract,
+                returnStmt,
+                oldMemory,
+                0,
+                currentEventId,
+                receivedMessage,
+            ),
+        )
+    val executionMemory =
+        initializeContractExecutionMemory(
+            contractsCode,
+            this,
+            checkerContractId,
+            null,
+            allowInputStackValues = true,
+        )
+
+    currentContract = checkerContractId
+    registersOfCurrentContract = executionMemory.registers
+    val storedC7 = checkerC7
+    if (storedC7 != null) {
+        registersOfCurrentContract.c7 = storedC7
+    }
+    switchDirectlyToMethodInContract(method)
+    return Unit
+}

@@ -57,7 +57,7 @@ class TsaCheckerFunctionsInterpreter(
             stackOperations = stmt.checkerMemorySavelist.stackOperations,
             newInput = stmt.checkerMemorySavelist.newInput,
             nextContractId = stmt.checkerMemorySavelist.nextContractId,
-        ) ?: return
+        )
 
         val registers =
             scope.calcOnState {
@@ -360,7 +360,7 @@ class TsaCheckerFunctionsInterpreter(
                 currentContract,
                 registersOfCurrentContract.c7.value[0, oldStack].cell(oldStack) as TvmStackTupleValueConcreteNew,
             )
-
+        checkerC7 = registersOfCurrentContract.c7
         val takeFromNewStack =
             when (stackOperations) {
                 is SimpleStackOperations -> stackOperations.takeFromNewStack
@@ -371,7 +371,7 @@ class TsaCheckerFunctionsInterpreter(
             contractStack.add(
                 TvmContractPosition(
                     currentContract,
-                    stmt,
+                    stmt.nextStmt(),
                     oldMemory,
                     takeFromNewStack,
                     currentEventId,

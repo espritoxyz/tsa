@@ -2,7 +2,9 @@ package org.ton.bytecode
 
 import kotlinx.serialization.Serializable
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
+import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.messages.OutMessage
 
 sealed interface TsaArtificialInst : TvmArtificialInst
 
@@ -43,6 +45,28 @@ data class TsaArtificialActionPhaseInst(
     init {
         checkLocationInitialized()
     }
+}
+
+/**
+ *  This instruction is automatically inserted after the action phase
+ *  and is used to call the `on_out_message` handler in checker with
+ *  returning back to process the contract exit.
+ */
+data class TsaArtificialOnOutMessageHandlerCallInst(
+    val computePhaseResult: TvmMethodResult,
+    override val location: TvmInstLocation,
+    val sentMessages: List<SentMessage>,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "on_out_message_hack"
+
+    init {
+        checkLocationInitialized()
+    }
+
+    data class SentMessage(
+        val message: OutMessage,
+        val receiver: ContractId?,
+    )
 }
 
 @Serializable
