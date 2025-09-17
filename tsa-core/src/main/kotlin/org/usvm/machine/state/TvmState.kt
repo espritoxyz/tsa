@@ -115,7 +115,13 @@ class TvmState(
     lateinit var registersOfCurrentContract: TvmRegisters
     lateinit var contractIdToC4Register: PersistentMap<ContractId, C4Register>
     lateinit var contractIdToFirstElementOfC7: PersistentMap<ContractId, TvmStackTupleValueConcreteNew>
-    lateinit var contractIdToC7: PersistentMap<ContractId, C7Register>
+
+    /**
+     * We preserve the invariant that there is a single checker contract and it has a single
+     * global state. For this reason, we preserve c7 registers so we can restore the global variables
+     * between invocations of / returns to the handler
+     */
+    var checkerC7: C7Register? = null
     lateinit var contractIdToInitialData: Map<ContractId, TvmInitialStateData>
     lateinit var stack: TvmStack
     lateinit var initialInput: TvmInput
@@ -198,7 +204,7 @@ class TvmState(
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
             newState.contractIdToFirstElementOfC7 = contractIdToFirstElementOfC7
-            newState.contractIdToC7 = contractIdToC7
+            newState.checkerC7 = checkerC7
             newState.registersOfCurrentContract = registersOfCurrentContract.clone()
             newState.contractIdToC4Register = contractIdToC4Register
             newState.stack = stack.clone()

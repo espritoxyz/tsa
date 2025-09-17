@@ -553,14 +553,15 @@ fun initializeContractExecutionMemory(
     )
 }
 
-fun TvmState.contractEpilogue() {
+fun TvmState.contractEpilogue(isChecker: Boolean) {
     contractIdToFirstElementOfC7 =
         contractIdToFirstElementOfC7.put(
             currentContract,
             registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew,
         )
-    contractIdToC7 = contractIdToC7.put(currentContract, registersOfCurrentContract.c7)
-
+    if (isChecker) {
+        checkerC7 = registersOfCurrentContract.c7
+    }
     val commitedState =
         lastCommitedStateOfContracts[currentContract]
             ?: return
@@ -650,7 +651,7 @@ fun TvmState.callCheckerMethod(
 
     currentContract = checkerContractId
     registersOfCurrentContract = executionMemory.registers
-    val storedC7 = contractIdToC7.get(currentContract)
+    val storedC7 = checkerC7
     if (storedC7 != null) {
         registersOfCurrentContract.c7 = storedC7
     }
