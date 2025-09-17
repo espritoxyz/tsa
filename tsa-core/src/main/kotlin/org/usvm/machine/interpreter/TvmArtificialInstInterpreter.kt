@@ -236,18 +236,31 @@ class TvmArtificialInstInterpreter(
             }
 
             processNewMessages(scope, commitedState) { messages ->
-                val sentMessages = messages.map { (receiver, outMessage) ->
-                    TsaArtificialOnOutMessageHandlerCallInst.SentMessage(outMessage, receiver)
-                }
+                val sentMessages =
+                    messages.map { (receiver, outMessage) ->
+                        TsaArtificialOnOutMessageHandlerCallInst.SentMessage(outMessage, receiver)
+                    }
                 doWithState {
                     isExceptional = isExceptional || oldIsExceptional
-                    newStmt(TsaArtificialOnOutMessageHandlerCallInst(stmt.computePhaseResult, lastStmt.location, sentMessages))
+                    newStmt(
+                        TsaArtificialOnOutMessageHandlerCallInst(
+                            stmt.computePhaseResult,
+                            lastStmt.location,
+                            sentMessages,
+                        ),
+                    )
                 }
             }
         } else {
             scope.doWithState {
                 isExceptional = isExceptional || oldIsExceptional
-                newStmt(TsaArtificialOnOutMessageHandlerCallInst(stmt.computePhaseResult, lastStmt.location, sentMessages = emptyList()))
+                newStmt(
+                    TsaArtificialOnOutMessageHandlerCallInst(
+                        stmt.computePhaseResult,
+                        lastStmt.location,
+                        sentMessages = emptyList(),
+                    ),
+                )
             }
         }
     }
