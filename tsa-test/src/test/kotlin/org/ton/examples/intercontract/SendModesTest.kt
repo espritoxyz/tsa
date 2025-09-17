@@ -106,9 +106,9 @@ class SendModesTest {
         val options =
             TvmOptions(
                 intercontractOptions =
-                IntercontractOptions(
-                    communicationScheme = communicationScheme,
-                ),
+                    IntercontractOptions(
+                        communicationScheme = communicationScheme,
+                    ),
                 enableOutMessageAnalysis = true,
             )
 
