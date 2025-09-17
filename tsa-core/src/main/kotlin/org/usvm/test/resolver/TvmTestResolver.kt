@@ -72,8 +72,9 @@ data object TvmTestResolver {
                         executionEnd = entry.executionEnd,
                         contractId = entry.contractId,
                         incomingMessage = stateResolver.resolveReceivedMessage(entry.incomingMessage),
-                        methodResult = stateResolver.resolveResultStackImpl(entry.methodResult),
+                        methodResult = stateResolver.resolveResultStackImpl(entry.computePhaseResult),
                         gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
+                        computeFee = entry.computeFee?.let { stateResolver.resolveInt257(it) },
                     )
                 },
         )

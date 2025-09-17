@@ -1,5 +1,7 @@
 package org.usvm.machine.state
 
+import org.usvm.UExpr
+import org.usvm.machine.TvmContext
 import org.usvm.machine.state.messages.ReceivedMessage
 
 /**
@@ -39,5 +41,6 @@ data class TvmMessageDrivenContractExecutionEntry(
     val executionEnd: Int,
     val contractId: ContractId,
     val incomingMessage: ReceivedMessage,
-    val methodResult: TvmMethodResult,
+    val computePhaseResult: TvmMethodResult,
+    val computeFee: UExpr<TvmContext.TvmInt257Sort>?,
 ) : TvmEventLogEntry

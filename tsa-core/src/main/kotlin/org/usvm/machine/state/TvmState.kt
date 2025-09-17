@@ -105,6 +105,7 @@ class TvmState(
         get() = gasUsageHistory.size
     val currentEventId: EventId
         get() = currentPhaseBeginTime
+    var computeFeeUsed: UExpr<TvmContext.TvmInt257Sort>? = null
 
     override var isExceptional: Boolean = false
 

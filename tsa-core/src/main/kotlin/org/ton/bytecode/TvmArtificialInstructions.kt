@@ -69,6 +69,17 @@ data class TsaArtificialOnOutMessageHandlerCallInst(
     )
 }
 
+data class TsaArtificialOnComputePhaseExitInst(
+    val computePhaseResult: TvmMethodResult,
+    override val location: TvmInstLocation,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "on_compute_phase_exit"
+
+    init {
+        checkLocationInitialized()
+    }
+}
+
 @Serializable
 data class TsaArtificialBouncePhaseInst(
     val computePhaseResult: TvmMethodResult,

@@ -30,6 +30,11 @@ const val ON_EXTERNAL_MESSAGE_METHOD_ID = 97889
  */
 const val ON_OUT_MESSAGE_METHOD_ID = 71561
 
+/**
+ * This method's name is "on_compute_phase_exit"
+ */
+const val ON_COMPUTE_PHASE_EXIT_METHOD_ID = 69471
+
 const val MK_SYMBOLIC_INT_METHOD_ID = 100
 
 fun extractStackOperationsFromMethodId(methodId: Int): SimpleStackOperations? {
