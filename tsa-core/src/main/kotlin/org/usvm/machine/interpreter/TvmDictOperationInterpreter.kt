@@ -1537,6 +1537,12 @@ class TvmDictOperationInterpreter(
 
         val sliceValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
 
+        val valueRefs = scope.ctx.extractAddresses(sliceValue, extractAllocated = false, extractStatic = true)
+        valueRefs.forEach {
+            assertDictValueDoesNotOverflow(scope, dictId, it.second)
+                ?: return
+        }
+
         val unwrappedValue =
             unwrapDictValue(scope, sliceValue, valueType)
                 ?: return
@@ -1600,7 +1606,7 @@ class TvmDictOperationInterpreter(
             unwrapDictValue(scope, value, valueType)
                 ?: return
 
-        val valueRefs = scope.ctx.extractAddresses(value, extractAllocated = true, extractStatic = true)
+        val valueRefs = scope.ctx.extractAddresses(value, extractAllocated = false, extractStatic = true)
         valueRefs.forEach {
             assertDictValueDoesNotOverflow(scope, dictId, it.second)
                 ?: return
