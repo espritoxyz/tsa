@@ -3,6 +3,7 @@ package org.ton
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.usvm.machine.TvmContext
 import org.usvm.machine.state.ContractId
 
 @Serializable
@@ -16,6 +17,9 @@ data class TvmContractHandlers(
 ) {
     init {
         inOpcodeToDestination.keys.forEach {
+            check(it.length == TvmContext.OP_BYTES.toInt()) {
+                "Unexpected opcode length: $it"
+            }
         }
     }
 }
@@ -42,7 +46,15 @@ data class OpcodeToDestination(
      * If no values are given, leave the message unreceived.
      * */
     val other: List<ContractId> = emptyList(),
-) : DestinationDescription
+) : DestinationDescription {
+    init {
+        outOpcodeToDestination.keys.forEach {
+            check(it.length == TvmContext.OP_BYTES.toInt()) {
+                "Unexpected opcode length: $it"
+            }
+        }
+    }
+}
 
 fun communicationSchemeFromJson(json: String): Map<ContractId, TvmContractHandlers> =
     Json.decodeFromString<List<TvmContractHandlers>>(json).associateBy { it.id }
