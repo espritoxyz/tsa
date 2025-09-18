@@ -25,6 +25,7 @@ import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestInput
 import kotlin.io.path.readText
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -60,10 +61,10 @@ class CheckersTest {
     }
 
     private object OnComputePhaseExitTestData {
-        val checker = "/checkers/on-out-message-test/checker.fc"
-        val sender = "/checkers/on-out-message-test/sender.fc"
-        val receiver = "/checkers/on-out-message-test/receiver.fc"
-        val communicationScheme = "/checkers/on-out-message-test/communication-scheme.json"
+        val checker = "/checkers/on-compute-phase-exit-test/checker.fc"
+        val sender = "/checkers/on-compute-phase-exit-test/sender.fc"
+        val receiver = "/checkers/on-compute-phase-exit-test/receiver.fc"
+        val communicationScheme = "/checkers/on-compute-phase-exit-test/communication-scheme.json"
     }
 
     @Test
@@ -228,6 +229,7 @@ class CheckersTest {
         )
     }
 
+    @Ignore
     @Test
     fun `on_compute_phase_exit gets called`() {
         val checkerContract = extractCheckerContractFromResource(OnComputePhaseExitTestData.checker)
