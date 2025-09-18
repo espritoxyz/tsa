@@ -107,7 +107,6 @@ fun TvmState.setExit(methodResult: TvmMethodResult) {
         isExceptional = true
     }
     when (phase) {
-//        COMPUTE_PHASE -> newStmt(TsaArtificialActionPhaseInst(methodResult, lastStmt.location))
         COMPUTE_PHASE -> newStmt(TsaArtificialOnComputePhaseExitInst(methodResult, lastStmt.location))
         ACTION_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
         BOUNCE_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
@@ -636,13 +635,14 @@ fun TvmState.callCheckerMethodIfExists(
     val oldMemory = TvmContractExecutionMemory(stack, registersOfCurrentContract)
     contractStack =
         contractStack.add(
-            TvmContractPosition(
+            TvmEventInformation(
                 currentContract,
                 returnStmt,
                 oldMemory,
                 0,
                 currentEventId,
                 receivedMessage,
+                computeFeeUsed,
             ),
         )
     val executionMemory =

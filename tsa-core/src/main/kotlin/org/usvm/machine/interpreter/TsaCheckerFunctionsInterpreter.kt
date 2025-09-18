@@ -11,7 +11,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.C0Register
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmContractExecutionMemory
-import org.usvm.machine.state.TvmContractPosition
+import org.usvm.machine.state.TvmEventInformation
 import org.usvm.machine.state.TvmRegisters
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
@@ -369,13 +369,14 @@ class TsaCheckerFunctionsInterpreter(
 
         contractStack =
             contractStack.add(
-                TvmContractPosition(
+                TvmEventInformation(
                     currentContract,
                     stmt.nextStmt(),
                     oldMemory,
                     takeFromNewStack,
                     currentEventId,
                     receivedMessage,
+                    computeFeeUsed,
                 ),
             )
         currentPhaseBeginTime = pseudologicalTime

@@ -203,6 +203,10 @@ class TvmArtificialInstInterpreter(
         stmt: TsaArtificialOnComputePhaseExitInst,
     ) {
         scope.doWithState {
+            // A temporary solution. The more suitable solution would calculate
+            // `computeFeeUsed` as the state instructions are executed (possibly with some helper
+            // structures). When this happends, this comment and the line below must be deleted
+            computeFeeUsed = makeSymbolicPrimitive(ctx.int257sort)
             val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
             if (!wasCalled) {
                 newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
@@ -543,9 +547,7 @@ class TvmArtificialInstInterpreter(
                 return@doWithState
             }
 
-            val (prevContractId, currentInst, prevMem, expectedNumberOfOutputItems, eventId, receivedMessage) =
-                contractStack
-                    .last()
+            val previousEventState = contractStack.last()
             this.receivedMessage = receivedMessage
 
             // update global c4 and c7
@@ -560,21 +562,24 @@ class TvmArtificialInstInterpreter(
             val stackFromOtherContract = stack
 
             contractStack = contractStack.removeAt(contractStack.size - 1)
-            currentContract = prevContractId
+            currentContract = previousEventState.contractId
 
-            val prevStack = prevMem.stack
+            val prevStack = previousEventState.executionMemory.stack
             stack =
                 prevStack.clone() // we should not touch stack from contractStack, as it is contained in other states
+            val expectedNumberOfOutputItems = previousEventState.stackEntriesToTake
             stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
-            registersOfCurrentContract = prevMem.registers.clone() // like for stack, we shouldn't touch registers
+            registersOfCurrentContract =
+                previousEventState.executionMemory.registers.clone() // like for stack, we shouldn't touch registers
             val storedC7 = checkerC7
             val isReturnToChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
             if (storedC7 != null && isReturnToChecker) {
                 registersOfCurrentContract.c7 = storedC7
             }
-            currentPhaseBeginTime = eventId
+            currentPhaseBeginTime = previousEventState.contractId
             phase = COMPUTE_PHASE
-            newStmt(currentInst)
+            computeFeeUsed = previousEventState.computeFeeUsed
+            newStmt(previousEventState.inst)
         }
     }
 }

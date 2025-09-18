@@ -74,7 +74,7 @@ data object TvmTestResolver {
                         incomingMessage = stateResolver.resolveReceivedMessage(entry.incomingMessage),
                         methodResult = stateResolver.resolveResultStackImpl(entry.computePhaseResult),
                         gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
-                        computeFee = entry.computeFee?.let { stateResolver.resolveInt257(it) },
+                        computeFee = entry.computeFee.let { stateResolver.resolveInt257(it) },
                     )
                 },
         )
