@@ -145,7 +145,6 @@ data class KnownTypeTlbStackFrame(
     ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
         with(read.resolver.state.ctx) {
             val state = read.resolver.state
-            val model = read.resolver.model
             when (struct.typeLabel) {
                 is TlbCompositeLabel -> {
                     val newFrame =
@@ -161,7 +160,7 @@ data class KnownTypeTlbStackFrame(
 
                     val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
                     val contentSymbolic = state.memory.readField(read.address, field, field.getSort(this))
-                    val content = model.eval(contentSymbolic)
+                    val content = read.resolver.eval(contentSymbolic)
                     val bits = (content as? KBitVecValue)?.stringValue ?: error("Unexpected expr $content")
 
                     val newRead =
@@ -179,12 +178,12 @@ data class KnownTypeTlbStackFrame(
                 is TlbIntegerLabelOfSymbolicSize -> {
                     val typeArgs = struct.typeArgs(state, read.address, path)
                     val intSizeSymbolic = struct.typeLabel.bitSize(state.ctx, typeArgs)
-                    val intSize = model.eval(intSizeSymbolic).intValue()
+                    val intSize = read.resolver.eval(intSizeSymbolic).intValue()
                     check(read.leftBits >= intSize)
 
                     val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
                     val intValueSymbolic = state.memory.readField(read.address, field, field.getSort(this))
-                    val intValue = (model.eval(intValueSymbolic) as KBitVecValue<*>).stringValue
+                    val intValue = (read.resolver.eval(intValueSymbolic) as KBitVecValue<*>).stringValue
 
                     val intValueBinaryTrimmed = intValue.takeLast(intSize)
 

@@ -314,9 +314,13 @@ private fun resolveReceiveInternalInput(test: TvmSymbolicTest): TvmReceiveIntern
 
     val configHex = transformTestConfigIntoHex(test.config)
 
+    val address =
+        test.contractStatesBefore.values
+            .single()
+            .address.data
     val contractAddress =
-        extractAddress(test.contractAddress.data)
-            ?: error("Unexpected incorrect contract address ${test.contractAddress.data}")
+        extractAddress(address)
+            ?: error("Unexpected incorrect contract address $address")
     val srcAddress =
         extractAddress(input.srcAddress.cell.data)
             ?: error("Incorrect srcAddress ${input.srcAddress.cell.data}")
@@ -371,7 +375,11 @@ private fun resolveReceiveExternalInput(test: TvmSymbolicTest): TvmReceiveExtern
     val balance = test.initialRootContractBalance
 
     val contractAddress =
-        extractAddress(test.contractAddress.data)
+        extractAddress(
+            test.contractStatesBefore.values
+                .single()
+                .address.data,
+        )
             ?: error("Unexpected incorrect contract address")
 
     val result = test.result
