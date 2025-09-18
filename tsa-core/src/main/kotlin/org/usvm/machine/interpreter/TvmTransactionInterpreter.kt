@@ -125,19 +125,69 @@ class TvmTransactionInterpreter(
             }
 
             is OpcodeToDestination -> {
-                messages.forEach {
-                    val destinations =
-                        chooseHandlerBasedOnOpcode(
-                            it.msgBodySlice,
-                            handler.outOpcodeToDestination,
-                            handler.other,
-                            resolver,
-                            scope,
-                        )
-                }
+                val destinationVariants =
+                    messages.map {
+                        val (result, innerStatus) =
+                            chooseHandlerBasedOnOpcode(
+                                it.msgBodySlice,
+                                handler.outOpcodeToDestination,
+                                handler.other,
+                                resolver,
+                                scope,
+                            )
 
-                TODO()
+                        innerStatus ?: return
+
+                        result ?: listOf(null)
+                    }
+
+                val combinations = mutableListOf<List<ContractId?>>()
+                listAllCombinations(destinationVariants, combinations)
+
+                val actions =
+                    combinations.map { destinations ->
+                        val newMessagesForQueue = mutableListOf<Pair<ContractId, OutMessage>>()
+                        val newUnprocessedMessages = mutableListOf<OutMessage>()
+
+                        destinations.zip(messages).forEach { (destination, message) ->
+                            if (destination == null) {
+                                newUnprocessedMessages.add(message)
+                            } else {
+                                newMessagesForQueue.add(destination to message)
+                            }
+                        }
+
+                        TvmStepScopeManager.ActionOnCondition(
+                            caseIsExceptional = false,
+                            condition = ctx.trueExpr,
+                            paramForDoForAllBlock =
+                                ActionDestinationParsingResult(
+                                    newUnprocessedMessages,
+                                    newMessagesForQueue,
+                                ),
+                            action = {},
+                        )
+                    }
+
+                scope.doWithConditions(actions, restActions)
             }
+        }
+    }
+
+    private fun <T> listAllCombinations(
+        variants: List<List<T>>,
+        result: MutableList<List<T>>,
+        curResult: MutableList<T> = mutableListOf(),
+    ) {
+        if (curResult.size == variants.size) {
+            result.add(curResult.toList())
+            return
+        }
+        val index = curResult.size
+        variants[index].forEach { elem ->
+            curResult.add(elem)
+            listAllCombinations(variants, result, curResult)
+            curResult.removeLast()
         }
     }
 
