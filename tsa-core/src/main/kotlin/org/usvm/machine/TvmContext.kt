@@ -317,6 +317,7 @@ class TvmContext(
         val RECEIVE_EXTERNAL_ID: MethodId = (-1).toMethodId()
 
         const val OP_BITS: UInt = 32u
+        val OP_BYTES: UInt = OP_BITS / 4u
 
         const val TRUE_CONCRETE_VALUE = -1
         const val FALSE_CONCRETE_VALUE = 0

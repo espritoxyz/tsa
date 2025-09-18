@@ -230,21 +230,38 @@ class TvmArtificialInstInterpreter(
         }
 
         val analysisOfGetMethod = scope.calcOnState { analysisOfGetMethod }
-        var sentMessages = listOf<TsaArtificialOnOutMessageHandlerCallInst.SentMessage>()
         if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis) {
             scope.doWithState {
                 phase = ACTION_PHASE
             }
 
-            sentMessages = processNewMessages(scope, commitedState)?.map { (receiver, outMessage) ->
-                TsaArtificialOnOutMessageHandlerCallInst.SentMessage(outMessage, receiver)
+            processNewMessages(scope, commitedState) { messages ->
+                val sentMessages =
+                    messages.map { (receiver, outMessage) ->
+                        TsaArtificialOnOutMessageHandlerCallInst.SentMessage(outMessage, receiver)
+                    }
+                doWithState {
+                    isExceptional = isExceptional || oldIsExceptional
+                    newStmt(
+                        TsaArtificialOnOutMessageHandlerCallInst(
+                            stmt.computePhaseResult,
+                            lastStmt.location,
+                            sentMessages,
+                        ),
+                    )
+                }
             }
-                ?: return
-        }
-
-        scope.doWithState {
-            isExceptional = isExceptional || oldIsExceptional
-            newStmt(TsaArtificialOnOutMessageHandlerCallInst(stmt.computePhaseResult, lastStmt.location, sentMessages))
+        } else {
+            scope.doWithState {
+                isExceptional = isExceptional || oldIsExceptional
+                newStmt(
+                    TsaArtificialOnOutMessageHandlerCallInst(
+                        stmt.computePhaseResult,
+                        lastStmt.location,
+                        sentMessages = emptyList(),
+                    ),
+                )
+            }
         }
     }
 
@@ -507,26 +524,30 @@ class TvmArtificialInstInterpreter(
     private fun processNewMessages(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
-    ): List<Pair<ContractId?, OutMessage>>? {
-        val (newUnprocessedMessages, messageDestinations) =
-            transactionInterpreter.parseActionsToDestinations(scope, commitedState)
-                ?: return null
+        restActions: TvmStepScopeManager.(List<Pair<ContractId?, OutMessage>>) -> Unit,
+    ) {
+        transactionInterpreter.parseActionsToDestinations(
+            scope,
+            commitedState,
+        ) { (newUnprocessedMessages, messageDestinations) ->
+            doWithState {
+                messageQueue =
+                    messageQueue.addAll(
+                        messageDestinations.map { (receiver, message) ->
+                            ReceivedMessage.MessageFromOtherContract(
+                                ContractSender(currentContract, currentEventId),
+                                receiver,
+                                message,
+                            )
+                        },
+                    )
+                unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
+            }
 
-        scope.doWithState {
-            messageQueue =
-                messageQueue.addAll(
-                    messageDestinations.map { (receiver, message) ->
-                        ReceivedMessage.MessageFromOtherContract(
-                            ContractSender(currentContract, currentEventId),
-                            receiver,
-                            message,
-                        )
-                    },
-                )
-            unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
+            val messages = messageDestinations + newUnprocessedMessages.map { null to it }
+
+            restActions(messages)
         }
-
-        return messageDestinations + newUnprocessedMessages.map { null to it }
     }
 
     private fun processContractStackReturn(
