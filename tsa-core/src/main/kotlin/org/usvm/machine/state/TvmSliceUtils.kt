@@ -452,7 +452,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
         val stdConstraint = tag eq mkBv(STD_ADDRESS_TAG, ADDRESS_TAG_BITS)
         // workchain_id:int8
         val stdWorkchain = mkBvExtractExpr(high = prefixLen - 4, low = prefixLen - 11, data).signedExtendToInteger()
-        val stdWorkchainConstraint = (stdWorkchain eq baseChain) or (stdWorkchain eq masterchain)
+        val stdWorkchainConstraint = stdWorkchain eq baseChain
         val stdLength = mkSizeExpr(ADDRESS_TAG_LENGTH + 1 + STD_WORKCHAIN_BITS + ADDRESS_BITS)
 
         // addr_var$11

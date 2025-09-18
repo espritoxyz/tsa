@@ -106,7 +106,7 @@ class TvmMessageAddrInterpreter(
                     ?: TODO("Deal with incorrect address")
             sliceMoveDataPtr(copySlice, bits = STD_WORKCHAIN_BITS)
 
-            val workchainValueConstraint = (workchain eq baseChain) or (workchain eq masterchain)
+            val workchainValueConstraint = workchain eq baseChain
             scope.assert(
                 workchainValueConstraint,
                 unsatBlock = {
