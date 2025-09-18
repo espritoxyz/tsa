@@ -15,7 +15,6 @@ import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmTestInput
 import kotlin.io.path.readText
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -77,7 +76,6 @@ class IntercontractTest {
         assertContains(failedPaths, complexPathEndCode to complexPath)
     }
 
-    @Ignore("Consistency is not met")
     @Test
     fun intercontractConsistencyTest() {
         val pathSender = extractResource(intercontractConsistencySender)

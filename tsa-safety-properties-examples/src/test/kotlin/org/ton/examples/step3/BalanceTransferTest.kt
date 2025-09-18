@@ -12,7 +12,6 @@ import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import kotlin.io.path.readText
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -21,7 +20,6 @@ class BalanceTransferTest {
     private val checkerResourcePath = "/examples/step3/balance_transfer_checker.fc"
     private val intercontractSchemePath = "/examples/step3/wallet-intercontract-scheme.json"
 
-    @Ignore
     @Test
     fun testBalanceTransfer() {
         val walletContractPath = getResourcePath<BalanceTransferTest>(walletContractResourcePath)

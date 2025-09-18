@@ -5,6 +5,7 @@ import org.ton.LinearDestinations
 import org.ton.OpcodeToDestination
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.usvm.UBoolExpr
+import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
@@ -29,6 +30,7 @@ import org.usvm.machine.state.builderStoreSliceTransaction
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.getCellContractInfoParam
+import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.messages.OutMessage
 import org.usvm.machine.state.messages.getMsgBodySlice
@@ -42,10 +44,12 @@ import org.usvm.machine.state.slicePreloadAddrLengthWithoutSetException
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.slicePreloadExternalAddrLength
 import org.usvm.machine.state.slicePreloadNextRef
+import org.usvm.machine.state.slicesAreEqual
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestStateResolver
+import org.usvm.test.util.checkers.eq
 
 class TvmTransactionInterpreter(
     val ctx: TvmContext,
@@ -169,10 +173,41 @@ class TvmTransactionInterpreter(
                         )
                     }
 
-                scope.doWithConditions(actions, restActions)
+                scope.doWithConditions(actions) { param ->
+                    assertCorrectAddresses(this, param.messagesForQueue)
+                    restActions(param)
+                }
             }
         }
     }
+
+    private fun assertCorrectAddresses(
+        scope: TvmStepScopeManager,
+        newMessagesForQueue: List<Pair<ContractId, OutMessage>>,
+    ): Unit? =
+        with(scope.ctx) {
+            val constraint =
+                newMessagesForQueue.fold(trueExpr as UBoolExpr) { acc, (destinationContract, message) ->
+                    val destinationContractAddress =
+                        scope.calcOnState {
+                            (
+                                getContractInfoParamOf(
+                                    ADDRESS_PARAMETER_IDX,
+                                    destinationContract,
+                                ).cellValue as? UConcreteHeapRef
+                            )?.let { allocSliceFromCell(it) }
+                                ?: error("Cannot extract contract address")
+                        }
+
+                    val equality =
+                        scope.slicesAreEqual(destinationContractAddress, message.destAddrSlice)
+                            ?: return null
+
+                    acc and equality
+                }
+
+            return scope.assert(constraint)
+        }
 
     private fun <T> listAllCombinations(
         variants: List<List<T>>,

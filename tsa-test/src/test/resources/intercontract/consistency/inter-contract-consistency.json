@@ -1,15 +1,15 @@
 [
   {
     "id": 1,
-    "handlers": [
-      {
-        "op": "00000064",
-        "destinations": [2]
-      }
-    ]
+    "inOpcodeToDestination": {},
+    "other": {
+      "type": "out_opcodes",
+      "outOpcodeToDestination": {},
+      "other": [2]
+    }
   },
   {
     "id": 2,
-    "handlers": []
+    "inOpcodeToDestination": {}
   }
 ]
