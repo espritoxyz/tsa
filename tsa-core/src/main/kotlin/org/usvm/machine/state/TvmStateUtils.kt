@@ -8,9 +8,9 @@ import kotlinx.collections.immutable.toPersistentList
 import org.ton.bitstring.BitString
 import org.ton.bytecode.BALANCE_PARAMETER_IDX
 import org.ton.bytecode.MethodId
-import org.ton.bytecode.TsaArtificialActionPhaseInst
 import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TsaArtificialJmpToContInst
+import org.ton.bytecode.TsaArtificialOnComputePhaseExitInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCellValue
 import org.ton.bytecode.TvmExceptionContinuation
@@ -107,7 +107,7 @@ fun TvmState.setExit(methodResult: TvmMethodResult) {
         isExceptional = true
     }
     when (phase) {
-        COMPUTE_PHASE -> newStmt(TsaArtificialActionPhaseInst(methodResult, lastStmt.location))
+        COMPUTE_PHASE -> newStmt(TsaArtificialOnComputePhaseExitInst(methodResult, lastStmt.location))
         ACTION_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
         BOUNCE_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
         else -> error("Unexpected exit on phase: $phase")
@@ -609,10 +609,14 @@ fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort
         return address to workchain
     }
 
-fun TvmState.callCheckerMethod(
+/**
+ * @return null if the method was not called
+ */
+fun TvmState.callCheckerMethodIfExists(
     methodId: MethodId,
     returnStmt: TvmInst,
     contractsCode: List<TsaContractCode>,
+    pushArgumentsOnStack: TvmState.() -> Unit,
 ): Unit? {
     val checkerContractIds =
         contractsCode.mapIndexedNotNull { index, code ->
@@ -631,13 +635,14 @@ fun TvmState.callCheckerMethod(
     val oldMemory = TvmContractExecutionMemory(stack, registersOfCurrentContract)
     contractStack =
         contractStack.add(
-            TvmContractPosition(
+            TvmEventInformation(
                 currentContract,
                 returnStmt,
                 oldMemory,
                 0,
                 currentEventId,
                 receivedMessage,
+                computeFeeUsed,
             ),
         )
     val executionMemory =
@@ -655,6 +660,7 @@ fun TvmState.callCheckerMethod(
     if (storedC7 != null) {
         registersOfCurrentContract.c7 = storedC7
     }
+    pushArgumentsOnStack()
     switchDirectlyToMethodInContract(method)
     return Unit
 }

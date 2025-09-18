@@ -68,6 +68,13 @@ class CheckersTest {
         val communicationScheme = "/checkers/on-out-message-test/communication-scheme.json"
     }
 
+    private object OnComputePhaseExitTestData {
+        val checker = "/checkers/on-out-message-test/checker.fc"
+        val sender = "/checkers/on-out-message-test/sender.fc"
+        val receiver = "/checkers/on-out-message-test/receiver.fc"
+        val communicationScheme = "/checkers/on-out-message-test/communication-scheme.json"
+    }
+
     @Test
     fun testConsistentBalanceThroughChecker() {
         runTestConsistentBalanceThroughChecker(internalCallChecker, fetchedKeys = emptySet(), balancePath)
@@ -224,6 +231,26 @@ class CheckersTest {
             tests,
             listOf { test -> test.eventsList.all { it.methodResult.exitCode() !in listOf(300, 301) } },
         )
+        propertiesFound(
+            tests,
+            listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 400 } },
+        )
+    }
+
+    @Test
+    fun `on_compute_phase_exit gets called`() {
+        val checkerContract = extractCheckerContractFromResource(OnComputePhaseExitTestData.checker)
+        val senderContract = extractFuncContractFromResource(OnComputePhaseExitTestData.sender)
+        val receiverContract = extractFuncContractFromResource(OnComputePhaseExitTestData.receiver)
+        val communicationScheme = extractCommunicationSchemeFromResource(OnComputePhaseExitTestData.communicationScheme)
+        val options = createIntercontractOptions(communicationScheme)
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract, receiverContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
         propertiesFound(
             tests,
             listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 400 } },
@@ -475,7 +502,9 @@ class CheckersTest {
                     ((((test.additionalInputs[0] as? TvmTestInput.RecvInternalInput)?.msgBody)?.cell)?.data)
                         ?.startsWith(
                             "00000000000000000000000001100100" +
-                                getAddressBits("0:fd38d098511c43015e02cd185cfcac3befffa89a2a7f20d65440638a9475b9db"),
+                                getAddressBits(
+                                    "0:fd38d098511c43015e02cd185cfcac3befffa89a2a7f20d65440638a9475b9db",
+                                ),
                         ) == true
                 },
             ),

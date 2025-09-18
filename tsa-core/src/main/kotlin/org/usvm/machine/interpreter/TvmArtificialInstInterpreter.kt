@@ -10,9 +10,11 @@ import org.ton.bytecode.TsaArtificialImplicitRetInst
 import org.ton.bytecode.TsaArtificialInst
 import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TsaArtificialLoopEntranceInst
+import org.ton.bytecode.TsaArtificialOnComputePhaseExitInst
 import org.ton.bytecode.TsaArtificialOnOutMessageHandlerCallInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
+import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
@@ -36,7 +38,7 @@ import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderToCell
-import org.usvm.machine.state.callCheckerMethod
+import org.usvm.machine.state.callCheckerMethodIfExists
 import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
@@ -104,6 +106,11 @@ class TvmArtificialInstInterpreter(
                 visitOnOutMessageHandlerCall(scope, stmt)
             }
 
+            is TsaArtificialOnComputePhaseExitInst -> {
+                scope.consumeDefaultGas(stmt)
+                visitOnComputeExitPhase(scope, stmt)
+            }
+
             is TsaArtificialActionPhaseInst -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -132,31 +139,78 @@ class TvmArtificialInstInterpreter(
 
     fun <T> List<T>.splitHeadTail(): Pair<T, List<T>>? = if (isEmpty()) null else first() to drop(1)
 
+    private fun TvmState.doCallOnOutMessageIfRequired(stmt: TsaArtificialOnOutMessageHandlerCallInst): Unit? {
+        if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
+            return null
+        }
+        val (head, tail) =
+            stmt.sentMessages.splitHeadTail() ?: return null
+        val nextInst = stmt.copy(sentMessages = tail)
+        val currentContractToPush = currentContract
+        val pushArgsOnStack: TvmState.() -> Unit = {
+            with(ctx) {
+                stack.addCell(head.message.fullMsgCell)
+                stack.addSlice(head.message.msgBodySlice)
+                stack.addInt(currentContractToPush.toBv257()) // sender
+                stack.addInt((head.receiver ?: -1).toBv257()) // receiver
+            }
+        }
+
+        return callCheckerMethodIfExists(
+            ON_OUT_MESSAGE_METHOD_ID.toBigInteger(),
+            nextInst,
+            contractsCode,
+            pushArgsOnStack,
+        )
+    }
+
     private fun visitOnOutMessageHandlerCall(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialOnOutMessageHandlerCallInst,
     ) {
         scope.doWithState {
-            if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
+            val wasCalled = doCallOnOutMessageIfRequired(stmt) != null
+            if (!wasCalled) {
                 newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
-                return@doWithState
             }
-            val (head, tail) =
-                stmt.sentMessages.splitHeadTail() ?: return@doWithState run {
-                    newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
-                }
-            val nextInst = stmt.copy(sentMessages = tail)
-            with(ctx) {
-                stack.addCell(head.message.fullMsgCell)
-                stack.addSlice(head.message.msgBodySlice)
-                stack.addInt(currentContract.toBv257()) // sender
-                stack.addInt((head.receiver ?: -1).toBv257()) // receiver
-            }
+        }
+    }
 
-            callCheckerMethod(ON_OUT_MESSAGE_METHOD_ID.toBigInteger(), nextInst, contractsCode)
-                ?: return@doWithState run {
-                    newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
+    private fun TvmState.doCallOnComputeExitIfNecessary(stmt: TsaArtificialOnComputePhaseExitInst): Unit? =
+        with(ctx) {
+            if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
+                return null
+            }
+            val correspondingSymbol = makeSymbolicPrimitive(int257sort)
+            computeFeeUsed = correspondingSymbol
+            val pushArgsOnStack: TvmState.() -> Unit = {
+                with(ctx) {
+                    stack.addInt(correspondingSymbol)
+                    stack.addInt(currentContract.toBv257())
                 }
+            }
+            val nextInst = TsaArtificialActionPhaseInst(stmt.computePhaseResult, stmt.location)
+            return callCheckerMethodIfExists(
+                ON_COMPUTE_PHASE_EXIT_METHOD_ID.toBigInteger(),
+                nextInst,
+                contractsCode,
+                pushArgsOnStack,
+            )
+        }
+
+    private fun visitOnComputeExitPhase(
+        scope: TvmStepScopeManager,
+        stmt: TsaArtificialOnComputePhaseExitInst,
+    ) {
+        scope.doWithState {
+            // A temporary solution. The more suitable solution would calculate
+            // `computeFeeUsed` as the state instructions are executed (possibly with some helper
+            // structures). When this happends, this comment and the line below must be deleted
+            computeFeeUsed = makeSymbolicPrimitive(ctx.int257sort)
+            val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
+            if (!wasCalled) {
+                newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
+            }
         }
     }
 
@@ -352,7 +406,8 @@ class TvmArtificialInstInterpreter(
                             executionEnd = pseudologicalTime,
                             contractId = currentContract,
                             incomingMessage = receivedMessage,
-                            methodResult = methodResult,
+                            computePhaseResult = methodResult,
+                            computeFee = computeFeeUsed,
                         ),
                     )
             }
@@ -492,9 +547,7 @@ class TvmArtificialInstInterpreter(
                 return@doWithState
             }
 
-            val (prevContractId, currentInst, prevMem, expectedNumberOfOutputItems, eventId, receivedMessage) =
-                contractStack
-                    .last()
+            val previousEventState = contractStack.last()
             this.receivedMessage = receivedMessage
 
             // update global c4 and c7
@@ -509,21 +562,24 @@ class TvmArtificialInstInterpreter(
             val stackFromOtherContract = stack
 
             contractStack = contractStack.removeAt(contractStack.size - 1)
-            currentContract = prevContractId
+            currentContract = previousEventState.contractId
 
-            val prevStack = prevMem.stack
+            val prevStack = previousEventState.executionMemory.stack
             stack =
                 prevStack.clone() // we should not touch stack from contractStack, as it is contained in other states
+            val expectedNumberOfOutputItems = previousEventState.stackEntriesToTake
             stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
-            registersOfCurrentContract = prevMem.registers.clone() // like for stack, we shouldn't touch registers
+            registersOfCurrentContract =
+                previousEventState.executionMemory.registers.clone() // like for stack, we shouldn't touch registers
             val storedC7 = checkerC7
             val isReturnToChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
             if (storedC7 != null && isReturnToChecker) {
                 registersOfCurrentContract.c7 = storedC7
             }
-            currentPhaseBeginTime = eventId
+            currentPhaseBeginTime = previousEventState.contractId
             phase = COMPUTE_PHASE
-            newStmt(currentInst)
+            computeFeeUsed = previousEventState.computeFeeUsed
+            newStmt(previousEventState.inst)
         }
     }
 }

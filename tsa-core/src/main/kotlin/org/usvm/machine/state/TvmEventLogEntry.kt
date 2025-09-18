@@ -1,5 +1,7 @@
 package org.usvm.machine.state
 
+import org.usvm.UExpr
+import org.usvm.machine.TvmContext
 import org.usvm.machine.state.messages.ReceivedMessage
 
 /**
@@ -13,10 +15,10 @@ typealias EventId = Int
 /**
  * When smart contracts on TON network are executed, they follow the actor model ---
  * that is, each contract is being triggered by some message and at the end of execution
- * (at the compute phase) it sends zero or more messages to other contract.
+ * (at the action phase) it sends zero or more messages to other contract.
  * Thus, the tree of contracts can be constructed, where a directed edge implies a sent message,
  * each node is labeled with the contract executed (multiple nodes might have the same contract) and the
- * contract execution result. In such a tree, each node has zero or one incoming edges.
+ * contract execution result (i.e. an exit code). In such a tree, each node has zero or one incoming edges.
  *
  * We will call an *event* a node of such a tree with an incoming edge. The corresponding class contains
  * the data from the mentioned graph objects.
@@ -39,5 +41,6 @@ data class TvmMessageDrivenContractExecutionEntry(
     val executionEnd: Int,
     val contractId: ContractId,
     val incomingMessage: ReceivedMessage,
-    val methodResult: TvmMethodResult,
+    val computePhaseResult: TvmMethodResult,
+    val computeFee: UExpr<TvmContext.TvmInt257Sort>,
 ) : TvmEventLogEntry

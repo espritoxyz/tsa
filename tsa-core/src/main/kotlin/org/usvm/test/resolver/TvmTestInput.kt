@@ -77,4 +77,5 @@ data class TvmMessageDrivenContractExecutionTestEntry(
     val incomingMessage: TvmTestInput.ReceivedTestMessage,
     val methodResult: TvmMethodSymbolicResult,
     val gasUsageHistory: Int,
+    val computeFee: TvmTestIntegerValue?,
 )

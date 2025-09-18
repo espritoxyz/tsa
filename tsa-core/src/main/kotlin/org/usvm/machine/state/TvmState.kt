@@ -72,7 +72,7 @@ class TvmState(
     val globalStructuralConstraintsHolder: GlobalStructuralConstraintsHolder = GlobalStructuralConstraintsHolder(),
     val fieldManagers: TvmFieldManagers = TvmFieldManagers(ctx),
     var allowFailures: Boolean = true, // new value starts being active only from the next step
-    var contractStack: PersistentList<TvmContractPosition> = persistentListOf(),
+    var contractStack: PersistentList<TvmEventInformation> = persistentListOf(),
     var currentContract: ContractId,
     var fetchedValues: PersistentMap<Int, TvmStack.TvmStackEntry> = persistentMapOf(),
     var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
@@ -105,6 +105,7 @@ class TvmState(
         get() = gasUsageHistory.size
     val currentEventId: EventId
         get() = currentPhaseBeginTime
+    var computeFeeUsed: UExpr<TvmContext.TvmInt257Sort> = ctx.zeroValue
 
     override var isExceptional: Boolean = false
 
@@ -252,16 +253,19 @@ data class TvmCommitedState(
 )
 
 /**
+ * Represents a state of an event (for the definition see [TvmEventLogEntry]).
  * @param inst is the first instruction to be executed when we pop the `TvmContractPosition` from the stack
- * @param stackEntriesToTake number of entries to fetch from the upper contract (from the point of [TvmState.contractStack]) when it exited
+ * @param stackEntriesToTake number of entries to fetch from the upper contract
+ * (from the point of [TvmState.contractStack]) when it exited
  */
-data class TvmContractPosition(
+data class TvmEventInformation(
     val contractId: ContractId,
     val inst: TvmInst,
     val executionMemory: TvmContractExecutionMemory,
     val stackEntriesToTake: Int,
     val eventId: EventId,
     val receivedMessage: ReceivedMessage?,
+    val computeFeeUsed: UExpr<TvmContext.TvmInt257Sort>,
 )
 
 data class TvmContractExecutionMemory(
