@@ -7,13 +7,9 @@ import org.ton.FixedSizeDataLabel
 import org.ton.TlbAddressByRef
 import org.ton.TlbAtomicLabel
 import org.ton.TlbBitArrayByRef
-import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCompositeLabel
-import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
-import org.ton.TlbInternalShortStdMsgAddrLabel
-import org.ton.TlbInternalStdMsgAddrLabel
 import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
@@ -23,7 +19,6 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
@@ -238,65 +233,71 @@ data class KnownTypeTlbStackFrame(
         cellRef: UConcreteHeapRef,
         otherFrame: TlbStackFrame,
         otherCellRef: UConcreteHeapRef,
-    ): Pair<UBoolExpr?, Unit?> = with(scope.ctx) {
-        if (otherFrame !is KnownTypeTlbStackFrame || struct.typeLabel != otherFrame.struct.typeLabel) {
-            return null to Unit
-        }
-
-        if (struct.typeLabel.arity != 0) {
-            return null to Unit
-        }
-
-        val curGuard = when (struct.typeLabel) {
-            is FixedSizeDataLabel -> {
-                val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
-                val content = scope.calcOnState {
-                    memory.readField(cellRef, field, field.getSort(ctx))
-                }
-
-                val fieldOther =
-                    ConcreteSizeBlockField(struct.typeLabel.concreteSize, otherFrame.struct.id, otherFrame.path)
-                val contentOther = scope.calcOnState {
-                    memory.readField(otherCellRef, field, fieldOther.getSort(ctx))
-                }
-
-                content eq contentOther
-            }
-
-            is TlbAddressByRef, is TlbBitArrayByRef -> {
-                val field = SliceRefField(struct.id, path)
-                val slice = scope.calcOnState {
-                    memory.readField(cellRef, field, field.getSort(ctx))
-                }
-
-                val fieldOther = SliceRefField(otherFrame.struct.id, otherFrame.path)
-                val sliceOther = scope.calcOnState {
-                    memory.readField(otherCellRef, fieldOther, fieldOther.getSort(ctx))
-                }
-
-                scope.slicesAreEqual(slice, sliceOther)
-                    ?: return null to null
-            }
-
-            is TlbIntegerLabelOfSymbolicSize, is TlbCompositeLabel -> {
+    ): Pair<UBoolExpr?, Unit?> =
+        with(scope.ctx) {
+            if (otherFrame !is KnownTypeTlbStackFrame || struct.typeLabel != otherFrame.struct.typeLabel) {
                 return null to Unit
             }
+
+            if (struct.typeLabel.arity != 0) {
+                return null to Unit
+            }
+
+            val curGuard =
+                when (struct.typeLabel) {
+                    is FixedSizeDataLabel -> {
+                        val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
+                        val content =
+                            scope.calcOnState {
+                                memory.readField(cellRef, field, field.getSort(ctx))
+                            }
+
+                        val fieldOther =
+                            ConcreteSizeBlockField(struct.typeLabel.concreteSize, otherFrame.struct.id, otherFrame.path)
+                        val contentOther =
+                            scope.calcOnState {
+                                memory.readField(otherCellRef, field, fieldOther.getSort(ctx))
+                            }
+
+                        content eq contentOther
+                    }
+
+                    is TlbAddressByRef, is TlbBitArrayByRef -> {
+                        val field = SliceRefField(struct.id, path)
+                        val slice =
+                            scope.calcOnState {
+                                memory.readField(cellRef, field, field.getSort(ctx))
+                            }
+
+                        val fieldOther = SliceRefField(otherFrame.struct.id, otherFrame.path)
+                        val sliceOther =
+                            scope.calcOnState {
+                                memory.readField(otherCellRef, fieldOther, fieldOther.getSort(ctx))
+                            }
+
+                        scope.slicesAreEqual(slice, sliceOther)
+                            ?: return null to null
+                    }
+
+                    is TlbIntegerLabelOfSymbolicSize, is TlbCompositeLabel -> {
+                        return null to Unit
+                    }
+                }
+
+            val nextFrame1 = buildFrameForStructure(this, struct, path, leftTlbDepth)
+            val nextFrame2 = buildFrameForStructure(this, otherFrame.struct, otherFrame.path, otherFrame.leftTlbDepth)
+
+            if (nextFrame1 == null && nextFrame2 == null) {
+                return curGuard to Unit
+            }
+
+            nextFrame1 ?: return null to Unit
+            nextFrame2 ?: return null to Unit
+
+            val (further, status) = nextFrame1.compareWithOtherFrame(scope, cellRef, nextFrame2, otherCellRef)
+
+            status ?: return null to null
+
+            return further?.let { curGuard and it } to Unit
         }
-
-        val nextFrame1 = buildFrameForStructure(this, struct, path, leftTlbDepth)
-        val nextFrame2 = buildFrameForStructure(this, otherFrame.struct, otherFrame.path, otherFrame.leftTlbDepth)
-
-        if (nextFrame1 == null && nextFrame2 == null) {
-            return curGuard to Unit
-        }
-
-        nextFrame1 ?: return null to Unit
-        nextFrame2 ?: return null to Unit
-
-        val (further, status) = nextFrame1.compareWithOtherFrame(scope, cellRef, nextFrame2, otherCellRef)
-
-        status ?: return null to null
-
-        return further?.let { curGuard and it } to Unit
-    }
 }

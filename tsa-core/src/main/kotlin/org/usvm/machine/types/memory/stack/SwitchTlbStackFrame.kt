@@ -157,8 +157,6 @@ data class SwitchTlbStackFrame(
         scope: TvmStepScopeManager,
         cellRef: UConcreteHeapRef,
         otherFrame: TlbStackFrame,
-        otherCellRef: UConcreteHeapRef
-    ): Pair<UBoolExpr?, Unit?> {
-        return null to Unit
-    }
+        otherCellRef: UConcreteHeapRef,
+    ): Pair<UBoolExpr?, Unit?> = null to Unit
 }
