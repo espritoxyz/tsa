@@ -67,6 +67,11 @@ class CheckersTest {
         val communicationScheme = "/checkers/on-compute-phase-exit-test/communication-scheme.json"
     }
 
+    private object OnComputePhaseExitStopOnFirstErrorTestData {
+        val checker = "/checkers/on-compute-phase-exit-stop-on-first-error-test/checker.fc"
+        val sender = "/checkers/on-compute-phase-exit-stop-on-first-error-test/sender.fc"
+    }
+
     @Test
     fun testConsistentBalanceThroughChecker() {
         runTestConsistentBalanceThroughChecker(internalCallChecker, fetchedKeys = emptySet(), balancePath)
@@ -237,6 +242,29 @@ class CheckersTest {
     @Test
     fun `on_compute_phase_exit gets called with exception`() {
         onComputePhaseBaseTest(OnComputePhaseExitTestData.receiverThrow)
+    }
+
+    @Test
+    fun `on_compute_phase_exit isn't called with exception when stopFirstError == true`() {
+        val checkerContract = extractCheckerContractFromResource(OnComputePhaseExitStopOnFirstErrorTestData.checker)
+        val senderContract = extractFuncContractFromResource(OnComputePhaseExitStopOnFirstErrorTestData.sender)
+        val options = TvmOptions(stopOnFirstError = true)
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        propertiesFound(
+            tests,
+            listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 300 } },
+        )
+        checkInvariants(
+            tests,
+            listOf { test -> test.eventsList.all { it.methodResult.exitCode() !in listOf(400, 401) } },
+        )
     }
 
     private fun onComputePhaseBaseTest(receiverContractPath: String) {

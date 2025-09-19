@@ -210,8 +210,13 @@ class TvmArtificialInstInterpreter(
             // `computeFeeUsed` as the state instructions are executed (possibly with some helper
             // structures). When this happends, this comment and the line below must be deleted
             computeFeeUsed = makeSymbolicPrimitive(ctx.int257sort)
-            val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
-            if (!wasCalled) {
+            val shouldNotCall = scope.ctx.tvmOptions.stopOnFirstError && isExceptional
+            if (!shouldNotCall) {
+                val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
+                if (!wasCalled) {
+                    newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
+                }
+            } else {
                 newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
             }
         }
