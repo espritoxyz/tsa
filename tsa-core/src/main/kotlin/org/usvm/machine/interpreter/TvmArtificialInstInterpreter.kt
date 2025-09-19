@@ -20,6 +20,7 @@ import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmCommitedState
+import org.usvm.machine.state.TvmEventInformation
 import org.usvm.machine.state.TvmMessageDrivenContractExecutionEntry
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
@@ -29,6 +30,7 @@ import org.usvm.machine.state.TvmPhase.ACTION_PHASE
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.EXIT_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
+import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
@@ -181,12 +183,13 @@ class TvmArtificialInstInterpreter(
             if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
                 return null
             }
-            val correspondingSymbol = makeSymbolicPrimitive(int257sort)
+            val correspondingSymbol = computeFeeUsed
             computeFeeUsed = correspondingSymbol
+            val caleeContract = currentContract
             val pushArgsOnStack: TvmState.() -> Unit = {
                 with(ctx) {
                     stack.addInt(correspondingSymbol)
-                    stack.addInt(currentContract.toBv257())
+                    stack.addInt(caleeContract.toBv257())
                 }
             }
             val nextInst = TsaArtificialActionPhaseInst(stmt.computePhaseResult, stmt.location)
@@ -207,8 +210,13 @@ class TvmArtificialInstInterpreter(
             // `computeFeeUsed` as the state instructions are executed (possibly with some helper
             // structures). When this happends, this comment and the line below must be deleted
             computeFeeUsed = makeSymbolicPrimitive(ctx.int257sort)
-            val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
-            if (!wasCalled) {
+            val shouldNotCall = scope.ctx.tvmOptions.stopOnFirstError && isExceptional
+            if (!shouldNotCall) {
+                val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
+                if (!wasCalled) {
+                    newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
+                }
+            } else {
                 newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
             }
         }
@@ -568,7 +576,6 @@ class TvmArtificialInstInterpreter(
                 return@doWithState
             }
 
-            val previousEventState = contractStack.last()
             this.receivedMessage = receivedMessage
 
             // update global c4 and c7
@@ -582,25 +589,34 @@ class TvmArtificialInstInterpreter(
 
             val stackFromOtherContract = stack
 
+            val previousEventState = contractStack.last()
             contractStack = contractStack.removeAt(contractStack.size - 1)
-            currentContract = previousEventState.contractId
-
-            val prevStack = previousEventState.executionMemory.stack
-            stack =
-                prevStack.clone() // we should not touch stack from contractStack, as it is contained in other states
-            val expectedNumberOfOutputItems = previousEventState.stackEntriesToTake
-            stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
-            registersOfCurrentContract =
-                previousEventState.executionMemory.registers.clone() // like for stack, we shouldn't touch registers
-            val storedC7 = checkerC7
-            val isReturnToChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
-            if (storedC7 != null && isReturnToChecker) {
-                registersOfCurrentContract.c7 = storedC7
-            }
-            currentPhaseBeginTime = previousEventState.contractId
-            phase = COMPUTE_PHASE
-            computeFeeUsed = previousEventState.computeFeeUsed
+            restorePreviousState(previousEventState, stackFromOtherContract)
             newStmt(previousEventState.inst)
         }
+    }
+
+    private fun TvmState.restorePreviousState(
+        previousEventState: TvmEventInformation,
+        stackFromOtherContract: TvmStack,
+    ) {
+        currentContract = previousEventState.contractId
+
+        val prevStack = previousEventState.executionMemory.stack
+        stack =
+            prevStack.clone() // we should not touch stack from contractStack, as it is contained in other states
+        val expectedNumberOfOutputItems = previousEventState.stackEntriesToTake
+        stack.takeValuesFromOtherStack(stackFromOtherContract, expectedNumberOfOutputItems)
+        registersOfCurrentContract =
+            previousEventState.executionMemory.registers.clone() // like for stack, we shouldn't touch registers
+        val storedC7 = checkerC7
+        val isReturnToChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
+        if (storedC7 != null && isReturnToChecker) {
+            registersOfCurrentContract.c7 = storedC7
+        }
+        currentPhaseBeginTime = previousEventState.contractId
+        phase = COMPUTE_PHASE
+        computeFeeUsed = previousEventState.computeFeeUsed
+        isExceptional = previousEventState.isExceptional
     }
 }

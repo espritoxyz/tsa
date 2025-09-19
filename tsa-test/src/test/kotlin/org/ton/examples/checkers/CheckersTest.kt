@@ -25,7 +25,6 @@ import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestInput
 import kotlin.io.path.readText
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -63,8 +62,14 @@ class CheckersTest {
     private object OnComputePhaseExitTestData {
         val checker = "/checkers/on-compute-phase-exit-test/checker.fc"
         val sender = "/checkers/on-compute-phase-exit-test/sender.fc"
-        val receiver = "/checkers/on-compute-phase-exit-test/receiver.fc"
+        val receiverNoThrow = "/checkers/on-compute-phase-exit-test/receiver-nothrow.fc"
+        val receiverThrow = "/checkers/on-compute-phase-exit-test/receiver-throw.fc"
         val communicationScheme = "/checkers/on-compute-phase-exit-test/communication-scheme.json"
+    }
+
+    private object OnComputePhaseExitStopOnFirstErrorTestData {
+        val checker = "/checkers/on-compute-phase-exit-stop-on-first-error-test/checker.fc"
+        val sender = "/checkers/on-compute-phase-exit-stop-on-first-error-test/sender.fc"
     }
 
     @Test
@@ -229,12 +234,43 @@ class CheckersTest {
         )
     }
 
-    @Ignore
     @Test
-    fun `on_compute_phase_exit gets called`() {
+    fun `on_compute_phase_exit gets called without exception`() {
+        onComputePhaseBaseTest(OnComputePhaseExitTestData.receiverNoThrow)
+    }
+
+    @Test
+    fun `on_compute_phase_exit gets called with exception`() {
+        onComputePhaseBaseTest(OnComputePhaseExitTestData.receiverThrow)
+    }
+
+    @Test
+    fun `on_compute_phase_exit isn't called with exception when stopFirstError == true`() {
+        val checkerContract = extractCheckerContractFromResource(OnComputePhaseExitStopOnFirstErrorTestData.checker)
+        val senderContract = extractFuncContractFromResource(OnComputePhaseExitStopOnFirstErrorTestData.sender)
+        val options = TvmOptions(stopOnFirstError = true)
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        propertiesFound(
+            tests,
+            listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 300 } },
+        )
+        checkInvariants(
+            tests,
+            listOf { test -> test.eventsList.all { it.methodResult.exitCode() !in listOf(400, 401) } },
+        )
+    }
+
+    private fun onComputePhaseBaseTest(receiverContractPath: String) {
         val checkerContract = extractCheckerContractFromResource(OnComputePhaseExitTestData.checker)
         val senderContract = extractFuncContractFromResource(OnComputePhaseExitTestData.sender)
-        val receiverContract = extractFuncContractFromResource(OnComputePhaseExitTestData.receiver)
+        val receiverContract = extractFuncContractFromResource(receiverContractPath)
         val communicationScheme = extractCommunicationSchemeFromResource(OnComputePhaseExitTestData.communicationScheme)
         val options = createIntercontractOptions(communicationScheme)
         val tests =
