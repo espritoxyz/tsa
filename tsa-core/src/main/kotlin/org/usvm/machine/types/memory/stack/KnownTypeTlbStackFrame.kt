@@ -256,7 +256,7 @@ data class KnownTypeTlbStackFrame(
                             ConcreteSizeBlockField(struct.typeLabel.concreteSize, otherFrame.struct.id, otherFrame.path)
                         val contentOther =
                             scope.calcOnState {
-                                memory.readField(otherCellRef, field, fieldOther.getSort(ctx))
+                                memory.readField(otherCellRef, fieldOther, fieldOther.getSort(ctx))
                             }
 
                         content eq contentOther
@@ -284,8 +284,8 @@ data class KnownTypeTlbStackFrame(
                     }
                 }
 
-            val nextFrame1 = buildFrameForStructure(this, struct, path, leftTlbDepth)
-            val nextFrame2 = buildFrameForStructure(this, otherFrame.struct, otherFrame.path, otherFrame.leftTlbDepth)
+            val nextFrame1 = buildFrameForStructure(this, struct.rest, path, leftTlbDepth)
+            val nextFrame2 = buildFrameForStructure(this, otherFrame.struct.rest, otherFrame.path, otherFrame.leftTlbDepth)
 
             if (nextFrame1 == null && nextFrame2 == null) {
                 return curGuard to Unit

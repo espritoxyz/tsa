@@ -58,7 +58,7 @@ sealed interface FixedSizeDataLabel {
     val concreteSize: Int
 }
 
-class TlbBitArrayOfConcreteSize(
+data class TlbBitArrayOfConcreteSize(
     override val concreteSize: Int,
 ) : TlbAtomicLabel(),
     TlbResolvedBuiltinLabel,
@@ -71,14 +71,14 @@ class TlbBitArrayOfConcreteSize(
 }
 
 // only for builders
-class TlbBitArrayByRef(
+data class TlbBitArrayByRef(
     val sizeBits: UExpr<TvmSizeSort>,
 ) : TlbAtomicLabel(),
     TlbBuiltinLabel {
     override val arity: Int = 0
 }
 
-class TlbIntegerLabelOfConcreteSize(
+data class TlbIntegerLabelOfConcreteSize(
     override val concreteSize: Int,
     override val isSigned: Boolean,
     override val endian: Endian,
@@ -112,7 +112,7 @@ data object TlbEmptyLabel : TlbCompositeLabel("") {
 sealed interface TlbMsgAddrLabel : TlbResolvedBuiltinLabel
 
 // only for builders
-class TlbAddressByRef(
+data class TlbAddressByRef(
     val sizeBits: UExpr<TvmSizeSort>,
 ) : TlbAtomicLabel(),
     TlbBuiltinLabel,
