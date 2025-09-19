@@ -314,7 +314,13 @@ class TvmArtificialInstInterpreter(
                 // TODO fill the ihrFee, msgValue, ... with reasonable values
                 val content =
                     RecvInternalInput.MessageContent(
-                        flags = 0b0101.toBv257(),
+                        flags =
+                            RecvInternalInput.Flags(
+                                intMsgInfo = 0.toBv257(),
+                                ihrDisabled = 1.toBv257(),
+                                bounce = 0.toBv257(),
+                                bounced = 1.toBv257(),
+                            ),
                         srcAddressSlice = oldMessage.destAddrSlice,
                         dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationCell) },
                         msgValue = zeroValue,

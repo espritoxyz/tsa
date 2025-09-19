@@ -84,12 +84,19 @@ data class StepError(
     val error: TvmStructuralError?,
 ) : StackFrameStepResult<Nothing>
 
+/**
+ * Represents that the top frame must be replaced by [frame] parameter
+ */
 data class NextFrame(
     val frame: TlbStackFrame,
 ) : StackFrameStepResult<Nothing>
 
 data object EndOfStackFrame : StackFrameStepResult<Nothing>
 
+/**
+ * @param loadData the action that must be applied to the stack that was created after partially the partial loading
+ * that spans across multiple Tlb frames.
+ */
 data class PassLoadToNextFrame<ReadResult : TvmCellDataTypeReadValue>(
     val loadData: LimitedLoadData<ReadResult>,
 ) : StackFrameStepResult<ReadResult>

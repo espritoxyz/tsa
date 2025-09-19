@@ -18,7 +18,7 @@ import org.usvm.machine.types.TvmAddressToLabelMapper
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UWritableMemory
-import org.usvm.utils.extractAddresses
+import org.usvm.utils.flattenReferenceIte
 
 class TvmCellDataFieldManager(
     private val ctx: TvmContext,
@@ -89,7 +89,7 @@ class TvmCellDataFieldManager(
         cellRef: UHeapRef,
     ): UExpr<TvmContext.TvmCellDataSort>? =
         with(ctx) {
-            val staticRefs = extractAddresses(cellRef, extractAllocated = false, extractStatic = true)
+            val staticRefs = flattenReferenceIte(cellRef, extractAllocated = false, extractStatic = true)
 
             val newRefs = staticRefs.map { it.second }.filter { it.address !in addressesWithAssertedCellData }
             addressesWithAssertedCellData = addressesWithAssertedCellData.addAll(newRefs.map { it.address })
@@ -112,7 +112,7 @@ class TvmCellDataFieldManager(
         state: TvmState,
         cellRef: UHeapRef,
     ) = with(ctx) {
-        val staticRefs = extractAddresses(cellRef, extractAllocated = false, extractStatic = true)
+        val staticRefs = flattenReferenceIte(cellRef, extractAllocated = false, extractStatic = true)
         addressesWithRequestedCellDataField =
             addressesWithRequestedCellDataField.addAll(staticRefs.map { it.second.address })
 
