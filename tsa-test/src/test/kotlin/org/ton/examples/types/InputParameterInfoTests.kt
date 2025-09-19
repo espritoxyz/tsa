@@ -14,6 +14,8 @@ import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo.DataCellInfo
 import org.ton.TvmParameterInfo.SliceInfo
 import org.ton.bytecode.MethodId
+import org.ton.test.gen.dsl.render.TsRenderer
+import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
@@ -86,6 +88,7 @@ class InputParameterInfoTests {
     private val zeroCoinsPath = "/types/c4/zero_coins.fc"
     private val constIntAfterCoinsPath = "/types/c4/const_int_after_coins.fc"
     private val readStoredConstAddrNonePath = "/types/read_stored_const_addr_none.fc"
+    private val storeAndComparePath = "/types/store_and_compare.fc"
 
     @Test
     fun testCorrectMaybe() {
@@ -1876,5 +1879,36 @@ class InputParameterInfoTests {
                 (test.result as? TvmExecutionWithStructuralError)?.exit is TvmUnexpectedRefReading
             },
         )
+    }
+
+    @Test
+    fun testEqualityAfterStore() {
+        val path = extractResource(storeAndComparePath)
+
+        val results =
+            funcCompileAndAnalyzeAllMethods(
+                path,
+                tvmOptions =
+                    TvmOptions(
+                        performAdditionalChecksWhileResolving = true,
+                        tlbOptions =
+                        TlbOptions(
+                            performTlbChecksOnAllocatedCells = true,
+                        ),
+                    ),
+            )
+
+        val tests = results.first { it.methodId == MethodId.ZERO }
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+            )
+        )
+
+        TvmTestExecutor.executeGeneratedTests(tests, path, TsRenderer.ContractType.Func)
     }
 }
