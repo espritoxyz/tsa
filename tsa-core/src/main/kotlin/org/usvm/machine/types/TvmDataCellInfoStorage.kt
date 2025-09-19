@@ -12,7 +12,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
 import org.usvm.mkSizeGeExpr
 import org.usvm.mkSizeLeExpr
-import org.usvm.utils.extractAddresses
+import org.usvm.utils.flattenReferenceIte
 
 class TvmDataCellInfoStorage private constructor(
     private val ctx: TvmContext,
@@ -23,7 +23,7 @@ class TvmDataCellInfoStorage private constructor(
         state: TvmState,
         ref: UHeapRef,
     ) = with(ctx) {
-        val staticAddresses = extractAddresses(ref).map { it.second }
+        val staticAddresses = flattenReferenceIte(ref).map { it.second }
 
         staticAddresses.forEach {
             if (!state.isTerminated) {
@@ -34,7 +34,7 @@ class TvmDataCellInfoStorage private constructor(
 
     fun getLabelForFreshSlice(cellRef: UHeapRef): Map<TvmParameterInfo.CellInfo, UBoolExpr> =
         with(ctx) {
-            val staticAddresses = extractAddresses(cellRef, extractAllocated = true)
+            val staticAddresses = flattenReferenceIte(cellRef, extractAllocated = true)
             val result = hashMapOf<TvmParameterInfo.CellInfo, UBoolExpr>()
 
             staticAddresses.forEach { (guard, ref) ->

@@ -17,6 +17,11 @@ class UExprPairReadResult<Sort1 : KSort, Sort2 : KSort>(
     val second: UExpr<Sort2>,
 ) : TvmCellDataTypeReadValue
 
+fun joinTypeReadValue(
+    first: TvmCellDataTypeReadValue,
+    second: TvmCellDataTypeReadValue,
+): TvmCellDataTypeReadValue? = null
+
 fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
     ctx: TvmContext,
     condition: UBoolExpr,
@@ -27,6 +32,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
         is UExprReadResult<*> -> {
             mkUExprIte<KSort>(ctx, condition, trueBranch.uncheckedCast(), falseBranch.uncheckedCast()).uncheckedCast()
         }
+
         is UExprPairReadResult<*, *> -> {
             mkUExprPairIte<KSort, KSort>(
                 ctx,
@@ -35,6 +41,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
                 falseBranch.uncheckedCast(),
             ).uncheckedCast()
         }
+
         else -> error("Unexpected value: $trueBranch")
     }
 

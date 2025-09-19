@@ -5,6 +5,7 @@ import org.ton.TlbCompositeLabel
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.isFalse
+import org.usvm.logger
 import org.usvm.machine.TvmContext
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
@@ -46,14 +47,15 @@ data class TlbStack(
 
             val lastFrame = frames.last()
 
-            lastFrame.step(state, loadData).forEach { (guard, stackFrameStepResult, value) ->
+            val frameSteps = lastFrame.step(state, loadData)
+            frameSteps.forEach { (guard, stackFrameStepResult, value) ->
                 if (guard.isFalse) {
                     return@forEach
                 }
 
                 when (stackFrameStepResult) {
                     is EndOfStackFrame -> {
-                        val newFrames = popFrames(ctx, frames.subList(0, frames.size - 1))
+                        val newFrames = skipSingleLabel(ctx, frames.viewWithoutLast())
                         result.add(
                             GuardedResult(
                                 guard and emptyRead.not(),
@@ -66,7 +68,7 @@ data class TlbStack(
                     is NextFrame -> {
                         val newStack =
                             TlbStack(
-                                frames.subList(0, frames.size - 1) + stackFrameStepResult.frame,
+                                frames.viewWithoutLast() + stackFrameStepResult.frame,
                                 deepestError,
                             )
                         result.add(
@@ -116,12 +118,11 @@ data class TlbStack(
                     }
 
                     is PassLoadToNextFrame<ReadResult> -> {
-                        check(value == null) {
-                            "Extracting values in partial reads in not supported"
+                        if (value != null) {
+                            logger.warn("Extracting values in partial reads is not supported")
                         }
-
                         val newLoadData = stackFrameStepResult.loadData
-                        val newFrames = popFrames(ctx, frames)
+                        val newFrames = skipSingleLabel(ctx, frames)
                         val newStack = TlbStack(newFrames, deepestError)
 
                         newStack.step(state, newLoadData).forEach { (innerGuard, stepResult) ->
@@ -144,31 +145,12 @@ data class TlbStack(
         val (readValue, leftToRead, newFrames) = lastFrame.readInModel(readInfo)
         val deepFrames =
             if (newFrames.isEmpty()) {
-                popFrames(readInfo.resolver.state.ctx, frames.subList(0, frames.size - 1))
+                skipSingleLabel(readInfo.resolver.state.ctx, frames.viewWithoutLast())
             } else {
-                frames.subList(0, frames.size - 1)
+                frames.viewWithoutLast()
             }
         val newTlbStack = TlbStack(deepFrames + newFrames)
         return Triple(readValue, leftToRead, newTlbStack)
-    }
-
-    private fun popFrames(
-        ctx: TvmContext,
-        framesToPop: List<TlbStackFrame>,
-    ): List<TlbStackFrame> {
-        if (framesToPop.isEmpty()) {
-            return framesToPop
-        }
-        val prevFrame = framesToPop.last()
-        check(prevFrame.isSkippable) {
-            "$prevFrame must be skippable, but it is not"
-        }
-        val newFrame = prevFrame.skipLabel(ctx)
-        return if (newFrame == null) {
-            popFrames(ctx, framesToPop.subList(0, framesToPop.size - 1))
-        } else {
-            framesToPop.subList(0, framesToPop.size - 1) + newFrame
-        }
     }
 
     sealed interface StepResult
@@ -203,5 +185,30 @@ data class TlbStack(
             val frames = frame?.let { listOf(it) } ?: emptyList()
             return TlbStack(frames)
         }
+
+        /**
+         *  Until we can skip the label at the top frame, pop the frame (possibly zero times).
+         *  Then skip the label at the last fram and return the result.
+         */
+        private fun skipSingleLabel(
+            ctx: TvmContext,
+            framesToPop: List<TlbStackFrame>,
+        ): List<TlbStackFrame> {
+            if (framesToPop.isEmpty()) {
+                return framesToPop
+            }
+            val prevFrame = framesToPop.last()
+            check(prevFrame.isSkippable) {
+                "$prevFrame must be skippable, but it is not"
+            }
+            val newFrame = prevFrame.skipLabel(ctx)
+            return if (newFrame == null) {
+                skipSingleLabel(ctx, framesToPop.viewWithoutLast())
+            } else {
+                framesToPop.viewWithoutLast() + newFrame
+            }
+        }
     }
 }
+
+private fun <T> List<T>.viewWithoutLast() = subList(0, size - 1)

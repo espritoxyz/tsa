@@ -25,7 +25,7 @@ import org.usvm.memory.foldHeapRef
 val UExpr<out KBvSort>.intValueOrNull: Int?
     get() = (this as? KBitVecValue<*>)?.bigIntValue()?.toInt()
 
-fun TvmContext.extractAddresses(
+fun TvmContext.flattenReferenceIte(
     ref: UHeapRef,
     extractAllocated: Boolean = false,
     extractStatic: Boolean = true,
@@ -50,6 +50,7 @@ fun TvmContext.extractAddresses(
  * our [ref] is a big ITE with concrete values in its conditions.
  *
  * For example:
+ * ```
  * ite(
  *     key eq concreteKey1,
  *     trueBranch = concreteValue1,
@@ -63,8 +64,9 @@ fun TvmContext.extractAddresses(
  *         )
  *     )
  * )
+ * ```
  *
- * With standard [extractAddresses], we get such guards:
+ * With standard [flattenReferenceIte], we get such guards:
  * - key eq concreteKey1
  * - (key eq concreteKey2) and (key neq concreteKey1)
  * - (key eq concreteKey3) and (key neq concreteKey1) and (key neq concreteKey2)
@@ -74,7 +76,7 @@ fun TvmContext.extractAddresses(
  * - key eq concreteKey2
  * - key eq concreteKey3
  * */
-fun TvmContext.extractAddressesSpecialized(
+fun TvmContext.flattenReferenceIteSpecialized(
     ref: UHeapRef,
     extractAllocated: Boolean = true,
     extractStatic: Boolean = true,

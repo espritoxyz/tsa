@@ -15,7 +15,7 @@ import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UWritableMemory
 import org.usvm.sizeSort
-import org.usvm.utils.extractAddresses
+import org.usvm.utils.flattenReferenceIte
 import org.usvm.utils.intValueOrNull
 
 class TvmCellDataLengthFieldManager(
@@ -46,7 +46,7 @@ class TvmCellDataLengthFieldManager(
         ctx: TvmContext,
         cellRef: UHeapRef,
     ): Int? {
-        val refs = ctx.extractAddresses(cellRef, extractStatic = true, extractAllocated = true)
+        val refs = ctx.flattenReferenceIte(cellRef, extractStatic = true, extractAllocated = true)
         return refs.maxOf {
             builderLengthUpperBoundTracker.builderRefToLengthUpperBound[it.second]
                 ?: return null
@@ -81,7 +81,7 @@ class TvmCellDataLengthFieldManager(
         to: UConcreteHeapRef,
     ) = with(state.ctx) {
         val value = readCellDataLength(state, from)
-        val fromRefs = extractAddresses(from, extractAllocated = true, extractStatic = true).map { it.second }
+        val fromRefs = flattenReferenceIte(from, extractAllocated = true, extractStatic = true).map { it.second }
         val upperBound =
             run {
                 fromRefs.maxOf {
