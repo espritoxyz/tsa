@@ -1270,8 +1270,6 @@ fun TvmStepScopeManager.slicesAreEqual(
                 getSliceRemainingBitsCount(slice2)
             }
 
-        // TODO: optimizations here?
-
         val dataPosition1 =
             calcOnState {
                 memory.readField(slice1, sliceDataPosField, sizeSort)
