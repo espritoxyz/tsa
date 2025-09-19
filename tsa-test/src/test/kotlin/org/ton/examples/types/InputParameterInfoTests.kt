@@ -1892,9 +1892,9 @@ class InputParameterInfoTests {
                     TvmOptions(
                         performAdditionalChecksWhileResolving = true,
                         tlbOptions =
-                        TlbOptions(
-                            performTlbChecksOnAllocatedCells = true,
-                        ),
+                            TlbOptions(
+                                performTlbChecksOnAllocatedCells = true,
+                            ),
                     ),
             )
 
@@ -1906,7 +1906,7 @@ class InputParameterInfoTests {
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
-            )
+            ),
         )
 
         TvmTestExecutor.executeGeneratedTests(tests, path, TsRenderer.ContractType.Func)

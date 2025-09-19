@@ -285,7 +285,8 @@ data class KnownTypeTlbStackFrame(
                 }
 
             val nextFrame1 = buildFrameForStructure(this, struct.rest, path, leftTlbDepth)
-            val nextFrame2 = buildFrameForStructure(this, otherFrame.struct.rest, otherFrame.path, otherFrame.leftTlbDepth)
+            val nextFrame2 =
+                buildFrameForStructure(this, otherFrame.struct.rest, otherFrame.path, otherFrame.leftTlbDepth)
 
             if (nextFrame1 == null && nextFrame2 == null) {
                 return curGuard to Unit
