@@ -173,14 +173,21 @@ data class ConstTlbStackFrame(
                 return null to Unit
             }
 
-            val minSize = min(data.length, otherFrame.data.length)
-            val data1 = data.substring(startIndex = 0, endIndex = minSize)
-            val data2 = otherFrame.data.substring(startIndex = 0, endIndex = minSize)
+            if (offset !is KInterpretedValue<*> || otherFrame.offset !is KInterpretedValue<*>) {
+                return null to Unit
+            }
+
+            val offset1 = offset.intValue()
+            val offset2 = otherFrame.offset.intValue()
+
+            val minSize = min(data.length - offset1, otherFrame.data.length - offset2)
+            val data1 = data.substring(startIndex = offset1, endIndex = minSize + offset1)
+            val data2 = otherFrame.data.substring(startIndex = offset2, endIndex = minSize + offset2)
             if (data1 != data2) {
                 return falseExpr to Unit
             }
 
-            if (data.length != otherFrame.data.length) {
+            if (data.length - offset1 != otherFrame.data.length - offset2) {
                 return null to Unit
             }
 
