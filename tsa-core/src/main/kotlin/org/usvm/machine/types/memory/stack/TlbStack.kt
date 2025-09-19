@@ -6,6 +6,7 @@ import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.isFalse
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeReadValue
@@ -150,6 +151,22 @@ data class TlbStack(
             }
         val newTlbStack = TlbStack(deepFrames + newFrames)
         return Triple(readValue, leftToRead, newTlbStack)
+    }
+
+    fun compareWithOtherStack(
+        scope: TvmStepScopeManager,
+        cellRef: UConcreteHeapRef,
+        otherStack: TlbStack,
+        otherCellRef: UConcreteHeapRef,
+    ): Pair<UBoolExpr?, Unit?> {
+        if (frames.size != 1 || otherStack.frames.size != 1) {
+            return null to Unit
+        }
+
+        val frame1 = frames.single()
+        val frame2 = otherStack.frames.single()
+
+        return frame1.compareWithOtherFrame(scope, cellRef, frame2, otherCellRef)
     }
 
     private fun popFrames(
