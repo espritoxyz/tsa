@@ -1185,19 +1185,23 @@ private fun TvmStepScopeManager.tryCompareWithTlbFields(
         return null to Unit
     }
 
-    val stack1 = calcOnState {
-        dataCellInfoStorage.sliceMapper.getTlbStack(slice1)
-    } ?: return null to Unit
-    val stack2 = calcOnState {
-        dataCellInfoStorage.sliceMapper.getTlbStack(slice2)
-    } ?: return null to Unit
+    val stack1 =
+        calcOnState {
+            dataCellInfoStorage.sliceMapper.getTlbStack(slice1)
+        } ?: return null to Unit
+    val stack2 =
+        calcOnState {
+            dataCellInfoStorage.sliceMapper.getTlbStack(slice2)
+        } ?: return null to Unit
 
-    val cell1 = calcOnStateCtx {
-        memory.readField(slice1, sliceCellField, addressSort) as? UConcreteHeapRef
-    } ?: return null to Unit
-    val cell2 = calcOnStateCtx {
-        memory.readField(slice2, sliceCellField, addressSort) as? UConcreteHeapRef
-    } ?: return null to Unit
+    val cell1 =
+        calcOnStateCtx {
+            memory.readField(slice1, sliceCellField, addressSort) as? UConcreteHeapRef
+        } ?: return null to Unit
+    val cell2 =
+        calcOnStateCtx {
+            memory.readField(slice2, sliceCellField, addressSort) as? UConcreteHeapRef
+        } ?: return null to Unit
 
     return stack1.compareWithOtherStack(this, cell1, stack2, cell2)
 }
@@ -1206,9 +1210,10 @@ fun TvmStepScopeManager.slicesAreEqual(
     slice1: UHeapRef,
     slice2: UHeapRef,
 ): UBoolExpr? {
-    val (conditionFromTlb, status) = calcOnState {
-        tryCompareWithTlbFields(slice1, slice2)
-    }
+    val (conditionFromTlb, status) =
+        calcOnState {
+            tryCompareWithTlbFields(slice1, slice2)
+        }
 
     status ?: return null
 
