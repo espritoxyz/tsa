@@ -1231,8 +1231,6 @@ fun TvmStepScopeManager.slicesAreEqual(
                 getSliceRemainingBitsCount(slice2)
             }
 
-        // TODO: optimizations here?
-
         val dataPosition1 =
             calcOnState {
                 fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice1)
