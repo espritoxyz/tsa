@@ -268,7 +268,6 @@ class TsaCheckerFunctionsInterpreter(
             }
 
         prepareNewStack(scope, oldStack, stackOperations, receiverInput, nextContractId)
-            ?: return
 
         val oldMemory =
             scope.calcOnState {
@@ -377,6 +376,7 @@ class TsaCheckerFunctionsInterpreter(
                     currentEventId,
                     receivedMessage,
                     computeFeeUsed,
+                    isExceptional,
                 ),
             )
         currentPhaseBeginTime = pseudologicalTime

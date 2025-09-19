@@ -643,6 +643,7 @@ fun TvmState.callCheckerMethodIfExists(
                 currentEventId,
                 receivedMessage,
                 computeFeeUsed,
+                isExceptional,
             ),
         )
     val executionMemory =
@@ -654,6 +655,7 @@ fun TvmState.callCheckerMethodIfExists(
             allowInputStackValues = true,
         )
 
+    isExceptional = false
     currentContract = checkerContractId
     registersOfCurrentContract = executionMemory.registers
     val storedC7 = checkerC7

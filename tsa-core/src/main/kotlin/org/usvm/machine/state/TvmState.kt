@@ -266,6 +266,7 @@ data class TvmEventInformation(
     val eventId: EventId,
     val receivedMessage: ReceivedMessage?,
     val computeFeeUsed: UExpr<TvmContext.TvmInt257Sort>,
+    val isExceptional: Boolean,
 )
 
 data class TvmContractExecutionMemory(
