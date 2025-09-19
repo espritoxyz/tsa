@@ -5,6 +5,7 @@ import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeRead
@@ -70,6 +71,13 @@ sealed interface TlbStackFrame {
     fun skipLabel(ctx: TvmContext): TlbStackFrame?
 
     fun readInModel(read: TlbStack.ConcreteReadInfo): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>>
+
+    fun compareWithOtherFrame(
+        scope: TvmStepScopeManager,
+        cellRef: UConcreteHeapRef,
+        otherFrame: TlbStackFrame,
+        otherCellRef: UConcreteHeapRef,
+    ): Pair<UBoolExpr?, Unit?>
 
     data class GuardedResult<ReadResult : TvmCellDataTypeReadValue>(
         val guard: UBoolExpr,

@@ -2,8 +2,11 @@ package org.usvm.machine.types.memory.stack
 
 import io.ksmt.expr.KBitVecValue
 import org.ton.TlbStructure
+import org.usvm.UBoolExpr
+import org.usvm.UConcreteHeapRef
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.memory.UnknownBlockField
@@ -39,4 +42,13 @@ data object StackFrameOfUnknown : TlbStackFrame {
 
             Triple(data.take(read.leftBits), newReadInfo, emptyList())
         }
+
+    override fun compareWithOtherFrame(
+        scope: TvmStepScopeManager,
+        cellRef: UConcreteHeapRef,
+        otherFrame: TlbStackFrame,
+        otherCellRef: UConcreteHeapRef
+    ): Pair<UBoolExpr?, Unit?> {
+        return null to Unit
+    }
 }

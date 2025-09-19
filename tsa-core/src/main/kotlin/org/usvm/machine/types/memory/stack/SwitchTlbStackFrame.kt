@@ -2,8 +2,11 @@ package org.usvm.machine.types.memory.stack
 
 import kotlinx.collections.immutable.PersistentList
 import org.ton.TlbStructure
+import org.usvm.UBoolExpr
+import org.usvm.UConcreteHeapRef
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.SizedCellDataTypeRead
@@ -149,4 +152,13 @@ data class SwitchTlbStackFrame(
 
             error("At least one switch variant must be true in model")
         }
+
+    override fun compareWithOtherFrame(
+        scope: TvmStepScopeManager,
+        cellRef: UConcreteHeapRef,
+        otherFrame: TlbStackFrame,
+        otherCellRef: UConcreteHeapRef
+    ): Pair<UBoolExpr?, Unit?> {
+        return null to Unit
+    }
 }
