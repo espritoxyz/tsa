@@ -1177,11 +1177,46 @@ private fun <Field, Sort : USort> UWritableMemory<*>.copyField(
     writeField(to, field, sort, readField(from, field, sort), guard = from.ctx.trueExpr)
 }
 
+private fun TvmStepScopeManager.tryCompareWithTlbFields(
+    slice1: UHeapRef,
+    slice2: UHeapRef,
+): Pair<UBoolExpr?, Unit?> {
+    if (slice1 !is UConcreteHeapRef || slice2 !is UConcreteHeapRef) {
+        return null to Unit
+    }
+
+    val stack1 = calcOnState {
+        dataCellInfoStorage.sliceMapper.getTlbStack(slice1)
+    } ?: return null to Unit
+    val stack2 = calcOnState {
+        dataCellInfoStorage.sliceMapper.getTlbStack(slice2)
+    } ?: return null to Unit
+
+    val cell1 = calcOnStateCtx {
+        memory.readField(slice1, sliceCellField, addressSort) as? UConcreteHeapRef
+    } ?: return null to Unit
+    val cell2 = calcOnStateCtx {
+        memory.readField(slice2, sliceCellField, addressSort) as? UConcreteHeapRef
+    } ?: return null to Unit
+
+    return stack1.compareWithOtherStack(this, cell1, stack2, cell2)
+}
+
 fun TvmStepScopeManager.slicesAreEqual(
     slice1: UHeapRef,
     slice2: UHeapRef,
-): UBoolExpr? =
-    doWithCtx {
+): UBoolExpr? {
+    val (conditionFromTlb, status) = calcOnState {
+        tryCompareWithTlbFields(slice1, slice2)
+    }
+
+    status ?: return null
+
+    if (conditionFromTlb != null) {
+        return conditionFromTlb
+    }
+
+    return doWithCtx {
         val dataLeft1 =
             calcOnState {
                 getSliceRemainingBitsCount(slice1)
@@ -1223,6 +1258,7 @@ fun TvmStepScopeManager.slicesAreEqual(
 
         mkAnd(dataLeft1 eq dataLeft2, shiftedData1 eq shiftedData2)
     }
+}
 
 fun TvmStepScopeManager.builderToCell(builder: UConcreteHeapRef): UConcreteHeapRef =
     calcOnState {
