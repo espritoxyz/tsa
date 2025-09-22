@@ -251,11 +251,13 @@ class ContractsTest {
         analyzeFuncContract(restrictedWalletPath, methodsNumber = 5, enableTestGeneration = true)
     }
 
+    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun restrictedWallet2() {
         analyzeFuncContract(restrictedWalletV2Path, methodsNumber = 6, enableTestGeneration = true)
     }
 
+    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun restrictedWallet3() {
         analyzeFuncContract(restrictedWalletV3Path, methodsNumber = 7, enableTestGeneration = true)

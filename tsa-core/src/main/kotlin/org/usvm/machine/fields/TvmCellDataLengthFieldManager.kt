@@ -34,15 +34,17 @@ class TvmCellDataLengthFieldManager(
         cellRef: UHeapRef,
     ): UExpr<TvmSizeSort> =
         with(state.ctx) {
-            return state.memory.readField(cellRef, cellDataLengthField, cellDataLengthSort).also {
-                val bound = getUpperBound(state.ctx, cellRef)
-                val length = it.intValueOrNull
-                if (bound != null && length != null) {
-                    check(length <= bound) {
-                        "Unexpected upper bound for $cellRef. Bound: $bound, length: $length."
+            return state.memory
+                .readField(cellRef, cellDataLengthField, cellDataLengthSort)
+                .also {
+                    val bound = getUpperBound(state.ctx, cellRef)
+                    val length = it.intValueOrNull
+                    if (bound != null && length != null) {
+                        check(length <= bound) {
+                            "Unexpected upper bound for $cellRef. Bound: $bound, length: $length."
+                        }
                     }
-                }
-            }.zeroExtendToSort(sizeSort)
+                }.zeroExtendToSort(sizeSort)
         }
 
     fun getUpperBound(
