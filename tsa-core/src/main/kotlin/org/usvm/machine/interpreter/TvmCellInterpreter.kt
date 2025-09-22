@@ -101,7 +101,6 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
-import org.usvm.api.writeField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.sliceCellField
@@ -1222,9 +1221,10 @@ class TvmCellInterpreter(
                 fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
             }
 
-        val cellRefsLength = scope.calcOnState {
-            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
-        }
+        val cellRefsLength =
+            scope.calcOnState {
+                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
+            }
 
         val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
         val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
@@ -1291,9 +1291,10 @@ class TvmCellInterpreter(
                 fieldManagers.cellDataLengthFieldManager.getUpperBound(ctx, cell)
             }
 
-        val cellRefsLength = scope.calcOnState {
-            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
-        }
+        val cellRefsLength =
+            scope.calcOnState {
+                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
+            }
 
         val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
         val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
@@ -1812,9 +1813,10 @@ class TvmCellInterpreter(
         }
 
         with(ctx) {
-            val builderRefsLength = scope.calcOnState {
-                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, builder)
-            }
+            val builderRefsLength =
+                scope.calcOnState {
+                    fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, builder)
+                }
             val canWriteRefConstraint = mkSizeLtExpr(builderRefsLength, maxRefsLengthSizeExpr)
             val quietBlock: (TvmState.() -> Unit)? =
                 if (!quiet) {

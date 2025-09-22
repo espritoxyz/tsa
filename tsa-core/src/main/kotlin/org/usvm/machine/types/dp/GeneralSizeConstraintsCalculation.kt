@@ -7,8 +7,6 @@ import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
-import org.usvm.api.readField
-import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.dataLength
@@ -17,7 +15,6 @@ import org.usvm.machine.types.memory.typeArgs
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.mkSizeGeExpr
-import org.usvm.sizeSort
 
 /**
  * Returns size information for lists (Empty or Unknown).

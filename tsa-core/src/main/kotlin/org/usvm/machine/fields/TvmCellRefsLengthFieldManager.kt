@@ -15,25 +15,34 @@ import org.usvm.machine.types.TvmType
 import org.usvm.memory.UWritableMemory
 import org.usvm.sizeSort
 
-class TvmCellRefsLengthFieldManager(private val ctx: TvmContext) {
+class TvmCellRefsLengthFieldManager(
+    private val ctx: TvmContext,
+) {
     private val cellRefsSort = ctx.mkBvSort(BITS_FOR_FIELD)
     private val cellRefsLengthMinusOneField: TvmField = TvmFieldImpl(TvmCellType, "refsLengthMinusOne")
     private val noChildrenField: TvmField = TvmFieldImpl(TvmCellType, "noChildren")
 
-    private fun refsFromField(state: TvmState, cellRef: UHeapRef): UExpr<TvmSizeSort> = with(ctx) {
-        val value = state.memory.readField(cellRef, cellRefsLengthMinusOneField, cellRefsSort)
-        // hack: value in this field is either input symbol or
-        // some value that was written with [writeCellRefsLength].
-        // If this is the last case, we can get rid of the [extract] that was added in [writeCellRefsLength].
-        if (value is KBvExtractExpr && value.value.sort == sizeSort) {
-            @Suppress("unchecked_cast")
-            mkBvAddExpr(value.value as UExpr<TvmSizeSort>, oneSizeExpr)
-        } else {
-            mkBvAddExpr(value.zeroExtendToSort(sizeSort), oneSizeExpr)
+    private fun refsFromField(
+        state: TvmState,
+        cellRef: UHeapRef,
+    ): UExpr<TvmSizeSort> =
+        with(ctx) {
+            val value = state.memory.readField(cellRef, cellRefsLengthMinusOneField, cellRefsSort)
+            // hack: value in this field is either input symbol or
+            // some value that was written with [writeCellRefsLength].
+            // If this is the last case, we can get rid of the [extract] that was added in [writeCellRefsLength].
+            if (value is KBvExtractExpr && value.value.sort == sizeSort) {
+                @Suppress("unchecked_cast")
+                mkBvAddExpr(value.value as UExpr<TvmSizeSort>, oneSizeExpr)
+            } else {
+                mkBvAddExpr(value.zeroExtendToSort(sizeSort), oneSizeExpr)
+            }
         }
-    }
 
-    fun readCellRefLength(state: TvmState, cellRef: UHeapRef): UExpr<TvmSizeSort> =
+    fun readCellRefLength(
+        state: TvmState,
+        cellRef: UHeapRef,
+    ): UExpr<TvmSizeSort> =
         with(state.ctx) {
             val noChildren = state.memory.readField(cellRef, noChildrenField, boolSort)
             mkIte(
@@ -43,15 +52,23 @@ class TvmCellRefsLengthFieldManager(private val ctx: TvmContext) {
                 },
                 falseBranch = {
                     refsFromField(state, cellRef)
-                }
+                },
             )
         }
 
-    fun writeCellRefsLength(state: TvmState, cellRef: UHeapRef, value: UExpr<TvmSizeSort>){
+    fun writeCellRefsLength(
+        state: TvmState,
+        cellRef: UHeapRef,
+        value: UExpr<TvmSizeSort>,
+    ) {
         writeCellRefsLength(state.memory, cellRef, value)
     }
 
-    fun writeCellRefsLength(memory: UWritableMemory<TvmType>, cellRef: UHeapRef, value: UExpr<TvmSizeSort>) = with(ctx) {
+    fun writeCellRefsLength(
+        memory: UWritableMemory<TvmType>,
+        cellRef: UHeapRef,
+        value: UExpr<TvmSizeSort>,
+    ) = with(ctx) {
         memory.writeField(cellRef, noChildrenField, boolSort, value eq zeroSizeExpr, guard = trueExpr)
 
         val refsMinusOne = mkBvSubExpr(value, oneSizeExpr)

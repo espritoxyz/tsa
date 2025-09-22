@@ -6,7 +6,6 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
-import org.usvm.api.writeField
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext

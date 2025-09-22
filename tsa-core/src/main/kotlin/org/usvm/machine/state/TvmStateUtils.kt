@@ -26,7 +26,6 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
-import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.machine.TvmContext
@@ -54,8 +53,6 @@ import org.usvm.memory.GuardedExpr
 import org.usvm.memory.foldHeapRef
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
-import org.usvm.mkSizeGeExpr
-import org.usvm.mkSizeLeExpr
 import org.usvm.sizeSort
 import org.usvm.test.resolver.HashMapESerializer
 import org.usvm.types.USingleTypeStream
@@ -129,11 +126,9 @@ fun TvmStepScopeManager.doWithStateCtx(block: context(TvmContext) TvmState.() ->
         block(ctx, this)
     }
 
-fun TvmState.generateSymbolicCell(): UConcreteHeapRef =
-    generateSymbolicRef(TvmCellType)
+fun TvmState.generateSymbolicCell(): UConcreteHeapRef = generateSymbolicRef(TvmCellType)
 
-fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) =
-    ensureSymbolicRefInitialized(ref, TvmCellType)
+fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) = ensureSymbolicRefInitialized(ref, TvmCellType)
 
 fun TvmState.generateSymbolicSlice(): UConcreteHeapRef =
     generateSymbolicRef(TvmSliceType).also { initializeSymbolicSlice(it) }

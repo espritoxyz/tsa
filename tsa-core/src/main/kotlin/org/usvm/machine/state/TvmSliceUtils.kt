@@ -216,9 +216,10 @@ fun TvmContext.checkCellRefsUnderflow(
     maxSize: UExpr<TvmSizeSort>? = null,
     quietBlock: (TvmState.() -> Unit)? = null,
 ): Unit? {
-    val cellSize = scope.calcOnStateCtx {
-        fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cellRef)
-    }
+    val cellSize =
+        scope.calcOnStateCtx {
+            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cellRef)
+        }
     return processCellUnderflowCheck(cellSize, scope, minSize, maxSize, quietBlock)
 }
 
@@ -1003,10 +1004,11 @@ fun TvmState.builderStoreNextRefNoOverflowCheck(
     builder: UHeapRef,
     ref: UHeapRef,
 ) = with(ctx) {
-    val builderRefsLength = fieldManagers.cellRefsLengthFieldManager.readCellRefLength(
-        this@builderStoreNextRefNoOverflowCheck,
-        builder
-    )
+    val builderRefsLength =
+        fieldManagers.cellRefsLengthFieldManager.readCellRefLength(
+            this@builderStoreNextRefNoOverflowCheck,
+            builder,
+        )
     writeCellRef(builder, builderRefsLength, ref)
     val updatedLength = mkSizeAddExpr(builderRefsLength, mkSizeExpr(1))
     fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(memory, builder, updatedLength)
@@ -1035,9 +1037,10 @@ fun TvmStepScopeManager.builderStoreSlice(
 
         val cellRefsSize = calcOnState { fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell) }
         val refsPosition = calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
-        val oldBuilderRefsSize = calcOnState {
-            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, oldBuilder)
-        }
+        val oldBuilderRefsSize =
+            calcOnState {
+                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, oldBuilder)
+            }
 
         val refsToWriteSize = mkBvSubExpr(cellRefsSize, refsPosition)
         val resultingRefsSize = mkBvAddExpr(oldBuilderRefsSize, refsToWriteSize)
