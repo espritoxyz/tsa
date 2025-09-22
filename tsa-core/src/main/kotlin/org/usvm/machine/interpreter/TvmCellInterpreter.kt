@@ -116,7 +116,6 @@ import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.assertDataCellType
-import org.usvm.machine.state.assertDataLengthConstraintWithoutError
 import org.usvm.machine.state.assertRefsLengthConstraintWithoutError
 import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
@@ -1222,10 +1221,6 @@ class TvmCellInterpreter(
             scope.calcOnState {
                 fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
             }
-        scope.assertDataLengthConstraintWithoutError(
-            cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
-        ) ?: return
 
         val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
         scope.assertRefsLengthConstraintWithoutError(
@@ -1297,10 +1292,6 @@ class TvmCellInterpreter(
             scope.calcOnState {
                 fieldManagers.cellDataLengthFieldManager.getUpperBound(ctx, cell)
             }
-        scope.assertDataLengthConstraintWithoutError(
-            cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
-        ) ?: return
 
         val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
         scope.assertRefsLengthConstraintWithoutError(

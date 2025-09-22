@@ -283,19 +283,6 @@ fun setBuilderLengthOrThrowCellOverflow(
         return Unit
     }
 
-fun TvmStepScopeManager.assertDataLengthConstraintWithoutError(
-    cellDataLength: UExpr<TvmSizeSort>,
-    unsatBlock: TvmState.() -> Unit,
-): Unit? =
-    calcOnStateCtx {
-        val correctnessConstraint =
-            mkAnd(
-                mkSizeLeExpr(zeroSizeExpr, cellDataLength),
-                mkSizeLeExpr(cellDataLength, maxDataLengthSizeExpr),
-            )
-        assert(correctnessConstraint, unsatBlock = unsatBlock)
-    }
-
 fun TvmStepScopeManager.assertRefsLengthConstraintWithoutError(
     cellRefsLength: UExpr<TvmSizeSort>,
     unsatBlock: TvmState.() -> Unit,
@@ -366,11 +353,6 @@ fun TvmStepScopeManager.slicePreloadDataBits(
     calcOnStateCtx {
         val cell = memory.readField(slice, sliceCellField, addressSort)
         val cellDataLength = fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
-
-        assertDataLengthConstraintWithoutError(
-            cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
-        ) ?: return@calcOnStateCtx null
 
         val dataPosition = memory.readField(slice, sliceDataPosField, sizeSort)
         val readingEnd = mkBvAddExpr(dataPosition, sizeBits)
@@ -1044,10 +1026,6 @@ fun TvmStepScopeManager.builderStoreSlice(
         val cell = calcOnState { memory.readField(slice, sliceCellField, addressSort) }
         val cellDataLength = calcOnState { fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell) }
 
-        assertDataLengthConstraintWithoutError(
-            cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
-        ) ?: return null
         val dataPosition = calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
 
         // TODO: use TL-B values if possible

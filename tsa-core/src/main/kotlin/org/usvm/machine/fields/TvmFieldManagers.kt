@@ -5,7 +5,7 @@ import org.usvm.machine.TvmContext
 class TvmFieldManagers(
     private val ctx: TvmContext,
     val cellDataFieldManager: TvmCellDataFieldManager = TvmCellDataFieldManager(ctx),
-    val cellDataLengthFieldManager: TvmCellDataLengthFieldManager = TvmCellDataLengthFieldManager(),
+    val cellDataLengthFieldManager: TvmCellDataLengthFieldManager = TvmCellDataLengthFieldManager(ctx),
 ) {
     fun clone() =
         TvmFieldManagers(

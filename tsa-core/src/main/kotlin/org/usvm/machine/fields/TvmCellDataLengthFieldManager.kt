@@ -19,19 +19,22 @@ import org.usvm.utils.extractAddresses
 import org.usvm.utils.intValueOrNull
 
 class TvmCellDataLengthFieldManager(
+    private val ctx: TvmContext,
     private var builderLengthUpperBoundTracker: TvmBuilderLengthUpperBoundTracker =
         TvmBuilderLengthUpperBoundTracker(
             persistentMapOf(),
         ),
 ) {
-    fun clone() = TvmCellDataLengthFieldManager(builderLengthUpperBoundTracker)
+    private val cellDataLengthSort = ctx.mkBvSort(BITS_FOR_FIELD)
+
+    fun clone() = TvmCellDataLengthFieldManager(ctx, builderLengthUpperBoundTracker)
 
     fun readCellDataLength(
         state: TvmState,
         cellRef: UHeapRef,
     ): UExpr<TvmSizeSort> =
         with(state.ctx) {
-            return state.memory.readField(cellRef, cellDataLengthField, sizeSort).also {
+            return state.memory.readField(cellRef, cellDataLengthField, cellDataLengthSort).also {
                 val bound = getUpperBound(state.ctx, cellRef)
                 val length = it.intValueOrNull
                 if (bound != null && length != null) {
@@ -39,7 +42,7 @@ class TvmCellDataLengthFieldManager(
                         "Unexpected upper bound for $cellRef. Bound: $bound, length: $length."
                     }
                 }
-            }
+            }.zeroExtendToSort(sizeSort)
         }
 
     fun getUpperBound(
@@ -63,7 +66,8 @@ class TvmCellDataLengthFieldManager(
         if (upperBound != null) {
             builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(cellRef, upperBound)
         }
-        memory.writeField(cellRef, cellDataLengthField, sizeSort, value, guard = trueExpr)
+        val valueToWrite = value.extractToSort(cellDataLengthSort)
+        memory.writeField(cellRef, cellDataLengthField, cellDataLengthSort, valueToWrite, guard = trueExpr)
     }
 
     fun writeCellDataLength(
@@ -93,5 +97,6 @@ class TvmCellDataLengthFieldManager(
 
     companion object {
         private val cellDataLengthField: TvmField = TvmFieldImpl(TvmCellType, "dataLength")
+        private val BITS_FOR_FIELD = 10u
     }
 }
