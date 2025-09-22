@@ -235,7 +235,7 @@ data class KnownTypeTlbStackFrame(
         otherCellRef: UConcreteHeapRef,
     ): Pair<UBoolExpr?, Unit?> =
         with(scope.ctx) {
-            if (otherFrame !is KnownTypeTlbStackFrame || struct.typeLabel != otherFrame.struct.typeLabel) {
+            if (otherFrame !is KnownTypeTlbStackFrame) {
                 return null to Unit
             }
 
@@ -246,6 +246,10 @@ data class KnownTypeTlbStackFrame(
             val curGuard =
                 when (struct.typeLabel) {
                     is FixedSizeDataLabel -> {
+                        if (otherFrame.struct.typeLabel != struct.typeLabel) {
+                            return null to Unit
+                        }
+
                         val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
                         val content =
                             scope.calcOnState {
@@ -263,6 +267,10 @@ data class KnownTypeTlbStackFrame(
                     }
 
                     is TlbAddressByRef, is TlbBitArrayByRef -> {
+                        if (otherFrame.struct.typeLabel !is TlbAddressByRef && otherFrame.struct.typeLabel !is TlbBitArrayByRef) {
+                            return null to Unit
+                        }
+
                         val field = SliceRefField(struct.id, path)
                         val slice =
                             scope.calcOnState {
