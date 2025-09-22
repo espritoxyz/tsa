@@ -267,7 +267,9 @@ data class KnownTypeTlbStackFrame(
                     }
 
                     is TlbAddressByRef, is TlbBitArrayByRef -> {
-                        if (otherFrame.struct.typeLabel !is TlbAddressByRef && otherFrame.struct.typeLabel !is TlbBitArrayByRef) {
+                        if (otherFrame.struct.typeLabel !is TlbAddressByRef &&
+                            otherFrame.struct.typeLabel !is TlbBitArrayByRef
+                        ) {
                             return null to Unit
                         }
 
