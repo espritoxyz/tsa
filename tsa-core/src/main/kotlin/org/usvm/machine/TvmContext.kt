@@ -130,9 +130,7 @@ class TvmContext(
     val throwUnknownCellUnderflowError: (TvmState) -> Unit =
         setFailure(TvmCellUnderflowError, TvmFailureType.UnknownError)
     val throwStructuralCellUnderflowError: (TvmState) -> Unit =
-        setFailure(TvmCellUnderflowError, TvmFailureType.FixedStructuralError)
-    val throwSymbolicStructuralCellUnderflowError: (TvmState) -> Unit =
-        setFailure(TvmCellUnderflowError, TvmFailureType.SymbolicStructuralError)
+        setFailure(TvmCellUnderflowError, TvmFailureType.StructuralError)
     val throwRealCellUnderflowError: (TvmState) -> Unit = setFailure(TvmCellUnderflowError, TvmFailureType.RealError)
     val throwRealDictError: (TvmState) -> Unit = setFailure(TvmDictError, TvmFailureType.RealError)
 

@@ -1,6 +1,5 @@
 package org.usvm.machine.state
 
-import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBvSort
@@ -12,11 +11,12 @@ import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
-import org.usvm.UIteExpr
 import org.usvm.USort
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.isAllocated
 import org.usvm.isFalse
+import org.usvm.isStatic
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.ADDRESS_TAG_BITS
@@ -49,6 +49,7 @@ import org.usvm.machine.types.storeCellDataTlbLabelInBuilder
 import org.usvm.machine.types.storeCoinTlbLabelToBuilder
 import org.usvm.machine.types.storeIntTlbLabelToBuilder
 import org.usvm.machine.types.storeSliceTlbLabelInBuilder
+import org.usvm.memory.GuardedExpr
 import org.usvm.memory.UWritableMemory
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
@@ -56,75 +57,29 @@ import org.usvm.mkSizeGeExpr
 import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
+import org.usvm.utils.extractAddresses
 import org.usvm.utils.intValueOrNull
 
-private data class GuardedExpr(
-    val expr: UExpr<TvmSizeSort>,
-    val guard: UBoolExpr,
-)
-
-/**
- * Split sizeExpr that represents ite into two ite's:
- * first one has concrete leaves, second one has symbolic leaves.
- */
-private fun splitSizeExpr(sizeExpr: UExpr<TvmSizeSort>): Pair<GuardedExpr?, GuardedExpr?> { // (concrete, symbolic)
-
-    /**
-     * Merge split ite leaves into one ite.
-     * Pair (trueValue, falseValue) is either
-     * (trueConcrete, falseConcrete) or (trueSymbolic, falseSymbolic).
-     */
-    fun KContext.mergeCellExprsIntoIte(
-        cond: UBoolExpr,
-        trueValue: GuardedExpr?,
-        falseValue: GuardedExpr?,
-    ): GuardedExpr? =
-        when {
-            trueValue == null && falseValue == null -> {
-                null
-            }
-
-            trueValue == null && falseValue != null -> {
-                GuardedExpr(falseValue.expr, falseValue.guard and cond.not())
-            }
-
-            trueValue != null && falseValue == null -> {
-                GuardedExpr(trueValue.expr, trueValue.guard and cond)
-            }
-
-            trueValue != null && falseValue != null -> {
-                GuardedExpr(
-                    mkIte(cond, trueValue.expr, falseValue.expr),
-                    (cond and trueValue.guard) or (cond.not() and falseValue.guard),
-                )
-            }
-
-            else -> {
-                error("not reachable")
-            }
-        }
-
-    val ctx = sizeExpr.ctx
-    return with(ctx) {
-        when (sizeExpr) {
-            is KInterpretedValue ->
-                GuardedExpr(sizeExpr, ctx.trueExpr) to null
-
-            is UIteExpr<TvmSizeSort> -> {
-                val cond = sizeExpr.condition
-                val (trueConcrete, trueSymbolic) = splitSizeExpr(sizeExpr.trueBranch)
-                val (falseConcrete, falseSymbolic) = splitSizeExpr(sizeExpr.falseBranch)
-                val concrete = mergeCellExprsIntoIte(cond, trueConcrete, falseConcrete)
-                val symbolic = mergeCellExprsIntoIte(cond, trueSymbolic, falseSymbolic)
-                concrete to symbolic
-            }
-
-            else -> {
-                // Any complex expressions containing symbolic values are considered fully symbolic
-                null to GuardedExpr(sizeExpr, ctx.trueExpr)
-            }
-        }
+private fun TvmContext.mkIteFromVariants(variants: List<Pair<UBoolExpr, UConcreteHeapRef>>): GuardedExpr<UHeapRef?> {
+    if (variants.isEmpty()) {
+        return GuardedExpr(null, falseExpr)
     }
+
+    val guard =
+        variants.fold(falseExpr as UBoolExpr) { acc, (guard, _) ->
+            acc or guard
+        }
+
+    val value =
+        variants.drop(1).fold(variants.first().second as UHeapRef) { acc, (guard, ref) ->
+            mkIte(
+                guard,
+                trueBranch = ref,
+                falseBranch = acc,
+            )
+        }
+
+    return GuardedExpr(value, guard)
 }
 
 /**
@@ -132,21 +87,24 @@ private fun splitSizeExpr(sizeExpr: UExpr<TvmSizeSort>): Pair<GuardedExpr?, Guar
  * (StructuralError, SymbolicStructuralError, RealError or Unknown).
  */
 private fun TvmContext.processCellUnderflowCheck(
-    size: UExpr<TvmSizeSort>,
+    cellRef: UHeapRef,
+    getSize: (UHeapRef) -> UExpr<TvmSizeSort>,
     scope: TvmStepScopeManager,
     minSize: UExpr<TvmSizeSort>? = null,
     maxSize: UExpr<TvmSizeSort>? = null,
     quietBlock: (TvmState.() -> Unit)? = null,
 ): Unit? {
-    val noUnderflowExpr =
-        scope.calcOnStateCtx {
-            val min = minSize?.let { mkSizeGeExpr(size, minSize) } ?: trueExpr
-            val max = maxSize?.let { mkSizeLeExpr(size, maxSize) } ?: trueExpr
-            min and max
-        }
-
     // don't bother with concrete and symbolic cases if so
     if (!scope.allowFailuresOnCurrentStep || quietBlock != null) {
+        val size = getSize(cellRef)
+
+        val noUnderflowExpr =
+            scope.calcOnStateCtx {
+                val min = minSize?.let { mkSizeGeExpr(size, minSize) } ?: trueExpr
+                val max = maxSize?.let { mkSizeLeExpr(size, maxSize) } ?: trueExpr
+                min and max
+            }
+
         return scope.fork(
             noUnderflowExpr,
             falseStateIsExceptional = quietBlock == null,
@@ -157,42 +115,59 @@ private fun TvmContext.processCellUnderflowCheck(
         )
     }
 
-    // cases for concrete and symbolic sizes are different:
-    // this is why we need to split `size` if it represents ite.
-    val (concreteSize, symbolicSize) = splitSizeExpr(size)
-    val concreteGuard = concreteSize?.guard ?: falseExpr
-    val symbolicGuard = symbolicSize?.guard ?: falseExpr
+    val refs = extractAddresses(cellRef, extractAllocated = true, extractStatic = true)
+    val allocated = mkIteFromVariants(refs.filter { it.second.isAllocated })
+    val static = mkIteFromVariants(refs.filter { it.second.isStatic })
 
-    // Case of concrete size: cellUnderflow is always a real error.
-    scope.fork(
-        concreteGuard implies noUnderflowExpr,
-        falseStateIsExceptional = true,
-        blockOnFalseState = {
-            throwRealCellUnderflowError(this)
-        },
-    ) ?: return null
+    // cases for input and allocated cells are different
 
-    // Case of symbolic size.
-    // First we distinguish StructuralError and SymbolicStructuralError.
-    val isConcreteBound = (minSize is KInterpretedValue?) && (maxSize is KInterpretedValue?)
-    var symbolicThrow =
-        if (isConcreteBound) {
-            throwStructuralCellUnderflowError
-        } else {
-            throwSymbolicStructuralCellUnderflowError
-        }
-    // Here cellUnderflow can be either structural, real or unknown.
-    // It is structural error if state without cellUnderflow is possible.
-    // It is real error if state without cellUnderflow is UNSTAT.
-    // If solver returned UNKNOWN, the type of cellUnderflow is unknown.
-    return scope.forkWithCheckerStatusKnowledge(
-        symbolicGuard implies noUnderflowExpr,
-        blockOnUnknownTrueState = { symbolicThrow = throwUnknownCellUnderflowError },
-        blockOnUnsatTrueState = { symbolicThrow = throwRealCellUnderflowError },
-        blockOnFalseState = {
-            symbolicThrow(this)
-        },
-    )
+    // case of allocated
+    if (allocated.expr != null) {
+        val allocatedNoOverflow =
+            scope.calcOnStateCtx {
+                val size = getSize(allocated.expr!!)
+                val min = minSize?.let { mkSizeGeExpr(size, minSize) } ?: trueExpr
+                val max = maxSize?.let { mkSizeLeExpr(size, maxSize) } ?: trueExpr
+                min and max
+            }
+
+        // Case of allocated cell: cellUnderflow is always a real error.
+        scope.fork(
+            allocated.guard implies allocatedNoOverflow,
+            falseStateIsExceptional = true,
+            blockOnFalseState = {
+                throwRealCellUnderflowError(this)
+            },
+        ) ?: return null
+    }
+
+    // case of input
+    if (static.expr != null) {
+        val staticNoOverflow =
+            scope.calcOnStateCtx {
+                val size = getSize(static.expr!!)
+                val min = minSize?.let { mkSizeGeExpr(size, minSize) } ?: trueExpr
+                val max = maxSize?.let { mkSizeLeExpr(size, maxSize) } ?: trueExpr
+                min and max
+            }
+
+        var symbolicThrow = throwStructuralCellUnderflowError
+
+        // Here cellUnderflow can be either structural, real or unknown.
+        // It is structural error if state without cellUnderflow is possible.
+        // It is real error if state without cellUnderflow is UNSTAT.
+        // If solver returned UNKNOWN, the type of cellUnderflow is unknown.
+        return scope.forkWithCheckerStatusKnowledge(
+            static.guard implies staticNoOverflow,
+            blockOnUnknownTrueState = { symbolicThrow = throwUnknownCellUnderflowError },
+            blockOnUnsatTrueState = { symbolicThrow = throwRealCellUnderflowError },
+            blockOnFalseState = {
+                symbolicThrow(this)
+            },
+        )
+    }
+
+    return Unit
 }
 
 fun TvmContext.checkCellDataUnderflow(
@@ -202,11 +177,12 @@ fun TvmContext.checkCellDataUnderflow(
     maxSize: UExpr<TvmSizeSort>? = null,
     quietBlock: (TvmState.() -> Unit)? = null,
 ): Unit? {
-    val cellSize =
+    val getCellSize = { ref: UHeapRef ->
         scope.calcOnStateCtx {
-            fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
+            fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, ref)
         }
-    return processCellUnderflowCheck(cellSize, scope, minSize, maxSize, quietBlock)
+    }
+    return processCellUnderflowCheck(cellRef, getCellSize, scope, minSize, maxSize, quietBlock)
 }
 
 fun TvmContext.checkCellRefsUnderflow(
@@ -216,11 +192,12 @@ fun TvmContext.checkCellRefsUnderflow(
     maxSize: UExpr<TvmSizeSort>? = null,
     quietBlock: (TvmState.() -> Unit)? = null,
 ): Unit? {
-    val cellSize =
+    val getCellSize = { ref: UHeapRef ->
         scope.calcOnStateCtx {
-            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cellRef)
+            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, ref)
         }
-    return processCellUnderflowCheck(cellSize, scope, minSize, maxSize, quietBlock)
+    }
+    return processCellUnderflowCheck(cellRef, getCellSize, scope, minSize, maxSize, quietBlock)
 }
 
 fun checkCellOverflow(

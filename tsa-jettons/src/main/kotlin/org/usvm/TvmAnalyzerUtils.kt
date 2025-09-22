@@ -51,7 +51,7 @@ class FirstFailureTerminator :
     companion object {
         val forbiddenTypes =
             listOf(
-                TvmFailureType.FixedStructuralError,
+                TvmFailureType.StructuralError,
                 TvmFailureType.SymbolicStructuralError,
             )
     }
