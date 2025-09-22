@@ -71,8 +71,8 @@ class TvmCellDataLengthFieldManager(
                         }
                     }
                 }.let {
-                    // hack: value in this field is either input symbol, constant or
-                    // some symbolic value that was written with [writeCellDataLength].
+                    // hack: value in this field is either input symbol or
+                    // some value that was written with [writeCellDataLength].
                     // If this is the last case, we can get rid of the [extract] that was added in [writeCellDataLength].
                     if (it is KBvExtractExpr && it.value.sort == sizeSort) {
                         @Suppress("unchecked_cast")
