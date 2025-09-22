@@ -1,5 +1,6 @@
 package org.usvm.machine.fields
 
+import io.ksmt.expr.KBvExtractExpr
 import kotlinx.collections.immutable.persistentMapOf
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
@@ -69,7 +70,17 @@ class TvmCellDataLengthFieldManager(
                             "Unexpected upper bound for $cellRef. Bound: $bound, length: $length."
                         }
                     }
-                }.zeroExtendToSort(sizeSort)
+                }.let {
+                    // hack: value in this field is either input symbol, constant or
+                    // some symbolic value that was written with [writeCellDataLength].
+                    // If this is the last case, we can get rid of the [extract] that was added in [writeCellDataLength].
+                    if (it is KBvExtractExpr && it.value.sort == sizeSort) {
+                        @Suppress("unchecked_cast")
+                        it.value as UExpr<TvmSizeSort>
+                    } else {
+                        it.zeroExtendToSort(sizeSort)
+                    }
+                }
         }
 
     fun getUpperBound(
@@ -93,7 +104,7 @@ class TvmCellDataLengthFieldManager(
         if (upperBound != null) {
             builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(cellRef, upperBound)
         }
-        val valueToWrite = value.extractToSort(cellDataLengthSort)
+        val valueToWrite = mkBvExtractExprNoSimplify(high = BITS_FOR_FIELD.toInt() - 1, low = 0, value)
         memory.writeField(cellRef, cellDataLengthField, cellDataLengthSort, valueToWrite, guard = trueExpr)
     }
 
