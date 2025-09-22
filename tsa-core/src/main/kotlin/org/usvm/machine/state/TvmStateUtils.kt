@@ -143,15 +143,7 @@ fun TvmState.ensureSymbolicSliceInitialized(ref: UHeapRef) =
 
 fun TvmState.initializeSymbolicCell(cell: UConcreteHeapRef) =
     with(ctx) {
-        val dataLength =
-            fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@initializeSymbolicCell, cell)
         val refsLength = memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort)
-
-        // We can add these constraints manually to path constraints because default values (0) in models are valid
-        // for these fields
-
-        pathConstraints += mkSizeLeExpr(dataLength, maxDataLengthSizeExpr)
-        pathConstraints += mkSizeGeExpr(dataLength, zeroSizeExpr)
 
         pathConstraints += mkSizeLeExpr(refsLength, maxRefsLengthSizeExpr)
         pathConstraints += mkSizeGeExpr(refsLength, zeroSizeExpr)
@@ -159,9 +151,9 @@ fun TvmState.initializeSymbolicCell(cell: UConcreteHeapRef) =
 
 fun TvmState.initializeSymbolicSlice(ref: UConcreteHeapRef) =
     with(ctx) {
-        // TODO hack! Assume that all input slices were not read, that means dataPos == 0 and refsPos == 0
-        memory.writeField(ref, TvmContext.sliceDataPosField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-        memory.writeField(ref, TvmContext.sliceRefPosField, sizeSort, mkSizeExpr(0), guard = trueExpr)
+        // Assume that all input slices were not read, that means dataPos == 0 and refsPos == 0
+        fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(memory, ref, zeroSizeExpr)
+        memory.writeField(ref, TvmContext.sliceRefPosField, sizeSort, zeroSizeExpr, guard = trueExpr)
 
         // Cell in input slices must be represented with static refs to be correctly processed in TvmCellRefsRegion
         val cell = generateSymbolicCell()

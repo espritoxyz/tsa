@@ -106,7 +106,6 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
-import org.usvm.machine.TvmContext.Companion.sliceDataPosField
 import org.usvm.machine.TvmContext.Companion.sliceRefPosField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
@@ -909,7 +908,9 @@ class TvmCellInterpreter(
             scope.assertEndOfCell(slice) ?: return
 
             val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
-            val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+            val dataPos = scope.calcOnState {
+                fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
+            }
             val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
 
             checkCellDataUnderflow(scope, cell, maxSize = dataPos) ?: return
@@ -1228,7 +1229,7 @@ class TvmCellInterpreter(
             unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
         ) ?: return
 
-        val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+        val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
         val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
 
         val requiredBitsInCell = mkSizeAddExpr(bitsToRemain, dataPos)
@@ -1299,7 +1300,7 @@ class TvmCellInterpreter(
             unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
         ) ?: return
 
-        val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+        val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
         val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
 
         val requiredBitsInCell = mkSizeAddExpr(bitsToCut, dataPos)

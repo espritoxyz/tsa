@@ -85,7 +85,7 @@ class TvmValueFixator(
         with(ctx) {
             val dataPosSymbolic =
                 scope.calcOnState {
-                    memory.readField(ref, TvmContext.sliceDataPosField, sizeSort)
+                    fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, ref)
                 }
             val refPosSymbolic =
                 scope.calcOnState {

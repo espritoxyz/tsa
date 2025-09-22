@@ -85,7 +85,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoa
 
     calcOnStateCtx {
         val outcomes = hashMapOf<MakeSliceTypeLoadOutcome, MutableMap<ReadResult?, UBoolExpr>>()
-        val offset = memory.readField(oldSlice, TvmContext.sliceDataPosField, sizeSort)
+        val offset = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, oldSlice)
         val loadList = dataCellLoadedTypeInfo.loadData(this, offset, type, oldSlice)
 
         loadList.forEach { load ->
@@ -184,7 +184,7 @@ fun TvmStepScopeManager.assertEndOfCell(slice: UHeapRef): Unit? {
     }
     return calcOnStateCtx {
         val cellAddress = memory.readField(slice, TvmContext.sliceCellField, addressSort)
-        val offset = memory.readField(slice, TvmContext.sliceDataPosField, sizeSort)
+        val offset = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
         val refNumber = memory.readField(slice, TvmContext.sliceRefPosField, sizeSort)
         val actions = dataCellLoadedTypeInfo.makeEndOfCell(cellAddress, offset, refNumber)
         actions.forEach {
@@ -418,7 +418,7 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
     slice: UHeapRef,
 ) = doWithCtx {
     val cellRef = calcOnState { memory.readField(slice, TvmContext.sliceCellField, addressSort) }
-    val dataPos = calcOnState { memory.readField(slice, TvmContext.sliceDataPosField, sizeSort) }
+    val dataPos = calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
     val cellLength =
         calcOnState {
             fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
@@ -437,7 +437,7 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
                 memory.writeField(newSlice, TvmContext.sliceCellField, addressSort, cellRef, guard = trueExpr)
                 val refsInCell = memory.readField(cellRef, TvmContext.cellRefsLengthField, sizeSort)
                 memory.writeField(newSlice, TvmContext.sliceRefPosField, sizeSort, refsInCell, guard = trueExpr)
-                memory.writeField(newSlice, TvmContext.sliceDataPosField, sizeSort, dataPos, guard = trueExpr)
+                fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(memory, newSlice, dataPos)
             }
 
             TlbBitArrayByRef(sliceLength) to newSlice

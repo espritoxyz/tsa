@@ -219,7 +219,6 @@ import org.usvm.machine.TvmContext.Companion.RECEIVE_EXTERNAL_ID
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
-import org.usvm.machine.TvmContext.Companion.sliceDataPosField
 import org.usvm.machine.TvmContext.Companion.sliceRefPosField
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
@@ -599,7 +598,7 @@ class TvmInterpreter(
             val emptySlice = allocStatic(TvmSliceType)
             writeField(emptySlice, sliceCellField, addressSort, emptyCell, guard = trueExpr)
             writeField(emptySlice, sliceRefPosField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-            writeField(emptySlice, sliceDataPosField, sizeSort, mkSizeExpr(0), guard = trueExpr)
+            cellDataLengthFieldManager.writeSliceDataPos(this@initializeEmptyRefValues, emptySlice, mkSizeExpr(0))
 
             TvmRefEmptyValue(emptyCell, emptySlice, emptyBuilder)
         }
@@ -1736,7 +1735,7 @@ class TvmInterpreter(
                 }
 
                 val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
-                val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+                val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
                 val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
                 val dataLength =
                     scope.calcOnState {

@@ -324,7 +324,6 @@ class TvmContext(
 
         val cellRefsLengthField: TvmField = TvmFieldImpl(TvmCellType, "refsLength")
 
-        val sliceDataPosField: TvmField = TvmFieldImpl(TvmSliceType, "dataPos")
         val sliceRefPosField: TvmField = TvmFieldImpl(TvmSliceType, "refPos")
         val sliceCellField: TvmField = TvmFieldImpl(TvmSliceType, "cell")
 

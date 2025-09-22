@@ -438,7 +438,7 @@ class TvmTestStateResolver(
         with(ctx) {
             val cellValue = resolveCell(memory.readField(slice, TvmContext.sliceCellField, addressSort))
             require(cellValue is TvmTestDataCellValue)
-            val dataPosValue = resolveInt(memory.readField(slice, TvmContext.sliceDataPosField, sizeSort))
+            val dataPosValue = resolveInt(state.fieldManagers.cellDataLengthFieldManager.readSliceDataPos(state, slice))
             val refPosValue = resolveInt(memory.readField(slice, TvmContext.sliceRefPosField, sizeSort))
 
             TvmTestSliceValue(cellValue, dataPosValue, refPosValue)

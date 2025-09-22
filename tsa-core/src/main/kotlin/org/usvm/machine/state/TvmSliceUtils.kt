@@ -31,7 +31,6 @@ import org.usvm.machine.TvmContext.Companion.STD_WORKCHAIN_BITS
 import org.usvm.machine.TvmContext.Companion.VAR_ADDRESS_TAG
 import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
-import org.usvm.machine.TvmContext.Companion.sliceDataPosField
 import org.usvm.machine.TvmContext.Companion.sliceRefPosField
 import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmContext.TvmInt257Sort
@@ -336,8 +335,8 @@ fun TvmStepScopeManager.slicePreloadDataBitsWithoutChecks(
             memory.readField(slice, sliceCellField, addressSort)
         }
     val dataPosition =
-        calcOnStateCtx {
-            memory.readField(slice, sliceDataPosField, sizeSort)
+        calcOnState {
+            fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
         }
     return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
 }
@@ -352,9 +351,8 @@ fun TvmStepScopeManager.slicePreloadDataBits(
 ): UExpr<TvmCellDataSort>? =
     calcOnStateCtx {
         val cell = memory.readField(slice, sliceCellField, addressSort)
-        val cellDataLength = fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
 
-        val dataPosition = memory.readField(slice, sliceDataPosField, sizeSort)
+        val dataPosition = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
         val readingEnd = mkBvAddExpr(dataPosition, sizeBits)
 
         checkCellDataUnderflow(this@slicePreloadDataBits, cell, minSize = readingEnd, quietBlock = quietBlock)
@@ -673,7 +671,11 @@ fun TvmState.sliceCopy(
     result: UHeapRef,
 ) = with(ctx) {
     memory.copyField(original, result, sliceCellField, addressSort)
-    memory.copyField(original, result, sliceDataPosField, sizeSort)
+    fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(
+        memory,
+        result,
+        fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this@sliceCopy, original),
+    )
     memory.copyField(original, result, sliceRefPosField, sizeSort)
 }
 
@@ -696,7 +698,11 @@ fun TvmStepScopeManager.sliceDeepCopy(
 
         doWithState {
             memory.writeField(result, sliceCellField, addressSort, cellCopy, guard = trueExpr)
-            memory.copyField(original, result, sliceDataPosField, sizeSort)
+            fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(
+                memory,
+                result,
+                fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, original),
+            )
             memory.copyField(original, result, sliceRefPosField, sizeSort)
         }
     }
@@ -705,9 +711,9 @@ fun TvmState.sliceMoveDataPtr(
     slice: UHeapRef,
     bits: UExpr<TvmSizeSort>,
 ) = with(ctx) {
-    val dataPosition = memory.readField(slice, sliceDataPosField, sizeSort)
+    val dataPosition = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this@sliceMoveDataPtr, slice)
     val updatedDataPosition = mkSizeAddExpr(dataPosition, bits)
-    memory.writeField(slice, sliceDataPosField, sizeSort, updatedDataPosition, guard = trueExpr)
+    fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(this@sliceMoveDataPtr, slice, updatedDataPosition)
 }
 
 fun TvmState.sliceMoveDataPtr(
@@ -1026,7 +1032,7 @@ fun TvmStepScopeManager.builderStoreSlice(
         val cell = calcOnState { memory.readField(slice, sliceCellField, addressSort) }
         val cellDataLength = calcOnState { fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell) }
 
-        val dataPosition = calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+        val dataPosition = calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
 
         // TODO: use TL-B values if possible
         val bitsToWriteLength = mkSizeSubExpr(cellDataLength, dataPosition)
@@ -1158,7 +1164,7 @@ fun TvmState.allocSliceFromCell(cell: UHeapRef) =
     with(ctx) {
         memory.allocConcrete(TvmSliceType).also { slice ->
             memory.writeField(slice, sliceCellField, addressSort, cell, trueExpr)
-            memory.writeField(slice, sliceDataPosField, sizeSort, zeroSizeExpr, trueExpr)
+            fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(memory, slice, zeroSizeExpr)
             memory.writeField(slice, sliceRefPosField, sizeSort, zeroSizeExpr, trueExpr)
         }
     }
@@ -1180,7 +1186,7 @@ fun TvmState.getSliceRemainingBitsCount(slice: UHeapRef): UExpr<TvmSizeSort> =
                 this@getSliceRemainingBitsCount,
                 cell,
             )
-        val dataPos = memory.readField(slice, sliceDataPosField, sizeSort)
+        val dataPos = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this@getSliceRemainingBitsCount, slice)
 
         mkBvSubExpr(dataLength, dataPos)
     }
@@ -1212,7 +1218,7 @@ fun TvmStepScopeManager.slicesAreEqual(
 
         val dataPosition1 =
             calcOnState {
-                memory.readField(slice1, sliceDataPosField, sizeSort)
+                fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice1)
             }
         val cell1 =
             calcOnState {
@@ -1224,7 +1230,7 @@ fun TvmStepScopeManager.slicesAreEqual(
 
         val dataPosition2 =
             calcOnState {
-                memory.readField(slice2, sliceDataPosField, sizeSort)
+                fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice2)
             }
         val cell2 =
             calcOnState {
@@ -1303,7 +1309,7 @@ fun sliceLoadAddrTlb(
                     tlbValue.second
                 } else {
                     val originalCell = memory.readField(slice, sliceCellField, addressSort)
-                    val dataPos = memory.readField(slice, sliceDataPosField, sizeSort)
+                    val dataPos = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
 
                     checkCellDataUnderflow(
                         this@makeSliceTypeLoad,
@@ -1442,6 +1448,7 @@ fun builderStoreSliceTlb(
         storeSliceTlbLabelInBuilder(builder, updatedBuilder, slice)
     }
 
-fun TvmState.readSliceDataPos(slice: UHeapRef) = memory.readField(slice, sliceDataPosField, ctx.sizeSort)
+fun TvmState.readSliceDataPos(slice: UHeapRef) =
+    fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
 
 fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellField, ctx.addressSort)

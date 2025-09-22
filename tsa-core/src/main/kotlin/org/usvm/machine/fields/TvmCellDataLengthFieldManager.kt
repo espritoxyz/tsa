@@ -12,6 +12,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TvmCellType
+import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UWritableMemory
 import org.usvm.sizeSort
@@ -29,11 +30,34 @@ class TvmCellDataLengthFieldManager(
 
     fun clone() = TvmCellDataLengthFieldManager(ctx, builderLengthUpperBoundTracker)
 
+    fun readSliceDataPos(
+        state: TvmState,
+        sliceRef: UHeapRef,
+    ): UExpr<TvmSizeSort> = with(ctx) {
+        state.memory.readField(sliceRef, sliceDataPosField, sizeSort)
+    }
+
+    fun writeSliceDataPos(
+        state: TvmState,
+        sliceRef: UHeapRef,
+        value: UExpr<TvmSizeSort>,
+    ) {
+        writeSliceDataPos(state.memory, sliceRef, value)
+    }
+
+    fun writeSliceDataPos(
+        memory: UWritableMemory<TvmType>,
+        sliceRef: UHeapRef,
+        value: UExpr<TvmSizeSort>,
+    ) = with(ctx) {
+        memory.writeField(sliceRef, sliceDataPosField, sizeSort, value, guard = trueExpr)
+    }
+
     fun readCellDataLength(
         state: TvmState,
         cellRef: UHeapRef,
     ): UExpr<TvmSizeSort> =
-        with(state.ctx) {
+        with(ctx) {
             return state.memory
                 .readField(cellRef, cellDataLengthField, cellDataLengthSort)
                 .also {
@@ -99,6 +123,7 @@ class TvmCellDataLengthFieldManager(
 
     companion object {
         private val cellDataLengthField: TvmField = TvmFieldImpl(TvmCellType, "dataLength")
+        private val sliceDataPosField: TvmField = TvmFieldImpl(TvmSliceType, "dataPos")
         private val BITS_FOR_FIELD = 10u
     }
 }
