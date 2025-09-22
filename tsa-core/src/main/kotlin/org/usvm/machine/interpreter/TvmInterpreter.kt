@@ -1735,7 +1735,13 @@ class TvmInterpreter(
                 }
 
                 val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
-                val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
+                val dataPos =
+                    scope.calcOnState {
+                        fieldManagers.cellDataLengthFieldManager.readSliceDataPos(
+                            this,
+                            slice,
+                        )
+                    }
                 val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
                 val dataLength =
                     scope.calcOnState {

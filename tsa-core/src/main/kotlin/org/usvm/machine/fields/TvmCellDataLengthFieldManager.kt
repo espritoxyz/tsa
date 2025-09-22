@@ -33,9 +33,10 @@ class TvmCellDataLengthFieldManager(
     fun readSliceDataPos(
         state: TvmState,
         sliceRef: UHeapRef,
-    ): UExpr<TvmSizeSort> = with(ctx) {
-        state.memory.readField(sliceRef, sliceDataPosField, sizeSort)
-    }
+    ): UExpr<TvmSizeSort> =
+        with(ctx) {
+            state.memory.readField(sliceRef, sliceDataPosField, sizeSort)
+        }
 
     fun writeSliceDataPos(
         state: TvmState,
