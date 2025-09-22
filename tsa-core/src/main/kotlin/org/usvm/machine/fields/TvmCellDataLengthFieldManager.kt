@@ -136,6 +136,6 @@ class TvmCellDataLengthFieldManager(
     companion object {
         private val cellDataLengthField: TvmField = TvmFieldImpl(TvmCellType, "dataLength")
         private val sliceDataPosField: TvmField = TvmFieldImpl(TvmSliceType, "dataPos")
-        private val BITS_FOR_FIELD = 10u
+        private const val BITS_FOR_FIELD = 10u
     }
 }

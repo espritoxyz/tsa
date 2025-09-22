@@ -130,24 +130,16 @@ fun TvmStepScopeManager.doWithStateCtx(block: context(TvmContext) TvmState.() ->
     }
 
 fun TvmState.generateSymbolicCell(): UConcreteHeapRef =
-    generateSymbolicRef(TvmCellType).also { initializeSymbolicCell(it) }
+    generateSymbolicRef(TvmCellType)
 
 fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) =
-    ensureSymbolicRefInitialized(ref, TvmCellType) { initializeSymbolicCell(it) }
+    ensureSymbolicRefInitialized(ref, TvmCellType)
 
 fun TvmState.generateSymbolicSlice(): UConcreteHeapRef =
     generateSymbolicRef(TvmSliceType).also { initializeSymbolicSlice(it) }
 
 fun TvmState.ensureSymbolicSliceInitialized(ref: UHeapRef) =
     ensureSymbolicRefInitialized(ref, TvmSliceType) { initializeSymbolicSlice(it) }
-
-fun TvmState.initializeSymbolicCell(cell: UConcreteHeapRef) =
-    with(ctx) {
-        val refsLength = memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort)
-
-        pathConstraints += mkSizeLeExpr(refsLength, maxRefsLengthSizeExpr)
-        pathConstraints += mkSizeGeExpr(refsLength, zeroSizeExpr)
-    }
 
 fun TvmState.initializeSymbolicSlice(ref: UConcreteHeapRef) =
     with(ctx) {
@@ -347,7 +339,8 @@ private fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell?
             )
         val dataLength =
             fieldManagers.cellDataLengthFieldManager.readCellDataLength(this@extractFullCellIfItIsConcrete, ref)
-        val refsLength = memory.readField(ref, TvmContext.cellRefsLengthField, sizeSort)
+        val refsLength =
+            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this@extractFullCellIfItIsConcrete, ref)
 
         if (data !is KInterpretedValue || dataLength !is KInterpretedValue || refsLength !is KInterpretedValue) {
             return null

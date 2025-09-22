@@ -124,7 +124,7 @@ fun calculateGeneralSizeConstraints(
     with(state.ctx) {
         val dataLengthField =
             state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
-        val refsLengthField = state.memory.readField(address, TvmContext.cellRefsLengthField, sizeSort)
+        val refsLengthField = state.fieldManagers.cellRefsLengthFieldManager.readCellRefLength(state, address)
 
         val info =
             calculateSizeInfoForLeaves(

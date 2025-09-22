@@ -82,7 +82,7 @@ class RecvInternalInput(
                 tailSize,
                 upperBound = 256,
             )
-            state.memory.writeField(tailCell, TvmContext.cellRefsLengthField, sizeSort, zeroSizeExpr, guard = trueExpr)
+            state.fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(state, tailCell, zeroSizeExpr)
             builderStoreSliceTlb(scope, builder, builder, tail)
                 ?: error("Cannot store bounced message tail")
 

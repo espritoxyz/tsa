@@ -104,7 +104,6 @@ import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
-import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.Companion.sliceRefPosField
 import org.usvm.machine.TvmSizeSort
@@ -115,7 +114,6 @@ import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.assertDataCellType
-import org.usvm.machine.state.assertRefsLengthConstraintWithoutError
 import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
@@ -1224,11 +1222,9 @@ class TvmCellInterpreter(
                 fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
             }
 
-        val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
-        scope.assertRefsLengthConstraintWithoutError(
-            cellRefsLength,
-            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
-        ) ?: return
+        val cellRefsLength = scope.calcOnState {
+            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
+        }
 
         val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
         val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
@@ -1295,11 +1291,9 @@ class TvmCellInterpreter(
                 fieldManagers.cellDataLengthFieldManager.getUpperBound(ctx, cell)
             }
 
-        val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
-        scope.assertRefsLengthConstraintWithoutError(
-            cellRefsLength,
-            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
-        ) ?: return
+        val cellRefsLength = scope.calcOnState {
+            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
+        }
 
         val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
         val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
@@ -1339,7 +1333,7 @@ class TvmCellInterpreter(
                 cutCellDataLength,
                 newCellLengthUpperBound,
             )
-            memory.writeField(cutCell, cellRefsLengthField, sizeSort, cutCellRefsLength, guard = trueExpr)
+            fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(this, cutCell, cutCellRefsLength)
 
             val cutSlice = allocSliceFromCell(cutCell)
 
@@ -1818,7 +1812,9 @@ class TvmCellInterpreter(
         }
 
         with(ctx) {
-            val builderRefsLength = scope.calcOnState { memory.readField(builder, cellRefsLengthField, ctx.sizeSort) }
+            val builderRefsLength = scope.calcOnState {
+                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, builder)
+            }
             val canWriteRefConstraint = mkSizeLtExpr(builderRefsLength, maxRefsLengthSizeExpr)
             val quietBlock: (TvmState.() -> Unit)? =
                 if (!quiet) {

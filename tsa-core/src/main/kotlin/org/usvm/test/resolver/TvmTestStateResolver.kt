@@ -461,9 +461,11 @@ class TvmTestStateResolver(
             val data = resolveCellData(cell)
 
             val refsLength =
-                resolveInt(
-                    memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort),
-                ).coerceAtMost(TvmContext.MAX_REFS_NUMBER)
+                resolveInt(state.fieldManagers.cellRefsLengthFieldManager.readCellRefLength(state, cell)).also {
+                    check(it in 0..4) {
+                        "Unexpected cell ref length: $it"
+                    }
+                }
             val refs = mutableListOf<TvmTestCellValue>()
 
             val storedRefs = mutableMapOf<Int, TvmTestCellValue>()

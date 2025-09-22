@@ -435,7 +435,7 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
             val newSlice = calcOnState { memory.allocConcrete(TvmSliceType) }
             doWithState {
                 memory.writeField(newSlice, TvmContext.sliceCellField, addressSort, cellRef, guard = trueExpr)
-                val refsInCell = memory.readField(cellRef, TvmContext.cellRefsLengthField, sizeSort)
+                val refsInCell = fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cellRef)
                 memory.writeField(newSlice, TvmContext.sliceRefPosField, sizeSort, refsInCell, guard = trueExpr)
                 fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(memory, newSlice, dataPos)
             }
