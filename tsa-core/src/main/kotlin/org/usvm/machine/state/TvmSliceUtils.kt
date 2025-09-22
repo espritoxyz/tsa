@@ -210,6 +210,9 @@ fun checkCellOverflow(
         noOverflowExpr,
         falseStateIsExceptional = (quietBlock == null),
         blockOnFalseState = {
+            if (pathConstraints.isFalse) {
+                println("here!")
+            }
             quietBlock?.invoke(this)
                 ?: ctx.throwCellOverflowError(this)
         },
@@ -1209,19 +1212,19 @@ private fun TvmStepScopeManager.tryCompareWithTlbFields(
 fun TvmStepScopeManager.slicesAreEqual(
     slice1: UHeapRef,
     slice2: UHeapRef,
-): UBoolExpr? {
-    val (conditionFromTlb, status) =
-        calcOnState {
-            tryCompareWithTlbFields(slice1, slice2)
+): UBoolExpr? =
+    with(ctx) {
+        val (conditionFromTlb, status) =
+            calcOnState {
+                tryCompareWithTlbFields(slice1, slice2)
+            }
+
+        status ?: return null
+
+        if (conditionFromTlb != null) {
+            return conditionFromTlb
         }
 
-    status ?: return null
-
-    if (conditionFromTlb != null) {
-        return conditionFromTlb
-    }
-
-    return doWithCtx {
         val dataLeft1 =
             calcOnState {
                 getSliceRemainingBitsCount(slice1)
@@ -1241,7 +1244,7 @@ fun TvmStepScopeManager.slicesAreEqual(
             }
         val data1 =
             preloadDataBitsFromCellWithoutChecks(cell1, dataPosition1, dataLeft1)
-                ?: return@doWithCtx null
+                ?: return null
 
         val dataPosition2 =
             calcOnState {
@@ -1253,15 +1256,14 @@ fun TvmStepScopeManager.slicesAreEqual(
             }
         val data2 =
             preloadDataBitsFromCellWithoutChecks(cell2, dataPosition2, dataLeft2)
-                ?: return@doWithCtx null
+                ?: return null
 
         val shift = mkBvSubExpr(mkSizeExpr(MAX_DATA_LENGTH), dataLeft1).zeroExtendToSort(cellDataSort)
         val shiftedData1 = mkBvShiftLeftExpr(data1, shift)
         val shiftedData2 = mkBvShiftLeftExpr(data2, shift)
 
-        mkAnd(dataLeft1 eq dataLeft2, shiftedData1 eq shiftedData2)
+        return mkAnd(dataLeft1 eq dataLeft2, shiftedData1 eq shiftedData2)
     }
-}
 
 fun TvmStepScopeManager.builderToCell(builder: UConcreteHeapRef): UConcreteHeapRef =
     calcOnState {

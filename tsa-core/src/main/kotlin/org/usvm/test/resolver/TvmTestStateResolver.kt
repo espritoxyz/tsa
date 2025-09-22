@@ -26,6 +26,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.api.readField
+import org.usvm.isFalse
 import org.usvm.isStatic
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
@@ -109,7 +110,11 @@ class TvmTestStateResolver(
 
     init {
         // collect info about all constraints in state
-        state.pathConstraints.constraints(constraintVisitor).toList()
+        state.pathConstraints.constraints(constraintVisitor).toList().forEach {
+            if (eval(it).isFalse) {
+                error("Resolving contradicting state!")
+            }
+        }
     }
 
     private fun resolveRecvInternalInput(input: RecvInternalInput): TvmTestInput.RecvInternalInput =

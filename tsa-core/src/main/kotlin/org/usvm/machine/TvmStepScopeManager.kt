@@ -196,7 +196,7 @@ class TvmStepScopeManager(
                     }
                 }
 
-                if (state !== originalState && stateAlive) {
+                if (state != originalState && stateAlive) {
                     forkedStates += state
                 }
             }
@@ -278,7 +278,7 @@ class TvmStepScopeManager(
          *
          * @return `null` if the [condition] is unsatisfiable or unknown.
          */
-        inline fun fork(
+        fun fork(
             condition: UBoolExpr,
             blockOnTrueState: TvmState.() -> Unit = {},
             blockOnFalseState: TvmState.() -> Unit = {},
@@ -292,8 +292,7 @@ class TvmStepScopeManager(
             )
         }
 
-        // TODO: I don't like this implementation, but that was the fastest way to do it without patching usvm
-        inline fun forkWithCheckerStatusKnowledge(
+        fun forkWithCheckerStatusKnowledge(
             condition: UBoolExpr,
             blockOnUnknownTrueState: TvmState.() -> Unit = {},
             blockOnUnsatTrueState: TvmState.() -> Unit = {},
@@ -333,6 +332,7 @@ class TvmStepScopeManager(
                 // fix current step scope
                 stepScopeState = CANNOT_BE_PROCESSED
 
+                // this is to avoid breaking iteration limit
                 if (unknownHappened) {
                     originalState.forkPoints += possibleForkPoint
                 }
@@ -415,7 +415,7 @@ class TvmStepScopeManager(
             forkedStates.forEach { it.forkPoints += possibleForkPoint }
         }
 
-        inline fun assert(
+        fun assert(
             constraint: UBoolExpr,
             satBlock: TvmState.() -> Unit = {},
             unsatBlock: TvmState.() -> Unit = {},
@@ -433,7 +433,7 @@ class TvmStepScopeManager(
          * @param registerForkPoint register a fork point if assert was successful.
          * */
         @Suppress("MoveVariableDeclarationIntoWhen")
-        private inline fun assert(
+        private fun assert(
             constraint: UBoolExpr,
             registerForkPoint: Boolean,
             satBlock: TvmState.() -> Unit = {},
@@ -513,7 +513,7 @@ class TvmStepScopeManager(
          * @param trueStmt statement to fork on [condition].
          * @param falseStmt statement to fork on ![condition].
          */
-        inline fun forkWithBlackList(
+        fun forkWithBlackList(
             condition: UBoolExpr,
             trueStmt: TvmInst,
             falseStmt: TvmInst,
