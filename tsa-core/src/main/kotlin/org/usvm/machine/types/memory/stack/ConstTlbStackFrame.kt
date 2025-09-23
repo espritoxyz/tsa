@@ -188,7 +188,11 @@ data class ConstTlbStackFrame(
             }
 
             if (data.length - offset1 != otherFrame.data.length - offset2) {
-                return null to Unit
+                return if (nextStruct is TlbStructure.Empty && otherFrame.nextStruct is TlbStructure.Empty) {
+                    falseExpr to Unit
+                } else {
+                    null to Unit
+                }
             }
 
             val nextFrame1 = buildFrameForStructure(this, nextStruct, path, leftTlbDepth)
