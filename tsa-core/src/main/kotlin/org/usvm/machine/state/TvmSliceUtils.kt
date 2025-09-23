@@ -17,6 +17,7 @@ import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.isFalse
 import org.usvm.isStatic
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.ADDRESS_TAG_BITS
@@ -57,7 +58,7 @@ import org.usvm.mkSizeGeExpr
 import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
-import org.usvm.utils.extractAddresses
+import org.usvm.utils.extractAddressesSpecialized
 import org.usvm.utils.intValueOrNull
 
 private fun TvmContext.mkIteFromVariants(variants: List<Pair<UBoolExpr, UConcreteHeapRef>>): GuardedExpr<UHeapRef?> {
@@ -115,7 +116,7 @@ private fun TvmContext.processCellUnderflowCheck(
         )
     }
 
-    val refs = extractAddresses(cellRef, extractAllocated = true, extractStatic = true)
+    val refs = extractAddressesSpecialized(cellRef, extractAllocated = true, extractStatic = true)
     val allocated = mkIteFromVariants(refs.filter { it.second.isAllocated })
     val static = mkIteFromVariants(refs.filter { it.second.isStatic })
 
@@ -155,8 +156,9 @@ private fun TvmContext.processCellUnderflowCheck(
 
         // Here cellUnderflow can be either structural, real or unknown.
         // It is structural error if state without cellUnderflow is possible.
-        // It is real error if state without cellUnderflow is UNSTAT.
+        // It is real error if state without cellUnderflow is UNSAT.
         // If solver returned UNKNOWN, the type of cellUnderflow is unknown.
+
         return scope.forkWithCheckerStatusKnowledge(
             static.guard implies staticNoOverflow,
             blockOnUnknownTrueState = { symbolicThrow = throwUnknownCellUnderflowError },

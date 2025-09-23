@@ -46,7 +46,6 @@ fun runAnalysisAndExtractFailingExecutions(
                 ),
             inputInfo = inputInfo ?: TvmInputInfo(),
             manualStateProcessor = postProcessor,
-            throwNotImplementedError = true,
         )
     val foundTests = analysisResult.tests
     val result = foundTests.filter { it.result is TvmMethodFailure }

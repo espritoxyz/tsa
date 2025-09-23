@@ -221,11 +221,13 @@ class ContractsTest {
         analyzeFuncContract(electorPath, methodsNumber = 3, enableTestGeneration = true)
     }
 
+    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun highloadWallet() {
         analyzeFuncContract(highloadWalletPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
+    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun highloadWalletV2() {
         analyzeFuncContract(highloadWalletV2Path, methodsNumber = 4, enableTestGeneration = true)

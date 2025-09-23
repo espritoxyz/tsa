@@ -4,6 +4,7 @@ import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -19,6 +20,7 @@ class DictExampleTest {
         assertTrue(symbolicResult.isNotEmpty())
     }
 
+    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun testAddAndRemove() {
         val resourcePath = getResourcePath<DictExampleTest>(addAndRemovePath)
