@@ -64,6 +64,9 @@ class TvmContext(
     val tvmOptions: TvmOptions,
     components: UComponents<TvmType, TvmSizeSort>,
 ) : UContext<TvmSizeSort>(components) {
+    // TODO: remove this after fixing representation of cell lengths
+    var solverWasClosed = false
+
     val int257sort = TvmInt257Sort(this)
     val cellDataSort = TvmCellDataSort(this)
 

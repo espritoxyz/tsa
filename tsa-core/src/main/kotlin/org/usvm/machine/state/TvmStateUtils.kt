@@ -27,6 +27,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.writeField
+import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isAllocated
 import org.usvm.isFalse
 import org.usvm.machine.TvmContext
@@ -57,7 +58,6 @@ import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.test.resolver.HashMapESerializer
 import org.usvm.types.USingleTypeStream
-import org.usvm.utils.ensureSat
 import java.math.BigInteger
 
 val TvmState.lastStmt get() = pathNode.statement

@@ -204,6 +204,7 @@ class TvmMachine(
     }
 
     override fun close() {
+        ctx.solverWasClosed = true
         components.close()
     }
 }
