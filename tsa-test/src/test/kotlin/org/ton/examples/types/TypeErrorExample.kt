@@ -12,7 +12,6 @@ import kotlin.test.assertTrue
 class TypeErrorExample {
     private val path = "/types/type_error.fc"
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun testTypeError() {
         val resourcePath = extractResource(path)

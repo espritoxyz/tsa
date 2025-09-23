@@ -442,7 +442,6 @@ class InputParameterInfoTests {
         )
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun testCorrectDict() {
         val resourcePath = extractResource(dictPath)

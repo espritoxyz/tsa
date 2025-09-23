@@ -16,7 +16,6 @@ import kotlin.test.assertTrue
 class SimpleDict {
     private val path = "/types/dict.fc"
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun testSimpleDict() {
         val resourcePath = extractResource(path)

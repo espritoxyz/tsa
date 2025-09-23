@@ -19,6 +19,7 @@ import org.usvm.memory.UWritableMemory
 import org.usvm.sizeSort
 import org.usvm.utils.extractAddresses
 import org.usvm.utils.intValueOrNull
+import org.usvm.utils.splitAndRead
 
 class TvmCellDataLengthFieldManager(
     private val ctx: TvmContext,
@@ -55,9 +56,9 @@ class TvmCellDataLengthFieldManager(
         memory.writeField(sliceRef, sliceDataPosField, sizeSort, value, guard = trueExpr)
     }
 
-    fun readCellDataLength(
+    private fun readConcreteCellDataLength(
         state: TvmState,
-        cellRef: UHeapRef,
+        cellRef: UConcreteHeapRef,
     ): UExpr<TvmSizeSort> =
         with(ctx) {
             return state.memory
@@ -81,6 +82,16 @@ class TvmCellDataLengthFieldManager(
                         it.zeroExtendToSort(sizeSort)
                     }
                 }
+        }
+
+    fun readCellDataLength(
+        state: TvmState,
+        cellRef: UHeapRef,
+    ): UExpr<TvmSizeSort> =
+        with(ctx) {
+            return splitAndRead(cellRef) { concreteRef ->
+                readConcreteCellDataLength(state, concreteRef)
+            }
         }
 
     fun getUpperBound(

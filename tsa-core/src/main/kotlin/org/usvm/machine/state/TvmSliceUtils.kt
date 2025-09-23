@@ -979,7 +979,7 @@ fun TvmStepScopeManager.builderStoreGrams(
     }
 
 fun TvmState.builderStoreNextRefNoOverflowCheck(
-    builder: UHeapRef,
+    builder: UConcreteHeapRef,
     ref: UHeapRef,
 ) = with(ctx) {
     val builderRefsLength =
