@@ -33,6 +33,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
+import org.usvm.machine.state.BadModelException
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.TvmCellRefsRegionValueInfo
@@ -604,8 +605,14 @@ class TvmTestStateResolver(
                     // because we read refs when generating structural constraints
                     // without checking actual number of refs in a cell
                     if (idx < refsLength) {
-                        val value = TvmCellRefsRegionValueInfo(state).actualizeSymbolicValue(updateNode.value)
-                        val refCell = resolveCell(value)
+                        // TODO: remove BadModelException handler when cell length representation is fixed
+                        val refCell =
+                            try {
+                                val value = TvmCellRefsRegionValueInfo(state).actualizeSymbolicValue(updateNode.value)
+                                resolveCell(value)
+                            } catch (_: BadModelException) {
+                                TvmTestDataCellValue()
+                            }
                         storedRefs.putIfAbsent(idx, refCell)
                     }
                 }

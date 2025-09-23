@@ -7,7 +7,6 @@ import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
-import org.usvm.machine.state.BadModelException
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmMethodResult.TvmFailure
@@ -98,20 +97,14 @@ data object TvmTestResolver {
     ): TvmSymbolicTestSuite {
         val tests =
             states.mapNotNull { state ->
-                // TODO: remove BadModelException handler when cell length representation is fixed
-                try {
-                    tryCatchIf(
-                        condition = state.ctx.tvmOptions.quietMode,
-                        body = { resolve(methodId, state) },
-                        exceptionHandler = { exception ->
-                            logger.warn(exception) { "Exception is thrown during the resolve of state $state" }
-                            null
-                        },
-                    )
-                } catch (_: BadModelException) {
-                    logger.warn { "BadModelException while resolving" }
-                    null
-                }
+                tryCatchIf(
+                    condition = state.ctx.tvmOptions.quietMode,
+                    body = { resolve(methodId, state) },
+                    exceptionHandler = { exception ->
+                        logger.warn(exception) { "Exception is thrown during the resolve of state $state" }
+                        null
+                    },
+                )
             }
 
         return TvmSymbolicTestSuite(

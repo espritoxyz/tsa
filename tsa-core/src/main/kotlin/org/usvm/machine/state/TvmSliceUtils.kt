@@ -210,9 +210,6 @@ fun checkCellOverflow(
         noOverflowExpr,
         falseStateIsExceptional = (quietBlock == null),
         blockOnFalseState = {
-            if (pathConstraints.isFalse) {
-                println("here!")
-            }
             quietBlock?.invoke(this)
                 ?: ctx.throwCellOverflowError(this)
         },

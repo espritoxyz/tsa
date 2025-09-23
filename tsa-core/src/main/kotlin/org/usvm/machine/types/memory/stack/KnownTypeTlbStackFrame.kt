@@ -10,6 +10,7 @@ import org.ton.TlbBitArrayByRef
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabelOfSymbolicSize
+import org.ton.TlbSliceByRefInBuilder
 import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
@@ -266,10 +267,17 @@ data class KnownTypeTlbStackFrame(
                         content eq contentOther
                     }
 
-                    is TlbAddressByRef, is TlbBitArrayByRef -> {
-                        if (otherFrame.struct.typeLabel !is TlbAddressByRef &&
-                            otherFrame.struct.typeLabel !is TlbBitArrayByRef
-                        ) {
+                    is TlbSliceByRefInBuilder -> {
+                        if (otherFrame.struct.typeLabel !is TlbSliceByRefInBuilder) {
+                            return null to Unit
+                        }
+
+                        val canCompare =
+                            struct.typeLabel.sizeBits == otherFrame.struct.typeLabel.sizeBits ||
+                                struct.rest is TlbStructure.Empty &&
+                                otherFrame.struct.rest is TlbStructure.Empty
+
+                        if (!canCompare) {
                             return null to Unit
                         }
 

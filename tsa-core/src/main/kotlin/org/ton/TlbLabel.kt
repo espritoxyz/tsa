@@ -70,11 +70,26 @@ data class TlbBitArrayOfConcreteSize(
     }
 }
 
+sealed interface TlbSliceByRefInBuilder {
+    val sizeBits: UExpr<TvmSizeSort>
+}
+
 // only for builders
 data class TlbBitArrayByRef(
-    val sizeBits: UExpr<TvmSizeSort>,
+    override val sizeBits: UExpr<TvmSizeSort>,
 ) : TlbAtomicLabel(),
-    TlbBuiltinLabel {
+    TlbBuiltinLabel,
+    TlbSliceByRefInBuilder {
+    override val arity: Int = 0
+}
+
+// only for builders
+data class TlbAddressByRef(
+    override val sizeBits: UExpr<TvmSizeSort>,
+) : TlbAtomicLabel(),
+    TlbBuiltinLabel,
+    TlbMsgAddrLabel,
+    TlbSliceByRefInBuilder {
     override val arity: Int = 0
 }
 
@@ -110,15 +125,6 @@ data object TlbEmptyLabel : TlbCompositeLabel("") {
 }
 
 sealed interface TlbMsgAddrLabel : TlbResolvedBuiltinLabel
-
-// only for builders
-data class TlbAddressByRef(
-    val sizeBits: UExpr<TvmSizeSort>,
-) : TlbAtomicLabel(),
-    TlbBuiltinLabel,
-    TlbMsgAddrLabel {
-    override val arity: Int = 0
-}
 
 data object TlbBasicMsgAddrLabel : TlbMsgAddrLabel, TlbCompositeLabel("MsgAddr") {
     init {
@@ -168,12 +174,6 @@ class TlbMaybeRefLabel(
 
 private const val INTERNAL_STD_MSG_ADDR_SIZE = 8 + 256
 private const val INTERNAL_SHORT_STD_MSG_ADDR_SIZE = 256
-
-// artificial label
-data object TlbInternalStdMsgAddrLabel : TlbAtomicLabel(), FixedSizeDataLabel {
-    override val arity = 0
-    override val concreteSize: Int = INTERNAL_STD_MSG_ADDR_SIZE
-}
 
 // artificial label
 data object TlbInternalShortStdMsgAddrLabel : TlbAtomicLabel(), FixedSizeDataLabel {

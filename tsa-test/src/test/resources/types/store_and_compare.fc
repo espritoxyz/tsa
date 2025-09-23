@@ -25,5 +25,6 @@ cell store_values(int value1, int value2, slice s) {
     throw_unless(999, a2 == 1);
 
     throw_if(1000, equal_slice_bits(s1, s2));
-    throw(1001);
+    throw_unless(1001, (a1 == a2) & (a3 == a4));
+    throw(1002);
 }

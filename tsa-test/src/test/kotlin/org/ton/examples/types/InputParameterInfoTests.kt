@@ -1907,6 +1907,7 @@ class InputParameterInfoTests {
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
             ),
         )
 
