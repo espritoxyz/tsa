@@ -520,8 +520,14 @@ class TvmTestStateResolver(
                     }
 
                     val resolvedKey = TvmTestIntegerValue(extractInt257(evaluatedKey))
-                    val value = state.dictGetValue(dict, dictId, evaluatedKey)
-                    val resolvedValue = resolveSlice(value)
+
+                    // TODO: remove BadModelException handler when cell length representation is fixed
+                    val resolvedValue = try {
+                        val value = state.dictGetValue(dict, dictId, evaluatedKey)
+                        resolveSlice(value)
+                    } catch (_: BadModelException) {
+                        TvmTestSliceValue()
+                    }
 
                     resultEntries[resolvedKey] = resolvedValue
                 }
