@@ -611,7 +611,12 @@ class TvmTestStateResolver(
                                 val value = TvmCellRefsRegionValueInfo(state).actualizeSymbolicValue(updateNode.value)
                                 resolveCell(value)
                             } catch (_: BadModelException) {
-                                TvmTestDataCellValue()
+                                val types = state.getPossibleTypes(eval(updateNode.value) as UConcreteHeapRef)
+                                if (types.first() is TvmDataCellType) {
+                                    TvmTestDataCellValue()
+                                } else {
+                                    resolveDictCell(eval(updateNode.value) as UConcreteHeapRef, updateNode.value)
+                                }
                             }
                         storedRefs.putIfAbsent(idx, refCell)
                     }
