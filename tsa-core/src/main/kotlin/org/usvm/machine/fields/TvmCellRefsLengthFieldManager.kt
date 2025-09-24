@@ -23,39 +23,20 @@ class TvmCellRefsLengthFieldManager(
     private val cellRefsSort = ctx.mkBvSort(BITS_FOR_FIELD)
     private val cellRefsLengthField: TvmField = TvmFieldImpl(TvmCellType, "refsLength")
 
-    private fun readConcreteCellRefLength(
-        state: TvmState,
-        cellRef: UConcreteHeapRef,
-    ): UExpr<TvmSizeSort> =
-        with(ctx) {
-            val value = state.memory.readField(cellRef, cellRefsLengthField, cellRefsSort)
-            // hack: value in this field is either input symbol or
-            // some value that was written with [writeCellRefsLength].
-            // If this is the last case, we can get rid of the [extract] that was added in [writeCellRefsLength].
-            // And we also don't need to put extra ITE, because all checks were already made.
-            if (value is KBvExtractExpr && value.value.sort == sizeSort) {
-                @Suppress("unchecked_cast")
-                value.value as UExpr<TvmSizeSort>
-            } else {
-                value
-                    .let {
-                        mkIte(
-                            mkBvUnsignedGreaterOrEqualExpr(it, mkBv(TvmContext.MAX_REFS_NUMBER, cellRefsSort)),
-                            mkBv(TvmContext.MAX_REFS_NUMBER, cellRefsSort),
-                            it,
-                        )
-                    }.zeroExtendToSort(sizeSort)
-            }
-        }
-
     fun readCellRefLength(
         state: TvmState,
         cellRef: UHeapRef,
     ): UExpr<TvmSizeSort> =
         with(ctx) {
-            splitAndRead(cellRef) { concreteRef ->
-                readConcreteCellRefLength(state, concreteRef)
-            }
+            val value = state.memory.readField(cellRef, cellRefsLengthField, cellRefsSort)
+            value
+                .let {
+                    mkIte(
+                        mkBvUnsignedGreaterOrEqualExpr(it, mkBv(TvmContext.MAX_REFS_NUMBER, cellRefsSort)),
+                        mkBv(TvmContext.MAX_REFS_NUMBER, cellRefsSort),
+                        it,
+                    )
+                }.zeroExtendToSort(sizeSort)
         }
 
     fun writeCellRefsLength(
