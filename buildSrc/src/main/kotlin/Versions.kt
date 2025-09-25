@@ -10,7 +10,7 @@ object Versions {
     const val mockk = "1.13.4"
     const val junitParams = "5.9.3"
     const val logback = "1.4.8"
-    const val usvm = "ca356d07ac65334d5db47b0c774d06afcfa9669a"
+    const val usvm = "3eb717806c672ae1ba1fc42a52e687534426bb75"
     const val tvmDisasm = "df8e79bdf13d797eef253f809d8d6fbd50e69b70"
     const val tonKotlin = "0.3.1"
     const val kotlinterPluginVersion = "5.0.0"

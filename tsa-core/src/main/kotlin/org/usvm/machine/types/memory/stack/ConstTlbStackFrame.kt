@@ -4,9 +4,12 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentList
 import org.ton.TlbStructure
+import org.usvm.UBoolExpr
+import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
@@ -158,4 +161,51 @@ data class ConstTlbStackFrame(
         val newFrames = further?.let { listOf(it) } ?: emptyList()
         return Triple(data, newReadInfo, newFrames)
     }
+
+    override fun compareWithOtherFrame(
+        scope: TvmStepScopeManager,
+        cellRef: UConcreteHeapRef,
+        otherFrame: TlbStackFrame,
+        otherCellRef: UConcreteHeapRef,
+    ): Pair<UBoolExpr?, Unit?> =
+        with(scope.ctx) {
+            if (otherFrame !is ConstTlbStackFrame) {
+                return null to Unit
+            }
+
+            if (offset !is KInterpretedValue<*> || otherFrame.offset !is KInterpretedValue<*>) {
+                return null to Unit
+            }
+
+            val offset1 = offset.intValue()
+            val offset2 = otherFrame.offset.intValue()
+
+            val minSize = min(data.length - offset1, otherFrame.data.length - offset2)
+            val data1 = data.substring(startIndex = offset1, endIndex = minSize + offset1)
+            val data2 = otherFrame.data.substring(startIndex = offset2, endIndex = minSize + offset2)
+            if (data1 != data2) {
+                return falseExpr to Unit
+            }
+
+            if (data.length - offset1 != otherFrame.data.length - offset2) {
+                return if (nextStruct is TlbStructure.Empty && otherFrame.nextStruct is TlbStructure.Empty) {
+                    falseExpr to Unit
+                } else {
+                    null to Unit
+                }
+            }
+
+            val nextFrame1 = buildFrameForStructure(this, nextStruct, path, leftTlbDepth)
+            val nextFrame2 =
+                buildFrameForStructure(this, otherFrame.nextStruct, otherFrame.path, otherFrame.leftTlbDepth)
+
+            if (nextFrame1 == null && nextFrame2 == null) {
+                return trueExpr to Unit
+            }
+
+            nextFrame1 ?: return null to Unit
+            nextFrame2 ?: return null to Unit
+
+            return nextFrame1.compareWithOtherFrame(scope, cellRef, nextFrame2, otherCellRef)
+        }
 }

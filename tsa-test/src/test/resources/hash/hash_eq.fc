@@ -1,0 +1,46 @@
+#include "../imports/stdlib.fc";
+
+cell pack_jetton_wallet_data(int a, int b) inline {
+    return  begin_cell()
+        .store_grams(a)
+        .store_grams(b)
+        .end_cell();
+}
+
+cell calculate_jetton_wallet_state_init(int a, int b, cell code) inline {
+    return begin_cell()
+        .store_uint(0,1 + 1) ;; split_depth (Maybe = 0) and special (Maybe = 0)
+        .store_maybe_ref(code)
+        .store_maybe_ref(pack_jetton_wallet_data(a, b))
+        .store_uint(0,1) ;; libraries - empty cell
+        .end_cell();
+}
+
+slice calc_address(cell state_init) inline {
+    return begin_cell().store_uint(4, 3) ;; 0x100 : $10 + anycast (Maybe = 0)
+        .store_int(0, 8)
+        .store_uint(cell_hash(state_init), 256)
+        .end_cell()
+        .begin_parse();
+}
+
+(slice) calc_user_wallet(int a, int b, cell code) inline {
+    return calc_address(calculate_jetton_wallet_state_init(a, b, code));
+}
+
+cell mycode() asm "MYCODE";
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    int a1 = in_msg~load_uint(32);
+    int a2 = in_msg~load_uint(32);
+    int b1 = in_msg~load_uint(32);
+    int b2 = in_msg~load_uint(32);
+    cell jetton_wallet_code = mycode();
+    slice hash1 = calc_user_wallet(a1, b1, jetton_wallet_code);
+    slice hash2 = calc_user_wallet(a2, b2, jetton_wallet_code);
+    if (equal_slice_bits(hash1, hash2)) {
+        throw(111);
+    }
+    throw_unless(112, a1 == a2);
+    throw(116);
+}

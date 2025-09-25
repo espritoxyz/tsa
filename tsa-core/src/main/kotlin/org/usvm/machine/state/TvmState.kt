@@ -90,6 +90,7 @@ class TvmState(
     var receivedMessage: ReceivedMessage? = null,
     var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
     var currentPhaseBeginTime: Int = 0,
+    val debugInfo: TvmStateDebugInfo = TvmStateDebugInfo(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -201,6 +202,7 @@ class TvmState(
             receivedMessage = receivedMessage,
             eventsLog = eventsLog,
             currentPhaseBeginTime = currentPhaseBeginTime,
+            debugInfo = debugInfo.clone(),
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -273,3 +275,9 @@ data class TvmContractExecutionMemory(
     val stack: TvmStack,
     val registers: TvmRegisters,
 )
+
+class TvmStateDebugInfo(
+    var numberOfDataEqualityConstraintsFromTlb: Int = 0,
+) {
+    fun clone() = TvmStateDebugInfo(numberOfDataEqualityConstraintsFromTlb)
+}

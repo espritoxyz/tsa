@@ -1,0 +1,30 @@
+#include "../imports/stdlib.fc";
+
+cell store_values(int value1, int value2, slice s) {
+    return begin_cell()
+        .store_int(value1, 10)
+        .store_int(0, 10)
+        .store_int(value2, 10)
+        .store_slice(s)
+        .end_cell();
+}
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    int a1 = in_msg~load_int(10);
+    int a2 = in_msg~load_int(10);
+    int a3 = in_msg~load_int(10);
+    int a4 = in_msg~load_int(10);
+
+    slice r1 = in_msg~load_ref().begin_parse();
+    (_, int i) = r1.load_uint(32);
+    throw_unless(998, i == 10);
+
+    slice s1 = store_values(a1, a2, r1).begin_parse();
+    slice s2 = store_values(a3, a4, in_msg~load_ref().begin_parse()).begin_parse();
+
+    throw_unless(999, a2 == 1);
+
+    throw_if(1000, equal_slice_bits(s1, s2));
+    throw_unless(1001, (a1 == a2) & (a3 == a4));
+    throw(1002);
+}

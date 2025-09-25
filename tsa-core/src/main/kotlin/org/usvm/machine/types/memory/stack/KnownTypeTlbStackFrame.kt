@@ -10,12 +10,17 @@ import org.ton.TlbBitArrayByRef
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabelOfSymbolicSize
+import org.ton.TlbSliceByRefInBuilder
 import org.ton.TlbStructure
+import org.usvm.UBoolExpr
+import org.usvm.UConcreteHeapRef
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmReadingOfUnexpectedType
@@ -222,5 +227,96 @@ data class KnownTypeTlbStackFrame(
                     Triple(curData, newRead, newFrame?.let { listOf(it) } ?: emptyList())
                 }
             }
+        }
+
+    override fun compareWithOtherFrame(
+        scope: TvmStepScopeManager,
+        cellRef: UConcreteHeapRef,
+        otherFrame: TlbStackFrame,
+        otherCellRef: UConcreteHeapRef,
+    ): Pair<UBoolExpr?, Unit?> =
+        with(scope.ctx) {
+            if (otherFrame !is KnownTypeTlbStackFrame) {
+                return null to Unit
+            }
+
+            if (struct.typeLabel.arity != 0) {
+                return null to Unit
+            }
+
+            val curGuard =
+                when (struct.typeLabel) {
+                    is FixedSizeDataLabel -> {
+                        if (otherFrame.struct.typeLabel != struct.typeLabel) {
+                            return null to Unit
+                        }
+
+                        val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
+                        val content =
+                            scope.calcOnState {
+                                memory.readField(cellRef, field, field.getSort(ctx))
+                            }
+
+                        val fieldOther =
+                            ConcreteSizeBlockField(struct.typeLabel.concreteSize, otherFrame.struct.id, otherFrame.path)
+                        val contentOther =
+                            scope.calcOnState {
+                                memory.readField(otherCellRef, fieldOther, fieldOther.getSort(ctx))
+                            }
+
+                        content eq contentOther
+                    }
+
+                    is TlbSliceByRefInBuilder -> {
+                        if (otherFrame.struct.typeLabel !is TlbSliceByRefInBuilder) {
+                            return null to Unit
+                        }
+
+                        val canCompare =
+                            struct.typeLabel.sizeBits == otherFrame.struct.typeLabel.sizeBits ||
+                                struct.rest is TlbStructure.Empty &&
+                                otherFrame.struct.rest is TlbStructure.Empty
+
+                        if (!canCompare) {
+                            return null to Unit
+                        }
+
+                        val field = SliceRefField(struct.id, path)
+                        val slice =
+                            scope.calcOnState {
+                                memory.readField(cellRef, field, field.getSort(ctx))
+                            }
+
+                        val fieldOther = SliceRefField(otherFrame.struct.id, otherFrame.path)
+                        val sliceOther =
+                            scope.calcOnState {
+                                memory.readField(otherCellRef, fieldOther, fieldOther.getSort(ctx))
+                            }
+
+                        scope.slicesAreEqual(slice, sliceOther)
+                            ?: return null to null
+                    }
+
+                    is TlbIntegerLabelOfSymbolicSize, is TlbCompositeLabel -> {
+                        return null to Unit
+                    }
+                }
+
+            val nextFrame1 = buildFrameForStructure(this, struct.rest, path, leftTlbDepth)
+            val nextFrame2 =
+                buildFrameForStructure(this, otherFrame.struct.rest, otherFrame.path, otherFrame.leftTlbDepth)
+
+            if (nextFrame1 == null && nextFrame2 == null) {
+                return curGuard to Unit
+            }
+
+            nextFrame1 ?: return null to Unit
+            nextFrame2 ?: return null to Unit
+
+            val (further, status) = nextFrame1.compareWithOtherFrame(scope, cellRef, nextFrame2, otherCellRef)
+
+            status ?: return null to null
+
+            return further?.let { curGuard and it } to Unit
         }
 }
