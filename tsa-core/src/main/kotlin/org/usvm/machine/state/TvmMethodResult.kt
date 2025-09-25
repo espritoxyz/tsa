@@ -123,18 +123,11 @@ object TvmAlternativeExit : TvmSuccessfulExit {
 @Serializable
 enum class TvmFailureType {
     /**
-     * Error due to bad input object structure. In this case the structure is fixed.
+     * Error due to bad input object structure.
      *
      * Example: input_slice~load_bits(128), when len(input_slice) < 128
      */
-    FixedStructuralError,
-
-    /**
-     * Error due to bad input object structure, that has symbolic constraints.
-     *
-     * Example: input_slice~load_bits(input_x), when len(input_slice) < input_x
-     */
-    SymbolicStructuralError,
+    StructuralError,
 
     /**
      * Real programmer's error.

@@ -16,6 +16,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.UIteExpr
+import org.usvm.USort
 import org.usvm.isAllocated
 import org.usvm.isStatic
 import org.usvm.machine.TvmContext
@@ -237,3 +238,22 @@ private data class SymbolValues(
     val forbiddenValues: PersistentSet<KBitVecValue<UBvSort>>,
     val specificValues: PersistentSet<KBitVecValue<UBvSort>>,
 )
+
+fun <Sort : USort> TvmContext.splitAndRead(
+    ref: UHeapRef,
+    read: (UConcreteHeapRef) -> UExpr<Sort>,
+): UExpr<Sort> {
+    val refs = extractAddresses(ref, extractAllocated = true, extractStatic = true)
+    val values =
+        refs.map { (guard, concreteRef) ->
+            guard to read(concreteRef)
+        }
+
+    return values.drop(1).fold(values.first().second) { acc, (guard, value) ->
+        mkIte(
+            guard,
+            trueBranch = value,
+            falseBranch = acc,
+        )
+    }
+}

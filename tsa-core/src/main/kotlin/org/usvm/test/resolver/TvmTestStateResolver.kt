@@ -438,7 +438,7 @@ class TvmTestStateResolver(
         with(ctx) {
             val cellValue = resolveCell(memory.readField(slice, TvmContext.sliceCellField, addressSort))
             require(cellValue is TvmTestDataCellValue)
-            val dataPosValue = resolveInt(memory.readField(slice, TvmContext.sliceDataPosField, sizeSort))
+            val dataPosValue = resolveInt(state.fieldManagers.cellDataLengthFieldManager.readSliceDataPos(state, slice))
             val refPosValue = resolveInt(memory.readField(slice, TvmContext.sliceRefPosField, sizeSort))
 
             TvmTestSliceValue(cellValue, dataPosValue, refPosValue)
@@ -461,9 +461,11 @@ class TvmTestStateResolver(
             val data = resolveCellData(cell)
 
             val refsLength =
-                resolveInt(
-                    memory.readField(cell, TvmContext.cellRefsLengthField, sizeSort),
-                ).coerceAtMost(TvmContext.MAX_REFS_NUMBER)
+                resolveInt(state.fieldManagers.cellRefsLengthFieldManager.readCellRefLength(state, cell)).also {
+                    check(it in 0..4) {
+                        "Unexpected cell ref length: $it"
+                    }
+                }
             val refs = mutableListOf<TvmTestCellValue>()
 
             val storedRefs = mutableMapOf<Int, TvmTestCellValue>()

@@ -153,7 +153,7 @@ class ContractsTest {
         analyzeFuncContract(multisigPath, methodsNumber = 16, enableTestGeneration = true)
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
+    @Ignore("TODO")
     @Test
     fun bridgeMultisig() {
         analyzeFuncContract(bridgeMultisigPath, methodsNumber = 18, enableTestGeneration = true)

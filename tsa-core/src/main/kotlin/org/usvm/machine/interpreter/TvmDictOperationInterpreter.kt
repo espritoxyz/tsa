@@ -1333,7 +1333,7 @@ class TvmDictOperationInterpreter(
 
             val refs =
                 scope.calcOnState {
-                    memory.readField(resultBuilder, TvmContext.cellRefsLengthField, sizeSort)
+                    fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, resultBuilder)
                 }
 
             checkCellOverflow(

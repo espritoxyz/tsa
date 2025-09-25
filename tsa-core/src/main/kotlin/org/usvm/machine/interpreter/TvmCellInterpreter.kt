@@ -101,12 +101,9 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
-import org.usvm.api.writeField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
-import org.usvm.machine.TvmContext.Companion.cellRefsLengthField
 import org.usvm.machine.TvmContext.Companion.sliceCellField
-import org.usvm.machine.TvmContext.Companion.sliceDataPosField
 import org.usvm.machine.TvmContext.Companion.sliceRefPosField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
@@ -116,8 +113,6 @@ import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.assertDataCellType
-import org.usvm.machine.state.assertDataLengthConstraintWithoutError
-import org.usvm.machine.state.assertRefsLengthConstraintWithoutError
 import org.usvm.machine.state.builderCopy
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
@@ -910,7 +905,10 @@ class TvmCellInterpreter(
             scope.assertEndOfCell(slice) ?: return
 
             val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
-            val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+            val dataPos =
+                scope.calcOnState {
+                    fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
+                }
             val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
 
             checkCellDataUnderflow(scope, cell, maxSize = dataPos) ?: return
@@ -1222,18 +1220,13 @@ class TvmCellInterpreter(
             scope.calcOnState {
                 fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
             }
-        scope.assertDataLengthConstraintWithoutError(
-            cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
-        ) ?: return
 
-        val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
-        scope.assertRefsLengthConstraintWithoutError(
-            cellRefsLength,
-            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
-        ) ?: return
+        val cellRefsLength =
+            scope.calcOnState {
+                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
+            }
 
-        val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+        val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
         val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
 
         val requiredBitsInCell = mkSizeAddExpr(bitsToRemain, dataPos)
@@ -1297,18 +1290,13 @@ class TvmCellInterpreter(
             scope.calcOnState {
                 fieldManagers.cellDataLengthFieldManager.getUpperBound(ctx, cell)
             }
-        scope.assertDataLengthConstraintWithoutError(
-            cellDataLength,
-            unsatBlock = { error("Cannot ensure correctness for data length in cell $cell") },
-        ) ?: return
 
-        val cellRefsLength = scope.calcOnState { memory.readField(cell, cellRefsLengthField, sizeSort) }
-        scope.assertRefsLengthConstraintWithoutError(
-            cellRefsLength,
-            unsatBlock = { error("Cannot ensure correctness for number of refs in cell $cell") },
-        ) ?: return
+        val cellRefsLength =
+            scope.calcOnState {
+                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
+            }
 
-        val dataPos = scope.calcOnState { memory.readField(slice, sliceDataPosField, sizeSort) }
+        val dataPos = scope.calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
         val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
 
         val requiredBitsInCell = mkSizeAddExpr(bitsToCut, dataPos)
@@ -1346,7 +1334,7 @@ class TvmCellInterpreter(
                 cutCellDataLength,
                 newCellLengthUpperBound,
             )
-            memory.writeField(cutCell, cellRefsLengthField, sizeSort, cutCellRefsLength, guard = trueExpr)
+            fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(this, cutCell, cutCellRefsLength)
 
             val cutSlice = allocSliceFromCell(cutCell)
 
@@ -1825,7 +1813,10 @@ class TvmCellInterpreter(
         }
 
         with(ctx) {
-            val builderRefsLength = scope.calcOnState { memory.readField(builder, cellRefsLengthField, ctx.sizeSort) }
+            val builderRefsLength =
+                scope.calcOnState {
+                    fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, builder)
+                }
             val canWriteRefConstraint = mkSizeLtExpr(builderRefsLength, maxRefsLengthSizeExpr)
             val quietBlock: (TvmState.() -> Unit)? =
                 if (!quiet) {

@@ -6,7 +6,6 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
-import org.usvm.api.writeField
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
@@ -82,7 +81,7 @@ class RecvInternalInput(
                 tailSize,
                 upperBound = 256,
             )
-            state.memory.writeField(tailCell, TvmContext.cellRefsLengthField, sizeSort, zeroSizeExpr, guard = trueExpr)
+            state.fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(state, tailCell, zeroSizeExpr)
             builderStoreSliceTlb(scope, builder, builder, tail)
                 ?: error("Cannot store bounced message tail")
 

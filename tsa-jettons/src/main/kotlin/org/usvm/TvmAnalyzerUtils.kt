@@ -49,11 +49,7 @@ class FirstFailureTerminator :
     override fun stopReason(): String = "Found conflicting execution"
 
     companion object {
-        val forbiddenTypes =
-            listOf(
-                TvmFailureType.FixedStructuralError,
-                TvmFailureType.SymbolicStructuralError,
-            )
+        val forbiddenTypes = listOf(TvmFailureType.StructuralError)
     }
 }
 

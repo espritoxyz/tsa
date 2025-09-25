@@ -47,7 +47,6 @@ import org.usvm.machine.state.TvmTypeCheckError
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
 import org.usvm.machine.state.setFailure
-import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
@@ -81,7 +80,6 @@ class TvmContext(
     val oneValue: KBitVecValue<TvmInt257Sort> = 1.toBv257()
     val twoValue: KBitVecValue<TvmInt257Sort> = 2.toBv257()
     val threeValue: KBitVecValue<TvmInt257Sort> = 3.toBv257()
-    val fourValue: KBitVecValue<TvmInt257Sort> = 4.toBv257()
     val eightValue: KBitVecValue<TvmInt257Sort> = 8.toBv257()
     val zeroValue: KBitVecValue<TvmInt257Sort> = falseValue
     val minusOneValue: KBitVecValue<TvmInt257Sort> = trueValue
@@ -107,7 +105,6 @@ class TvmContext(
     val sizeExpr32: UExpr<TvmSizeSort> = mkSizeExpr(32)
     val maxDataLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_DATA_LENGTH)
     val maxRefsLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_REFS_NUMBER)
-    val stdMsgAddrSizeExpr = mkSizeExpr(stdMsgAddrSize)
 
     val zeroBit = mkBv(0, 1u)
     val oneBit = mkBv(1, 1u)
@@ -133,9 +130,7 @@ class TvmContext(
     val throwUnknownCellUnderflowError: (TvmState) -> Unit =
         setFailure(TvmCellUnderflowError, TvmFailureType.UnknownError)
     val throwStructuralCellUnderflowError: (TvmState) -> Unit =
-        setFailure(TvmCellUnderflowError, TvmFailureType.FixedStructuralError)
-    val throwSymbolicStructuralCellUnderflowError: (TvmState) -> Unit =
-        setFailure(TvmCellUnderflowError, TvmFailureType.SymbolicStructuralError)
+        setFailure(TvmCellUnderflowError, TvmFailureType.StructuralError)
     val throwRealCellUnderflowError: (TvmState) -> Unit = setFailure(TvmCellUnderflowError, TvmFailureType.RealError)
     val throwRealDictError: (TvmState) -> Unit = setFailure(TvmDictError, TvmFailureType.RealError)
 
@@ -322,9 +317,6 @@ class TvmContext(
         const val TRUE_CONCRETE_VALUE = -1
         const val FALSE_CONCRETE_VALUE = 0
 
-        val cellRefsLengthField: TvmField = TvmFieldImpl(TvmCellType, "refsLength")
-
-        val sliceDataPosField: TvmField = TvmFieldImpl(TvmSliceType, "dataPos")
         val sliceRefPosField: TvmField = TvmFieldImpl(TvmSliceType, "refPos")
         val sliceCellField: TvmField = TvmFieldImpl(TvmSliceType, "cell")
 

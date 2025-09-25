@@ -1,5 +1,6 @@
 package org.usvm.machine.fields
 
+import io.ksmt.expr.KBvExtractExpr
 import kotlinx.collections.immutable.persistentMapOf
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
@@ -12,33 +13,84 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TvmCellType
+import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UWritableMemory
 import org.usvm.sizeSort
 import org.usvm.utils.extractAddresses
 import org.usvm.utils.intValueOrNull
+import org.usvm.utils.splitAndRead
 
 class TvmCellDataLengthFieldManager(
+    private val ctx: TvmContext,
     private var builderLengthUpperBoundTracker: TvmBuilderLengthUpperBoundTracker =
         TvmBuilderLengthUpperBoundTracker(
             persistentMapOf(),
         ),
 ) {
-    fun clone() = TvmCellDataLengthFieldManager(builderLengthUpperBoundTracker)
+    private val cellDataLengthSort = ctx.mkBvSort(BITS_FOR_FIELD)
+
+    fun clone() = TvmCellDataLengthFieldManager(ctx, builderLengthUpperBoundTracker)
+
+    fun readSliceDataPos(
+        state: TvmState,
+        sliceRef: UHeapRef,
+    ): UExpr<TvmSizeSort> =
+        with(ctx) {
+            state.memory.readField(sliceRef, sliceDataPosField, sizeSort)
+        }
+
+    fun writeSliceDataPos(
+        state: TvmState,
+        sliceRef: UHeapRef,
+        value: UExpr<TvmSizeSort>,
+    ) {
+        writeSliceDataPos(state.memory, sliceRef, value)
+    }
+
+    fun writeSliceDataPos(
+        memory: UWritableMemory<TvmType>,
+        sliceRef: UHeapRef,
+        value: UExpr<TvmSizeSort>,
+    ) = with(ctx) {
+        memory.writeField(sliceRef, sliceDataPosField, sizeSort, value, guard = trueExpr)
+    }
+
+    private fun readConcreteCellDataLength(
+        state: TvmState,
+        cellRef: UConcreteHeapRef,
+    ): UExpr<TvmSizeSort> =
+        with(ctx) {
+            return state.memory
+                .readField(cellRef, cellDataLengthField, cellDataLengthSort)
+                .also {
+                    val bound = getUpperBound(state.ctx, cellRef)
+                    val length = it.intValueOrNull
+                    if (bound != null && length != null) {
+                        check(length <= bound) {
+                            "Unexpected upper bound for $cellRef. Bound: $bound, length: $length."
+                        }
+                    }
+                }.let {
+                    // hack: value in this field is either input symbol or
+                    // some value that was written with [writeCellDataLength].
+                    // If this is the last case, we can get rid of the [extract] that was added in [writeCellDataLength].
+                    if (it is KBvExtractExpr && it.value.sort == sizeSort) {
+                        @Suppress("unchecked_cast")
+                        it.value as UExpr<TvmSizeSort>
+                    } else {
+                        it.zeroExtendToSort(sizeSort)
+                    }
+                }
+        }
 
     fun readCellDataLength(
         state: TvmState,
         cellRef: UHeapRef,
     ): UExpr<TvmSizeSort> =
-        with(state.ctx) {
-            return state.memory.readField(cellRef, cellDataLengthField, sizeSort).also {
-                val bound = getUpperBound(state.ctx, cellRef)
-                val length = it.intValueOrNull
-                if (bound != null && length != null) {
-                    check(length <= bound) {
-                        "Unexpected upper bound for $cellRef. Bound: $bound, length: $length."
-                    }
-                }
+        with(ctx) {
+            return splitAndRead(cellRef) { concreteRef ->
+                readConcreteCellDataLength(state, concreteRef)
             }
         }
 
@@ -63,7 +115,8 @@ class TvmCellDataLengthFieldManager(
         if (upperBound != null) {
             builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(cellRef, upperBound)
         }
-        memory.writeField(cellRef, cellDataLengthField, sizeSort, value, guard = trueExpr)
+        val valueToWrite = mkBvExtractExprNoSimplify(high = BITS_FOR_FIELD.toInt() - 1, low = 0, value)
+        memory.writeField(cellRef, cellDataLengthField, cellDataLengthSort, valueToWrite, guard = trueExpr)
     }
 
     fun writeCellDataLength(
@@ -93,5 +146,7 @@ class TvmCellDataLengthFieldManager(
 
     companion object {
         private val cellDataLengthField: TvmField = TvmFieldImpl(TvmCellType, "dataLength")
+        private val sliceDataPosField: TvmField = TvmFieldImpl(TvmSliceType, "dataPos")
+        private const val BITS_FOR_FIELD = 10u
     }
 }
