@@ -153,7 +153,7 @@ class ContractsTest {
         analyzeFuncContract(multisigPath, methodsNumber = 16, enableTestGeneration = true)
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
+    @Ignore("TODO")
     @Test
     fun bridgeMultisig() {
         analyzeFuncContract(bridgeMultisigPath, methodsNumber = 18, enableTestGeneration = true)
@@ -221,13 +221,11 @@ class ContractsTest {
         analyzeFuncContract(electorPath, methodsNumber = 3, enableTestGeneration = true)
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun highloadWallet() {
         analyzeFuncContract(highloadWalletPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun highloadWalletV2() {
         analyzeFuncContract(highloadWalletV2Path, methodsNumber = 4, enableTestGeneration = true)
@@ -253,13 +251,11 @@ class ContractsTest {
         analyzeFuncContract(restrictedWalletPath, methodsNumber = 5, enableTestGeneration = true)
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun restrictedWallet2() {
         analyzeFuncContract(restrictedWalletV2Path, methodsNumber = 6, enableTestGeneration = true)
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun restrictedWallet3() {
         analyzeFuncContract(restrictedWalletV3Path, methodsNumber = 7, enableTestGeneration = true)

@@ -25,10 +25,10 @@ dependencies {
 
     testImplementation("ch.qos.logback:logback-classic:${Versions.logback}")
 
-    api(group = Packages.ksmtBv2Int, name = "ksmt-core", version = Versions.ksmtBv2Int)
+    api(group = Packages.ksmt, name = "ksmt-core", version = "0.6.3")
     implementation(group = Packages.ksmtBv2Int, name = "ksmt-bv2int", version = Versions.ksmtBv2Int)
-    implementation(group = Packages.ksmtBv2Int, name = "ksmt-yices", version = Versions.ksmtBv2Int)
-    implementation(group = Packages.ksmtBv2Int, name = "ksmt-z3", version = Versions.ksmtBv2Int)
+    implementation(group = Packages.ksmt, name = "ksmt-yices", version = "0.6.3")
+    implementation(group = Packages.ksmt, name = "ksmt-z3", version = "0.6.3")
 
     // todo: remove ksmt-core exclude after upgrading ksmt version in USVM
     api(group = Packages.usvm, name = "usvm-core", version = Versions.usvm) {

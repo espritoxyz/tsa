@@ -78,7 +78,6 @@ class DictComplexTest {
         assertTrue { tests.isNotEmpty() }
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun testDictValueOverflow() {
         val path = extractResource(potentialDictOverflow)
@@ -99,7 +98,6 @@ class DictComplexTest {
         TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
     }
 
-    @Ignore("ksmt bug https://github.com/UnitTestBot/ksmt/issues/160")
     @Test
     fun testDictFixation() {
         val path = extractResource(dictFixation)
