@@ -1,7 +1,7 @@
 object Versions {
     const val klogging = "1.8.3"
     const val slf4j = "2.0.16"
-    const val ksmt = "0.6.1"
+    const val ksmt = "0.6.3"
     const val ksmtBv2Int = "1.0.9"
     const val clikt = "4.3.0"
     const val collections = "0.3.5"
