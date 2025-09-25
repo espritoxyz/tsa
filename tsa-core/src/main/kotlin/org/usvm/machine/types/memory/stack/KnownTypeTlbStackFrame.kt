@@ -12,9 +12,9 @@ import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbSliceByRefInBuilder
 import org.ton.TlbStructure
-import org.usvm.UExpr
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
@@ -22,8 +22,8 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
-import org.usvm.machine.types.ContinueLoadOnNextFrameData
 import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.types.ContinueLoadOnNextFrameData
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue

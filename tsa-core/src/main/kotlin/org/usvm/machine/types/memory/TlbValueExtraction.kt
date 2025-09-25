@@ -230,13 +230,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractKBvOfConcrete
                 return null
             }
 
-            is TlbIntegerLabelOfConcreteSize -> {
-                val field = ConcreteSizeBlockField(concreteSize, curStructure.id, path)
-                val value = state.memory.readField(address, field, field.getSort(this))
-                value
-            }
-
-            is TlbBitArrayOfConcreteSize -> {
+            is FixedSizeDataLabel -> {
                 val field = ConcreteSizeBlockField(concreteSize, curStructure.id, path)
                 val fieldValue = state.memory.readField(address, field, field.getSort(this))
                 fieldValue

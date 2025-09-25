@@ -191,7 +191,7 @@ private fun <ReadResult : TvmCellDataTypeReadValue> retryWithBitvectorRead(
     tlbStack: TlbStack,
     state: TvmState,
     stepResult: TlbStack.Error,
-    manager: TvmStepScopeManager,
+    scope: TvmStepScopeManager,
     context: TvmContext,
 ): List<TlbStack.GuardedResult<out ReadResult>> {
     val bitArrayReadType = TvmCellDataBitArrayRead(type.sizeBits)
@@ -220,12 +220,14 @@ private fun <ReadResult : TvmCellDataTypeReadValue> retryWithBitvectorRead(
             val expr =
                 value?.expr ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null)
             val result =
-                manager.slicePreloadInt(
+                scope.slicePreloadInt(
                     expr,
                     with(context) { type.sizeBits.zeroExtendToSort(state.ctx.int257sort) },
                     type.isSigned,
                 )
                     ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null)
+            // the `uncheckedCast` solution is fragile and will cause errors as more types will be used
+            // todo add runtime checks (additional fields must be added)
             TlbStack.GuardedResult(
                 guard,
                 newStepResult,
