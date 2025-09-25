@@ -279,6 +279,5 @@ data class TvmContractExecutionMemory(
 class TvmStateDebugInfo(
     var numberOfDataEqualityConstraintsFromTlb: Int = 0,
 ) {
-    fun clone() =
-        TvmStateDebugInfo(numberOfDataEqualityConstraintsFromTlb)
+    fun clone() = TvmStateDebugInfo(numberOfDataEqualityConstraintsFromTlb)
 }

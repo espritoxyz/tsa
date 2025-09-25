@@ -63,23 +63,24 @@ data object TvmTestResolver {
             rootContract = state.rootContractId,
             contractStatesBefore = contractStatesBefore,
             additionalInputs = additionalInputs,
-            debugInfo = TvmTestDebugInfo(
-                numberOfAddressesWithAssertedDataConstraints,
-                state.debugInfo.numberOfDataEqualityConstraintsFromTlb,
-            ),
+            debugInfo =
+                TvmTestDebugInfo(
+                    numberOfAddressesWithAssertedDataConstraints,
+                    state.debugInfo.numberOfDataEqualityConstraintsFromTlb,
+                ),
             eventsList =
-            state.eventsLog.map { entry ->
-                TvmMessageDrivenContractExecutionTestEntry(
-                    id = entry.id,
-                    executionBegin = entry.executionBegin,
-                    executionEnd = entry.executionEnd,
-                    contractId = entry.contractId,
-                    incomingMessage = stateResolver.resolveReceivedMessage(entry.incomingMessage),
-                    methodResult = stateResolver.resolveResultStackImpl(entry.computePhaseResult),
-                    gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
-                    computeFee = entry.computeFee.let { stateResolver.resolveInt257(it) },
-                )
-            },
+                state.eventsLog.map { entry ->
+                    TvmMessageDrivenContractExecutionTestEntry(
+                        id = entry.id,
+                        executionBegin = entry.executionBegin,
+                        executionEnd = entry.executionEnd,
+                        contractId = entry.contractId,
+                        incomingMessage = stateResolver.resolveReceivedMessage(entry.incomingMessage),
+                        methodResult = stateResolver.resolveResultStackImpl(entry.computePhaseResult),
+                        gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
+                        computeFee = entry.computeFee.let { stateResolver.resolveInt257(it) },
+                    )
+                },
         )
     }
 

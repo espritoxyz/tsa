@@ -22,13 +22,13 @@ class HashEqualityTest {
             funcCompileAndAnalyzeAllMethods(
                 path,
                 tvmOptions =
-                TvmOptions(
-                    performAdditionalChecksWhileResolving = true,
-                    tlbOptions =
-                    TlbOptions(
-                        performTlbChecksOnAllocatedCells = true,
+                    TvmOptions(
+                        performAdditionalChecksWhileResolving = true,
+                        tlbOptions =
+                            TlbOptions(
+                                performTlbChecksOnAllocatedCells = true,
+                            ),
                     ),
-                ),
                 methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
             ).single()
 
@@ -38,7 +38,7 @@ class HashEqualityTest {
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 111 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 112 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 116 },
-            )
+            ),
         )
     }
 }
