@@ -1219,6 +1219,9 @@ fun TvmStepScopeManager.slicesAreEqual(
         status ?: return null
 
         if (conditionFromTlb != null) {
+            doWithState {
+                debugInfo.numberOfDataEqualityConstraintsFromTlb += 1
+            }
             return conditionFromTlb
         }
 

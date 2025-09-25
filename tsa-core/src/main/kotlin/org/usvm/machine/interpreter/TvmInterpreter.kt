@@ -240,6 +240,7 @@ import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmStateDebugInfo
 import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack

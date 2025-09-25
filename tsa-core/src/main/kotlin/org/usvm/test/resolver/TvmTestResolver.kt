@@ -57,26 +57,29 @@ data object TvmTestResolver {
             lastStmt = state.lastRealStmt,
             gasUsage = gasUsage,
             additionalFlags = state.additionalFlags,
-            numberOfAddressesWithAssertedDataConstraints = numberOfAddressesWithAssertedDataConstraints,
             intercontractPath = state.intercontractPath,
             coveredInstructions = collectVisitedInstructions(state),
             outMessages = outMessages,
             rootContract = state.rootContractId,
             contractStatesBefore = contractStatesBefore,
             additionalInputs = additionalInputs,
+            debugInfo = TvmTestDebugInfo(
+                numberOfAddressesWithAssertedDataConstraints,
+                state.debugInfo.numberOfDataEqualityConstraintsFromTlb,
+            ),
             eventsList =
-                state.eventsLog.map { entry ->
-                    TvmMessageDrivenContractExecutionTestEntry(
-                        id = entry.id,
-                        executionBegin = entry.executionBegin,
-                        executionEnd = entry.executionEnd,
-                        contractId = entry.contractId,
-                        incomingMessage = stateResolver.resolveReceivedMessage(entry.incomingMessage),
-                        methodResult = stateResolver.resolveResultStackImpl(entry.computePhaseResult),
-                        gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
-                        computeFee = entry.computeFee.let { stateResolver.resolveInt257(it) },
-                    )
-                },
+            state.eventsLog.map { entry ->
+                TvmMessageDrivenContractExecutionTestEntry(
+                    id = entry.id,
+                    executionBegin = entry.executionBegin,
+                    executionEnd = entry.executionEnd,
+                    contractId = entry.contractId,
+                    incomingMessage = stateResolver.resolveReceivedMessage(entry.incomingMessage),
+                    methodResult = stateResolver.resolveResultStackImpl(entry.computePhaseResult),
+                    gasUsageHistory = stateResolver.resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
+                    computeFee = entry.computeFee.let { stateResolver.resolveInt257(it) },
+                )
+            },
         )
     }
 
@@ -156,8 +159,8 @@ data class TvmSymbolicTest(
     val outMessages: List<Pair<ContractId, TvmTestOutMessage>>,
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
-    val numberOfAddressesWithAssertedDataConstraints: Int, // for testing
     val eventsList: List<TvmMessageDrivenContractExecutionTestEntry>,
+    val debugInfo: TvmTestDebugInfo,
 ) {
     val initialRootContractState: TvmContractState
         get() =
@@ -170,6 +173,11 @@ data class TvmSymbolicTest(
     val initialRootContractBalance: TvmTestIntegerValue
         get() = initialRootContractState.balance
 }
+
+data class TvmTestDebugInfo(
+    val numberOfAddressesWithAssertedDataConstraints: Int,
+    val numberOfDataEqualityConstraintsFromTlb: Int = 0,
+)
 
 data class TvmContractState(
     val data: TvmTestCellValue,

@@ -1518,7 +1518,7 @@ class InputParameterInfoTests {
             tests,
             listOf(
                 { test -> test.result !is TvmExecutionWithStructuralError },
-                { test -> test.numberOfAddressesWithAssertedDataConstraints == 0 },
+                { test -> test.debugInfo.numberOfAddressesWithAssertedDataConstraints == 0 },
             ),
         )
 
@@ -1908,6 +1908,7 @@ class InputParameterInfoTests {
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
                 { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
+                { test -> test.debugInfo.numberOfDataEqualityConstraintsFromTlb == 1 },
             ),
         )
 
