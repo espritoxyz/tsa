@@ -4,7 +4,6 @@ import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmSuccessfulExecution
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
