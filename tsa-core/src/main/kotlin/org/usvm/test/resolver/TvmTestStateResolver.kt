@@ -33,7 +33,6 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
-import org.usvm.machine.state.BadModelException
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.TvmCellRefsRegionValueInfo
@@ -521,14 +520,8 @@ class TvmTestStateResolver(
 
                     val resolvedKey = TvmTestIntegerValue(extractInt257(evaluatedKey))
 
-                    // TODO: remove BadModelException handler when cell length representation is fixed
-                    val resolvedValue =
-                        try {
-                            val value = state.dictGetValue(dict, dictId, evaluatedKey)
-                            resolveSlice(value)
-                        } catch (_: BadModelException) {
-                            TvmTestSliceValue()
-                        }
+                    val value = state.dictGetValue(dict, dictId, evaluatedKey)
+                    val resolvedValue = resolveSlice(value)
 
                     resultEntries[resolvedKey] = resolvedValue
                 }
@@ -612,19 +605,8 @@ class TvmTestStateResolver(
                     // because we read refs when generating structural constraints
                     // without checking actual number of refs in a cell
                     if (idx < refsLength) {
-                        // TODO: remove BadModelException handler when cell length representation is fixed
-                        val refCell =
-                            try {
-                                val value = TvmCellRefsRegionValueInfo(state).actualizeSymbolicValue(updateNode.value)
-                                resolveCell(value)
-                            } catch (_: BadModelException) {
-                                val types = state.getPossibleTypes(eval(updateNode.value) as UConcreteHeapRef)
-                                if (types.first() is TvmDataCellType) {
-                                    TvmTestDataCellValue()
-                                } else {
-                                    resolveDictCell(eval(updateNode.value) as UConcreteHeapRef, updateNode.value)
-                                }
-                            }
+                        val value = TvmCellRefsRegionValueInfo(state).actualizeSymbolicValue(updateNode.value)
+                        val refCell = resolveCell(value)
                         storedRefs.putIfAbsent(idx, refCell)
                     }
                 }
