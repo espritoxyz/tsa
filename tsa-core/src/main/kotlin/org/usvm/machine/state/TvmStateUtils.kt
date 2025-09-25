@@ -27,9 +27,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.writeField
-import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isAllocated
-import org.usvm.isFalse
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
