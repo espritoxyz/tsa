@@ -215,25 +215,17 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
         }
     }
 
-fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractKBvOfConcreteSizeFromTlbIfPossible(
+fun extractKBvOfConcreteSizeFromTlbIfPossible(
     curStructure: KnownTypePrefix,
-    read: TvmCellDataTypeRead<ReadResult>,
     address: UHeapRef,
     path: PersistentList<Int>,
     state: TvmState,
 ): UExpr<KBvSort>? =
     with(state.ctx) {
-        check(curStructure.typeLabel == this@extractKBvOfConcreteSizeFromTlbIfPossible)
-        check(read is TvmCellDataBitArrayRead)
-        when (this@extractKBvOfConcreteSizeFromTlbIfPossible) {
-            is TlbCoinsLabel -> {
-                return null
-            }
-
+        when (curStructure.typeLabel) {
             is FixedSizeDataLabel -> {
-                val field = ConcreteSizeBlockField(concreteSize, curStructure.id, path)
-                val fieldValue = state.memory.readField(address, field, field.getSort(this))
-                fieldValue
+                val field = ConcreteSizeBlockField(curStructure.typeLabel.concreteSize, curStructure.id, path)
+                state.memory.readField(address, field, field.getSort(this))
             }
 
             else -> {

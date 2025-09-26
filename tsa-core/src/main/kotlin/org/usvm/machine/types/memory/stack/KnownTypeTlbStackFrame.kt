@@ -1,6 +1,7 @@
 package org.usvm.machine.types.memory.stack
 
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentList
 import org.ton.FixedSizeDataLabel
@@ -66,6 +67,17 @@ data class KnownTypeTlbStackFrame(
                 } ?: frameIsEmpty
 
             val accept = struct.typeLabel.accepts(state.ctx, args, loadData.type)
+            val readBvValue =
+                if (loadData.type is TvmCellDataBitArrayRead) {
+                    extractKBvOfConcreteSizeFromTlbIfPossible(
+                        struct,
+                        loadData.cellAddress,
+                        path,
+                        state,
+                    )
+                } else {
+                    null
+                }
             val nextFrame =
                 buildFrameForStructure(
                     state.ctx,
@@ -73,7 +85,7 @@ data class KnownTypeTlbStackFrame(
                     path,
                     leftTlbDepth,
                 )?.let {
-                    NextFrame(it)
+                    NextFrame(it, readBvValue)
                 } ?: EndOfStackFrame
 
             val error = createStepError(struct.typeLabel, args, loadData, state)
@@ -96,14 +108,14 @@ data class KnownTypeTlbStackFrame(
 
             if (continueLoadingOnNextFrameData != null) {
                 require(loadData.type is TvmCellDataBitArrayRead) {
-                    "loading across different frames is not suppported for non-bit-array reads"
+                    "loading across different frames is not supported for non-bit-array reads"
                 }
+
                 val continueLoadOnNextFrameAction =
                     createLoadAcrossFramesAction(
-                        struct.typeLabel,
                         loadData,
-                        state,
                         continueLoadingOnNextFrameData.leftBits,
+                        readBvValue,
                     )
                 result.add(
                     GuardedResult(
@@ -118,20 +130,12 @@ data class KnownTypeTlbStackFrame(
         }
 
     private fun <ReadResult : TvmCellDataTypeReadValue> createLoadAcrossFramesAction(
-        typeLabel: TlbBuiltinLabel,
         loadData: LimitedLoadData<ReadResult>,
-        state: TvmState,
         leftBits: UExpr<TvmSizeSort>,
+        bvValue: UExpr<KBvSort>?,
     ): ContinueLoadOnNextFrame<ReadResult> {
         val type = loadData.type
-        val bvValue =
-            typeLabel.extractKBvOfConcreteSizeFromTlbIfPossible(
-                struct,
-                type,
-                loadData.cellAddress,
-                path,
-                state,
-            )
+        check(type is TvmCellDataBitArrayRead)
         return ContinueLoadOnNextFrame(
             LimitedLoadData(
                 loadData.cellAddress,

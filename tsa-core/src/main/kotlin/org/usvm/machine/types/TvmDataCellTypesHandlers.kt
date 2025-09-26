@@ -203,10 +203,7 @@ private fun <ReadResult : TvmCellDataTypeReadValue> retryWithBitvectorRead(
             load.offset,
             load.sliceAddress,
         )
-    val updatedLimitLoadData =
-        LimitedLoadData.fromLoadData(
-            updatedLoad,
-        )
+    val updatedLimitLoadData = LimitedLoadData.fromLoadData(updatedLoad)
     return tlbStack
         .step(state, updatedLimitLoadData)
         .map<TlbStack.GuardedResult<UExprReadResult<UAddressSort>>, TlbStack.GuardedResult<out ReadResult>> {
