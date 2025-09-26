@@ -391,9 +391,16 @@ class TvmArtificialInstInterpreter(
                         getContractInfoParamOf(ADDRESS_PARAMETER_IDX, sender).cellValue ?: error("no destination :(")
                     }
                 // TODO fill the ihrFee, msgValue, ... with reasonable values
+                val bouncedFlags =
+                    RecvInternalInput.Flags(
+                        intMsgInfo = 0.toBv257(),
+                        ihrDisabled = 1.toBv257(),
+                        bounce = 0.toBv257(),
+                        bounced = 1.toBv257(),
+                    )
                 val content =
                     RecvInternalInput.MessageContent(
-                        flags = 0b0101.toBv257(),
+                        flags = bouncedFlags,
                         srcAddressSlice = oldMessage.destAddrSlice,
                         dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationCell) },
                         msgValue = zeroValue,

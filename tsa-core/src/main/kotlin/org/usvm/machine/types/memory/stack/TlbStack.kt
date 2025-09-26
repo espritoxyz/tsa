@@ -1,16 +1,21 @@
 package org.usvm.machine.types.memory.stack
 
+import io.ksmt.sort.KBvSort
+import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbCompositeLabel
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
 import org.usvm.isFalse
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmUnexpectedDataReading
+import org.usvm.machine.types.UExprReadResult
 import org.usvm.machine.types.isEmptyRead
 import org.usvm.test.resolver.TvmTestStateResolver
 
@@ -47,14 +52,15 @@ data class TlbStack(
 
             val lastFrame = frames.last()
 
-            lastFrame.step(state, loadData).forEach { (guard, stackFrameStepResult, value) ->
+            val frameSteps = lastFrame.step(state, loadData)
+            frameSteps.forEach { (guard, stackFrameStepResult, value) ->
                 if (guard.isFalse) {
                     return@forEach
                 }
 
                 when (stackFrameStepResult) {
                     is EndOfStackFrame -> {
-                        val newFrames = popFrames(ctx, frames.subList(0, frames.size - 1))
+                        val newFrames = skipSingleStep(ctx, frames.viewWithoutLast())
                         result.add(
                             GuardedResult(
                                 guard and emptyRead.not(),
@@ -67,13 +73,13 @@ data class TlbStack(
                     is NextFrame -> {
                         val newStack =
                             TlbStack(
-                                frames.subList(0, frames.size - 1) + stackFrameStepResult.frame,
+                                frames.viewWithoutLast() + stackFrameStepResult.frame,
                                 deepestError,
                             )
                         result.add(
                             GuardedResult(
                                 guard and emptyRead.not(),
-                                NewStack(newStack),
+                                NewStack(newStack, stackFrameStepResult.concreteLoaded),
                                 value,
                             ),
                         )
@@ -116,19 +122,42 @@ data class TlbStack(
                         }
                     }
 
-                    is PassLoadToNextFrame<ReadResult> -> {
-                        check(value == null) {
-                            "Extracting values in partial reads in not supported"
-                        }
-
+                    is ContinueLoadOnNextFrame<ReadResult> -> {
                         val newLoadData = stackFrameStepResult.loadData
-                        val newFrames = popFrames(ctx, frames)
+                        val newFrames = skipSingleStep(ctx, frames)
                         val newStack = TlbStack(newFrames, deepestError)
-
-                        newStack.step(state, newLoadData).forEach { (innerGuard, stepResult) ->
+                        val stepResults = newStack.step(state, newLoadData)
+                        stepResults.forEach { (innerGuard, stepResult, _) ->
+                            // values from steps are discarded as we are only interested
+                            // in concrete bitvector reads when reading values across multiple
+                            // frames. These values are passed in stepResult
                             val newGuard = ctx.mkAnd(guard, innerGuard)
-                            // TODO: values for PassLoadToNextFrame
-                            result.add(GuardedResult(newGuard and emptyRead.not(), stepResult, value = null))
+                            val accumulatedRight = (stepResult as? NewStack)?.accumulatedBv
+                            val accumulatedLeft = stackFrameStepResult.concreteLoaded
+                            val joinedConcreteValue =
+                                if (accumulatedLeft != null && accumulatedRight != null) {
+                                    mkBvConcatExpr(accumulatedLeft, accumulatedRight)
+                                } else {
+                                    null
+                                }
+                            val newStepResult =
+                                if (stepResult is NewStack) {
+                                    stepResult.copy(accumulatedBv = joinedConcreteValue)
+                                } else {
+                                    stepResult
+                                }
+                            result.add(
+                                GuardedResult(
+                                    newGuard and emptyRead.not(),
+                                    newStepResult,
+                                    value =
+                                        joinedConcreteValue?.let {
+                                            UExprReadResult(
+                                                state.allocSliceFromData(it),
+                                            ).uncheckedCast()
+                                        },
+                                ),
+                            )
                         }
                     }
                 }
@@ -145,9 +174,9 @@ data class TlbStack(
         val (readValue, leftToRead, newFrames) = lastFrame.readInModel(readInfo)
         val deepFrames =
             if (newFrames.isEmpty()) {
-                popFrames(readInfo.resolver.state.ctx, frames.subList(0, frames.size - 1))
+                skipSingleStep(readInfo.resolver.state.ctx, frames.viewWithoutLast())
             } else {
-                frames.subList(0, frames.size - 1)
+                frames.viewWithoutLast()
             }
         val newTlbStack = TlbStack(deepFrames + newFrames)
         return Triple(readValue, leftToRead, newTlbStack)
@@ -169,25 +198,6 @@ data class TlbStack(
         return frame1.compareWithOtherFrame(scope, cellRef, frame2, otherCellRef)
     }
 
-    private fun popFrames(
-        ctx: TvmContext,
-        framesToPop: List<TlbStackFrame>,
-    ): List<TlbStackFrame> {
-        if (framesToPop.isEmpty()) {
-            return framesToPop
-        }
-        val prevFrame = framesToPop.last()
-        check(prevFrame.isSkippable) {
-            "$prevFrame must be skippable, but it is not"
-        }
-        val newFrame = prevFrame.skipLabel(ctx)
-        return if (newFrame == null) {
-            popFrames(ctx, framesToPop.subList(0, framesToPop.size - 1))
-        } else {
-            framesToPop.subList(0, framesToPop.size - 1) + newFrame
-        }
-    }
-
     sealed interface StepResult
 
     data class Error(
@@ -196,6 +206,7 @@ data class TlbStack(
 
     data class NewStack(
         val stack: TlbStack,
+        val accumulatedBv: UExpr<KBvSort>? = null,
     ) : StepResult
 
     data class ConcreteReadInfo(
@@ -220,5 +231,30 @@ data class TlbStack(
             val frames = frame?.let { listOf(it) } ?: emptyList()
             return TlbStack(frames)
         }
+
+        /**
+         *  Until we can skip the label at the top frame, pop the frame (possibly zero times).
+         *  Then skip the label at the last fram and return the result.
+         */
+        private fun skipSingleStep(
+            ctx: TvmContext,
+            framesToPop: List<TlbStackFrame>,
+        ): List<TlbStackFrame> {
+            if (framesToPop.isEmpty()) {
+                return framesToPop
+            }
+            val prevFrame = framesToPop.last()
+            check(prevFrame.isSkippable) {
+                "$prevFrame must be skippable, but it is not"
+            }
+            val newFrame = prevFrame.skipLabel(ctx)
+            return if (newFrame == null) {
+                skipSingleStep(ctx, framesToPop.viewWithoutLast())
+            } else {
+                framesToPop.viewWithoutLast() + newFrame
+            }
+        }
     }
 }
+
+private fun <T> List<T>.viewWithoutLast() = subList(0, size - 1)

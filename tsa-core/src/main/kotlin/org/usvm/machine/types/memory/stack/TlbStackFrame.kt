@@ -1,9 +1,11 @@
 package org.usvm.machine.types.memory.stack
 
+import io.ksmt.sort.KBvSort
 import kotlinx.collections.immutable.PersistentList
 import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
@@ -92,14 +94,24 @@ data class StepError(
     val error: TvmStructuralError?,
 ) : StackFrameStepResult<Nothing>
 
+/**
+ * Represents that the top frame must be replaced by [frame] parameter.
+ * @param concreteLoaded stores a bitvector that was stored after passing the stack frame
+ */
 data class NextFrame(
     val frame: TlbStackFrame,
+    val concreteLoaded: UExpr<KBvSort>? = null,
 ) : StackFrameStepResult<Nothing>
 
 data object EndOfStackFrame : StackFrameStepResult<Nothing>
 
-data class PassLoadToNextFrame<ReadResult : TvmCellDataTypeReadValue>(
+/**
+ * @param loadData the action that must be applied to the stack that was created after partially the partial loading
+ * that spans across multiple Tlb frames.
+ */
+data class ContinueLoadOnNextFrame<ReadResult : TvmCellDataTypeReadValue>(
     val loadData: LimitedLoadData<ReadResult>,
+    val concreteLoaded: UExpr<KBvSort>? = null,
 ) : StackFrameStepResult<ReadResult>
 
 data class LimitedLoadData<ReadResult : TvmCellDataTypeReadValue>(

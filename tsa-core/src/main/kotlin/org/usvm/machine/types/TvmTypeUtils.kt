@@ -118,27 +118,37 @@ fun TlbBuiltinLabel.passBitArrayRead(
     ctx: TvmContext,
     labelArgs: List<UExpr<TvmSizeSort>>,
     bitArrayLength: UExpr<TvmSizeSort>,
-): PassBitArrayRead? =
+): ContinueLoadOnNextFrameData? =
     with(ctx) {
         when (this@passBitArrayRead) {
             is TlbIntegerLabel -> {
                 val intLength = bitSize(this, labelArgs)
-                PassBitArrayRead(mkSizeGtExpr(bitArrayLength, intLength), mkSizeSubExpr(bitArrayLength, intLength))
+                val leftBits = mkSizeSubExpr(bitArrayLength, intLength)
+                ContinueLoadOnNextFrameData(
+                    mkSizeGtExpr(bitArrayLength, intLength),
+                    leftBits,
+                )
             }
+
             is TlbBitArrayOfConcreteSize -> {
                 val length = mkSizeExpr(concreteSize)
-                PassBitArrayRead(mkSizeGtExpr(bitArrayLength, length), mkSizeSubExpr(bitArrayLength, length))
+                ContinueLoadOnNextFrameData(mkSizeGtExpr(bitArrayLength, length), mkSizeSubExpr(bitArrayLength, length))
             }
+
             is TlbBitArrayByRef -> {
-                PassBitArrayRead(mkSizeGtExpr(bitArrayLength, sizeBits), mkSizeSubExpr(bitArrayLength, sizeBits))
+                ContinueLoadOnNextFrameData(
+                    mkSizeGtExpr(bitArrayLength, sizeBits),
+                    mkSizeSubExpr(bitArrayLength, sizeBits),
+                )
             }
+
             is TlbMsgAddrLabel, is TlbCoinsLabel, is TlbMaybeRefLabel -> {
                 null
             }
         }
     }
 
-data class PassBitArrayRead(
+data class ContinueLoadOnNextFrameData(
     val guard: UBoolExpr,
     val leftBits: UExpr<TvmSizeSort>,
 )
@@ -152,18 +162,23 @@ fun TlbBuiltinLabel.isEmptyLabel(
             is TlbIntegerLabel -> {
                 bitSize(this, labelArgs) eq zeroSizeExpr
             }
+
             is TlbMsgAddrLabel -> {
                 falseExpr
             }
+
             is TlbCoinsLabel -> {
                 falseExpr
             }
+
             is TlbMaybeRefLabel -> {
                 falseExpr
             }
+
             is TlbBitArrayOfConcreteSize -> {
                 mkBool(concreteSize == 0)
             }
+
             is TlbBitArrayByRef -> {
                 sizeBits eq zeroSizeExpr
             }
@@ -189,9 +204,11 @@ fun TlbAtomicLabel.defaultCellValue(ctx: TvmContext): String =
             val defaultLength = bitSize(ctx, List(arity) { ctx.zeroSizeExpr }).intValue()
             "0".repeat(defaultLength)
         }
+
         is FixedSizeDataLabel -> {
             "0".repeat(concreteSize)
         }
+
         is TlbBitArrayByRef, is TlbMsgAddrLabel -> {
             error("Cannot calculate default cell value for $this")
         }

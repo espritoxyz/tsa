@@ -1,5 +1,6 @@
 package org.usvm.machine.types.memory.stack
 
+import io.ksmt.expr.KExpr
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentList
@@ -17,9 +18,11 @@ import org.usvm.machine.types.SizedCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead
 import org.usvm.machine.types.TvmCellDataMsgAddrRead
+import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
 import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
+import org.usvm.machine.types.memory.readConcreteBv
 import org.usvm.machine.types.memory.readFromConstant
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 import org.usvm.mkSizeAddExpr
@@ -42,43 +45,25 @@ data class ConstTlbStackFrame(
     ): List<GuardedResult<ReadResult>> =
         with(state.ctx) {
             val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
-            val fourDataBits =
-                if (concreteOffset != null) {
-                    data.substring(concreteOffset, min(concreteOffset + 4, data.length))
-                } else {
-                    null
-                }
-
             val leftBits = mkSizeSubExpr(mkSizeExpr(data.length), offset)
 
+            val type = loadData.type
             val readSize =
-                if (loadData.type is SizedCellDataTypeRead) {
-                    loadData.type.sizeBits
-                } else if (loadData.type is TvmCellDataCoinsRead && concreteOffset != null && fourDataBits == "0000") {
-                    // special case when reading const with coin read is possible
-                    fourSizeExpr
-                } else if (loadData.type is TvmCellDataMsgAddrRead &&
-                    concreteOffset != null &&
-                    fourDataBits?.startsWith("00") == true
-                ) {
-                    // special case when reading const with address read is possible (result is addr_none)
-                    twoSizeExpr
-                } else {
-                    return@with listOf(
-                        GuardedResult(
-                            trueExpr,
-                            StepError(
-                                TvmStructuralError(
-                                    TvmReadingSwitchWithUnexpectedType(loadData.type),
-                                    state.phase,
-                                    state.stack,
-                                ),
+                extractReadSizeFromType(type, concreteOffset) ?: return@with listOf(
+                    GuardedResult(
+                        trueExpr,
+                        StepError(
+                            TvmStructuralError(
+                                TvmReadingSwitchWithUnexpectedType(type),
+                                state.phase,
+                                state.stack,
                             ),
-                            value = null,
                         ),
-                    )
-                }
+                        value = null,
+                    ),
+                )
 
+            val concreteBvRead = readConcreteBv(state.ctx, concreteOffset, data, readSize)
             // full read of constant
             val stepResult =
                 buildFrameForStructure(
@@ -87,10 +72,10 @@ data class ConstTlbStackFrame(
                     path,
                     leftTlbDepth,
                 )?.let {
-                    NextFrame(it)
+                    NextFrame(it, concreteBvRead)
                 } ?: EndOfStackFrame
 
-            val value = loadData.type.readFromConstant(state, offset, data)
+            val value = type.readFromConstant(state, offset, data)
 
             val result =
                 mutableListOf(
@@ -98,6 +83,7 @@ data class ConstTlbStackFrame(
                         mkSizeLtExpr(readSize, leftBits),
                         NextFrame(
                             ConstTlbStackFrame(data, nextStruct, mkSizeAddExpr(offset, readSize), path, leftTlbDepth),
+                            concreteBvRead,
                         ),
                         value,
                     ),
@@ -108,17 +94,18 @@ data class ConstTlbStackFrame(
                     ),
                 )
 
-            if (loadData.type is TvmCellDataBitArrayRead) {
+            if (type is TvmCellDataBitArrayRead) {
                 result.add(
                     GuardedResult(
                         mkSizeGtExpr(readSize, leftBits),
-                        PassLoadToNextFrame(
+                        ContinueLoadOnNextFrame(
                             LimitedLoadData(
                                 loadData.cellAddress,
                                 TvmCellDataBitArrayRead(mkSizeSubExpr(readSize, leftBits)).uncheckedCast(),
                             ),
+                            concreteBvRead,
                         ),
-                        value = null,
+                        value = value,
                     ),
                 )
             } else {
@@ -127,7 +114,7 @@ data class ConstTlbStackFrame(
                         mkSizeGtExpr(readSize, leftBits),
                         StepError(
                             TvmStructuralError(
-                                TvmReadingOutOfSwitchBounds(loadData.type),
+                                TvmReadingOutOfSwitchBounds(type),
                                 state.phase,
                                 state.stack,
                             ),
@@ -139,6 +126,32 @@ data class ConstTlbStackFrame(
 
             return result
         }
+
+    private fun <ReadResult : TvmCellDataTypeReadValue> TvmContext.extractReadSizeFromType(
+        type: TvmCellDataTypeRead<ReadResult>,
+        concreteOffset: Int?,
+    ): KExpr<TvmSizeSort>? {
+        val fourDataBits =
+            if (concreteOffset != null) {
+                data.substring(concreteOffset, min(concreteOffset + 4, data.length))
+            } else {
+                null
+            }
+        return if (type is SizedCellDataTypeRead) {
+            type.sizeBits
+        } else if (type is TvmCellDataCoinsRead && concreteOffset != null && fourDataBits == "0000") {
+            // special case when reading const with coin read is possible
+            fourSizeExpr
+        } else if (type is TvmCellDataMsgAddrRead &&
+            concreteOffset != null &&
+            fourDataBits?.startsWith("00") == true
+        ) {
+            // special case when reading const with address read is possible (result is addr_none)
+            twoSizeExpr
+        } else {
+            null
+        }
+    }
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
 

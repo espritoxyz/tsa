@@ -1,6 +1,7 @@
 package org.usvm.machine.types.memory
 
 import io.ksmt.expr.KInterpretedValue
+import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentList
 import org.ton.FixedSizeDataLabel
@@ -18,6 +19,7 @@ import org.ton.TlbStructure.KnownTypePrefix
 import org.ton.TlbStructure.SwitchPrefix
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.UIntepretedValue
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
@@ -213,6 +215,39 @@ fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractTlbValueIfPos
         }
     }
 
+fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.extractKBvOfConcreteSizeFromTlbIfPossible(
+    curStructure: KnownTypePrefix,
+    read: TvmCellDataTypeRead<ReadResult>,
+    address: UHeapRef,
+    path: PersistentList<Int>,
+    state: TvmState,
+): UExpr<KBvSort>? =
+    with(state.ctx) {
+        check(curStructure.typeLabel == this@extractKBvOfConcreteSizeFromTlbIfPossible)
+        check(read is TvmCellDataBitArrayRead)
+        when (this@extractKBvOfConcreteSizeFromTlbIfPossible) {
+            is TlbCoinsLabel -> {
+                return null
+            }
+
+            is TlbIntegerLabelOfConcreteSize -> {
+                val field = ConcreteSizeBlockField(concreteSize, curStructure.id, path)
+                val value = state.memory.readField(address, field, field.getSort(this))
+                value
+            }
+
+            is TlbBitArrayOfConcreteSize -> {
+                val field = ConcreteSizeBlockField(concreteSize, curStructure.id, path)
+                val fieldValue = state.memory.readField(address, field, field.getSort(this))
+                fieldValue
+            }
+
+            else -> {
+                null
+            }
+        }
+    }
+
 private fun extractInt(
     offset: UExpr<TvmSizeSort>,
     length: UExpr<TvmSizeSort>,
@@ -240,6 +275,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.read
                 val intExpr = extractInt(offset, sizeBits, data, isSigned)
                 UExprReadResult(intExpr).uncheckedCast()
             }
+
             is TvmCellMaybeConstructorBitRead -> {
                 val bit = extractInt(offset, oneSizeExpr, data, isSigned = false)
                 val boolExpr =
@@ -250,6 +286,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.read
                     )
                 UExprReadResult(boolExpr).uncheckedCast()
             }
+
             is TvmCellDataMsgAddrRead -> {
                 val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
                 val twoDataBits =
@@ -267,9 +304,19 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.read
 
                 result?.uncheckedCast<Any, ReadResult>()
             }
+
             is TvmCellDataBitArrayRead -> {
-                null
+                if (offset is KInterpretedValue) {
+                    val bits =
+                        readConcreteBv(state.ctx, offset.intValue(), data, this@readFromConstant.sizeBits)
+                            ?: return@with null
+                    val slice = state.allocSliceFromData(bits)
+                    UExprReadResult(slice).uncheckedCast()
+                } else {
+                    null
+                }
             }
+
             is TvmCellDataCoinsRead -> {
                 val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
                 val fourDataBits =
@@ -288,4 +335,18 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmCellDataTypeRead<ReadResult>.read
                 result?.uncheckedCast<Any, ReadResult>()
             }
         }
+    }
+
+fun readConcreteBv(
+    ctx: TvmContext,
+    offset: Int?,
+    data: String,
+    readSize: UExpr<TvmSizeSort>,
+): UExpr<KBvSort>? =
+    with(ctx) {
+        val requiredReadSize = (readSize as? UIntepretedValue)?.intValue() ?: return null
+        val boundedReadSize = min(data.length, requiredReadSize)
+        if (boundedReadSize == 0) return null
+        val bits = mkBv(data.drop(offset ?: return null).take(boundedReadSize), boundedReadSize.toUInt())
+        bits
     }

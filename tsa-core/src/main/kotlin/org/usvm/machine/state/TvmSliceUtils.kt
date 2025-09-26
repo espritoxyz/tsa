@@ -57,7 +57,7 @@ import org.usvm.mkSizeGeExpr
 import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
-import org.usvm.utils.extractAddressesSpecialized
+import org.usvm.utils.flattenReferenceIteSpecialized
 import org.usvm.utils.intValueOrNull
 
 private fun TvmContext.mkIteFromVariants(variants: List<Pair<UBoolExpr, UConcreteHeapRef>>): GuardedExpr<UHeapRef?> {
@@ -115,7 +115,7 @@ private fun TvmContext.processCellUnderflowCheck(
         )
     }
 
-    val refs = extractAddressesSpecialized(cellRef, extractAllocated = true, extractStatic = true)
+    val refs = flattenReferenceIteSpecialized(cellRef, extractAllocated = true, extractStatic = true)
     val allocated = mkIteFromVariants(refs.filter { it.second.isAllocated })
     val static = mkIteFromVariants(refs.filter { it.second.isStatic })
 
@@ -1469,3 +1469,23 @@ fun builderStoreSliceTlb(
 fun TvmState.readSliceDataPos(slice: UHeapRef) = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
 
 fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellField, ctx.addressSort)
+
+data class SliceReadData(
+    val dataPos: UExpr<TvmSizeSort>,
+    val cellData: UExpr<TvmCellDataSort>,
+    val fullLength: UExpr<TvmSizeSort>,
+)
+
+// for debugging
+@Suppress("unused")
+fun TvmState.readSliceFull(slice: UHeapRef): SliceReadData {
+    val dataPos = readSliceDataPos(slice)
+    val cell = readSliceCell(slice)
+    val cellData = fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(this, cell)
+    val cellDataLength = fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
+    return SliceReadData(
+        dataPos,
+        cellData,
+        cellDataLength,
+    )
+}

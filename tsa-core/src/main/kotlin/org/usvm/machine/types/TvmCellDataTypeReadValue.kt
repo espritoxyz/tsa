@@ -27,6 +27,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
         is UExprReadResult<*> -> {
             mkUExprIte<KSort>(ctx, condition, trueBranch.uncheckedCast(), falseBranch.uncheckedCast()).uncheckedCast()
         }
+
         is UExprPairReadResult<*, *> -> {
             mkUExprPairIte<KSort, KSort>(
                 ctx,
@@ -35,7 +36,6 @@ fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
                 falseBranch.uncheckedCast(),
             ).uncheckedCast()
         }
-        else -> error("Unexpected value: $trueBranch")
     }
 
 fun <Sort : KSort> mkUExprIte(

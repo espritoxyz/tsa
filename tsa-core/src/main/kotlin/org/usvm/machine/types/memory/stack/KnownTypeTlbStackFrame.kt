@@ -12,16 +12,20 @@ import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbSliceByRefInBuilder
 import org.ton.TlbStructure
+import org.usvm.UExpr
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.types.ContinueLoadOnNextFrameData
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.TvmCellDataBitArrayRead
+import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmReadingOfUnexpectedType
 import org.usvm.machine.types.accepts
@@ -29,6 +33,7 @@ import org.usvm.machine.types.isEmptyLabel
 import org.usvm.machine.types.memory.ConcreteSizeBlockField
 import org.usvm.machine.types.memory.SliceRefField
 import org.usvm.machine.types.memory.SymbolicSizeBlockField
+import org.usvm.machine.types.memory.extractKBvOfConcreteSizeFromTlbIfPossible
 import org.usvm.machine.types.memory.extractTlbValueIfPossible
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 import org.usvm.machine.types.memory.typeArgs
@@ -53,16 +58,11 @@ data class KnownTypeTlbStackFrame(
 
             val frameIsEmpty = struct.typeLabel.isEmptyLabel(this, args)
 
-            val passPartOfLoadDataFurther =
-                if (loadData.type is TvmCellDataBitArrayRead) {
-                    struct.typeLabel.passBitArrayRead(this, args, loadData.type.sizeBits)
-                } else {
-                    null
-                }
+            val continueLoadingOnNextFrameData = createContinueLoadingOnNextFrame(loadData, struct.typeLabel, args)
 
-            val continueReadOnNextFrame =
-                passPartOfLoadDataFurther?.let {
-                    passPartOfLoadDataFurther.guard or frameIsEmpty
+            val continueReadOnNextFrameCondition =
+                continueLoadingOnNextFrameData?.let {
+                    continueLoadingOnNextFrameData.guard or frameIsEmpty
                 } ?: frameIsEmpty
 
             val accept = struct.typeLabel.accepts(state.ctx, args, loadData.type)
@@ -76,17 +76,7 @@ data class KnownTypeTlbStackFrame(
                     NextFrame(it)
                 } ?: EndOfStackFrame
 
-            val error =
-                TvmStructuralError(
-                    TvmReadingOfUnexpectedType(
-                        struct.typeLabel,
-                        args,
-                        loadData.type,
-                    ),
-                    state.phase,
-                    state.stack,
-                )
-
+            val error = createStepError(struct.typeLabel, args, loadData, state)
             val value =
                 struct.typeLabel.extractTlbValueIfPossible(
                     struct,
@@ -99,28 +89,89 @@ data class KnownTypeTlbStackFrame(
 
             val result: MutableList<GuardedResult<ReadResult>> =
                 mutableListOf(
-                    GuardedResult(frameIsEmpty, PassLoadToNextFrame(loadData), null),
-                    GuardedResult(continueReadOnNextFrame.not() and accept, nextFrame, value),
-                    GuardedResult(continueReadOnNextFrame.not() and accept.not(), StepError(error), null),
+                    GuardedResult(frameIsEmpty, ContinueLoadOnNextFrame(loadData), null),
+                    GuardedResult(continueReadOnNextFrameCondition.not() and accept, nextFrame, value),
+                    GuardedResult(continueReadOnNextFrameCondition.not() and accept.not(), StepError(error), null),
                 )
 
-            if (passPartOfLoadDataFurther != null) {
-                check(loadData.type is TvmCellDataBitArrayRead)
+            if (continueLoadingOnNextFrameData != null) {
+                require(loadData.type is TvmCellDataBitArrayRead) {
+                    "loading across different frames is not suppported for non-bit-array reads"
+                }
+                val continueLoadOnNextFrameAction =
+                    createLoadAcrossFramesAction(
+                        struct.typeLabel,
+                        loadData,
+                        state,
+                        continueLoadingOnNextFrameData.leftBits,
+                    )
                 result.add(
                     GuardedResult(
-                        passPartOfLoadDataFurther.guard,
-                        PassLoadToNextFrame(
-                            LimitedLoadData(
-                                loadData.cellAddress,
-                                TvmCellDataBitArrayRead(passPartOfLoadDataFurther.leftBits).uncheckedCast(),
-                            ),
-                        ),
-                        value = null,
+                        continueLoadingOnNextFrameData.guard,
+                        continueLoadOnNextFrameAction,
+                        value = value,
                     ),
                 )
             }
 
             result
+        }
+
+    private fun <ReadResult : TvmCellDataTypeReadValue> createLoadAcrossFramesAction(
+        typeLabel: TlbBuiltinLabel,
+        loadData: LimitedLoadData<ReadResult>,
+        state: TvmState,
+        leftBits: UExpr<TvmSizeSort>,
+    ): ContinueLoadOnNextFrame<ReadResult> {
+        val type = loadData.type
+        val bvValue =
+            typeLabel.extractKBvOfConcreteSizeFromTlbIfPossible(
+                struct,
+                type,
+                loadData.cellAddress,
+                path,
+                state,
+            )
+        return ContinueLoadOnNextFrame(
+            LimitedLoadData(
+                loadData.cellAddress,
+                TvmCellDataBitArrayRead(
+                    leftBits,
+                ).uncheckedCast<TvmCellDataBitArrayRead, TvmCellDataTypeRead<ReadResult>>(),
+            ),
+            bvValue,
+        )
+    }
+
+    private fun <ReadResult : TvmCellDataTypeReadValue> createStepError(
+        expectedLabel: TlbBuiltinLabel,
+        args: List<UExpr<TvmSizeSort>>,
+        loadData: LimitedLoadData<ReadResult>,
+        state: TvmState,
+    ): TvmStructuralError =
+        TvmStructuralError(
+            TvmReadingOfUnexpectedType(
+                expectedLabel,
+                args,
+                loadData.type,
+            ),
+            state.phase,
+            state.stack,
+        )
+
+    private fun <ReadResult : TvmCellDataTypeReadValue> TvmContext.createContinueLoadingOnNextFrame(
+        loadData: LimitedLoadData<ReadResult>,
+        typeLabel: TlbBuiltinLabel,
+        args: List<UExpr<TvmSizeSort>>,
+    ): ContinueLoadOnNextFrameData? =
+        when (loadData.type) {
+            is TvmCellDataBitArrayRead -> {
+                typeLabel.passBitArrayRead(this, args, loadData.type.sizeBits)
+            }
+
+            else -> {
+                null
+            }
         }
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? {

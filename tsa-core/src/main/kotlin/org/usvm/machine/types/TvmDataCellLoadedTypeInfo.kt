@@ -14,10 +14,10 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TvmState
 import org.usvm.memory.GuardedExpr
-import org.usvm.utils.extractAddressesSpecialized
+import org.usvm.utils.flattenReferenceIteSpecialized
 
 class TvmDataCellLoadedTypeInfo(
-    var addressToActions: PersistentMap<UConcreteHeapRef, PersistentList<Action>>,
+    var referenceToActions: PersistentMap<UConcreteHeapRef, PersistentList<Action>>,
 ) {
     sealed interface Action {
         val guard: UBoolExpr
@@ -45,27 +45,31 @@ class TvmDataCellLoadedTypeInfo(
         val refNumber: UExpr<TvmSizeSort>,
     ) : Action
 
+    /**
+     * Flattens [reference] (if ite) and for each of the created guarded expressions
+     * generates and stores the action.
+     */
     private fun <ConcreteAction : Action> registerAction(
-        cellAddress: UHeapRef,
+        reference: UHeapRef,
         actionList: MutableList<ConcreteAction>,
         action: (GuardedExpr<UConcreteHeapRef>) -> ConcreteAction?,
-    ) = with(cellAddress.ctx as TvmContext) {
-        val cellLeaves = extractAddressesSpecialized(cellAddress, extractAllocated = true, extractStatic = true)
+    ) = with(reference.ctx as TvmContext) {
+        val cellLeaves = flattenReferenceIteSpecialized(reference, extractAllocated = true, extractStatic = true)
 
         val newMap =
-            cellLeaves.fold(addressToActions) { map, (guard, ref) ->
+            cellLeaves.fold(referenceToActions) { prevReferenceToAction, (guard, ref) ->
                 val actionInstance = action(GuardedExpr(ref, guard))
                 if (actionInstance != null) {
                     actionList.add(actionInstance)
-                    val oldList = map.getOrDefault(ref, persistentListOf())
+                    val oldList = prevReferenceToAction.getOrDefault(ref, persistentListOf())
                     val newList = oldList.add(actionInstance)
-                    map.put(ref, newList)
+                    prevReferenceToAction.put(ref, newList)
                 } else {
-                    map
+                    prevReferenceToAction
                 }
             }
 
-        addressToActions = newMap
+        referenceToActions = newMap
     }
 
     fun <ReadResult : TvmCellDataTypeReadValue> loadData(
@@ -75,13 +79,14 @@ class TvmDataCellLoadedTypeInfo(
         slice: UHeapRef,
     ): List<LoadData<ReadResult>> =
         with(state.ctx) {
-            val staticSliceAddresses = extractAddressesSpecialized(slice, extractAllocated = true, extractStatic = true)
+            val staticSliceReferences =
+                flattenReferenceIteSpecialized(slice, extractAllocated = true, extractStatic = true)
 
             val result = mutableListOf<LoadData<ReadResult>>()
-            staticSliceAddresses.forEach { (sliceGuard, sliceRef) ->
-                val cellAddress = state.memory.readField(sliceRef, TvmContext.sliceCellField, addressSort)
-                registerAction(cellAddress, result) { ref ->
-                    val guard = (ref.guard and sliceGuard)
+            staticSliceReferences.forEach { (sliceRefGuard, sliceRef) ->
+                val cellRef = state.memory.readField(sliceRef, TvmContext.sliceCellField, addressSort)
+                registerAction(cellRef, result) { ref ->
+                    val guard = (ref.guard and sliceRefGuard)
                     if (guard.isFalse) {
                         null
                     } else {
@@ -116,7 +121,7 @@ class TvmDataCellLoadedTypeInfo(
         return result
     }
 
-    fun clone(): TvmDataCellLoadedTypeInfo = TvmDataCellLoadedTypeInfo(addressToActions)
+    fun clone(): TvmDataCellLoadedTypeInfo = TvmDataCellLoadedTypeInfo(referenceToActions)
 
     companion object {
         fun empty() = TvmDataCellLoadedTypeInfo(persistentMapOf())
