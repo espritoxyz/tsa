@@ -1,15 +1,16 @@
 package org.usvm.machine.types.memory.stack
 
+import io.ksmt.sort.KBvSort
 import kotlinx.collections.immutable.PersistentList
 import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeRead
-import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
 
 fun buildFrameForStructure(
@@ -59,7 +60,7 @@ sealed interface TlbStackFrame {
     val path: List<Int>
     val leftTlbDepth: Int
 
-    fun <ReadResult : TvmCellDataTypeReadValue> step(
+    fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>>
@@ -79,7 +80,7 @@ sealed interface TlbStackFrame {
         otherCellRef: UConcreteHeapRef,
     ): Pair<UBoolExpr?, Unit?>
 
-    data class GuardedResult<ReadResult : TvmCellDataTypeReadValue>(
+    data class GuardedResult<ReadResult>(
         val guard: UBoolExpr,
         val result: StackFrameStepResult<ReadResult>,
         val value: ReadResult?,
@@ -92,26 +93,35 @@ data class StepError(
     val error: TvmStructuralError?,
 ) : StackFrameStepResult<Nothing>
 
+/**
+ * Represents that the top frame must be replaced by [frame] parameter.
+ * @param concreteLoaded stores a bitvector that was stored after passing the stack frame
+ */
 data class NextFrame(
     val frame: TlbStackFrame,
+    val concreteLoaded: UExpr<KBvSort>? = null,
 ) : StackFrameStepResult<Nothing>
 
 data object EndOfStackFrame : StackFrameStepResult<Nothing>
 
-data class PassLoadToNextFrame<ReadResult : TvmCellDataTypeReadValue>(
+/**
+ * @param loadData the action that must be applied to the stack that was created after partially the partial loading
+ * that spans across multiple Tlb frames.
+ */
+data class ContinueLoadOnNextFrame<ReadResult>(
     val loadData: LimitedLoadData<ReadResult>,
+    val concreteLoaded: UExpr<KBvSort>? = null,
 ) : StackFrameStepResult<ReadResult>
 
-data class LimitedLoadData<ReadResult : TvmCellDataTypeReadValue>(
+data class LimitedLoadData<ReadResult>(
     val cellAddress: UConcreteHeapRef,
     val type: TvmCellDataTypeRead<ReadResult>,
 ) {
     companion object {
-        fun <ReadResult : TvmCellDataTypeReadValue> fromLoadData(
-            loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>,
-        ) = LimitedLoadData(
-            type = loadData.type,
-            cellAddress = loadData.cellAddress,
-        )
+        fun <ReadResult> fromLoadData(loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>) =
+            LimitedLoadData(
+                type = loadData.type,
+                cellAddress = loadData.cellAddress,
+            )
     }
 }

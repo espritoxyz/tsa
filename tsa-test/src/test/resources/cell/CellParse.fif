@@ -108,25 +108,25 @@ PROGRAM{
     PLDUX
   }>
   load_slice PROC:<{
-    186933 PUSHINT
+    186933 PUSHINT  // 0b101101101000110101 --- length 18
     NEWC
     18 STU
     ENDC
     CTOS
     1 LDSLICE
     SWAP
-    1 PLDU
+    1 PLDU // 1
     SWAP
     3 LDSLICE
     SWAP
-    3 PLDU
+    3 PLDU // 0b011
     SWAP
     6 LDSLICE
     SWAP
-    6 PLDU
+    6 PLDU // 0b011010
     SWAP
     8 PLDSLICE
-    8 PLDU
+    8 PLDU // 0b00110101
   }>
   load_slicex PROC:<{
     186933 PUSHINT

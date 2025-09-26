@@ -486,7 +486,7 @@ class TvmTestStateResolver(
                 refs.add(refCell)
             }
 
-            val knownActions = state.dataCellLoadedTypeInfo.addressToActions[modelRef] ?: persistentListOf()
+            val knownActions = state.dataCellLoadedTypeInfo.referenceToActions[modelRef] ?: persistentListOf()
             val tvmCellValue = TvmTestDataCellValue(data, refs, resolveTypeLoad(knownActions))
 
             tvmCellValue.also { resolvedCache[modelRef.address] = tvmCellValue }

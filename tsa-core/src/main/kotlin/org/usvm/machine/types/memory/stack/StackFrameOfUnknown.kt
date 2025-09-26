@@ -8,7 +8,6 @@ import org.usvm.api.readField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 
@@ -17,7 +16,7 @@ data object StackFrameOfUnknown : TlbStackFrame {
     override val path = emptyList<Int>()
     override val leftTlbDepth: Int = 0
 
-    override fun <ReadResult : TvmCellDataTypeReadValue> step(
+    override fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> = listOf(GuardedResult(state.ctx.trueExpr, NextFrame(this), value = null))

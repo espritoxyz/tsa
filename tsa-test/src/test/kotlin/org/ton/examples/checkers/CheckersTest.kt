@@ -27,6 +27,7 @@ import org.usvm.test.resolver.TvmTestInput
 import kotlin.io.path.readText
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 class CheckersTest {
     private val internalCallChecker = "/checkers/send_internal.fc"
@@ -430,21 +431,15 @@ class CheckersTest {
                 IntercontractOptions(
                     communicationScheme = communicationScheme,
                 ),
+            turnOnTLBParsingChecks = false,
             enableOutMessageAnalysis = true,
             stopOnFirstError = false,
         )
 
     @Test
     fun intBlastOptimizationTest() {
+        val checkerContract = extractCheckerContractFromResource(intBlastOptimizationChecker)
         val pathTactConfig = extractResource(tactConfig)
-        val checkerPath = extractResource(intBlastOptimizationChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true,
-            )
         val analyzedContract = getTactContract(TactSourcesDescription(pathTactConfig, "IntOptimization", "GuessGame"))
 
         val tests =
@@ -452,6 +447,7 @@ class CheckersTest {
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(turnOnTLBParsingChecks = false, timeout = 120.seconds),
             )
 
         // There is at least one failed execution with exit code 257

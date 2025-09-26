@@ -3,7 +3,8 @@
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
     
     slice cs = in_msg_full.begin_parse();
-    int flags = cs~load_uint(4);
+    int skipped = cs~load_uint(2);
+    int flags = cs~load_uint(2);
     if (flags & 1) {
         set_data(begin_cell().store_uint(1, 1).end_cell());
         return();

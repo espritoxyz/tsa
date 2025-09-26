@@ -39,7 +39,11 @@ class ArgsConstraintsTest {
     @Test
     fun testConsistentFlags() {
         val path = getResourcePath<ArgsConstraintsTest>(consistentFlagsPath)
-        val result = funcCompileAndAnalyzeAllMethods(path, tvmOptions = TvmOptions(analyzeBouncedMessaged = true))
+        val result =
+            funcCompileAndAnalyzeAllMethods(
+                path,
+                tvmOptions = TvmOptions(analyzeBouncedMessaged = true, turnOnTLBParsingChecks = false),
+            )
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
     }
 

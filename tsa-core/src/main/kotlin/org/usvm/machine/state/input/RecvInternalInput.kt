@@ -120,8 +120,17 @@ class RecvInternalInput(
     val ihrFee = state.ctx.zeroValue // ihr_fee:Grams
     val fwdFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // fwd_fee:Grams
 
+    data class Flags(
+        val intMsgInfo: UExpr<TvmInt257Sort>,
+        val ihrDisabled: UExpr<TvmInt257Sort>,
+        val bounce: UExpr<TvmInt257Sort>,
+        val bounced: UExpr<TvmInt257Sort>,
+    ) {
+        fun asFlagsList() = listOf(intMsgInfo, ihrDisabled, bounce, bounced)
+    }
+
     data class MessageContent(
-        val flags: UExpr<TvmInt257Sort>, // 4 bits
+        val flags: Flags, // 4 bits
         val srcAddressSlice: UHeapRef,
         val dstAddressSlice: UHeapRef,
         val msgValue: UExpr<TvmInt257Sort>, //
@@ -136,13 +145,11 @@ class RecvInternalInput(
 
     override fun constructFullMessage(state: TvmState): UConcreteHeapRef =
         with(state.ctx) {
-            val resultBuilder = state.allocEmptyBuilder()
-
             // hack for using builder operations
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
             assertArgConstraints(scope, minMessageCurrencyValue = minMessageCurrencyValue)
 
-            val flags = generateFlags(this)
+            val flags = generateFlagsStruct(this)
 
             val messageContent =
                 MessageContent(
@@ -160,24 +167,14 @@ class RecvInternalInput(
             return@with constructMessageFromContent(state, messageContent)
         }
 
-    private fun generateFlags(ctx: TvmContext): UExpr<TvmInt257Sort> =
+    private fun generateFlagsStruct(ctx: TvmContext): Flags =
         with(ctx) {
-            // int_msg_info$0
-            var flags: UExpr<TvmInt257Sort> = zeroValue
-
-            // ihr_disabled:Bool
-            flags = mkBvShiftLeftExpr(flags, oneValue)
-            flags = mkBvAddExpr(flags, ihrDisabled.asIntValue())
-
-            // bounce:Bool
-            flags = mkBvShiftLeftExpr(flags, oneValue)
-            flags = mkBvAddExpr(flags, bounce.asIntValue())
-
-            // bounced:Bool
-            flags = mkBvShiftLeftExpr(flags, oneValue)
-            flags = mkBvAddExpr(flags, bounced.asIntValue())
-
-            return flags
+            Flags(
+                intMsgInfo = zeroValue,
+                ihrDisabled = this@RecvInternalInput.ihrDisabled.asIntValue(),
+                bounce = bounce.asIntValue(),
+                bounced = bounced.asIntValue(),
+            )
         }
 }
 
@@ -191,16 +188,18 @@ fun constructMessageFromContent(
         // hack for using builder operations
         val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
 
-        builderStoreIntTlb(
-            scope,
-            resultBuilder,
-            resultBuilder,
-            content.flags,
-            sizeBits = fourSizeExpr,
-            isSigned = false,
-            endian = Endian.BigEndian,
-        )
-            ?: error("Cannot store flags")
+        for (flag in content.flags.asFlagsList()) {
+            builderStoreIntTlb(
+                scope,
+                resultBuilder,
+                resultBuilder,
+                flag,
+                sizeBits = oneSizeExpr,
+                isSigned = false,
+                endian = Endian.BigEndian,
+            )
+                ?: error("Cannot store flags")
+        }
 
         // src:MsgAddressInt
         builderStoreSliceTlb(scope, resultBuilder, resultBuilder, content.srcAddressSlice)
