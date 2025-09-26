@@ -24,7 +24,7 @@ class TvmDataCellLoadedTypeInfo(
         val cellAddress: UConcreteHeapRef
     }
 
-    class LoadData<ReadResult : TvmCellDataTypeReadValue>(
+    class LoadData<ReadResult>(
         override val guard: UBoolExpr,
         override val cellAddress: UConcreteHeapRef,
         val type: TvmCellDataTypeRead<ReadResult>,
@@ -72,7 +72,7 @@ class TvmDataCellLoadedTypeInfo(
         referenceToActions = newMap
     }
 
-    fun <ReadResult : TvmCellDataTypeReadValue> loadData(
+    fun <ReadResult> loadData(
         state: TvmState,
         offset: UExpr<TvmSizeSort>,
         type: TvmCellDataTypeRead<ReadResult>,

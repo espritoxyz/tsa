@@ -13,7 +13,6 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.allocSliceFromData
-import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.UExprReadResult
 import org.usvm.machine.types.isEmptyRead
@@ -26,7 +25,7 @@ data class TlbStack(
     val isEmpty: Boolean
         get() = frames.isEmpty()
 
-    fun <ReadResult : TvmCellDataTypeReadValue> step(
+    fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
@@ -215,7 +214,7 @@ data class TlbStack(
         val leftBits: Int,
     )
 
-    data class GuardedResult<ReadResult : TvmCellDataTypeReadValue>(
+    data class GuardedResult<ReadResult>(
         val guard: UBoolExpr,
         val result: StepResult,
         val value: ReadResult?,

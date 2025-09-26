@@ -1,5 +1,6 @@
 package org.usvm.machine
 
+import io.ksmt.KAst
 import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvLogicalShiftRightExpr
@@ -344,3 +345,6 @@ class TvmContext(
         ctx: KContext,
     ) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
 }
+
+val KAst.tctx
+    get() = ctx as TvmContext

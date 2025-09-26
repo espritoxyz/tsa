@@ -10,12 +10,10 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.SizedCellDataTypeRead
-import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmCellMaybeConstructorBitRead
 import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
 import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
 import org.usvm.machine.types.memory.generateGuardForSwitch
-import org.usvm.machine.types.memory.readFromConstant
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 import org.usvm.mkSizeExpr
 import org.usvm.mkSizeGtExpr
@@ -32,7 +30,7 @@ data class SwitchTlbStackFrame(
         }
     }
 
-    override fun <ReadResult : TvmCellDataTypeReadValue> step(
+    override fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =

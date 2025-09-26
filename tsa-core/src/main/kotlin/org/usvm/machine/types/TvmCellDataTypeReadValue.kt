@@ -17,7 +17,7 @@ class UExprPairReadResult<Sort1 : KSort, Sort2 : KSort>(
     val second: UExpr<Sort2>,
 ) : TvmCellDataTypeReadValue
 
-fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
+fun <ReadResult> mkIte(
     ctx: TvmContext,
     condition: UBoolExpr,
     trueBranch: ReadResult,
@@ -36,6 +36,8 @@ fun <ReadResult : TvmCellDataTypeReadValue> mkIte(
                 falseBranch.uncheckedCast(),
             ).uncheckedCast()
         }
+
+        else -> error("...")
     }
 
 fun <Sort : KSort> mkUExprIte(

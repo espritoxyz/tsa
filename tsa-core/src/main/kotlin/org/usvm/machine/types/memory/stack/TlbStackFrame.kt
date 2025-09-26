@@ -11,7 +11,6 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeRead
-import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
 
 fun buildFrameForStructure(
@@ -61,7 +60,7 @@ sealed interface TlbStackFrame {
     val path: List<Int>
     val leftTlbDepth: Int
 
-    fun <ReadResult : TvmCellDataTypeReadValue> step(
+    fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>>
@@ -81,7 +80,7 @@ sealed interface TlbStackFrame {
         otherCellRef: UConcreteHeapRef,
     ): Pair<UBoolExpr?, Unit?>
 
-    data class GuardedResult<ReadResult : TvmCellDataTypeReadValue>(
+    data class GuardedResult<ReadResult>(
         val guard: UBoolExpr,
         val result: StackFrameStepResult<ReadResult>,
         val value: ReadResult?,
@@ -109,21 +108,20 @@ data object EndOfStackFrame : StackFrameStepResult<Nothing>
  * @param loadData the action that must be applied to the stack that was created after partially the partial loading
  * that spans across multiple Tlb frames.
  */
-data class ContinueLoadOnNextFrame<ReadResult : TvmCellDataTypeReadValue>(
+data class ContinueLoadOnNextFrame<ReadResult>(
     val loadData: LimitedLoadData<ReadResult>,
     val concreteLoaded: UExpr<KBvSort>? = null,
 ) : StackFrameStepResult<ReadResult>
 
-data class LimitedLoadData<ReadResult : TvmCellDataTypeReadValue>(
+data class LimitedLoadData<ReadResult>(
     val cellAddress: UConcreteHeapRef,
     val type: TvmCellDataTypeRead<ReadResult>,
 ) {
     companion object {
-        fun <ReadResult : TvmCellDataTypeReadValue> fromLoadData(
-            loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>,
-        ) = LimitedLoadData(
-            type = loadData.type,
-            cellAddress = loadData.cellAddress,
-        )
+        fun <ReadResult> fromLoadData(loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>) =
+            LimitedLoadData(
+                type = loadData.type,
+                cellAddress = loadData.cellAddress,
+            )
     }
 }

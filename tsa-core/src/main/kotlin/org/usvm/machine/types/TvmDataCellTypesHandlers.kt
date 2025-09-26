@@ -66,7 +66,7 @@ private fun <T> MutableMap<T, UBoolExpr>.addGuardedOutcome(
     this@addGuardedOutcome[key] = mkOr(oldGuard, guard, flat = false)
 }
 
-private fun <ReadResult : TvmCellDataTypeReadValue> MutableMap<
+private fun <ReadResult> MutableMap<
     MakeSliceTypeLoadOutcome,
     MutableMap<ReadResult?, UBoolExpr>,
 >.addGuardedTypeloadOutcome(
@@ -78,7 +78,7 @@ private fun <ReadResult : TvmCellDataTypeReadValue> MutableMap<
     innerMap.addGuardedOutcome(readValue, guard)
 }
 
-fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoad(
+fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     oldSlice: UHeapRef,
     type: TvmCellDataTypeRead<ReadResult>,
     newSlice: UConcreteHeapRef,
@@ -185,7 +185,7 @@ fun <ReadResult : TvmCellDataTypeReadValue> TvmStepScopeManager.makeSliceTypeLoa
     )
 }
 
-private fun <ReadResult : TvmCellDataTypeReadValue> retryWithBitvectorRead(
+private fun <ReadResult> retryWithBitvectorRead(
     type: TvmCellDataIntegerRead,
     load: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>,
     tlbStack: TlbStack,

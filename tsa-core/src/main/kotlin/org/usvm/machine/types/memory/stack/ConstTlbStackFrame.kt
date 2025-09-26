@@ -2,7 +2,6 @@ package org.usvm.machine.types.memory.stack
 
 import io.ksmt.expr.KExpr
 import io.ksmt.expr.KInterpretedValue
-import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentList
 import org.ton.TlbStructure
 import org.usvm.UBoolExpr
@@ -19,11 +18,9 @@ import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead
 import org.usvm.machine.types.TvmCellDataMsgAddrRead
 import org.usvm.machine.types.TvmCellDataTypeRead
-import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
 import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
 import org.usvm.machine.types.memory.readConcreteBv
-import org.usvm.machine.types.memory.readFromConstant
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
@@ -39,7 +36,7 @@ data class ConstTlbStackFrame(
     override val path: PersistentList<Int>,
     override val leftTlbDepth: Int,
 ) : TlbStackFrame {
-    override fun <ReadResult : TvmCellDataTypeReadValue> step(
+    override fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
@@ -101,7 +98,7 @@ data class ConstTlbStackFrame(
                         ContinueLoadOnNextFrame(
                             LimitedLoadData(
                                 loadData.cellAddress,
-                                TvmCellDataBitArrayRead(mkSizeSubExpr(readSize, leftBits)).uncheckedCast(),
+                                type.createLeftBitsDataLoad(mkSizeSubExpr(readSize, leftBits)),
                             ),
                             concreteBvRead,
                         ),
@@ -127,7 +124,7 @@ data class ConstTlbStackFrame(
             return result
         }
 
-    private fun <ReadResult : TvmCellDataTypeReadValue> TvmContext.extractReadSizeFromType(
+    private fun <ReadResult> TvmContext.extractReadSizeFromType(
         type: TvmCellDataTypeRead<ReadResult>,
         concreteOffset: Int?,
     ): KExpr<TvmSizeSort>? {

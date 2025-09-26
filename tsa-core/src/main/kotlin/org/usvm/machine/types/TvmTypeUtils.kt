@@ -50,7 +50,7 @@ fun TvmState.getPossibleTypes(ref: UConcreteHeapRef): Sequence<TvmType> {
     return typeSystem.findSubtypes(type)
 }
 
-fun <ReadResult : TvmCellDataTypeReadValue> TlbBuiltinLabel.accepts(
+fun <ReadResult> TlbBuiltinLabel.accepts(
     ctx: TvmContext,
     labelArgs: List<UExpr<TvmSizeSort>>,
     symbolicTypeRead: TvmCellDataTypeRead<ReadResult>,

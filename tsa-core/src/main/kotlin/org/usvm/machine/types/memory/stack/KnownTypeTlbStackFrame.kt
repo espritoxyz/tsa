@@ -2,7 +2,6 @@ package org.usvm.machine.types.memory.stack
 
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.sort.KBvSort
-import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentList
 import org.ton.FixedSizeDataLabel
 import org.ton.TlbAddressByRef
@@ -26,8 +25,6 @@ import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.ContinueLoadOnNextFrameData
 import org.usvm.machine.types.TvmCellDataBitArrayRead
-import org.usvm.machine.types.TvmCellDataTypeRead
-import org.usvm.machine.types.TvmCellDataTypeReadValue
 import org.usvm.machine.types.TvmReadingOfUnexpectedType
 import org.usvm.machine.types.accepts
 import org.usvm.machine.types.isEmptyLabel
@@ -46,7 +43,7 @@ data class KnownTypeTlbStackFrame(
     override val path: PersistentList<Int>,
     override val leftTlbDepth: Int,
 ) : TlbStackFrame {
-    override fun <ReadResult : TvmCellDataTypeReadValue> step(
+    override fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
@@ -129,7 +126,7 @@ data class KnownTypeTlbStackFrame(
             result
         }
 
-    private fun <ReadResult : TvmCellDataTypeReadValue> createLoadAcrossFramesAction(
+    private fun <ReadResult> createLoadAcrossFramesAction(
         loadData: LimitedLoadData<ReadResult>,
         leftBits: UExpr<TvmSizeSort>,
         bvValue: UExpr<KBvSort>?,
@@ -139,15 +136,13 @@ data class KnownTypeTlbStackFrame(
         return ContinueLoadOnNextFrame(
             LimitedLoadData(
                 loadData.cellAddress,
-                TvmCellDataBitArrayRead(
-                    leftBits,
-                ).uncheckedCast<TvmCellDataBitArrayRead, TvmCellDataTypeRead<ReadResult>>(),
+                loadData.type.createLeftBitsDataLoad(leftBits),
             ),
             bvValue,
         )
     }
 
-    private fun <ReadResult : TvmCellDataTypeReadValue> createStepError(
+    private fun <ReadResult> createStepError(
         expectedLabel: TlbBuiltinLabel,
         args: List<UExpr<TvmSizeSort>>,
         loadData: LimitedLoadData<ReadResult>,
@@ -163,7 +158,7 @@ data class KnownTypeTlbStackFrame(
             state.stack,
         )
 
-    private fun <ReadResult : TvmCellDataTypeReadValue> TvmContext.createContinueLoadingOnNextFrame(
+    private fun <ReadResult> TvmContext.createContinueLoadingOnNextFrame(
         loadData: LimitedLoadData<ReadResult>,
         typeLabel: TlbBuiltinLabel,
         args: List<UExpr<TvmSizeSort>>,
