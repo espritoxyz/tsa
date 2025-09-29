@@ -428,6 +428,7 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+
                 is TvmCellParseLduxqInst ->
                     visitLoadIntXInst(
                         scope,
@@ -436,6 +437,7 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+
                 is TvmCellParseLdixInst ->
                     visitLoadIntXInst(
                         scope,
@@ -444,6 +446,7 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+
                 is TvmCellParseLdixqInst ->
                     visitLoadIntXInst(
                         scope,
@@ -452,6 +455,7 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+
                 is TvmCellParsePlduxInst ->
                     visitLoadIntXInst(
                         scope,
@@ -460,6 +464,7 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+
                 is TvmCellParsePlduxqInst ->
                     visitLoadIntXInst(
                         scope,
@@ -468,6 +473,7 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+
                 is TvmCellParsePldixInst ->
                     visitLoadIntXInst(
                         scope,
@@ -476,6 +482,7 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+
                 is TvmCellParsePldixqInst ->
                     visitLoadIntXInst(
                         scope,
@@ -484,6 +491,7 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+
                 is TvmCellParseLdsliceInst ->
                     visitLoadSliceInst(
                         scope,
@@ -492,6 +500,7 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+
                 is TvmCellParseLdsliceqInst ->
                     visitLoadSliceInst(
                         scope,
@@ -500,6 +509,7 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+
                 is TvmCellParseLdsliceAltInst ->
                     visitLoadSliceInst(
                         scope,
@@ -508,6 +518,7 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+
                 is TvmCellParsePldsliceInst ->
                     visitLoadSliceInst(
                         scope,
@@ -516,6 +527,7 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+
                 is TvmCellParsePldsliceqInst ->
                     visitLoadSliceInst(
                         scope,
@@ -524,6 +536,7 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+
                 is TvmCellParseLdslicexInst -> {
                     visitLoadSliceXWithStackSL(scope, stmt, preload = false, quiet = false, pushResultOnStack = true)
                 }
@@ -849,10 +862,6 @@ class TvmCellInterpreter(
             }
 
         sliceLoadRefTlb(scope, slice, updatedSlice) { value ->
-            // hide the original [scope] from this closure
-            @Suppress("NAME_SHADOWING", "UNUSED_VARIABLE")
-            val scope = Unit
-
             doWithState {
                 addOnStack(value, TvmCellType)
                 addOnStack(updatedSlice, TvmSliceType)
@@ -1013,7 +1022,7 @@ class TvmCellInterpreter(
             ) { valueFromTlb ->
                 val result =
                     valueFromTlb?.expr ?: let {
-                        slicePreloadInt(slice, sizeBits, isSigned)
+                        slicePreloadInt(slice, sizeBits.extractToSizeSort(), isSigned)
                             ?: return@makeSliceTypeLoad
                     }
 

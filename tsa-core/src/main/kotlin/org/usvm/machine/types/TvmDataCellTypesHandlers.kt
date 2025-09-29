@@ -219,7 +219,7 @@ private fun <ReadResult> retryWithBitvectorRead(
             val result =
                 scope.slicePreloadInt(
                     expr,
-                    with(context) { type.sizeBits.zeroExtendToSort(state.ctx.int257sort) },
+                    with(context) { type.sizeBits },
                     type.isSigned,
                 )
                     ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null)

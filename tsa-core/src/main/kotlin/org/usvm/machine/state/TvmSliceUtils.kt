@@ -343,11 +343,11 @@ fun TvmStepScopeManager.slicePreloadDataBits(
 
 fun TvmContext.extractIntFromShiftedData(
     shiftedData: UExpr<TvmCellDataSort>,
-    sizeBits: UExpr<TvmInt257Sort>,
+    sizeBits: UExpr<TvmSizeSort>,
     isSigned: Boolean,
 ): UExpr<TvmInt257Sort> {
     val extractedBits = shiftedData.extractToInt257Sort()
-    val trashBits = mkBvSubExpr(intBitsValue, sizeBits)
+    val trashBits = mkBvSubExpr(intBitsSizeExpr, sizeBits).zeroExtendToSort(int257sort)
     val shiftedBits = mkBvShiftLeftExpr(extractedBits, trashBits)
 
     return if (!isSigned) {
@@ -362,7 +362,7 @@ fun TvmContext.extractIntFromShiftedData(
  */
 fun TvmStepScopeManager.slicePreloadInt(
     slice: UHeapRef,
-    sizeBits: UExpr<TvmInt257Sort>,
+    sizeBits: UExpr<TvmSizeSort>,
     isSigned: Boolean,
     quietBlock: (TvmState.() -> Unit)? = null,
 ): UExpr<TvmInt257Sort>? {
@@ -588,7 +588,7 @@ fun sliceLoadGramsTlb(
 
                 val extendedLength = mkBvShiftLeftExpr(length, shift = threeSizeExpr)
                 val grams =
-                    slicePreloadInt(newSlice, extendedLength.zeroExtendToSort(int257sort), isSigned = false)
+                    slicePreloadInt(newSlice, extendedLength, isSigned = false)
                         ?: return@makeSliceTypeLoad
 
                 length to grams

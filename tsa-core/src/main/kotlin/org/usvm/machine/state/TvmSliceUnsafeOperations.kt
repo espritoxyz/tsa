@@ -49,7 +49,7 @@ fun TvmState.preloadDataBitsFromCellWithoutStructuralAsserts(
 fun TvmState.loadIntFromCellWithoutChecksAndStructuralAsserts(
     cell: UHeapRef,
     offset: UExpr<TvmSizeSort>,
-    sizeBits: UExpr<TvmInt257Sort>,
+    sizeBits: UExpr<TvmSizeSort>,
     isSigned: Boolean,
 ): UExpr<TvmInt257Sort> =
     with(ctx) {

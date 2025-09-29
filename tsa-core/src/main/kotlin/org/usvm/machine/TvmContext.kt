@@ -106,6 +106,7 @@ class TvmContext(
     val sizeExpr32: UExpr<TvmSizeSort> = mkSizeExpr(32)
     val maxDataLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_DATA_LENGTH)
     val maxRefsLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_REFS_NUMBER)
+    val intBitsSizeExpr = mkSizeExpr(INT_BITS.toInt())
 
     val zeroBit = mkBv(0, 1u)
     val oneBit = mkBv(1, 1u)

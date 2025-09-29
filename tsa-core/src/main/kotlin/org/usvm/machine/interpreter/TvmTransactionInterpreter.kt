@@ -49,7 +49,6 @@ import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestStateResolver
-import org.usvm.test.util.checkers.eq
 
 class TvmTransactionInterpreter(
     val ctx: TvmContext,
