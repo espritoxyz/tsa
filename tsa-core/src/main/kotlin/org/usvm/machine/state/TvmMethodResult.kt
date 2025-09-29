@@ -26,7 +26,7 @@ sealed interface TvmMethodResult {
     }
 
     /**
-     * A [method] successfully returned.
+     * A method successfully returned.
      */
     data class TvmSuccess(
         val exit: TvmSuccessfulExit,
@@ -219,6 +219,15 @@ data class TvmOutOfGas(
 
     override fun toString(): String =
         "TVM out of gas error (exit code: $exitCode): gas consumed: $consumedGas, limit: $gasLimit"
+}
+
+data class InsufficientFunds(
+    val contractId: ContractId,
+) : TvmErrorExit {
+    override val exitCode: Int = 37
+    override val ruleName: String = "insufficient-funds"
+
+    override fun toString(): String = "TVM insufficient funds while processing messages sent by contract $contractId"
 }
 
 @Serializable

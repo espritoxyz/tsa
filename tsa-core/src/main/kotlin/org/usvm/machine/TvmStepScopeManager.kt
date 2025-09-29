@@ -266,7 +266,7 @@ class TvmStepScopeManager(
          * @return `null` if the underlying state is `null`, otherwise returns result of calling [block].
          */
         inline fun <R> calcOnState(block: TvmState.() -> R): R {
-            check(canProcessFurtherOnCurrentStep) { "Caller should check before processing the current hop further" }
+            check(canProcessFurtherOnCurrentStep) { "Using of an invalid scope" }
             return originalState.block()
         }
 

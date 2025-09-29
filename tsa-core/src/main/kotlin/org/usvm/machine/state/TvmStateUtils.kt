@@ -7,6 +7,7 @@ import io.ksmt.utils.powerOfTwo
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bitstring.BitString
 import org.ton.bytecode.BALANCE_PARAMETER_IDX
+import org.ton.bytecode.INBOUND_MESSAGE_VALUE_PARAMETER_IDX
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TsaArtificialJmpToContInst
@@ -505,6 +506,8 @@ fun initializeContractExecutionMemory(
                     oldFirstElementOfC7.entries.mapIndexed { index, entry ->
                         if (index == BALANCE_PARAMETER_IDX) {
                             TvmStack.TvmConcreteStackEntry(makeBalanceEntry(ctx, newBalance))
+                        } else if (index == INBOUND_MESSAGE_VALUE_PARAMETER_IDX) {
+                            TvmStack.TvmConcreteStackEntry(TvmStack.TvmStackIntValue(newMsgValue))
                         } else {
                             entry
                         }

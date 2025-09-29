@@ -18,6 +18,7 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmEventInformation
@@ -60,6 +61,7 @@ import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.returnFromContinuation
+import org.usvm.machine.state.setBalance
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.types.TvmCellType
@@ -138,8 +140,6 @@ class TvmArtificialInstInterpreter(
             }
         }
     }
-
-    fun <T> List<T>.splitHeadTail(): Pair<T, List<T>>? = if (isEmpty()) null else first() to drop(1)
 
     private fun TvmState.doCallOnOutMessageIfRequired(stmt: TsaArtificialOnOutMessageHandlerCallInst): Unit? {
         if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
@@ -418,6 +418,7 @@ class TvmArtificialInstInterpreter(
                 fullMsgCell = msgCell,
                 msgBodySlice = bodySlice,
                 destAddrSlice = oldMessage.destAddrSlice,
+                sendMessageMode = ctx.zeroValue,
             )
         }
     }
@@ -533,36 +534,50 @@ class TvmArtificialInstInterpreter(
         switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
     }
 
-    /**
-     * @return sent messages
-     */
     private fun processNewMessages(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
-        restActions: TvmStepScopeManager.(List<Pair<ContractId?, OutMessage>>) -> Unit,
+        restActions: TvmStepScopeManager.(List<TvmTransactionInterpreter.MessageWithMaybeReceiver>) -> Unit,
     ) {
         transactionInterpreter.parseActionsToDestinations(
             scope,
             commitedState,
-        ) { (newUnprocessedMessages, messageDestinations) ->
-            doWithState {
-                messageQueue =
-                    messageQueue.addAll(
-                        messageDestinations.map { (receiver, message) ->
-                            ReceivedMessage.MessageFromOtherContract(
-                                ContractSender(currentContract, currentEventId),
-                                receiver,
-                                message,
-                            )
-                        },
-                    )
-                unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages.map { currentContract to it })
+        ) {
+            transactionInterpreter.handleMessages(this, it.orderedMessages) { finalMessageHandlingState ->
+                when (finalMessageHandlingState) {
+                    is ActionHandlingResult.Success -> {
+                        this.calcOnState { registerActionPhaseEffect(finalMessageHandlingState) }
+
+                        this.restActions(finalMessageHandlingState.messagesSent)
+                    }
+
+                    is ActionHandlingResult.Failure -> {
+                        scope.calcOnState { ctx.throwInsufficientFunds(currentContract)(this) }
+                    }
+                }
             }
-
-            val messages = messageDestinations + newUnprocessedMessages.map { null to it }
-
-            restActions(messages)
         }
+    }
+
+    private fun TvmState.registerActionPhaseEffect(finalMessageHandlingState: ActionHandlingResult.Success) {
+        setBalance(finalMessageHandlingState.balanceLeft)
+        val messagesSent = finalMessageHandlingState.messagesSent
+        val messagesWithDestinations =
+            messagesSent.mapNotNull { (receiverOrNull, message) ->
+                receiverOrNull?.let { receiver ->
+                    ReceivedMessage.MessageFromOtherContract(
+                        ContractSender(currentContract, currentEventId),
+                        receiver,
+                        message,
+                    )
+                }
+            }
+        val newUnprocessedMessages =
+            messagesSent.mapNotNull { (receiverOrNull, message) ->
+                if (receiverOrNull == null) currentContract to message else null
+            }
+        messageQueue = messageQueue.addAll(messagesWithDestinations)
+        unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages)
     }
 
     private fun processContractStackReturn(

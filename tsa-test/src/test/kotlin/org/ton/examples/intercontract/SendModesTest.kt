@@ -1,17 +1,15 @@
 package org.ton.examples.intercontract
 
-import org.ton.communicationSchemeFromJson
-import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.checkInvariants
-import org.ton.test.utils.extractResource
+import org.ton.test.utils.extractCheckerContractFromResource
+import org.ton.test.utils.extractCommunicationSchemeFromResource
+import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
-import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmMethodFailure
-import kotlin.io.path.readText
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -26,25 +24,17 @@ class SendModesTest {
     private val ignoreErrorTestScheme = "/intercontract/modes/ignore_error_test_scheme.json"
     private val recipientBouncePath = "/args/receive_bounce_msg.fc"
 
-    @Ignore("SendRemainingBalance mode is not supported")
     @Test
     fun sendRemainingBalanceTest() {
-        val pathContract = extractResource(remainingBalanceContract)
-        val checkerPath = extractResource(remainingBalanceChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true,
-            )
-        val analyzedContract = getFuncContract(pathContract, FIFT_STDLIB_RESOURCE)
+        val checkerContract = extractCheckerContractFromResource(remainingBalanceChecker)
+        val analyzedContract = extractFuncContractFromResource(remainingBalanceContract)
 
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
             )
 
         assertTrue { tests.isNotEmpty() }
@@ -55,25 +45,17 @@ class SendModesTest {
         )
     }
 
-    @Ignore("SendRemainingValue mode is not supported")
     @Test
     fun sendRemainingValueTest() {
-        val pathContract = extractResource(remainingValueContract)
-        val checkerPath = extractResource(remainingValueChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true,
-            )
-        val analyzedContract = getFuncContract(pathContract, FIFT_STDLIB_RESOURCE)
+        val analyzedContract = extractFuncContractFromResource(remainingValueContract)
+        val checkerContract = extractCheckerContractFromResource(remainingValueContract)
 
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
             )
 
         assertTrue { tests.isNotEmpty() }
@@ -87,34 +69,20 @@ class SendModesTest {
     @Ignore("SendIgnoreError flag is not supported")
     @Test
     fun sendIgnoreErrorTest() {
-        val pathSender = extractResource(ignoreErrorsContract)
-        val pathRecepient = extractResource(recipientBouncePath)
-        val checkerPath = extractResource(ignoreErrorsChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true,
-            )
-        val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
-        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
-
-        val communicationSchemePath = extractResource(ignoreErrorTestScheme)
-        val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
+        val checkerContract = extractCheckerContractFromResource(ignoreErrorsChecker)
+        val analyzedSender = extractFuncContractFromResource(ignoreErrorsContract)
+        val analyzedRecipient = extractFuncContractFromResource(recipientBouncePath)
+        val communicationScheme = extractCommunicationSchemeFromResource(ignoreErrorTestScheme)
 
         val options =
             TvmOptions(
-                intercontractOptions =
-                    IntercontractOptions(
-                        communicationScheme = communicationScheme,
-                    ),
+                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
                 enableOutMessageAnalysis = true,
             )
 
         val tests =
             analyzeInterContract(
-                listOf(checkerContract, analyzedSender, analyzedRecepient),
+                listOf(checkerContract, analyzedSender, analyzedRecipient),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
