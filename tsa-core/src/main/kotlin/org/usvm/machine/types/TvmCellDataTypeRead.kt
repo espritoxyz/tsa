@@ -8,7 +8,6 @@ import org.ton.FixedSizeDataLabel
 import org.ton.TlbAddressByRef
 import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbBitArrayByRef
-import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
@@ -271,7 +270,7 @@ data class TvmCellDataBitArrayRead(
     ): UExprReadResult<UAddressSort>? =
         with(state.ctx) {
             when (label) {
-                is TlbBitArrayOfConcreteSize -> {
+                is FixedSizeDataLabel -> {
                     val field = ConcreteSizeBlockField(label.concreteSize, curStructure.id, path)
                     val fieldValue = state.memory.readField(address, field, field.getSort(this))
                     UExprReadResult(state.allocSliceFromData(fieldValue))

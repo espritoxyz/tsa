@@ -37,8 +37,9 @@ import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.getInboundMessageValue
 import org.usvm.machine.state.getSliceRemainingRefsCount
+import org.usvm.machine.state.messages.MessageActionParseResult
+import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.MessageMode
-import org.usvm.machine.state.messages.OutMessage
 import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.sliceLoadAddrTransaction
 import org.usvm.machine.state.sliceLoadGramsTransaction
@@ -59,13 +60,13 @@ class TvmTransactionInterpreter(
 ) {
     data class MessageWithMaybeReceiver(
         val receiver: ContractId?,
-        val outMessage: OutMessage,
+        val outMessage: MessageActionParseResult,
     )
 
     class ActionDestinationParsingResult(
         val orderedMessages: List<MessageWithMaybeReceiver>,
     ) {
-        val unprocessedMessages: List<OutMessage>
+        val unprocessedMessages: List<MessageActionParseResult>
             get() =
                 orderedMessages.mapNotNull { (contractId, outMessage) ->
                     if (contractId == null) {
@@ -74,12 +75,12 @@ class TvmTransactionInterpreter(
                         null
                     }
                 }
-        val messagesForQueue: List<Pair<ContractId, OutMessage>>
+        val messagesForQueue: List<Pair<ContractId, MessageActionParseResult>>
             get() = orderedMessages.mapNotNull { (contractId, outMessage) -> contractId?.let { it to outMessage } }
 
-        operator fun component1(): List<OutMessage> = unprocessedMessages
+        operator fun component1(): List<MessageActionParseResult> = unprocessedMessages
 
-        operator fun component2(): List<Pair<ContractId, OutMessage>> = messagesForQueue
+        operator fun component2(): List<Pair<ContractId, MessageActionParseResult>> = messagesForQueue
     }
 
     sealed interface MessageHandlingState {
@@ -160,7 +161,7 @@ class TvmTransactionInterpreter(
             val mode = head.outMessage.sendMessageMode
             val sendRemainingValue = mode.hasBitSet(MessageMode.SEND_REMAINING_VALUE.toBv257())
             val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE.toBv257())
-            val messageValue = head.outMessage.msgValue
+            val messageValue = head.outMessage.content.msgValue
             ctx.handleSingleMessage(
                 this@handleMessagesImpl,
                 sendRemainingValue,
@@ -331,7 +332,7 @@ class TvmTransactionInterpreter(
                     messages.map {
                         val (result, innerStatus) =
                             chooseHandlerBasedOnOpcode(
-                                it.msgBodySlice,
+                                it.content.msgBodySlice,
                                 handler.outOpcodeToDestination,
                                 handler.other,
                                 resolver,
@@ -369,7 +370,7 @@ class TvmTransactionInterpreter(
 
     private fun assertCorrectAddresses(
         scope: TvmStepScopeManager,
-        newMessagesForQueue: List<Pair<ContractId, OutMessage>>,
+        newMessagesForQueue: List<Pair<ContractId, MessageActionParseResult>>,
     ): Unit? =
         with(scope.ctx) {
             val constraint =
@@ -386,7 +387,11 @@ class TvmTransactionInterpreter(
                         }
 
                     val equality =
-                        scope.slicesAreEqual(destinationContractAddress, message.destAddrSlice)
+                        scope.slicesAreEqual(
+                            destinationContractAddress,
+                            message.content.destAddrSlice
+                                ?: error("Contract address was not extracted during the paring"),
+                        )
                             ?: return null
 
                     acc and equality
@@ -467,7 +472,7 @@ class TvmTransactionInterpreter(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
         resolver: TvmTestStateResolver,
-    ): List<OutMessage>? =
+    ): List<MessageActionParseResult>? =
         with(ctx) {
             val commitedActions = scope.calcOnState { commitedState.c5.value.value }
 
@@ -475,7 +480,7 @@ class TvmTransactionInterpreter(
                 extractActions(scope, commitedActions)
                     ?: return null
 
-            val outMessages = mutableListOf<OutMessage>()
+            val outMessages = mutableListOf<MessageActionParseResult>()
 
             for (action in actions) {
                 val (actionBody, tag) =
@@ -553,7 +558,7 @@ class TvmTransactionInterpreter(
     private fun parseAndPreprocessMessageAction(
         scope: TvmStepScopeManager,
         slice: UHeapRef,
-    ): OutMessage? =
+    ): MessageActionParseResult? =
         with(ctx) {
             val sendMsgMode =
                 scope.slicePreloadInt(slice, eightSizeExpr, false)
@@ -573,7 +578,7 @@ class TvmTransactionInterpreter(
                 parseBody(scope, ptr)
                     ?: return null
 
-            OutMessage(msgValue, msgFull, bodySlice, destination, sendMsgMode)
+            MessageActionParseResult(MessageAsStackArguments(msgValue, msgFull, bodySlice, destination), sendMsgMode)
         }
 
     private data class CommonMessageInfo(

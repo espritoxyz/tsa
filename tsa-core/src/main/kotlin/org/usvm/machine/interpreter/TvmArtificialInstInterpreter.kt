@@ -54,7 +54,7 @@ import org.usvm.machine.state.input.constructMessageFromContent
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ContractSender
-import org.usvm.machine.state.messages.OutMessage
+import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
@@ -151,8 +151,8 @@ class TvmArtificialInstInterpreter(
         val currentContractToPush = currentContract
         val pushArgsOnStack: TvmState.() -> Unit = {
             with(ctx) {
-                stack.addCell(head.message.fullMsgCell)
-                stack.addSlice(head.message.msgBodySlice)
+                stack.addCell(head.message.content.fullMsgCell)
+                stack.addSlice(head.message.content.msgBodySlice)
                 stack.addInt(currentContractToPush.toBv257()) // sender
                 stack.addInt((head.receiver ?: -1).toBv257()) // receiver
             }
@@ -304,7 +304,7 @@ class TvmArtificialInstInterpreter(
         scope.calcOnState {
             with(ctx) {
                 if (result is TvmFailure) {
-                    val (sender, _, receivedMsgData) =
+                    val (sender, receiverContractId, receivedMsgData) =
                         receivedMessage as? ReceivedMessage.MessageFromOtherContract
                             ?: run {
                                 newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
@@ -321,7 +321,7 @@ class TvmArtificialInstInterpreter(
                         )
 
                     val bouncedMessage =
-                        constructBouncedMessage(scope, receivedMsgData, sender.contractId)
+                        constructBouncedMessage(scope, receivedMsgData, sender.contractId, receiverContractId)
                             ?: return@with
                     scope.fork(
                         isBounceable.neq(zeroCellValue),
@@ -352,9 +352,10 @@ class TvmArtificialInstInterpreter(
 
     private fun constructBouncedMessage(
         scope: TvmStepScopeManager,
-        oldMessage: OutMessage,
-        sender: ContractId,
-    ): OutMessage? {
+        oldMessage: MessageAsStackArguments,
+        oldMessageSender: ContractId,
+        oldMessageReceiver: ContractId,
+    ): MessageAsStackArguments? {
         val msgCellAndBodySliceOrNull =
             with(ctx) {
                 val builder = scope.calcOnState { allocEmptyBuilder() }
@@ -386,9 +387,15 @@ class TvmArtificialInstInterpreter(
                     scope.calcOnState {
                         allocSliceFromCell(builderToCell(builder))
                     }
-                val destinationCell =
+                val destinationAddressCell =
                     scope.calcOnState {
-                        getContractInfoParamOf(ADDRESS_PARAMETER_IDX, sender).cellValue ?: error("no destination :(")
+                        getContractInfoParamOf(ADDRESS_PARAMETER_IDX, oldMessageSender).cellValue
+                            ?: error("no destination :(")
+                    }
+                val sourceAddressCell =
+                    scope.calcOnState {
+                        getContractInfoParamOf(ADDRESS_PARAMETER_IDX, oldMessageReceiver).cellValue
+                            ?: error("no destination :(")
                     }
                 // TODO fill the ihrFee, msgValue, ... with reasonable values
                 val bouncedFlags =
@@ -399,10 +406,15 @@ class TvmArtificialInstInterpreter(
                         bounced = 1.toBv257(),
                     )
                 val content =
-                    RecvInternalInput.MessageContent(
+                    RecvInternalInput.TlbMessageContent(
                         flags = bouncedFlags,
-                        srcAddressSlice = oldMessage.destAddrSlice,
-                        dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationCell) },
+                        srcAddressSlice =
+                            oldMessage.destAddrSlice ?: scope.calcOnState {
+                                allocSliceFromCell(
+                                    sourceAddressCell,
+                                )
+                            },
+                        dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) },
                         msgValue = zeroValue,
                         ihrFee = zeroValue,
                         fwdFee = zeroValue,
@@ -413,12 +425,10 @@ class TvmArtificialInstInterpreter(
                 constructMessageFromContent(scope.calcOnState { this }, content) to bodySlice
             }
         return msgCellAndBodySliceOrNull?.let { (msgCell, bodySlice) ->
-            OutMessage(
+            MessageAsStackArguments(
                 msgValue = oldMessage.msgValue,
                 fullMsgCell = msgCell,
                 msgBodySlice = bodySlice,
-                destAddrSlice = oldMessage.destAddrSlice,
-                sendMessageMode = ctx.zeroValue,
             )
         }
     }
@@ -496,7 +506,7 @@ class TvmArtificialInstInterpreter(
 
     private fun TvmState.executeContractTriggeredByMessage(
         receiver: ContractId,
-        message: OutMessage,
+        message: MessageAsStackArguments,
         sender: ContractSender,
     ) {
         val nextContractCode =
@@ -568,7 +578,7 @@ class TvmArtificialInstInterpreter(
                     ReceivedMessage.MessageFromOtherContract(
                         ContractSender(currentContract, currentEventId),
                         receiver,
-                        message,
+                        message.content,
                     )
                 }
             }

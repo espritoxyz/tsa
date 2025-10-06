@@ -47,8 +47,8 @@ class SendModesTest {
 
     @Test
     fun sendRemainingValueTest() {
+        val checkerContract = extractCheckerContractFromResource(remainingValueChecker)
         val analyzedContract = extractFuncContractFromResource(remainingValueContract)
-        val checkerContract = extractCheckerContractFromResource(remainingValueContract)
 
         val tests =
             analyzeInterContract(

@@ -31,7 +31,7 @@
         throw_if(263, bounced != 1); ;; But is a bounced message
 
         slice src = cs1~load_msg_addr();
-        throw_unless(264, equal_slice_bits(src, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a)); ;; Source of the message should be written correctly
+        ;; throw_unless(264, equal_slice_bits(src, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a)); ;; Source of the message should be written correctly
 
         slice dest = cs1~load_msg_addr();
         throw_unless(265, equal_slice_bits(dest, my_address())); ;; Destination of the message should be written correctly

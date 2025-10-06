@@ -17,7 +17,7 @@ sealed interface ReceivedMessage {
     data class MessageFromOtherContract(
         val sender: ContractSender,
         val receiver: ContractId,
-        val message: OutMessage,
+        val message: MessageAsStackArguments,
     ) : ReceivedMessage
 }
 

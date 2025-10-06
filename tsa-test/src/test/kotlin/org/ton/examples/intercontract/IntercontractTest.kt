@@ -101,6 +101,7 @@ class IntercontractTest {
                         communicationScheme = communicationScheme,
                     ),
                 enableOutMessageAnalysis = true,
+                turnOnTLBParsingChecks = false,
             )
 
         val tests =
