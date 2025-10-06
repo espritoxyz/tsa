@@ -62,6 +62,7 @@ import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setBalance
+import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.types.TvmCellType
@@ -553,16 +554,15 @@ class TvmArtificialInstInterpreter(
             scope,
             commitedState,
         ) {
-            transactionInterpreter.handleMessages(this, it.orderedMessages) { finalMessageHandlingState ->
-                when (finalMessageHandlingState) {
+            transactionInterpreter.handleMessages(this, it.orderedMessages) { actionsHandlingResult ->
+                when (actionsHandlingResult) {
                     is ActionHandlingResult.Success -> {
-                        this.calcOnState { registerActionPhaseEffect(finalMessageHandlingState) }
-
-                        this.restActions(finalMessageHandlingState.messagesSent)
+                        this.calcOnState { registerActionPhaseEffect(actionsHandlingResult) }
+                        this.restActions(actionsHandlingResult.messagesSent)
                     }
 
                     is ActionHandlingResult.Failure -> {
-                        scope.calcOnState { ctx.throwInsufficientFunds(currentContract)(this) }
+                        this.calcOnState { ctx.setFailure(actionsHandlingResult.failure)(this) }
                     }
                 }
             }

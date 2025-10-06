@@ -131,7 +131,7 @@ class TsaArtificialExecuteContInst(
     }
 }
 
-class TsaArtificialCheckerReturn(
+data class TsaArtificialCheckerReturn(
     override val location: TvmInstLocation,
     val checkerMemorySavelist: TsaCheckerFunctionsInterpreter.CheckerMemorySavelist,
 ) : TsaArtificialInst {

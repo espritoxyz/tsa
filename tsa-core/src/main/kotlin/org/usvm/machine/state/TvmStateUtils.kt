@@ -491,34 +491,36 @@ fun initializeContractExecutionMemory(
             val oldFirstElementOfC7 =
                 state.contractIdToFirstElementOfC7[contractId]
                     ?: error("First element of c7 for contract $contractId not found")
-
-            if (newMsgValue != null) {
-                val oldBalance =
-                    oldFirstElementOfC7[BALANCE_PARAMETER_IDX, stack]
-                        .cell(stack)
-                        ?.tupleValue
-                        ?.get(0, stack)
-                        ?.cell(stack)
-                        ?.intValue
-                        ?: error("Cannot extract old balance from oldFirstElementOfC7")
-                val newBalance = mkBvAddExpr(oldBalance, newMsgValue)
-                val newEntries =
-                    oldFirstElementOfC7.entries.mapIndexed { index, entry ->
-                        if (index == BALANCE_PARAMETER_IDX) {
+            val newMsgValue = newMsgValue ?: state.ctx.zeroValue
+            val oldBalance =
+                oldFirstElementOfC7[BALANCE_PARAMETER_IDX, stack]
+                    .cell(stack)
+                    ?.tupleValue
+                    ?.get(0, stack)
+                    ?.cell(stack)
+                    ?.intValue
+                    ?: error("Cannot extract old balance from oldFirstElementOfC7")
+            val newBalance = mkBvAddExpr(oldBalance, newMsgValue)
+            val newEntries =
+                oldFirstElementOfC7.entries.mapIndexed { index, entry ->
+                    when (index) {
+                        BALANCE_PARAMETER_IDX -> {
                             TvmStack.TvmConcreteStackEntry(makeBalanceEntry(ctx, newBalance))
-                        } else if (index == INBOUND_MESSAGE_VALUE_PARAMETER_IDX) {
+                        }
+
+                        INBOUND_MESSAGE_VALUE_PARAMETER_IDX -> {
                             TvmStack.TvmConcreteStackEntry(TvmStack.TvmStackIntValue(newMsgValue))
-                        } else {
+                        }
+
+                        else -> {
                             entry
                         }
                     }
-                val newFirstElementOfC7 = TvmStackTupleValueConcreteNew(ctx, newEntries.toPersistentList())
-                state.contractIdToFirstElementOfC7 =
-                    state.contractIdToFirstElementOfC7.put(contractId, newFirstElementOfC7)
-                newFirstElementOfC7
-            } else {
-                oldFirstElementOfC7
-            }
+                }
+            val newFirstElementOfC7 = TvmStackTupleValueConcreteNew(ctx, newEntries.toPersistentList())
+            state.contractIdToFirstElementOfC7 =
+                state.contractIdToFirstElementOfC7.put(contractId, newFirstElementOfC7)
+            newFirstElementOfC7
         }
 
     return TvmContractExecutionMemory(

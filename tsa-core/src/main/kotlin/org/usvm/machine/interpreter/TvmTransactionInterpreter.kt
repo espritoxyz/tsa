@@ -12,8 +12,10 @@ import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.isTrue
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.INT_BITS
 import org.usvm.machine.TvmContext.Companion.NONE_ADDRESS_TAG
@@ -24,7 +26,9 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCommitedState
+import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreGramsTransaction
@@ -45,7 +49,6 @@ import org.usvm.machine.state.sliceLoadAddrTransaction
 import org.usvm.machine.state.sliceLoadGramsTransaction
 import org.usvm.machine.state.sliceLoadIntTransaction
 import org.usvm.machine.state.sliceLoadRefTransaction
-import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.mkSizeExpr
@@ -54,6 +57,9 @@ import org.usvm.test.resolver.TvmTestStateResolver
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
 private typealias Transformation =
     TvmTransactionInterpreter.MessageHandlingState.Ok.() -> TvmTransactionInterpreter.MessageHandlingState
+
+private typealias MutableTransformation =
+    TvmTransactionInterpreter.MessageHandlingState.OkBuilder.() -> TvmTransactionInterpreter.MessageHandlingState
 
 class TvmTransactionInterpreter(
     val ctx: TvmContext,
@@ -84,17 +90,55 @@ class TvmTransactionInterpreter(
     }
 
     sealed interface MessageHandlingState {
+        /**
+         * @param remainingInboundMessageValue represents the value we received with the inbound message that we have
+         * not yet spent.
+         */
+        data class OkBuilder(
+            val ctx: TvmContext,
+            var currentContractBalance: UExpr<TvmInt257Sort>,
+            var messageValue: UExpr<TvmInt257Sort>,
+            var messageValueBrutto: UExpr<TvmInt257Sort>,
+            var remainingInboundMessageValue: UExpr<TvmInt257Sort>,
+            var sentMessages: PersistentList<MessageWithMaybeReceiver> = persistentListOf(),
+        ) {
+            fun build() =
+                Ok(
+                    ctx,
+                    currentContractBalance,
+                    messageValue,
+                    messageValueBrutto,
+                    remainingInboundMessageValue,
+                    sentMessages,
+                )
+        }
+
         data class Ok(
             val ctx: TvmContext,
-            var remainingBalance: UExpr<TvmInt257Sort>,
-            var msgValue: UExpr<TvmInt257Sort>,
-            var inboundMessageValue: UExpr<TvmInt257Sort>,
-            var sentMessages: PersistentList<MessageWithMaybeReceiver> = persistentListOf(),
-        ) : MessageHandlingState
+            val remainingBalance: UExpr<TvmInt257Sort>,
+            val messageValue: UExpr<TvmInt257Sort>,
+            val messageValueBrutto: UExpr<TvmInt257Sort>,
+            val remainingInboundMessageValue: UExpr<TvmInt257Sort>,
+            val sentMessages: PersistentList<MessageWithMaybeReceiver> = persistentListOf(),
+        ) : MessageHandlingState {
+            fun toBuilder() =
+                OkBuilder(
+                    ctx,
+                    remainingBalance,
+                    messageValue,
+                    messageValueBrutto,
+                    remainingInboundMessageValue,
+                    sentMessages,
+                )
+        }
 
         data class Failure(
-            val exitCode: Int,
+            val exit: TvmMethodResult.TvmErrorExit,
         ) : MessageHandlingState
+
+        companion object {
+            fun insufficientFundsError(contractId: ContractId) = Failure(InsufficientFunds(contractId))
+        }
     }
 
     private fun MessageHandlingState.applyTransform(f: Transformation): MessageHandlingState =
@@ -108,7 +152,7 @@ class TvmTransactionInterpreter(
         f: MsgHandlingPredicate,
     ): KExpr<KBoolSort> =
         when (this) {
-            is MessageHandlingState.Failure -> ctx.falseExpr
+            is MessageHandlingState.Failure -> ctx.trueExpr
             is MessageHandlingState.Ok -> f(this)
         }
 
@@ -117,8 +161,8 @@ class TvmTransactionInterpreter(
         val transform: Transformation,
     )
 
-    private fun asOnCopy(transformation: Transformation): Transformation =
-        { ok: MessageHandlingState.Ok -> ok.copy().transformation() }
+    private fun asOnCopy(transformation: MutableTransformation): Transformation =
+        { ok: MessageHandlingState.Ok -> ok.toBuilder().transformation() }
 
     fun handleMessages(
         scope: TvmStepScopeManager,
@@ -127,11 +171,12 @@ class TvmTransactionInterpreter(
     ) {
         val messageHandlingState =
             scope.calcOnState {
-                val balance = getBalance() ?: ctx.zeroValue
-                val inboundMsgValue = getInboundMessageValue() ?: ctx.zeroValue
+                val balance = getBalance() ?: error("Balance not set")
+                val inboundMsgValue = getInboundMessageValue() ?: error("Inbound message not set")
                 MessageHandlingState.Ok(
                     ctx,
                     balance,
+                    ctx.zeroValue, // not important, will be reassigned at each message
                     ctx.zeroValue,
                     inboundMsgValue,
                 )
@@ -139,12 +184,30 @@ class TvmTransactionInterpreter(
         val compatibleRestActions: TvmStepScopeManager.(MessageHandlingState) -> Unit = {
             val arg =
                 when (it) {
-                    is MessageHandlingState.Failure -> ActionHandlingResult.Failure(it.exitCode)
+                    is MessageHandlingState.Failure ->
+                        ActionHandlingResult.Failure(
+                            InsufficientFunds(calcOnState { currentContract }),
+                        )
+
                     is MessageHandlingState.Ok -> ActionHandlingResult.Success(it.remainingBalance, it.sentMessages)
                 }
             this.restActions(arg)
         }
         scope.handleMessagesImpl(messages, messageHandlingState, compatibleRestActions)
+    }
+
+    /**
+     * TODO calculate properly
+     */
+    private fun TvmStepScopeManager.computeMessageForwardFees(
+        @Suppress("Unused") outMessage: MessageActionParseResult,
+    ): Int257Expr {
+        val fwdFees = calcOnState { makeSymbolicPrimitive(ctx.int257sort) }
+        with(ctx) {
+            assert(fwdFees bvUgt zeroValue) ?: error("unreachable")
+            assert(fwdFees bvUle oneValue) ?: error("unreachable")
+        }
+        return fwdFees
     }
 
     private fun TvmStepScopeManager.handleMessagesImpl(
@@ -163,101 +226,225 @@ class TvmTransactionInterpreter(
             val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE.toBv257())
             val messageValue = head.outMessage.content.msgValue
             ctx.handleSingleMessage(
-                this@handleMessagesImpl,
-                sendRemainingValue,
-                sendRemainingBalance,
-                zeroValue,
-                messageValue,
-                currentMessageHandlingState,
-                head,
+                scope = this@handleMessagesImpl,
+                sendRemainingValue = sendRemainingValue,
+                sendRemainingBalance = sendRemainingBalance,
+                computeFees = zeroValue,
+                msgFwdFees = computeMessageForwardFees(head.outMessage),
+                initMsgValue = messageValue,
+                currentState = currentMessageHandlingState,
+                currentMessage = head,
             ) { newCurrentState ->
                 handleMessagesImpl(tail, newCurrentState, restActions)
             }
         }
 
-    private fun TvmContext.handleSingleMessage(
-        scope: TvmStepScopeManager,
-        sendRemainingValue: UExpr<KBoolSort>,
-        sendRemainingBalance: UExpr<KBoolSort>,
-        computeFees: UExpr<TvmInt257Sort>,
-        initMsgValue: UExpr<TvmInt257Sort>,
-        currentState: MessageHandlingState,
+    private fun MessageWithMaybeReceiver.withSetMessageValue(messageValue: Int257Expr): MessageWithMaybeReceiver =
+        copy(outMessage = outMessage.copy(content = outMessage.content.copy(msgValue = messageValue)))
+
+    /**
+     *
+     * The message handling is based on the flow in `Transaction::try_action_send_msg` defined in
+     * `crypto/block/transaction.cpp` file relative to the root of the TON monorepo, tag `v2025.7`.
+     *
+     * The code that it represents:
+     * ```
+     * val msgFees = calculateMessageFees()
+     * var initialMessageValue = message.getValue()
+     *
+     * val req = initialMessageValue // req = this.messageValue
+     * payFeesSeparately = payFeesSeparately && !sendRemainingBalance
+     *
+     * if (sendRemainingBalance) {
+     *     remainingInboundMsgValue = 0
+     *     req = currentBalance
+     * } else if (payAllValue) {
+     *     remainingInboundMsgValue = 0
+     *     if (remainingInboundMsgValue >= computeFees)
+     *         req = messageValue - computeFees
+     *     else
+     *         return Err(37)
+     * } else {
+     *     // do nothing
+     * }
+     *
+     * if (!payFeesSeparately) {
+     *     if (req < msgFees) {
+     *         return Err(37)
+     *     } else {
+     *        reqBrutto = req // reqBrutto is value subttracted from balance
+     *        req = req - msgFees
+     *     }
+     * } else {
+     *     req += msgFees
+     *     reqBrutto = req
+     * }
+     *
+     * if (balance >= reqBrutto) {
+     *     balance -= reqBrutto
+     *     // send message
+     * } else {
+     *     return Err(37)
+     * }
+     *
+     * ```
+     *
+     * @return list of transformations that are applied to the initial state during the message handling
+     *
+     */
+    private fun TvmContext.createMessageHandlingTransformations(
+        sendRemainingValue: UBoolExpr,
+        sendRemainingBalance: UBoolExpr,
+        computeFees: Int257Expr,
+        msgFwdFees: Int257Expr,
         currentMessage: MessageWithMaybeReceiver,
-        restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
-    ) {
-        if (currentState is MessageHandlingState.Failure) {
-            scope.restActions(currentState)
-            return
-        }
-        val initialState = (currentState as MessageHandlingState.Ok).copy(msgValue = initMsgValue)
+        currentContractId: ContractId,
+    ): List<List<CondTransform>> {
+        val payFeesSeparately = falseExpr
         val firstTransform: List<CondTransform> =
             listOf(
                 CondTransform(
-                    { sendRemainingValue and (msgValue bvUle computeFees) },
-                    { MessageHandlingState.Failure(37) },
-                ),
-                CondTransform(
-                    { sendRemainingValue and (msgValue bvUle computeFees).not() },
+                    { sendRemainingBalance },
                     asOnCopy {
-                        msgValue = msgValue bvAdd (inboundMessageValue bvSub computeFees)
-                        this
+                        remainingInboundMessageValue = zeroValue
+                        messageValue = currentContractBalance
+                        build()
                     },
                 ),
                 CondTransform(
-                    { sendRemainingValue.not() },
-                    asOnCopy { this },
+                    {
+                        sendRemainingBalance.not() and sendRemainingValue and
+                            (remainingInboundMessageValue bvUge computeFees)
+                    },
+                    asOnCopy {
+                        messageValue = remainingInboundMessageValue bvSub computeFees
+                        remainingInboundMessageValue = zeroValue
+                        build()
+                    },
+                ),
+                CondTransform(
+                    {
+                        sendRemainingBalance.not() and sendRemainingValue and
+                            (remainingInboundMessageValue bvUge computeFees).not()
+                    },
+                    asOnCopy {
+                        MessageHandlingState.insufficientFundsError(currentContractId)
+                    },
+                ),
+                CondTransform(
+                    {
+                        sendRemainingBalance.not() and sendRemainingValue.not()
+                    },
+                    asOnCopy { build() },
                 ),
             )
         val secondTransform: List<CondTransform> =
             listOf(
                 CondTransform(
-                    { (sendRemainingBalance and sendRemainingValue) },
-                    { MessageHandlingState.Failure(37) },
-                ),
-                CondTransform(
-                    { (sendRemainingBalance and sendRemainingValue.not()) },
+                    { payFeesSeparately },
                     asOnCopy {
-                        msgValue = remainingBalance
-                        remainingBalance = zeroValue
-                        sentMessages = sentMessages.add(currentMessage)
-                        this
+                        messageValue = messageValue bvAdd computeFees
+                        messageValueBrutto = messageValue
+                        build()
                     },
                 ),
                 CondTransform(
-                    { sendRemainingBalance.not() },
+                    { payFeesSeparately.not() and (this.messageValue bvUge msgFwdFees) },
                     asOnCopy {
-                        remainingBalance = remainingBalance bvSub msgValue
-                        sentMessages = sentMessages.add(currentMessage)
-                        this
+                        messageValueBrutto = messageValue
+                        messageValue = messageValue bvSub msgFwdFees
+                        build()
+                    },
+                ),
+                CondTransform(
+                    { payFeesSeparately.not() and (this.messageValue bvUge msgFwdFees).not() },
+                    asOnCopy {
+                        MessageHandlingState.insufficientFundsError(currentContractId)
                     },
                 ),
             )
-        val firstActions =
-            firstTransform.map {
+        val thirdTransform: List<CondTransform> =
+            listOf(
+                CondTransform(
+                    { remainingBalance bvUge messageValueBrutto },
+                    asOnCopy {
+                        currentContractBalance = currentContractBalance bvSub messageValueBrutto
+                        sentMessages = sentMessages.add(currentMessage.withSetMessageValue(messageValue))
+                        build()
+                    },
+                ),
+                CondTransform(
+                    { (remainingBalance bvUge messageValue).not() },
+                    asOnCopy {
+                        MessageHandlingState.insufficientFundsError(currentContractId)
+                    },
+                ),
+            )
+        val transformations = listOf(firstTransform, secondTransform, thirdTransform)
+        return transformations
+    }
+
+    private fun applyConsecutiveTransformations(
+        scope: TvmStepScopeManager,
+        currentState: MessageHandlingState,
+        transformations: List<List<CondTransform>>,
+        restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
+    ) {
+        val (head, tail) =
+            transformations.splitHeadTail() ?: run {
+                scope.restActions(currentState)
+                return
+            }
+        val actions =
+            head.map {
                 TvmStepScopeManager.ActionOnCondition(
                     {},
                     false,
-                    initialState.applyPredicate(ctx, it.predicate),
-                    initialState.applyTransform(it.transform),
+                    currentState.applyPredicate(ctx, it.predicate),
+                    currentState.applyTransform(it.transform),
                 )
             }
-        scope.doWithConditions(
-            firstActions,
-            { nextState ->
-                val secondActions =
-                    secondTransform.map {
-                        TvmStepScopeManager.ActionOnCondition(
-                            {},
-                            false,
-                            nextState.applyPredicate(ctx, it.predicate),
-                            nextState.applyTransform(it.transform),
-                        )
-                    }
-                doWithConditions(secondActions) {
-                    restActions(it)
-                }
-            },
-        )
+        scope.doWithConditions(actions) { updatedState ->
+            applyConsecutiveTransformations(this, updatedState, tail, restActions)
+        }
+    }
+
+    private fun TvmContext.handleSingleMessage(
+        scope: TvmStepScopeManager,
+        sendRemainingValue: UBoolExpr,
+        sendRemainingBalance: UBoolExpr,
+        computeFees: Int257Expr,
+        msgFwdFees: Int257Expr,
+        initMsgValue: Int257Expr,
+        currentState: MessageHandlingState,
+        currentMessage: MessageWithMaybeReceiver,
+        restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
+    ) {
+        when (currentState) {
+            is MessageHandlingState.Failure -> {
+                scope.restActions(currentState)
+                return
+            }
+
+            is MessageHandlingState.Ok -> {
+                val initialState = currentState.copy(messageValue = initMsgValue, messageValueBrutto = zeroValue)
+                val transformations =
+                    createMessageHandlingTransformations(
+                        sendRemainingValue,
+                        sendRemainingBalance,
+                        computeFees,
+                        msgFwdFees,
+                        currentMessage,
+                        scope.calcOnState { currentContract },
+                    )
+                applyConsecutiveTransformations(
+                    scope,
+                    initialState,
+                    transformations,
+                    restActions,
+                )
+            }
+        }
     }
 
     fun parseActionsToDestinations(
@@ -450,7 +637,8 @@ class TvmTransactionInterpreter(
                             ?: return null to null
 
                     val concreteOp = resolver.eval(inOpcode)
-                    val concreteOpHex = concreteOp.bigIntValue().toString(16).padStart(TvmContext.OP_BYTES.toInt(), '0')
+                    val concreteOpHex =
+                        concreteOp.bigIntValue().toString(16).padStart(TvmContext.OP_BYTES.toInt(), '0')
                     val concreteHandler = variants[concreteOpHex]
 
                     if (concreteHandler != null) {
@@ -560,8 +748,8 @@ class TvmTransactionInterpreter(
         slice: UHeapRef,
     ): MessageActionParseResult? =
         with(ctx) {
-            val sendMsgMode =
-                scope.slicePreloadInt(slice, eightSizeExpr, false)
+            val (_, sendMsgMode) =
+                sliceLoadIntTransaction(scope, slice, 8, false)
                     ?: return null
             val msg =
                 scope.slicePreloadNextRef(slice)
@@ -578,7 +766,10 @@ class TvmTransactionInterpreter(
                 parseBody(scope, ptr)
                     ?: return null
 
-            MessageActionParseResult(MessageAsStackArguments(msgValue, msgFull, bodySlice, destination), sendMsgMode)
+            MessageActionParseResult(
+                MessageAsStackArguments(msgValue, msgFull, bodySlice, destination),
+                sendMsgMode,
+            )
         }
 
     private data class CommonMessageInfo(

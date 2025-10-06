@@ -18,6 +18,7 @@ class SendModesTest {
     private val remainingBalanceContract = "/intercontract/modes/send_remaining_balance.fc"
     private val remainingBalanceChecker = "/intercontract/modes/remaining_balance.fc"
     private val remainingValueContract = "/intercontract/modes/send_remaining_value.fc"
+    private val remainingValueDoubleContract = "/intercontract/modes/send_remaining_value_double.fc"
     private val remainingValueChecker = "/intercontract/modes/remaining_value.fc"
     private val ignoreErrorsContract = "/intercontract/modes/send_ignore_error_flag.fc"
     private val ignoreErrorsChecker = "/intercontract/modes/ignore_error.fc"
@@ -63,6 +64,32 @@ class SendModesTest {
         checkInvariants(
             tests,
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+        )
+    }
+
+    @Test
+    fun sendRemainingValueDoubleTest() {
+        val checkerContract = extractCheckerContractFromResource(remainingValueChecker)
+        val analyzedContract = extractFuncContractFromResource(remainingValueDoubleContract)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
+            )
+
+        assertTrue { tests.isNotEmpty() }
+
+        checkInvariants(
+            tests,
+            listOf { test ->
+                test.eventsList.any {
+                    val methodResult = it.methodResult
+                    methodResult is TvmMethodFailure && methodResult.exitCode == 37
+                }
+            },
         )
     }
 

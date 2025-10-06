@@ -103,7 +103,7 @@ fun TvmState.getBalanceOf(contractId: ContractId): UExpr<TvmInt257Sort>? =
 
 fun TvmState.setBalance(newBalance: UExpr<TvmInt257Sort>) {
     val old =
-        getContractInfoParam(BALANCE_PARAMETER_IDX) as? TvmStackTupleValueConcreteNew ?: error("Unexpected param value")
+        getContractInfoParam(BALANCE_PARAMETER_IDX).tupleValue ?: error("Unexpected param value")
     val new =
         old.set(0, TvmStack.TvmConcreteStackEntry(TvmStackIntValue(newBalance)))
     setContractInfoParam(BALANCE_PARAMETER_IDX, TvmStack.TvmConcreteStackEntry(new))
