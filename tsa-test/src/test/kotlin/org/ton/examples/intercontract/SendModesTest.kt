@@ -16,10 +16,14 @@ import kotlin.test.assertTrue
 
 class SendModesTest {
     private val remainingBalanceContract = "/intercontract/modes/send_remaining_balance.fc"
+    private val remainingBalanceWithAnotherMessageContract =
+        "/intercontract/modes/send_remaining_balance_with_another_message.fc"
     private val remainingBalanceChecker = "/intercontract/modes/remaining_balance.fc"
     private val remainingValueContract = "/intercontract/modes/send_remaining_value.fc"
+    private val remainingValueOpcode500Contract = "/intercontract/modes/send_remaining_value_opcode_500.fc"
     private val remainingValueDoubleContract = "/intercontract/modes/send_remaining_value_double.fc"
     private val remainingValueChecker = "/intercontract/modes/remaining_value.fc"
+    private val remainingValueOf2ndChecker = "/intercontract/modes/remaining_value_checker_of_2nd.fc"
     private val ignoreErrorsContract = "/intercontract/modes/send_ignore_error_flag.fc"
     private val ignoreErrorsChecker = "/intercontract/modes/ignore_error.fc"
     private val ignoreErrorTestScheme = "/intercontract/modes/ignore_error_test_scheme.json"
@@ -47,6 +51,31 @@ class SendModesTest {
     }
 
     @Test
+    fun `messages cannot be sent after sending with SendRemainingBalance`() {
+        val checkerContract = extractCheckerContractFromResource(remainingBalanceChecker)
+        val analyzedContract = extractFuncContractFromResource(remainingBalanceWithAnotherMessageContract)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
+            )
+
+        assertTrue { tests.isNotEmpty() }
+        checkInvariants(
+            tests,
+            listOf { test ->
+                test.eventsList.any {
+                    val methodResult = it.methodResult
+                    methodResult is TvmMethodFailure && methodResult.exitCode == 37
+                }
+            },
+        )
+    }
+
+    @Test
     fun sendRemainingValueTest() {
         val checkerContract = extractCheckerContractFromResource(remainingValueChecker)
         val analyzedContract = extractFuncContractFromResource(remainingValueContract)
@@ -57,6 +86,37 @@ class SendModesTest {
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
+            )
+
+        assertTrue { tests.isNotEmpty() }
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+        )
+    }
+
+    @Test
+    fun `sendRemainingValue sent not from checker`() {
+        val checkerContract = extractCheckerContractFromResource(remainingValueOf2ndChecker)
+        val analyzedSenderContract = extractFuncContractFromResource(remainingValueContract)
+        val analyzedRecipientContract = extractFuncContractFromResource(remainingValueOpcode500Contract)
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedSenderContract, analyzedRecipientContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options =
+                    TvmOptions(
+                        stopOnFirstError = false,
+                        enableOutMessageAnalysis = true,
+                        intercontractOptions =
+                            IntercontractOptions(
+                                extractCommunicationSchemeFromResource(
+                                    "/intercontract/modes/send-remaining-value-with-2nd-scheme.json",
+                                ),
+                            ),
+                    ),
             )
 
         assertTrue { tests.isNotEmpty() }

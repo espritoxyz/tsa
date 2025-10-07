@@ -162,7 +162,7 @@ class TvmTransactionInterpreter(
     )
 
     private fun asOnCopy(transformation: MutableTransformation): Transformation =
-        { ok: MessageHandlingState.Ok -> ok.toBuilder().transformation() }
+        { ok: MessageHandlingState.Ok -> ok.copy().toBuilder().transformation() }
 
     fun handleMessages(
         scope: TvmStepScopeManager,
@@ -197,15 +197,16 @@ class TvmTransactionInterpreter(
     }
 
     /**
-     * TODO calculate properly
+     * TODO calculate properly instead of mocking
      */
     private fun TvmStepScopeManager.computeMessageForwardFees(
         @Suppress("Unused") outMessage: MessageActionParseResult,
     ): Int257Expr {
         val fwdFees = calcOnState { makeSymbolicPrimitive(ctx.int257sort) }
         with(ctx) {
-            assert(fwdFees bvUgt zeroValue) ?: error("unreachable")
-            assert(fwdFees bvUle oneValue) ?: error("unreachable")
+            val upperBoundOfFwdFees = 100
+            assert((zeroValue bvUlt fwdFees) and (fwdFees bvUle upperBoundOfFwdFees.toBv257()))
+                ?: error("unreachable")
         }
         return fwdFees
     }
@@ -222,8 +223,8 @@ class TvmTransactionInterpreter(
                     return
                 }
             val mode = head.outMessage.sendMessageMode
-            val sendRemainingValue = mode.hasBitSet(MessageMode.SEND_REMAINING_VALUE.toBv257())
-            val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE.toBv257())
+            val sendRemainingValue = mode.hasBitSet(MessageMode.SEND_REMAINING_VALUE_BIT)
+            val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE_BIT)
             val messageValue = head.outMessage.content.msgValue
             ctx.handleSingleMessage(
                 scope = this@handleMessagesImpl,
@@ -272,12 +273,11 @@ class TvmTransactionInterpreter(
      *     if (req < msgFees) {
      *         return Err(37)
      *     } else {
-     *        reqBrutto = req // reqBrutto is value subttracted from balance
+     *        reqBrutto = req // reqBrutto is value subtracted from balance
      *        req = req - msgFees
      *     }
      * } else {
-     *     req += msgFees
-     *     reqBrutto = req
+     *     reqBrutto = req + msgFees
      * }
      *
      * if (balance >= reqBrutto) {
@@ -343,8 +343,7 @@ class TvmTransactionInterpreter(
                 CondTransform(
                     { payFeesSeparately },
                     asOnCopy {
-                        messageValue = messageValue bvAdd computeFees
-                        messageValueBrutto = messageValue
+                        messageValueBrutto = messageValue bvAdd msgFwdFees
                         build()
                     },
                 ),
@@ -374,7 +373,7 @@ class TvmTransactionInterpreter(
                     },
                 ),
                 CondTransform(
-                    { (remainingBalance bvUge messageValue).not() },
+                    { (remainingBalance bvUge messageValueBrutto).not() },
                     asOnCopy {
                         MessageHandlingState.insufficientFundsError(currentContractId)
                     },
@@ -390,6 +389,10 @@ class TvmTransactionInterpreter(
         transformations: List<List<CondTransform>>,
         restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
     ) {
+        if (currentState is MessageHandlingState.Failure) {
+            scope.restActions(currentState)
+            return
+        }
         val (head, tail) =
             transformations.splitHeadTail() ?: run {
                 scope.restActions(currentState)
@@ -576,8 +579,7 @@ class TvmTransactionInterpreter(
                     val equality =
                         scope.slicesAreEqual(
                             destinationContractAddress,
-                            message.content.destAddrSlice
-                                ?: error("Contract address was not extracted during the paring"),
+                            message.content.destAddrSlice,
                         )
                             ?: return null
 

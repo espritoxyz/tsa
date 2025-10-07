@@ -4,8 +4,9 @@ import org.usvm.UHeapRef
 import org.usvm.machine.Int257Expr
 
 object MessageMode {
-    const val SEND_REMAINING_BALANCE = 128
-    const val SEND_REMAINING_VALUE = 64
+    const val SEND_REMAINING_BALANCE_BIT = 7
+
+    const val SEND_REMAINING_VALUE_BIT = 6
 }
 
 data class MessageActionParseResult(
@@ -24,5 +25,5 @@ data class MessageAsStackArguments(
     val msgValue: Int257Expr,
     val fullMsgCell: UHeapRef,
     val msgBodySlice: UHeapRef,
-    val destAddrSlice: UHeapRef? = null,
+    val destAddrSlice: UHeapRef,
 )

@@ -22,6 +22,7 @@ import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmEventInformation
+import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmMessageDrivenContractExecutionEntry
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
@@ -62,7 +63,6 @@ import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setBalance
-import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.types.TvmCellType
@@ -152,8 +152,8 @@ class TvmArtificialInstInterpreter(
         val currentContractToPush = currentContract
         val pushArgsOnStack: TvmState.() -> Unit = {
             with(ctx) {
-                stack.addCell(head.message.content.fullMsgCell)
-                stack.addSlice(head.message.content.msgBodySlice)
+                stack.addCell(head.message.fullMsgCell)
+                stack.addSlice(head.message.msgBodySlice)
                 stack.addInt(currentContractToPush.toBv257()) // sender
                 stack.addInt((head.receiver ?: -1).toBv257()) // receiver
             }
@@ -247,7 +247,7 @@ class TvmArtificialInstInterpreter(
             processNewMessages(scope, commitedState) { messages ->
                 val sentMessages =
                     messages.map { (receiver, outMessage) ->
-                        TsaArtificialOnOutMessageHandlerCallInst.SentMessage(outMessage, receiver)
+                        TsaArtificialOnOutMessageHandlerCallInst.SentMessage(outMessage.content, receiver)
                     }
                 doWithState {
                     isExceptional = isExceptional || oldIsExceptional
@@ -305,7 +305,7 @@ class TvmArtificialInstInterpreter(
         scope.calcOnState {
             with(ctx) {
                 if (result is TvmFailure) {
-                    val (sender, receiverContractId, receivedMsgData) =
+                    val (sender, _, receivedMsgData) =
                         receivedMessage as? ReceivedMessage.MessageFromOtherContract
                             ?: run {
                                 newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
@@ -322,7 +322,7 @@ class TvmArtificialInstInterpreter(
                         )
 
                     val bouncedMessage =
-                        constructBouncedMessage(scope, receivedMsgData, sender.contractId, receiverContractId)
+                        constructBouncedMessage(scope, receivedMsgData, sender.contractId)
                             ?: return@with
                     scope.fork(
                         isBounceable.neq(zeroCellValue),
@@ -355,7 +355,6 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         oldMessage: MessageAsStackArguments,
         oldMessageSender: ContractId,
-        oldMessageReceiver: ContractId,
     ): MessageAsStackArguments? {
         val msgCellAndBodySliceOrNull =
             with(ctx) {
@@ -393,11 +392,6 @@ class TvmArtificialInstInterpreter(
                         getContractInfoParamOf(ADDRESS_PARAMETER_IDX, oldMessageSender).cellValue
                             ?: error("no destination :(")
                     }
-                val sourceAddressCell =
-                    scope.calcOnState {
-                        getContractInfoParamOf(ADDRESS_PARAMETER_IDX, oldMessageReceiver).cellValue
-                            ?: error("no destination :(")
-                    }
                 // TODO fill the ihrFee, msgValue, ... with reasonable values
                 val bouncedFlags =
                     RecvInternalInput.Flags(
@@ -406,16 +400,12 @@ class TvmArtificialInstInterpreter(
                         bounce = 0.toBv257(),
                         bounced = 1.toBv257(),
                     )
+                val dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) }
                 val content =
                     RecvInternalInput.TlbMessageContent(
                         flags = bouncedFlags,
-                        srcAddressSlice =
-                            oldMessage.destAddrSlice ?: scope.calcOnState {
-                                allocSliceFromCell(
-                                    sourceAddressCell,
-                                )
-                            },
-                        dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) },
+                        srcAddressSlice = oldMessage.destAddrSlice,
+                        dstAddressSlice = dstAddressSlice,
                         msgValue = zeroValue,
                         ihrFee = zeroValue,
                         fwdFee = zeroValue,
@@ -423,13 +413,14 @@ class TvmArtificialInstInterpreter(
                         createdAt = zeroValue,
                         bodyDataSlice = bodySlice,
                     )
-                constructMessageFromContent(scope.calcOnState { this }, content) to bodySlice
+                Triple(constructMessageFromContent(scope.calcOnState { this }, content), bodySlice, dstAddressSlice)
             }
-        return msgCellAndBodySliceOrNull?.let { (msgCell, bodySlice) ->
+        return msgCellAndBodySliceOrNull?.let { (msgCell, bodySlice, dstAddressSlice) ->
             MessageAsStackArguments(
                 msgValue = oldMessage.msgValue,
                 fullMsgCell = msgCell,
                 msgBodySlice = bodySlice,
+                destAddrSlice = dstAddressSlice,
             )
         }
     }
@@ -562,7 +553,18 @@ class TvmArtificialInstInterpreter(
                     }
 
                     is ActionHandlingResult.Failure -> {
-                        this.calcOnState { ctx.setFailure(actionsHandlingResult.failure)(this) }
+                        this.calcOnState {
+                            val failure =
+                                TvmFailure(
+                                    actionsHandlingResult.failure,
+                                    TvmFailureType.UnknownError,
+                                    phase,
+                                    stack,
+                                    pathNode,
+                                )
+                            // do not exit, as we do not want to mark the state as exceptional
+                            newStmt(TsaArtificialExitInst(failure, lastStmt.location))
+                        }
                     }
                 }
             }

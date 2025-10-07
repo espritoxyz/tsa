@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmMethodResult
-import org.usvm.machine.state.messages.MessageActionParseResult
+import org.usvm.machine.state.messages.MessageAsStackArguments
 
 sealed interface TsaArtificialInst : TvmArtificialInst
 
@@ -64,7 +64,7 @@ data class TsaArtificialOnOutMessageHandlerCallInst(
     }
 
     data class SentMessage(
-        val message: MessageActionParseResult,
+        val message: MessageAsStackArguments,
         val receiver: ContractId?,
     )
 }

@@ -19,6 +19,7 @@ import io.ksmt.sort.KBvCustomSizeSort
 import io.ksmt.sort.KBvSort
 import io.ksmt.sort.KSort
 import io.ksmt.utils.BvUtils.bvMaxValueUnsigned
+import io.ksmt.utils.BvUtils.shiftLeft
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.asExpr
 import io.ksmt.utils.powerOfTwo
@@ -366,8 +367,14 @@ class TvmContext(
 
     infix fun <T : KBvSort> KExpr<T>.bvAnd(other: KExpr<T>): KExpr<T> = mkBvAndExpr(this, other)
 
-    fun <T : KBvSort> KExpr<T>.hasBitSet(bitMask: KExpr<T>): UBoolExpr =
-        ((this bvAnd bitMask) eq 0.toBv(this.sort)).not()
+    fun <T : KBvSort> KExpr<T>.hasBitSet(idx: Int): UBoolExpr =
+        (
+            (
+                this bvAnd
+                    (1.toBv(this.sort).shiftLeft(idx.toBv(sort)))
+            ) eq
+                0.toBv(this.sort)
+        ).not()
 }
 
 val KAst.tctx
