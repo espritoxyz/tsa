@@ -225,11 +225,13 @@ class TvmTransactionInterpreter(
             val mode = head.outMessage.sendMessageMode
             val sendRemainingValue = mode.hasBitSet(MessageMode.SEND_REMAINING_VALUE_BIT)
             val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE_BIT)
+            val sendFwdFeesSeparately = mode.hasBitSet(MessageMode.SEND_FEES_SEPARATELY)
             val messageValue = head.outMessage.content.msgValue
             ctx.handleSingleMessage(
                 scope = this@handleMessagesImpl,
                 sendRemainingValue = sendRemainingValue,
                 sendRemainingBalance = sendRemainingBalance,
+                sendFwdFeesSeparately = sendFwdFeesSeparately,
                 computeFees = zeroValue,
                 msgFwdFees = computeMessageForwardFees(head.outMessage),
                 initMsgValue = messageValue,
@@ -295,12 +297,13 @@ class TvmTransactionInterpreter(
     private fun TvmContext.createMessageHandlingTransformations(
         sendRemainingValue: UBoolExpr,
         sendRemainingBalance: UBoolExpr,
+        sendFwdFeesSeparately: UBoolExpr,
         computeFees: Int257Expr,
         msgFwdFees: Int257Expr,
         currentMessage: MessageWithMaybeReceiver,
         currentContractId: ContractId,
     ): List<List<CondTransform>> {
-        val payFeesSeparately = falseExpr
+        val payFeesSeparately = sendFwdFeesSeparately and sendRemainingBalance.not()
         val firstTransform: List<CondTransform> =
             listOf(
                 CondTransform(
@@ -416,6 +419,7 @@ class TvmTransactionInterpreter(
         scope: TvmStepScopeManager,
         sendRemainingValue: UBoolExpr,
         sendRemainingBalance: UBoolExpr,
+        sendFwdFeesSeparately: UBoolExpr,
         computeFees: Int257Expr,
         msgFwdFees: Int257Expr,
         initMsgValue: Int257Expr,
@@ -435,6 +439,7 @@ class TvmTransactionInterpreter(
                     createMessageHandlingTransformations(
                         sendRemainingValue,
                         sendRemainingBalance,
+                        sendFwdFeesSeparately,
                         computeFees,
                         msgFwdFees,
                         currentMessage,

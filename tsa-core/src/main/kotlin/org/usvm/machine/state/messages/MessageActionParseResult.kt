@@ -7,6 +7,8 @@ object MessageMode {
     const val SEND_REMAINING_BALANCE_BIT = 7
 
     const val SEND_REMAINING_VALUE_BIT = 6
+
+    const val SEND_FEES_SEPARATELY = 0
 }
 
 data class MessageActionParseResult(
