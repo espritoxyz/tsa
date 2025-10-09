@@ -31,6 +31,8 @@ class SendModesTest {
     private val recipientBouncePath = "/args/receive_bounce_msg.fc"
     private val sendRemainingValueNotFromCheckerCommunicationScheme =
         "/intercontract/modes/send-remaining-value-with-2nd-scheme.json"
+    private val valueChecker = "/intercontract/modes/value_checker.fc"
+    private val valueContract = "/intercontract/modes/value_contract.fc"
 
     @Test
     fun sendRemainingBalanceTest() {
@@ -96,6 +98,27 @@ class SendModesTest {
         checkInvariants(
             tests,
             listOf { test -> test.exitCode() == 257 },
+        )
+    }
+
+    @Test
+    fun `approximate balance calculation with SendFwdFeesSeparately`() {
+        val checkerContract = extractCheckerContractFromResource(valueChecker)
+        val analyzedContract = extractFuncContractFromResource(valueContract)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
+            )
+
+        assertTrue { tests.isNotEmpty() }
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() != 257 },
         )
     }
 
