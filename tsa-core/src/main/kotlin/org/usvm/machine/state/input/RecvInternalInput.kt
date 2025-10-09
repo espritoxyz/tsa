@@ -24,7 +24,7 @@ import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.generateSymbolicAddressCell
 import org.usvm.machine.state.generateSymbolicSlice
-import org.usvm.machine.state.input.RecvInternalInput.MessageContent
+import org.usvm.machine.state.input.RecvInternalInput.TlbMessageContent
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
@@ -129,7 +129,7 @@ class RecvInternalInput(
         fun asFlagsList() = listOf(intMsgInfo, ihrDisabled, bounce, bounced)
     }
 
-    data class MessageContent(
+    data class TlbMessageContent(
         val flags: Flags, // 4 bits
         val srcAddressSlice: UHeapRef,
         val dstAddressSlice: UHeapRef,
@@ -151,8 +151,8 @@ class RecvInternalInput(
 
             val flags = generateFlagsStruct(this)
 
-            val messageContent =
-                MessageContent(
+            val tlbMessageContent =
+                TlbMessageContent(
                     flags = flags,
                     srcAddressSlice = srcAddressSlice,
                     dstAddressSlice = contractAddressSlice,
@@ -164,7 +164,7 @@ class RecvInternalInput(
                     bodyDataSlice = msgBodySliceMaybeBounced,
                 )
 
-            return@with constructMessageFromContent(state, messageContent)
+            return@with constructMessageFromContent(state, tlbMessageContent)
         }
 
     private fun generateFlagsStruct(ctx: TvmContext): Flags =
@@ -180,7 +180,7 @@ class RecvInternalInput(
 
 fun constructMessageFromContent(
     state: TvmState,
-    content: MessageContent,
+    content: TlbMessageContent,
 ): UConcreteHeapRef =
     with(state.ctx) {
         val resultBuilder = state.allocEmptyBuilder()

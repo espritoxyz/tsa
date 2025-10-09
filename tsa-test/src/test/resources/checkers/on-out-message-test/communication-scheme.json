@@ -2,14 +2,10 @@
   {
     "id": 1,
     "inOpcodeToDestination": {
-      "00000064": {
+      "000000c8": {
         "type": "linear",
         "destinations": [2]
       }
     }
-  },
-  {
-    "id": 2,
-    "inOpcodeToDestination": {}
   }
 ]

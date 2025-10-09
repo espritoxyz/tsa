@@ -7,6 +7,7 @@ import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bytecode.BALANCE_PARAMETER_IDX
+import org.ton.bytecode.INBOUND_MESSAGE_VALUE_PARAMETER_IDX
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellData
@@ -17,6 +18,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.writeField
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
@@ -99,6 +101,14 @@ fun TvmState.getBalanceOf(contractId: ContractId): UExpr<TvmInt257Sort>? =
         ?.cell(stack)
         ?.intValue
 
+fun TvmState.setBalance(newBalance: UExpr<TvmInt257Sort>) {
+    val old =
+        getContractInfoParam(BALANCE_PARAMETER_IDX).tupleValue ?: error("Unexpected param value")
+    val new =
+        old.set(0, TvmStack.TvmConcreteStackEntry(TvmStackIntValue(newBalance)))
+    setContractInfoParam(BALANCE_PARAMETER_IDX, TvmStack.TvmConcreteStackEntry(new))
+}
+
 fun TvmState.setContractInfoParam(
     idx: Int,
     value: TvmStackEntry,
@@ -179,6 +189,8 @@ fun TvmState.initC7(contractInfo: TvmStackTupleValue): TvmStackTupleValueConcret
         ctx,
         persistentListOf(contractInfo.toStackEntry()),
     )
+
+fun TvmState.getInboundMessageValue(): Int257Expr? = getContractInfoParam(INBOUND_MESSAGE_VALUE_PARAMETER_IDX).intValue
 
 const val BIT_PRICE_PS = 1
 const val CELL_PRICE_PS = 500

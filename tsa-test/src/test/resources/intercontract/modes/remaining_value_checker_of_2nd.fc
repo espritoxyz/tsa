@@ -1,0 +1,32 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+
+    tsa_forbid_failures();
+    
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    tsa_assert_not(flags & 1);
+
+    int op = msg_body~load_uint(32);
+    tsa_assert(op == 100);
+
+    tsa_assert(msg_value >= 1000000000);
+
+    tsa_allow_failures();
+}
+
+() main() impure {
+
+    int balance_bfr_msg = tsa_call_1_0(2, 1650);
+
+    tsa_send_internal_message(1, 0); ;; Send msg that invokes sending msg with sendRemainingValue mode
+
+    int balance_aft_msg = tsa_call_1_0(2, 1650);
+
+    int balance_interm_contract = tsa_call_1_0(1, 1650);
+    throw_if(258, balance_interm_contract > 200); ;; must be possible, because we did not send the full balance
+    throw_if(257, balance_bfr_msg == balance_aft_msg); ;; The contact should have the same balance
+
+}

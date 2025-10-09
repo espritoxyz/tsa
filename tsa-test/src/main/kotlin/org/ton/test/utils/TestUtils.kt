@@ -30,6 +30,8 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
+import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTerminalMethodSymbolicResult
@@ -432,3 +434,11 @@ internal fun extractCommunicationSchemeFromResource(
     val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
     return communicationScheme
 }
+
+fun TvmSymbolicTest.exitCode(): Int? =
+    when (this.result) {
+        is TvmExecutionWithSoftFailure -> null
+        is TvmExecutionWithStructuralError -> null
+        is TvmMethodFailure -> (this.result as TvmMethodFailure).exitCode
+        is TvmSuccessfulExecution -> 0
+    }

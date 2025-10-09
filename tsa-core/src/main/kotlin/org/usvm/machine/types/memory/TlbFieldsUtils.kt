@@ -61,7 +61,7 @@ fun TvmContext.generateCellDataConstraint(
                 state.loadIntFromCellWithoutChecksAndStructuralAsserts(
                     addr,
                     prefixSize,
-                    intSize.zeroExtendToSort(int257sort),
+                    intSize,
                     struct.typeLabel.isSigned,
                 )
 

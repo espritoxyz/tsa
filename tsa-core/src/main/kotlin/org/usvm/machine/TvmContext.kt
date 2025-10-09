@@ -19,6 +19,7 @@ import io.ksmt.sort.KBvCustomSizeSort
 import io.ksmt.sort.KBvSort
 import io.ksmt.sort.KSort
 import io.ksmt.utils.BvUtils.bvMaxValueUnsigned
+import io.ksmt.utils.BvUtils.shiftLeft
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.asExpr
 import io.ksmt.utils.powerOfTwo
@@ -35,6 +36,8 @@ import org.usvm.UComponents
 import org.usvm.UConcreteHeapRef
 import org.usvm.UContext
 import org.usvm.UExpr
+import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellOverflowError
 import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDictError
@@ -60,6 +63,8 @@ import java.math.BigInteger
 
 // TODO make it Bv16
 typealias TvmSizeSort = UBv32Sort
+
+typealias Int257Expr = UExpr<TvmContext.TvmInt257Sort>
 
 class TvmContext(
     val tvmOptions: TvmOptions,
@@ -106,6 +111,7 @@ class TvmContext(
     val sizeExpr32: UExpr<TvmSizeSort> = mkSizeExpr(32)
     val maxDataLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_DATA_LENGTH)
     val maxRefsLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_REFS_NUMBER)
+    val intBitsSizeExpr = mkSizeExpr(INT_BITS.toInt())
 
     val zeroBit = mkBv(0, 1u)
     val oneBit = mkBv(1, 1u)
@@ -134,6 +140,8 @@ class TvmContext(
         setFailure(TvmCellUnderflowError, TvmFailureType.StructuralError)
     val throwRealCellUnderflowError: (TvmState) -> Unit = setFailure(TvmCellUnderflowError, TvmFailureType.RealError)
     val throwRealDictError: (TvmState) -> Unit = setFailure(TvmDictError, TvmFailureType.RealError)
+
+    fun throwInsufficientFunds(contractId: ContractId): (TvmState) -> Unit = setFailure(InsufficientFunds(contractId))
 
     val sendMsgActionTag = mkBvHex("0ec3c86d", 32u)
     val reserveActionTag = mkBvHex("36e6b809", 32u)
@@ -344,6 +352,29 @@ class TvmContext(
     class TvmInt257Ext256Sort(
         ctx: KContext,
     ) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
+
+    infix fun <T : KBvSort> KExpr<T>.bvAdd(other: KExpr<T>): KExpr<T> = mkBvAddExpr(this, other)
+
+    infix fun <T : KBvSort> KExpr<T>.bvSub(other: KExpr<T>): KExpr<T> = mkBvSubExpr(this, other)
+
+    infix fun <T : KBvSort> KExpr<T>.bvUlt(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessExpr(this, other)
+
+    infix fun <T : KBvSort> KExpr<T>.bvUle(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessOrEqualExpr(this, other)
+
+    infix fun <T : KBvSort> KExpr<T>.bvUge(other: KExpr<T>): UBoolExpr = mkBvUnsignedGreaterOrEqualExpr(this, other)
+
+    infix fun <T : KBvSort> KExpr<T>.bvUgt(other: KExpr<T>): UBoolExpr = mkBvUnsignedGreaterExpr(this, other)
+
+    infix fun <T : KBvSort> KExpr<T>.bvAnd(other: KExpr<T>): KExpr<T> = mkBvAndExpr(this, other)
+
+    fun <T : KBvSort> KExpr<T>.hasBitSet(idx: Int): UBoolExpr =
+        (
+            (
+                this bvAnd
+                    (1.toBv(this.sort).shiftLeft(idx.toBv(sort)))
+            ) eq
+                0.toBv(this.sort)
+        ).not()
 }
 
 val KAst.tctx

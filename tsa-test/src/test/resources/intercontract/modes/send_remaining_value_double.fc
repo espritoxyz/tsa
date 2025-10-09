@@ -1,0 +1,29 @@
+#include "../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+
+    int op = msg_body~load_uint(32);
+    if (op == 100) {
+        ;; Send message with bounce flag
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(0)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(200, 32)
+        .end_cell();    
+
+        send_raw_message(msg, 64);
+        send_raw_message(msg, 64);
+
+        return();
+    }
+
+}
+
+int contract_balance() impure method_id(1650) {
+
+    var [balance, _] = get_balance();
+
+    return balance;
+}

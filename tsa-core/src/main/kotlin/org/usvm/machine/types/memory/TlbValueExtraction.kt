@@ -65,7 +65,7 @@ internal fun extractInt(
                 bits,
                 mkSizeSubExpr(mkSizeExpr(data.length), mkSizeAddExpr(offset, length)).zeroExtendToSort(cellDataSort),
             )
-        return extractIntFromShiftedData(shifted, length.zeroExtendToSort(int257sort), isSigned)
+        return extractIntFromShiftedData(shifted, length, isSigned)
     }
 
 fun readConcreteBv(

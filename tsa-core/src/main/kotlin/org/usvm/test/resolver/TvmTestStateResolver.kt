@@ -56,7 +56,7 @@ import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.lastStmt
-import org.usvm.machine.state.messages.OutMessage
+import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.tvmCellRefsRegion
 import org.usvm.machine.types.TvmBuilderType
@@ -266,7 +266,7 @@ class TvmTestStateResolver(
         return resolveResultStackImpl(methodResult)
     }
 
-    private fun resolveOutMessage(message: OutMessage): TvmTestOutMessage =
+    private fun resolveOutMessage(message: MessageAsStackArguments): TvmTestOutMessage =
         TvmTestOutMessage(
             value = resolveInt257(message.msgValue),
             fullMessage = resolveCell(message.fullMsgCell),
@@ -292,7 +292,7 @@ class TvmTestStateResolver(
         }
 
     fun resolveOutMessages(): List<Pair<ContractId, TvmTestOutMessage>> =
-        state.unprocessedMessages.map { (contractId, message) -> contractId to resolveOutMessage(message) }
+        state.unprocessedMessages.map { (contractId, message) -> contractId to resolveOutMessage(message.content) }
 
     fun resolveAdditionalInputs(): Map<Int, TvmTestInput> =
         state.additionalInputs.entries.associate { (inputId, symbolicInput) ->
