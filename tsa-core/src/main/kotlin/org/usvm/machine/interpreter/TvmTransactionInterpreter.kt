@@ -61,6 +61,8 @@ private typealias Transformation =
 private typealias MutableTransformation =
     TvmTransactionInterpreter.MessageHandlingState.OkBuilder.() -> TvmTransactionInterpreter.MessageHandlingState
 
+const val MSG_FWD_FEE_UPPER_BOUND = 100
+
 class TvmTransactionInterpreter(
     val ctx: TvmContext,
 ) {
@@ -204,8 +206,7 @@ class TvmTransactionInterpreter(
     ): Int257Expr {
         val fwdFees = calcOnState { makeSymbolicPrimitive(ctx.int257sort) }
         with(ctx) {
-            val upperBoundOfFwdFees = 100
-            assert((zeroValue bvUlt fwdFees) and (fwdFees bvUle upperBoundOfFwdFees.toBv257()))
+            assert((zeroValue bvUlt fwdFees) and (fwdFees bvUle MSG_FWD_FEE_UPPER_BOUND.toBv257()))
                 ?: error("unreachable")
         }
         return fwdFees
