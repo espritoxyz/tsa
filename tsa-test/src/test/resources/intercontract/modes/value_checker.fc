@@ -4,7 +4,7 @@
 () on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
 
     tsa_forbid_failures();
-    
+
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     tsa_assert_not(flags & 1);
@@ -29,5 +29,5 @@
 
     int balance_aft_msg = tsa_call_1_0(1, 1650);
 
-    throw_if(257, balance_bfr_msg < 500000); ;; unreachable, as fees are not this bad
+    throw_if(257, balance_aft_msg < 500000); ;; unreachable, as fees are not this bad
 }
