@@ -1,6 +1,7 @@
 package org.ton.examples.intercontract
 
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
 import org.ton.test.utils.extractFuncContractFromResource
@@ -46,7 +47,7 @@ class SendModesTest {
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+            listOf { test -> test.exitCode() == 257 },
         )
     }
 
@@ -92,7 +93,7 @@ class SendModesTest {
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+            listOf { test -> test.exitCode() == 257 },
         )
     }
 
@@ -121,9 +122,13 @@ class SendModesTest {
 
         assertTrue { tests.isNotEmpty() }
 
-        checkInvariants(
+        propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+            listOf { test -> test.exitCode() == 258 },
+        )
+        propertiesFound(
+            tests,
+            listOf { test -> test.exitCode() == 257 },
         )
     }
 
@@ -141,7 +146,6 @@ class SendModesTest {
             )
 
         assertTrue { tests.isNotEmpty() }
-
         checkInvariants(
             tests,
             listOf { test ->
@@ -177,15 +181,15 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
+            listOf { test -> test.exitCode() == 258 },
         )
 
         checkInvariants(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 35 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 36 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 37 },
+                { test -> test.exitCode() != 35 },
+                { test -> test.exitCode() != 36 },
+                { test -> test.exitCode() != 37 },
             ),
         )
     }

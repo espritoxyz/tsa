@@ -25,5 +25,8 @@
 
     int balance_aft_msg = tsa_call_1_0(2, 1650);
 
+    int balance_interm_contract = tsa_call_1_0(1, 1650);
+    throw_if(258, balance_interm_contract > 200); ;; must be possible, because we did not send the full balance
     throw_if(257, balance_bfr_msg == balance_aft_msg); ;; The contact should have the same balance
+
 }
