@@ -260,75 +260,74 @@ The result of the checker execution is a SARIF report that contains the followin
             "results": [
                 {
                     "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "0",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "9D9026068D4A3D523DB80631D3C5702F2E861F1537AA725DD332F0011C30043B",
+                                            "offset": 752
+                                        },
+                                        "inst": "THROWIF"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
                     "message": {
-                        "text": "TvmFailure(exit=TVM user defined error with exit code 257, type=UnknownError, phase=COMPUTE_PHASE)"
+                        "text": "TvmFailure(exit=TVM user defined error with exit code 257, phase=COMPUTE_PHASE)"
                     },
                     "properties": {
-                        "gasUsage": 7520,
+                        "gasUsage": 7598,
                         "usedParameters": {
-                            "type": "recvInternalInput",
-                            "srcAddress": {
-                                "cell": {
-                                    "data": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-                                }
-                            },
-                            "msgBody": {
-                                "cell": {
-                                    "data": "00010000000000000000000000000000000000000000000000000000011001001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                                    "knownTypes": [
-                                        {
-                                            "type": {
-                                                "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
-                                                "bitSize": 32,
-                                                "isSigned": false,
-                                                "endian": "BigEndian"
-                                            },
-                                            "offset": 0
-                                        },
-                                        {
-                                            "type": {
-                                                "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
-                                                "bitSize": 32,
-                                                "isSigned": false,
-                                                "endian": "BigEndian"
-                                            },
-                                            "offset": 32
-                                        },
-                                        {
-                                            "type": {
-                                                "type": "org.usvm.test.resolver.TvmTestCellDataMsgAddrRead"
-                                            },
-                                            "offset": 64
-                                        }
-                                    ]
-                                }
-                            },
-                            "msgValue": "73786976294838206464",
-                            "bounce": false,
-                            "bounced": false,
-                            "ihrDisabled": false,
-                            "ihrFee": "0",
-                            "fwdFee": "0",
-                            "createdLt": "0",
-                            "createdAt": "0"
+                            "type": "stackInput",
+                            "usedParameters": [
+                            ]
                         },
                         "fetchedValues": {
-                            "-1": "100",
-                            "0": {
-                                "type": "org.usvm.test.resolver.TvmTestSliceValue",
-                                "cell": {
-                                    "data": "0001000000000000000000000000000000000000000000000000000001100100100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-                                },
-                                "dataPos": 64
-                            },
                             "1": "536870912",
                             "2": "0",
-                            "11": "536870812",
+                            "-1": "536870912",
+                            "0": {
+                                "type": "org.usvm.test.resolver.TvmTestTruncatedSliceValue",
+                                "data": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                                "refs": [
+                                ]
+                            },
+                            "11": "0",
                             "22": "0"
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue"
                         },
                         "resultStack": [
                             "0"
-                        ]
+                        ],
+                        "additionalInputs": {
+                            "0": {
+                                "type": "recvInternalInput",
+                                "srcAddress": {
+                                    "data": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                                    "refs": [
+                                    ]
+                                },
+                                "msgBody": {
+                                    "data": "00010000000000000000000000000000001000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                                    "refs": [
+                                    ]
+                                },
+                                "msgValue": "73786976294838206464",
+                                "bounce": false,
+                                "bounced": false,
+                                "ihrDisabled": true,
+                                "ihrFee": "0",
+                                "fwdFee": "0",
+                                "createdLt": "0",
+                                "createdAt": "0"
+                            }
+                        }
                     },
                     "ruleId": "user-defined-error"
                 }
@@ -345,9 +344,9 @@ The result of the checker execution is a SARIF report that contains the followin
 ```
 
 We are interested in lines with the following indices:
-- `10` – `TvmFailure(exit=TVM user defined error with exit code 257, type=UnknownError, phase=COMPUTE_PHASE)`.
-- `16` – `srcAddress` – the address of the sender with a value `100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
-- `63` – `fetchedValues` with index `0` that corresponds to the concrete value of the `target`.
+- `TvmFailure(exit=TVM user defined error with exit code 257, phase=COMPUTE_PHASE)`.
+- `srcAddress` – the address of the sender with a value `100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
+- `fetchedValues` with index `0` that corresponds to the concrete value of the `target`.
 
 The found error means that the balance of the second account has not increased by the value after the transfer operation.
 It happens when an address of the sender equals to the address of the receiver – it can be checked that `srcAddress` and `target` are the same.
