@@ -179,19 +179,23 @@ global int value;
 }
 ```
 
+The checker entry point is the `main` function.
+
 This checker contains the following steps:
 1. Disable error detection using `tsa_forbid_failures` to make some assumptions about input.
-2. Ensure the initial message is not bounced.
-3. Ensure that the operation is `transfer` by loading the op-code and making an assumption with `tsa_assert`.
-4. Load the value of the transfer and make an assumption that it has reasonable limits.
-5. Ensure we have a target address in the message body.
-6. Get the initial balances of the two accounts using `tsa_call_1_0` and fetch them.
-7. Ensure we have correct balances and cannot get overflows.
-8. Pass the message to the first wallet.
-9. Get the new balances of the two accounts using `tsa_call_1_0` and fetch them.
-10. Enable error detection using `tsa_allow_failures` to check the result.
-11. Check that the balance of the first account has decreased by 100.
-12. Check that the balance of the second account has increased by 100.
+2. Get the initial balances of the two accounts using `tsa_call_1_0` and fetch them.
+3. Ensure we have correct balances and cannot get overflows.
+4. Send internal message to the first contract with `tsa_send_internal_message`.
+5. Set assertions in `on_internal_message_send`:
+6. Ensure the initial message is not bounced.
+7. Ensure that the operation is `transfer` by loading the op-code and making an assumption with `tsa_assert`.
+8. Load the value of the transfer and make an assumption that it has reasonable limits.
+9. Ensure we have a target address in the message body.
+10. Pass the message to the first wallet.
+11. Get the new balances of the two accounts using `tsa_call_1_0` and fetch them.
+12. Enable error detection using `tsa_allow_failures` to check the result.
+13. Check that the balance of the first account has decreased by 100.
+14. Check that the balance of the second account has increased by 100.
 
 ---
 
