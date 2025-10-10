@@ -118,9 +118,10 @@ This contract ensures that the `transfer` operation decreases the sender's balan
 To verify the behavior of the contract, we will use the following checker. Copy this code into your editor and save it as `balance_transfer_checker.fc`:
 
 ```c
-() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
-    tsa_forbid_failures();
 
+global int value;
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
     ;; ensure the initial message is not bounced
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
@@ -132,16 +133,20 @@ To verify the behavior of the contract, we will use the following checker. Copy 
     tsa_assert(op == op::transfer);
 
     ;; ensure the transferred value has reasonable limits
-    int value = body_copy~load_uint(32);
+    value = body_copy~load_uint(32);
     ;; save this symbolic value by the index -1 to retrieve its concrete value in the result
     tsa_fetch_value(value, -1);
     ;; do not transfer zero money
-    tsa_assert(value >= 100); 
+    tsa_assert(value >= 100);
     tsa_assert(value <= 1000000000);
 
     ;; ensure that the message body contains a target address
     slice target = body_copy~load_msg_addr();
     tsa_fetch_value(target, 0);
+}
+
+() recv_internal() impure {
+    tsa_forbid_failures();
 
     ;; get the initial balances of the two accounts – call the `load_balance` methods with id -42 for both contracts 1 and 2 (id 0 is used for the checker)
     int first_initial_balance = tsa_call_1_0(1, -42);
@@ -156,7 +161,7 @@ To verify the behavior of the contract, we will use the following checker. Copy 
     tsa_assert(second_initial_balance <= 1000000000);
 
     ;; send a message with a [transfer] operation
-    tsa_call_0_4(my_balance, msg_value, in_msg_full, msg_body, 1, 0);
+    tsa_send_internal_message(1, 0);
 
     ;; get the new balances of the two accounts
     int first_new_balance = tsa_call_1_0(1, -42);
@@ -165,6 +170,7 @@ To verify the behavior of the contract, we will use the following checker. Copy 
     tsa_fetch_value(second_new_balance, 22);
 
     tsa_allow_failures();
+
     ;; check that the balance of the first account has decreased by value
     throw_if(256, first_initial_balance - value != first_new_balance);
 
