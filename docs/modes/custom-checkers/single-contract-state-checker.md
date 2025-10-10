@@ -56,19 +56,20 @@ This contract ensures that only the `reduce_balance` operation can decrement the
 To verify the behavior of the contract, we will use the following checker. Copy this code into your editor and save it as `balance_reduction_checker.fc`:
 
 ```c
-() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
-    tsa_forbid_failures();
-
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
     ;; ensure that we perform not a reduce_balance operation
-    slice body_copy = msg_body;
-    int op = body_copy~load_uint(32);
+    int op = msg_body~load_uint(32);
     tsa_assert_not(op == op::reduce_balance);
+}
+
+() main() impure {
+    tsa_forbid_failures();
 
     ;; Retrieve the initial balance – call the method `load_balance` with id -42 in the contract with its id 1 (id 0 is used for the checker)
     int initial_balance = tsa_call_1_0(1, -42);
 
     ;; send a message with not reduce_balance operation
-    tsa_call_0_4(my_balance, msg_value, in_msg_full, msg_body, 1, 0);
+    tsa_send_internal_message(1, 0);
 
     int new_balance = tsa_call_1_0(1, -42);
 
