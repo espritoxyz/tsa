@@ -38,10 +38,9 @@ int load_balance() inline method_id(-42) {
 
     if (op != op::reduce_balance) {
         ;; ignore messages with unknown operation
-        return ();
     }
 
-    ;; reduce the balance by 1 in case of reduce_balance operation
+    ;; reduce the balance by 1 in case of [reduce_balance] operation
     int balance = load_balance();
     balance -= 1;
     update_balance(balance);
