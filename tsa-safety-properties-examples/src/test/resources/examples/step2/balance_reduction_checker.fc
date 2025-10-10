@@ -8,7 +8,7 @@
     tsa_assert_not(op == op::reduce_balance);
 }
 
-() main(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+() main() impure {
     tsa_forbid_failures();
 
     ;; Retrieve the initial balance – call the method `load_balance` with id -42 in the contract with its id 1 (id 0 is used for the checker)
