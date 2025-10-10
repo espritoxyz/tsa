@@ -28,7 +28,7 @@ global int value;
     tsa_fetch_value(target, 0);
 }
 
-() recv_internal() impure {
+() main() impure {
     tsa_forbid_failures();
 
     ;; get the initial balances of the two accounts – call the `load_balance` methods with id -42 for both contracts 1 and 2 (id 0 is used for the checker)
