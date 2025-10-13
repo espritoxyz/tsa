@@ -15,6 +15,7 @@ import org.usvm.machine.state.addInt
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
+import org.usvm.machine.state.mockHash
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.slicePreloadDataBits
@@ -59,12 +60,7 @@ class TvmCryptoInterpreter(
                 takeLastRef(operandType)
                     ?: return@calcOnState scope.calcOnState(ctx.throwTypeCheckError)
 
-            val hash =
-                addressToHash[value] ?: run {
-                    val res = makeSymbolicPrimitive(ctx.int257sort)
-                    addressToHash = addressToHash.put(value, res)
-                    res
-                }
+            val hash = mockHash(value)
 
             // Hash is a 256-bit unsigned integer
             scope.assert(
