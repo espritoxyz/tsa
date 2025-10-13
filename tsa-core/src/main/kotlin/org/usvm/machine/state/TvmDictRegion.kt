@@ -141,11 +141,20 @@ fun TvmState.dictAddKeyValue(
     val keyContainsLValue = USetEntryLValue(key.sort, dictRef, key, dictId, DictKeyInfo)
     memory.write(keyContainsLValue, rvalue = trueExpr, guard = trueExpr)
 
-    val valueSort = addressSort
+    this@dictAddKeyValue.dictUpdateValueRegion(dictId, key, dictRef, value)
+}
+
+private fun TvmState.dictUpdateValueRegion(
+    dictId: DictId,
+    key: UExpr<UBvSort>,
+    dictRef: UHeapRef,
+    value: UExpr<*>,
+) {
+    val valueSort = ctx.addressSort
     val dictValueRegionId = TvmDictValueRegionId(dictId, key.sort)
     val dictValueRegion = memory.dictValueRegion(dictValueRegionId)
 
-    val updatedValues = dictValueRegion.writeRefValue(dictRef, key, value.asExpr(valueSort), guard = trueExpr)
+    val updatedValues = dictValueRegion.writeRefValue(dictRef, key, value.asExpr(valueSort), guard = ctx.trueExpr)
     memory.setRegion(dictValueRegionId, updatedValues)
 }
 
@@ -203,6 +212,10 @@ fun TvmState.dictContainsKey(
     dictId: DictId,
     key: UExpr<UBvSort>,
 ): UBoolExpr {
+    val isInputDictionary = inputDictionaryStorage.hasInputDictEntryAtRef(dictRef)
+    if (isInputDictionary) {
+        error("dictContainsKey should only be used on non-input dictionaries")
+    }
     val keyContainsLValue = USetEntryLValue(key.sort, dictRef, key, dictId, DictKeyInfo)
     return memory.read(keyContainsLValue)
 }
