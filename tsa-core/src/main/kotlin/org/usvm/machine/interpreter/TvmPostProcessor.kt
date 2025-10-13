@@ -79,11 +79,11 @@ class TvmPostProcessor(
         resolver: TvmTestStateResolver,
     ): UBoolExpr =
         with(ctx) {
-            val addressToDepth = scope.calcOnState { addressToDepth }
+            val addressToDepth = scope.calcOnState { refToDepth }
 
             addressToDepth.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
                 val curConstraint =
-                    fixateValueAndDepth(scope, ref, depth, resolver)
+                    fixateValueAndDepth(scope, mkConcreteHeapRef(ref), depth, resolver)
                         ?: falseExpr
                 acc and curConstraint
             }
@@ -94,11 +94,11 @@ class TvmPostProcessor(
         resolver: TvmTestStateResolver,
     ): UBoolExpr =
         with(ctx) {
-            val addressToHash = scope.calcOnState { addressToHash }
+            val addressToHash = scope.calcOnState { refToHash }
 
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
                 val curConstraint =
-                    fixateValueAndHash(scope, ref, hash, resolver)
+                    fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash, resolver)
                         ?: falseExpr
                 acc and curConstraint
             }

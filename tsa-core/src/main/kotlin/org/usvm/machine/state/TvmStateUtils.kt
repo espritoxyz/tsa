@@ -31,6 +31,7 @@ import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
+import org.usvm.machine.TvmContext.Companion.INT_BITS
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
@@ -50,6 +51,7 @@ import org.usvm.machine.types.TvmFinalReferenceType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.mkIte
 import org.usvm.memory.GuardedExpr
 import org.usvm.memory.foldHeapRef
 import org.usvm.mkSizeAddExpr
@@ -57,6 +59,7 @@ import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.test.resolver.HashMapESerializer
 import org.usvm.types.USingleTypeStream
+import org.usvm.utils.flattenReferenceIte
 import java.math.BigInteger
 
 val TvmState.lastStmt get() = pathNode.statement
@@ -651,3 +654,39 @@ fun TvmState.callCheckerMethodIfExists(
     switchDirectlyToMethodInContract(method)
     return Unit
 }
+
+private fun TvmState.mockValueForRef(
+    ref: UHeapRef,
+    mock: (UConcreteHeapRef) -> UExpr<TvmInt257Sort>,
+): UExpr<TvmInt257Sort> =
+    with(ctx) {
+        val concreteRefs = flattenReferenceIte(ref, extractAllocated = true, extractStatic = true)
+        val first = mock(concreteRefs.first().second)
+        concreteRefs.drop(1).fold(first) { acc, (guard, curRef) ->
+            mkIte(
+                guard,
+                trueBranch = mockHash(curRef),
+                falseBranch = acc,
+            )
+        }
+    }
+
+fun TvmState.mockHash(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(ref) { mockHash(it) }
+
+fun TvmState.mockCellDepth(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(ref) { mockCellDepth(it) }
+
+fun TvmState.mockHash(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
+    refToHash[ref.address] ?: mockNonNegativeInt().also {
+        refToHash = refToHash.put(ref.address, it)
+    }
+
+fun TvmState.mockCellDepth(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
+    refToDepth[ref.address] ?: mockNonNegativeInt().also {
+        refToDepth = refToDepth.put(ref.address, it)
+    }
+
+private fun TvmState.mockNonNegativeInt(): UExpr<TvmInt257Sort> =
+    with(ctx) {
+        val unsignedPart = makeSymbolicPrimitive(ctx.mkBvSort((INT_BITS.toInt() - 1).toUInt()))
+        return unsignedPart.zeroExtendToSort(int257sort)
+    }

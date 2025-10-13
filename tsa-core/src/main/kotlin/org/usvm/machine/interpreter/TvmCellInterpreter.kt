@@ -99,7 +99,6 @@ import org.ton.bytecode.TvmInst
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
-import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
@@ -133,6 +132,7 @@ import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.lastStmt
+import org.usvm.machine.state.mockCellDepth
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.signedIntegerFitsBits
@@ -1576,18 +1576,7 @@ class TvmCellInterpreter(
                         return@doWithStateCtx
                     }
 
-            val depth =
-                addressToDepth[ref] ?: run {
-                    makeSymbolicPrimitive(ctx.int257sort).also {
-                        addressToDepth = addressToDepth.put(ref, it)
-                        scope.assert(
-                            mkBvSignedLessOrEqualExpr(zeroValue, it),
-                            unsatBlock = {
-                                error("Cannot make the depth not negative")
-                            },
-                        ) ?: return@doWithStateCtx
-                    }
-                }
+            val depth = mockCellDepth(ref)
 
             stack.addInt(depth)
             newStmt(stmt.nextStmt())
