@@ -1,11 +1,13 @@
 package org.usvm.test.resolver
 
+import kotlinx.collections.immutable.PersistentList
 import org.ton.TlbResolvedBuiltinLabel
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
+import org.usvm.StateId
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmMethodResult
@@ -45,7 +47,7 @@ data object TvmTestResolver {
             state.fieldManagers.cellDataFieldManager
                 .getCellsWithAssertedCellData()
                 .size
-
+        state.debugInfo.updateHistory(state.id)
         return TvmSymbolicTest(
             methodId = methodId,
             config = config,
@@ -68,6 +70,7 @@ data object TvmTestResolver {
                 TvmTestDebugInfo(
                     numberOfAddressesWithAssertedDataConstraints,
                     state.debugInfo.numberOfDataEqualityConstraintsFromTlb,
+                    state.debugInfo.stateIdHistory,
                 ),
             eventsList =
                 state.eventsLog.map { entry ->
@@ -179,6 +182,7 @@ data class TvmSymbolicTest(
 data class TvmTestDebugInfo(
     val numberOfAddressesWithAssertedDataConstraints: Int,
     val numberOfDataEqualityConstraintsFromTlb: Int = 0,
+    val stateIdHistory: PersistentList<StateId>,
 )
 
 data class TvmContractState(
