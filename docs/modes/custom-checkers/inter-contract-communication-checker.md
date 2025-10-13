@@ -118,30 +118,34 @@ This contract ensures that the `transfer` operation decreases the sender's balan
 To verify the behavior of the contract, we will use the following checker. Copy this code into your editor and save it as `balance_transfer_checker.fc`:
 
 ```c
-() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
-    tsa_forbid_failures();
 
+global int value;
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
     ;; ensure the initial message is not bounced
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     tsa_assert_not(flags & 1);
 
     ;; ensure that we perform a [transfer] operation
-    slice body_copy = msg_body;
-    int op = body_copy~load_uint(32);
+    int op = msg_body~load_uint(32);
     tsa_assert(op == op::transfer);
 
     ;; ensure the transferred value has reasonable limits
-    int value = body_copy~load_uint(32);
+    value = msg_body~load_uint(32);
     ;; save this symbolic value by the index -1 to retrieve its concrete value in the result
     tsa_fetch_value(value, -1);
     ;; do not transfer zero money
-    tsa_assert(value >= 100); 
+    tsa_assert(value >= 100);
     tsa_assert(value <= 1000000000);
 
     ;; ensure that the message body contains a target address
-    slice target = body_copy~load_msg_addr();
+    slice target = msg_body~load_msg_addr();
     tsa_fetch_value(target, 0);
+}
+
+() recv_internal() impure {
+    tsa_forbid_failures();
 
     ;; get the initial balances of the two accounts – call the `load_balance` methods with id -42 for both contracts 1 and 2 (id 0 is used for the checker)
     int first_initial_balance = tsa_call_1_0(1, -42);
@@ -156,7 +160,7 @@ To verify the behavior of the contract, we will use the following checker. Copy 
     tsa_assert(second_initial_balance <= 1000000000);
 
     ;; send a message with a [transfer] operation
-    tsa_call_0_4(my_balance, msg_value, in_msg_full, msg_body, 1, 0);
+    tsa_send_internal_message(1, 0);
 
     ;; get the new balances of the two accounts
     int first_new_balance = tsa_call_1_0(1, -42);
@@ -165,6 +169,7 @@ To verify the behavior of the contract, we will use the following checker. Copy 
     tsa_fetch_value(second_new_balance, 22);
 
     tsa_allow_failures();
+
     ;; check that the balance of the first account has decreased by value
     throw_if(256, first_initial_balance - value != first_new_balance);
 
@@ -173,48 +178,50 @@ To verify the behavior of the contract, we will use the following checker. Copy 
 }
 ```
 
+The checker entry point is the `main` function.
+
 This checker contains the following steps:
 1. Disable error detection using `tsa_forbid_failures` to make some assumptions about input.
-2. Ensure the initial message is not bounced.
-3. Ensure that the operation is `transfer` by loading the op-code and making an assumption with `tsa_assert`.
-4. Load the value of the transfer and make an assumption that it has reasonable limits.
-5. Ensure we have a target address in the message body.
-6. Get the initial balances of the two accounts using `tsa_call_1_0` and fetch them.
-7. Ensure we have correct balances and cannot get overflows.
-8. Pass the message to the first wallet.
-9. Get the new balances of the two accounts using `tsa_call_1_0` and fetch them.
-10. Enable error detection using `tsa_allow_failures` to check the result.
-11. Check that the balance of the first account has decreased by 100.
-12. Check that the balance of the second account has increased by 100.
+2. Get the initial balances of the two accounts using `tsa_call_1_0` and fetch them.
+3. Ensure we have correct balances and cannot get overflows.
+4. Send internal message to the first contract with `tsa_send_internal_message`.
+5. Set assertions about message body in in `on_internal_message_send`:
+   - Ensure the initial message is not bounced.
+   - Ensure that the operation is `transfer` by loading the op-code and making an assumption with `tsa_assert`.
+   - Load the value of the transfer and make an assumption that it has reasonable limits.
+   - Ensure we have a target address in the message body and fetch this value.
+6. Get the new balances of the two accounts using `tsa_call_1_0` and fetch them.
+7. Enable error detection using `tsa_allow_failures` to check the result.
+8. Check that the balance of the first account has decreased by the excepected value.
+9. Check that the balance of the second account has increased by the excepected value.
 
 ---
 
 ## Step 3: Define the Inter-Contract Communication Scheme
 
 As we have two contracts that interact with each other, we need to provide an inter-contract communication scheme.
-This scheme is a JSON file that describes what contract may send a message to what contract by what operation code.
-Here we have only 2 operations – `transfer` and `receive` – with opcodes `0x10000000` and `0x20000000`, respectively, 
-so the scheme is very simple (sources are available [wallet-intercontract-scheme.json](https://github.com/espritoxyz/tsa/blob/74502fe3ba28c0b405dc8fe0904d466fe353a61c/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json)):
+This scheme is a JSON file that describes which contracts should accept messages generated by other contracts.
+Here is a scheme that defines that all messages that are produced by contract 1 are sent to contract 2 (sources are available [wallet-intercontract-scheme.json](https://github.com/espritoxyz/tsa/blob/170108285a7211916ab7de96b7a13c1b8e6aeead/tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json)):
 
 ```json
 [
-    {
-        "id": 1,
-        "handlers": [
-            {
-                "op": "10000000",
-                "destinations": [2]
-            },
-            {
-                "op": "20000000",
-                "destinations": [2]
-            }
-        ]
+  {
+    "id": 1,
+    "inOpcodeToDestination": {},
+    "other": {
+      "type": "out_opcodes",
+      "outOpcodeToDestination": {},
+      "other": [2]
     }
+  },
+  {
+    "id": 2,
+    "inOpcodeToDestination": {}
+  }
 ]
 ```
 
-Here we describe only the first wallet as we do not expect that the second wallet will send any messages.
+Here we describe only outgoing messages from the first wallet as we do not expect that the second wallet will send any messages.
 
 ---
 
@@ -228,7 +235,6 @@ java -jar tsa-cli.jar custom-checker \
 --contract func tsa-safety-properties-examples/src/test/resources/examples/step3/wallet.fc \
 --contract func tsa-safety-properties-examples/src/test/resources/examples/step3/wallet.fc \
 --scheme tsa-safety-properties-examples/src/test/resources/examples/step3/wallet-intercontract-scheme.json \
---func-std tsa-safety-properties-examples/src/test/resources/imports/stdlib.fc \
 --fift-std tsa-safety-properties-examples/src/test/resources/fiftstdlib
 {% endhighlight %}
 
@@ -256,75 +262,74 @@ The result of the checker execution is a SARIF report that contains the followin
             "results": [
                 {
                     "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "0",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "9D9026068D4A3D523DB80631D3C5702F2E861F1537AA725DD332F0011C30043B",
+                                            "offset": 752
+                                        },
+                                        "inst": "THROWIF"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
                     "message": {
-                        "text": "TvmFailure(exit=TVM user defined error with exit code 257, type=UnknownError, phase=COMPUTE_PHASE)"
+                        "text": "TvmFailure(exit=TVM user defined error with exit code 257, phase=COMPUTE_PHASE)"
                     },
                     "properties": {
-                        "gasUsage": 7520,
+                        "gasUsage": 7598,
                         "usedParameters": {
-                            "type": "recvInternalInput",
-                            "srcAddress": {
-                                "cell": {
-                                    "data": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-                                }
-                            },
-                            "msgBody": {
-                                "cell": {
-                                    "data": "00010000000000000000000000000000000000000000000000000000011001001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                                    "knownTypes": [
-                                        {
-                                            "type": {
-                                                "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
-                                                "bitSize": 32,
-                                                "isSigned": false,
-                                                "endian": "BigEndian"
-                                            },
-                                            "offset": 0
-                                        },
-                                        {
-                                            "type": {
-                                                "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
-                                                "bitSize": 32,
-                                                "isSigned": false,
-                                                "endian": "BigEndian"
-                                            },
-                                            "offset": 32
-                                        },
-                                        {
-                                            "type": {
-                                                "type": "org.usvm.test.resolver.TvmTestCellDataMsgAddrRead"
-                                            },
-                                            "offset": 64
-                                        }
-                                    ]
-                                }
-                            },
-                            "msgValue": "73786976294838206464",
-                            "bounce": false,
-                            "bounced": false,
-                            "ihrDisabled": false,
-                            "ihrFee": "0",
-                            "fwdFee": "0",
-                            "createdLt": "0",
-                            "createdAt": "0"
+                            "type": "stackInput",
+                            "usedParameters": [
+                            ]
                         },
                         "fetchedValues": {
-                            "-1": "100",
-                            "0": {
-                                "type": "org.usvm.test.resolver.TvmTestSliceValue",
-                                "cell": {
-                                    "data": "0001000000000000000000000000000000000000000000000000000001100100100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-                                },
-                                "dataPos": 64
-                            },
                             "1": "536870912",
                             "2": "0",
-                            "11": "536870812",
+                            "-1": "536870912",
+                            "0": {
+                                "type": "org.usvm.test.resolver.TvmTestTruncatedSliceValue",
+                                "data": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                                "refs": [
+                                ]
+                            },
+                            "11": "0",
                             "22": "0"
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue"
                         },
                         "resultStack": [
                             "0"
-                        ]
+                        ],
+                        "additionalInputs": {
+                            "0": {
+                                "type": "recvInternalInput",
+                                "srcAddress": {
+                                    "data": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                                    "refs": [
+                                    ]
+                                },
+                                "msgBody": {
+                                    "data": "00010000000000000000000000000000001000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                                    "refs": [
+                                    ]
+                                },
+                                "msgValue": "73786976294838206464",
+                                "bounce": false,
+                                "bounced": false,
+                                "ihrDisabled": true,
+                                "ihrFee": "0",
+                                "fwdFee": "0",
+                                "createdLt": "0",
+                                "createdAt": "0"
+                            }
+                        }
                     },
                     "ruleId": "user-defined-error"
                 }
@@ -341,9 +346,9 @@ The result of the checker execution is a SARIF report that contains the followin
 ```
 
 We are interested in lines with the following indices:
-- `10` – `TvmFailure(exit=TVM user defined error with exit code 257, type=UnknownError, phase=COMPUTE_PHASE)`.
-- `16` – `srcAddress` – the address of the sender with a value `100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
-- `63` – `fetchedValues` with index `0` that corresponds to the concrete value of the `target`.
+- `TvmFailure(exit=TVM user defined error with exit code 257, phase=COMPUTE_PHASE)`.
+- `srcAddress` – the address of the sender with a value `100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
+- `fetchedValues` with index `0` that corresponds to the concrete value of the `target`.
 
 The found error means that the balance of the second account has not increased by the value after the transfer operation.
 It happens when an address of the sender equals to the address of the receiver – it can be checked that `srcAddress` and `target` are the same.

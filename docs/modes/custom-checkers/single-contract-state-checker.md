@@ -38,10 +38,9 @@ int load_balance() inline method_id(-42) {
 
     if (op != op::reduce_balance) {
         ;; ignore messages with unknown operation
-        return ();
     }
 
-    ;; reduce the balance by 1 in case of reduce_balance operation
+    ;; reduce the balance by 1 in case of [reduce_balance] operation
     int balance = load_balance();
     balance -= 1;
     update_balance(balance);
@@ -57,19 +56,22 @@ This contract ensures that only the `reduce_balance` operation can decrement the
 To verify the behavior of the contract, we will use the following checker. Copy this code into your editor and save it as `balance_reduction_checker.fc`:
 
 ```c
-() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
-    tsa_forbid_failures();
-
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
     ;; ensure that we perform not a reduce_balance operation
-    slice body_copy = msg_body;
-    int op = body_copy~load_uint(32);
+    int op = msg_body~load_uint(32);
     tsa_assert_not(op == op::reduce_balance);
+}
+
+() main() impure {
+    tsa_forbid_failures();
 
     ;; Retrieve the initial balance – call the method `load_balance` with id -42 in the contract with its id 1 (id 0 is used for the checker)
     int initial_balance = tsa_call_1_0(1, -42);
 
     ;; send a message with not reduce_balance operation
-    tsa_call_0_4(my_balance, msg_value, in_msg_full, msg_body, 1, 0);
+    ;; the first argument (1) is the contract id
+    ;; the second argument (0) is chosen input id
+    tsa_send_internal_message(1, 0);
 
     int new_balance = tsa_call_1_0(1, -42);
 
@@ -79,11 +81,13 @@ To verify the behavior of the contract, we will use the following checker. Copy 
 }
 ```
 
+The entry point of the checker is the `main` function.
+
 This checker performs the following steps:
 1. Disables error detection using `tsa_forbid_failures` to make assumptions about input.
-2. Ensures that the operation is not `reduce_balance` by loading the op-code and asserting with `tsa_assert_not`.
-3. Retrieves the initial balance value using `tsa_call_1_0` with the method ID of `load_balance`.
-4. Calls the `recv_internal` method of the contract with a non-`reduce_balance` operation.
+2. Retrieves the initial balance value using `tsa_call_1_0` with the method ID of `load_balance`.
+3. Sends internal message to the analyzed contract with `tsa_send_internal_message`.
+4. In `on_internal_message_send`, ensures that the operation is not `reduce_balance` by loading the op-code and asserting with `tsa_assert_not`.
 5. Retrieves the new balance value using `tsa_call_1_0` with the method ID of `load_balance`.
 6. Enables error detection using `tsa_allow_failures` to validate the result.
 7. Throws an exception if the balance was changed by a non-`reduce_balance` operation.
@@ -98,7 +102,6 @@ To execute the checker, open your terminal and run the following command:
 java -jar tsa-cli.jar custom-checker \
 --checker tsa-safety-properties-examples/src/test/resources/examples/step2/balance_reduction_checker.fc \
 --contract func tsa-safety-properties-examples/src/test/resources/examples/step2/storage.fc \
---func-std tsa-safety-properties-examples/src/test/resources/imports/stdlib.fc \
 --fift-std tsa-safety-properties-examples/src/test/resources/fiftstdlib
 {% endhighlight %}
 
@@ -121,33 +124,48 @@ The result of the checker execution is a SARIF report. Here is an example of the
             "results": [
                 {
                     "level": "error",
+                    "locations": [
+                        {
+                            "logicalLocations": [
+                                {
+                                    "decoratedName": "0",
+                                    "properties": {
+                                        "position": {
+                                            "cellHashHex": "AA782CA96CF8C9CBC5AF81B9A462AB6AFBA0D68BF01692082B92F73D042D355C",
+                                            "offset": 168
+                                        },
+                                        "inst": "THROWIF"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
                     "message": {
-                        "text": "TvmFailure(exit=TVM user defined error with exit code 256, type=UnknownError, phase=COMPUTE_PHASE)"
+                        "text": "TvmFailure(exit=TVM user defined error with exit code 256, phase=COMPUTE_PHASE)"
                     },
                     "properties": {
-                        "gasUsage": 2303,
+                        "gasUsage": 2254,
                         "usedParameters": {
-                            "type": "recvInternalInput",
-                            "msgBody": {
-                                "cell": {
-                                    "data": "...",
-                                    "knownTypes": [
-                                        {
-                                            "type": {
-                                                "type": "org.usvm.test.resolver.TvmTestCellDataIntegerRead",
-                                                "bitSize": 32,
-                                                "isSigned": false,
-                                                "endian": "BigEndian"
-                                            },
-                                            "offset": 0
-                                        }
-                                    ]
-                                }
-                            }
+                            "type": "stackInput",
+                            "usedParameters": [
+                            ]
+                        },
+                        "rootContractInitialC4": {
+                            "type": "org.usvm.test.resolver.TvmTestDataCellValue"
                         },
                         "resultStack": [
                             "0"
-                        ]
+                        ],
+                        "additionalInputs": {
+                            "0": {
+                                "type": "recvInternalInput",
+                                "msgBody": {
+                                    "data": "000000000000000",
+                                    "refs": [
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "ruleId": "user-defined-error"
                 }
@@ -163,10 +181,12 @@ The result of the checker execution is a SARIF report. Here is an example of the
 }
 ```
 
-We are interested in lines with the following indices:
-- `10` - the error message: `TvmFailure(exit=TVM user defined error with exit code 256, type=UnknownError, phase=COMPUTE_PHASE)` indicates a logical error in the contract.
-- `16` - the `msgBody` section contains the message body that was sent to the contract from the checker.
+We are interested in the following information:
+- The error message: `TvmFailure(exit=TVM user defined error with exit code 256, phase=COMPUTE_PHASE)` indicates a logical error in the contract.
+- The `msgBody` section contains the message body that was sent to the contract from the checker.
 
-This report confirms that the checker detected a logical error – the `balance` was changed by a non-`reduce_balance` operation.
+This report confirms that the checker detected a logical error – the `balance` was changed by a non-`reduce_balance` operation. 
+
+The problem is that `return` was forgotten in the handler for messages without `reduce_balance` op-code.
 
 ---
