@@ -51,7 +51,7 @@ inter-contract communication scheme provided.
 #### Inter-contract communication scheme
 Inter-contract communication scheme – is required when multiple contracts are provided for the analysis.
 It is a JSON file that describes what contract may send a message to what contract by what operation code.
-An example of the scheme could be found in the [test module](https://github.com/espritoxyz/tsa/blob/b76343a20ce5c81e78d3e65873936ee26c148771/tsa-test/src/test/resources/intercontract/sample-intercontract-scheme.json).
+An example of the scheme could be found in the [test module](https://github.com/espritoxyz/tsa/blob/170108285a7211916ab7de96b7a13c1b8e6aeead/tsa-test/src/test/resources/intercontract/sample/sample-intercontract-scheme.json).
 
 #### TL-B scheme
 A file with a TL-B scheme for the `recv_internal` method of the first analyzed contract could be optionally provided.
