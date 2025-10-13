@@ -4,6 +4,7 @@ import io.ksmt.KAst
 import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvLogicalShiftRightExpr
+import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KExpr
 import io.ksmt.expr.rewrite.simplify.simplifyAnd
@@ -215,11 +216,10 @@ class TvmContext(
                 }
             }
         }
-        if (low == 0 &&
-            value is KBvZeroExtensionExpr &&
-            value.value.sort.sizeBits
-                .toInt() > high
-        ) {
+        if (value is KBvZeroExtensionExpr && value.value.sort.sizeBits > high.toUInt()) {
+            return super.mkBvExtractExpr(high, low, value.value)
+        }
+        if (value is KBvSignExtensionExpr && value.value.sort.sizeBits > high.toUInt()) {
             return super.mkBvExtractExpr(high, low, value.value)
         }
         return super.mkBvExtractExpr(high, low, value)
