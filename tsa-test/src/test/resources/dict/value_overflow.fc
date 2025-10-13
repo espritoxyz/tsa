@@ -3,7 +3,7 @@
 () main(slice in_msg) {
     var dict = in_msg~load_dict();
 
-    (int i, slice value, var found?) = dict.idict_get_next?(64, -1);
+    (int i, slice value, var found?) = dict.udict_get_next?(64, 0);
 
     throw_unless(999, found?);
 

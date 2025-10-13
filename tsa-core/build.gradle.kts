@@ -5,8 +5,9 @@ plugins {
 }
 
 dependencies {
-    implementation(group = Packages.tvmDisasm, name = "tvm-disasm", version = Versions.tvmDisasm)
-    implementation(group = Packages.tvmDisasm, name = "tvm-opcodes", version = Versions.tvmDisasm)
+    // these are used in TvmSymbolicTest which is then exported to Test module
+    api(group = Packages.tvmDisasm, name = "tvm-disasm", version = Versions.tvmDisasm)
+    api(group = Packages.tvmDisasm, name = "tvm-opcodes", version = Versions.tvmDisasm)
 
     implementation(group = Packages.tonKotlin, name = "ton-kotlin-crypto", version = Versions.tonKotlin)
     implementation(group = Packages.tonKotlin, name = "ton-kotlin-tvm", version = Versions.tonKotlin)

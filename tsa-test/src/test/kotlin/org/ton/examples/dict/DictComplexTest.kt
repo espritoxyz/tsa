@@ -13,7 +13,6 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import org.usvm.test.resolver.TvmMethodFailure
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -78,7 +77,6 @@ class DictComplexTest {
         assertTrue { tests.isNotEmpty() }
     }
 
-    @Ignore("TODO: fix min/max/next/prev for input dicts")
     @Test
     fun testDictValueOverflow() {
         val path = extractResource(potentialDictOverflow)
@@ -99,7 +97,6 @@ class DictComplexTest {
         TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
     }
 
-    @Ignore("TODO: fix min/max/next/prev for input dicts")
     @Test
     fun testDictFixation() {
         val path = extractResource(dictFixation)

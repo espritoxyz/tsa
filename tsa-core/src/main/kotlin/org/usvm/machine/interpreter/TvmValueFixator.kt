@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import io.ksmt.sort.KBvSort
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -16,9 +17,11 @@ import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
 import org.usvm.machine.state.readCellRef
+import org.usvm.machine.types.TvmType
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.mkSizeSubExpr
+import org.usvm.model.UModelBase
 import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestDataCellValue
@@ -53,12 +56,15 @@ class TvmValueFixator(
             is TvmTestDataCellValue -> {
                 fixateConcreteValueForDataCell(scope, ref, value)
             }
+
             is TvmTestSliceValue -> {
                 fixateConcreteValueForSlice(scope, ref, value)
             }
+
             is TvmTestDictCellValue -> {
                 fixateConcreteValueForDictCell(scope, ref, value)
             }
+
             is TvmTestBuilderValue -> {
                 fixateConcreteValueForBuilder(scope, ref, value)
             }
@@ -177,37 +183,94 @@ class TvmValueFixator(
 
             val dictId = DictId(value.keyLength)
             val keySort = mkBvSort(value.keyLength.toUInt())
-            val entries =
-                scope.calcOnState {
-                    dictKeyEntries(model, memory, modelRef, dictId, keySort)
-                }
 
-            entries.forEach { entry ->
-                val key = entry.setElement
-                val keyContains =
+            val isInput = scope.calcOnState { inputDictionaryStorage.hasInputDictEntryAtRef(ref) }
+            if (!isInput) {
+                val newConditions =
+                    fixateDictEntries(scope, model, modelRef, dictId, keySort, ref, value)
+                        ?: return@with null
+                result = result and mkAnd(newConditions)
+            } else {
+                val (inputDict, baseInputDict) =
                     scope.calcOnState {
-                        dictContainsKey(ref, dictId, key)
+                        val inputDict = inputDictionaryStorage.memory[ref] ?: error("Input dict not found")
+                        val rootInformation =
+                            inputDictionaryStorage.rootInformation[inputDict.rootInputDictId]
+                                ?: error("Root information not found")
+                        inputDict to rootInformation
                     }
-                val entryValue =
-                    scope.calcOnState {
-                        dictGetValue(ref, dictId, key)
+                val keyEntries = inputDict.getCurrentlyDiscoveredKeys(ctx, baseInputDict)
+                val asserts = mutableListOf<UBoolExpr>()
+                for ((key, condition) in keyEntries) {
+                    val entryValue =
+                        scope.calcOnState {
+                            dictGetValue(ref, dictId, key.expr)
+                        }
+
+                    val concreteKey = TvmTestIntegerValue(model.eval(key.expr).bigIntValue())
+
+                    val keyConstraint = model.eval(key.expr) eq key.expr
+
+                    val concreteValue = value.entries[concreteKey]
+                    asserts.add(keyConstraint)
+                    if (concreteValue == null) {
+                        asserts.add(condition.not())
+                    } else {
+                        val valueConstraint =
+                            fixateConcreteValue(scope, entryValue, concreteValue)
+                                ?: return null
+                        asserts.add(condition)
+                        asserts.add(valueConstraint)
                     }
-
-                val concreteKey = TvmTestIntegerValue(model.eval(key).bigIntValue())
-
-                val keyConstraint = model.eval(key) eq key
-
-                val concreteValue = value.entries[concreteKey]
-                if (concreteValue == null) {
-                    result = result and keyContains.not() and keyConstraint
-                } else {
-                    val valueConstraint =
-                        fixateConcreteValue(scope, entryValue, concreteValue)
-                            ?: return@with null
-                    result = result and keyContains and valueConstraint and keyConstraint
                 }
+                result = result and mkAnd(asserts)
             }
 
             return result
         }
+
+    private fun TvmContext.fixateDictEntries(
+        scope: TvmStepScopeManager,
+        model: UModelBase<TvmType>,
+        modelRef: UConcreteHeapRef,
+        dictId: DictId,
+        keySort: KBvSort,
+        ref: UHeapRef,
+        value: TvmTestDictCellValue,
+    ): List<UBoolExpr>? {
+        val asserts = mutableListOf<UBoolExpr>()
+        val entries =
+            scope.calcOnState {
+                dictKeyEntries(model, memory, modelRef, dictId, keySort)
+            }
+
+        entries.forEach { entry ->
+            val key = entry.setElement
+            val keyContains =
+                scope.calcOnState {
+                    dictContainsKey(ref, dictId, key)
+                }
+            val entryValue =
+                scope.calcOnState {
+                    dictGetValue(ref, dictId, key)
+                }
+
+            val concreteKey = TvmTestIntegerValue(model.eval(key).bigIntValue())
+
+            val keyConstraint = model.eval(key) eq key
+
+            val concreteValue = value.entries[concreteKey]
+            asserts.add(keyConstraint)
+            if (concreteValue == null) {
+                asserts.add(keyContains.not())
+            } else {
+                val valueConstraint =
+                    fixateConcreteValue(scope, entryValue, concreteValue)
+                        ?: return null
+                asserts.add(keyContains)
+                asserts.add(valueConstraint)
+            }
+        }
+        return asserts
+    }
 }
