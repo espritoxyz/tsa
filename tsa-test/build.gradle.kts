@@ -15,6 +15,7 @@ dependencies {
     testImplementation("ch.qos.logback:logback-classic:${Versions.logback}")
 
     implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
+    implementation("tools.profiler:async-profiler:4.1")
 
     implementation(kotlin("test"))
 }
