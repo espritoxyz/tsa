@@ -1,0 +1,77 @@
+#include "../imports/stdlib.fc";
+
+() main() {
+    return ();
+}
+
+() check_same_result_when_same_input_get_next(slice in_msg) impure method_id (1) {
+    cell some_cell = in_msg~load_dict();
+    (int i1, _, int found1) = some_cell.idict_get_next?(64, -1);
+    throw_if(300, ~ found1);
+    (int i2, _, int found2) = some_cell.idict_get_next?(64, -1);
+    throw_if(400, ~ found2);
+    throw_if(401, found1 & found2 & i1 != i2);
+}
+
+() check_same_result_when_same_input_get_prev(slice in_msg) impure method_id (2) {
+    cell some_cell = in_msg~load_dict();
+    (int i1, _, int found1) = some_cell.idict_get_prev?(64, -1);
+    throw_if(300, ~ found1);
+    (int i2, _, int found2) = some_cell.idict_get_prev?(64, -1);
+    throw_if(400, ~ found2);
+    throw_if(401, found1 & found2 & i1 != i2);
+    throw(500);
+}
+
+() check_next_prev_is_id(slice in_msg) impure method_id (3) {
+    cell some_cell = in_msg~load_dict();
+    (int initial, _, int found1) = some_cell.idict_get_next?(64, -1);
+    throw_if(301, ~ found1);
+    (int next, _, int found2) = some_cell.idict_get_next?(64, initial);
+    throw_if(302, ~ found2);
+    (int nextprev, _, int found3) = some_cell.idict_get_prev?(64, next);
+    throw_if(303, ~ found3);
+    throw_if(400, nextprev != initial);
+    throw(500);
+}
+
+() check_get_max_returns_the_largest_key(slice in_msg, int lower_bound) impure method_id (4) {
+    cell some_cell = in_msg~load_dict();
+    (int some_key, _, int found1) = some_cell.idict_get_next?(64, lower_bound);
+    throw_if(301, ~ found1);
+    (int max_key, _, int found2) = some_cell.idict_get_max?(64);
+    throw_if(400, ~ found2); ;; unreachable, as it is not empty
+    throw_if(401, max_key < some_key);
+    throw(500); ;; successfull execution
+}
+
+() check_get_max_returns_the_largest_key_reordered(slice in_msg, int lower_bound) impure method_id (5) {
+    cell some_cell = in_msg~load_dict();
+    (int max_key, _, int found1) = some_cell.idict_get_max?(64);
+    throw_if(300, ~ found1);
+    (int some_key, _, int found2) = some_cell.idict_get_next?(64, lower_bound);
+    throw_if(301, ~ found2);
+    throw_if(400, max_key < some_key);
+    throw(500); ;; successfull execution
+}
+
+() check_get_next_and_get_consistency(slice in_msg) impure method_id (6) {
+    cell some_cell = in_msg~load_dict();
+    (int some_key, slice some_value, int found1) = some_cell.idict_get_next?(64, -1);
+    throw_if(300, ~ found1);
+    (slice another_value, int found2) = some_cell.idict_get?(64, some_key);
+    throw_if(400, ~ found2);
+    throw_if(401, ~ slice_hash(some_value) != ~ slice_hash(another_value));
+    throw(500); ;; successfull execution
+}
+
+() check_get_next_and_get_consistency_2(slice in_msg) impure method_id (7) {
+    cell some_cell = in_msg~load_dict();
+    (slice some_value, int found1) = some_cell.idict_get?(64, 0);
+    throw_if(300, ~ found1);
+    (int some_key, slice another_value, int found2) = some_cell.idict_get_next?(64, -1);
+    throw_if(400, ~ found2);
+    throw_if(401, ~ some_key == 0);
+    throw_if(402, ~ slice_hash(some_value) != ~ slice_hash(another_value));
+    throw(500); ;; successfull execution
+}
