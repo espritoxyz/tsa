@@ -509,7 +509,7 @@ class TvmInterpreter(
                 val dataCellInfoStorage =
                     TvmDataCellInfoStorage.build(
                         state = state,
-                        info = TvmInputInfo(),
+                        info = TvmInputInfo(c4Info = inputInfo.c4Info),
                         additionalCellLabels = newInputInfo,
                         additionalSliceToCell = mapOf(input.msgBodySliceNonBounced to msgBodyCellNonBounced),
                     )
