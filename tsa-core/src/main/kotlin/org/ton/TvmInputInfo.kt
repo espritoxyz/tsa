@@ -5,7 +5,7 @@ package org.ton
  * Parameters are indexed from the end.
  * For example, the last parameter of a function always has index 0.
  * */
-@JvmInline
-value class TvmInputInfo(
+data class TvmInputInfo(
     val parameterInfos: Map<Int, TvmParameterInfo> = emptyMap(),
+    val c4Info: List<TvmParameterInfo.CellInfo>? = null,
 )

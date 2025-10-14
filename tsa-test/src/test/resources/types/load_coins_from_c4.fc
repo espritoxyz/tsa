@@ -1,0 +1,12 @@
+#include "../imports/stdlib.fc";
+
+() recv_internal() impure {
+    slice ds = get_data().begin_parse();
+    int coins = ds~load_coins();
+
+    var some_cell = begin_cell()
+        .store_int(coins, 130)
+        .end_cell();
+
+    some_cell~impure_touch();
+}

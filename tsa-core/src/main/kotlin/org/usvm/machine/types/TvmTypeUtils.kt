@@ -280,5 +280,15 @@ fun extractInputParametersAddresses(
         }
     }
 
+    if (inputInfo.c4Info != null) {
+        inputInfo.c4Info.forEachIndexed { index, cellInfo ->
+            val c4 =
+                initialState.contractIdToC4Register[index]?.value?.value as? UConcreteHeapRef
+                    ?: error("Unexpected value in c4: ${initialState.contractIdToC4Register[index]?.value?.value}")
+
+            cells[c4] = cellInfo
+        }
+    }
+
     return InputParametersStructure(cells, slices)
 }

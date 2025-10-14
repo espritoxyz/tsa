@@ -89,6 +89,7 @@ class InputParameterInfoTests {
     private val constIntAfterCoinsPath = "/types/c4/const_int_after_coins.fc"
     private val readStoredConstAddrNonePath = "/types/read_stored_const_addr_none.fc"
     private val storeAndComparePath = "/types/store_and_compare.fc"
+    private val loadCoinsFromC4Path = "/types/load_coins_from_c4.fc"
 
     @Test
     fun testCorrectMaybe() {
@@ -1913,5 +1914,36 @@ class InputParameterInfoTests {
         )
 
         TvmTestExecutor.executeGeneratedTests(tests, path, TsRenderer.ContractType.Func)
+    }
+
+    @Test
+    fun testCoinsInsteadOfIntInC4() {
+        val resourcePath = extractResource(loadCoinsFromC4Path)
+
+        val inputInfo =
+            TvmInputInfo(
+                c4Info = listOf(DataCellInfo(int64Structure)),
+            )
+
+        val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
+        val results =
+            funcCompileAndAnalyzeAllMethods(
+                resourcePath,
+                inputInfo = mapOf(BigInteger.ZERO to inputInfo),
+                tvmOptions = options,
+            )
+        assertEquals(1, results.testSuites.size)
+        val tests = results.testSuites.first()
+        assertTrue(tests.all { it.result !is TvmSuccessfulExecution })
+
+        propertiesFound(
+            tests,
+            listOf { test ->
+                val exit =
+                    (test.result as? TvmExecutionWithStructuralError)?.exit
+                        ?: return@listOf false
+                exit is TvmReadingOfUnexpectedType
+            },
+        )
     }
 }
