@@ -1922,7 +1922,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(
-                c4Info = listOf(DataCellInfo(int64Structure))
+                c4Info = listOf(DataCellInfo(int64Structure)),
             )
 
         val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
@@ -1939,8 +1939,9 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf { test ->
-                val exit = (test.result as? TvmExecutionWithStructuralError)?.exit
-                    ?: return@listOf false
+                val exit =
+                    (test.result as? TvmExecutionWithStructuralError)?.exit
+                        ?: return@listOf false
                 exit is TvmReadingOfUnexpectedType
             },
         )
