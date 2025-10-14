@@ -14,6 +14,7 @@ object Versions {
     const val tvmDisasm = "df8e79bdf13d797eef253f809d8d6fbd50e69b70"
     const val tonKotlin = "0.3.1"
     const val kotlinterPluginVersion = "5.0.0"
+    const val asyncProfiler = "4.1"
 }
 
 object Packages {

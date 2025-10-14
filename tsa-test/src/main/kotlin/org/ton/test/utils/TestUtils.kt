@@ -1,5 +1,6 @@
 package org.ton.test.utils
 
+import one.profiler.AsyncProfiler
 import org.ton.TlbCompositeLabel
 import org.ton.TvmContractHandlers
 import org.ton.TvmInputInfo
@@ -442,3 +443,36 @@ fun TvmSymbolicTest.exitCode(): Int? =
         is TvmMethodFailure -> (this.result as TvmMethodFailure).exitCode
         is TvmSuccessfulExecution -> 0
     }
+
+/**
+ * Utility function to easily profile a given test.
+ * Performs an async profile run on the test and prints the output to the [outputFileName] parameter.
+ * The expected usage: if you want to profile a test:
+ * ```kotlin
+ * fun `some kind of test`() { ... }
+ * ```
+ *
+ * you rewrite it as:
+ * ```kotlin
+ * fun `some kind of test`() = withProfiler("profile.jfr") { ... }
+ * ```
+ * This function should only be used during testing and its usages should not be committed to the repository.
+ * @param outputFileName relative path for the profiler output with a "jfr" extension
+ */
+@Suppress("Unused")
+fun withProfiler(
+    outputFileName: String,
+    test: () -> Unit,
+) {
+    val profiler = AsyncProfiler.getInstance()
+    profiler.execute("start,jfr,event=cpu,file=$outputFileName")
+    test()
+    profiler.execute("stop")
+}
+
+/**
+ * Same as `withProfiler` but with a default name of the file "./profile.jfr"
+ * @see withProfiler
+ */
+@Suppress("Unused")
+fun withProfilerDefault(test: () -> Unit) = withProfiler("./profile.jfr", test)
