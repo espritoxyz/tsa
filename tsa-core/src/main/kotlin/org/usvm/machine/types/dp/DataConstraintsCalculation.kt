@@ -23,7 +23,7 @@ fun calculateDataConstraint(
     state: TvmState,
     cellRef: UConcreteHeapRef,
     curMaxTlbDepth: Int,
-    dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>>,
+    dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr>>,
     individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
     possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
 ): UBoolExpr {
@@ -50,11 +50,11 @@ private fun getDataConstraint(
     prefixSize: UExpr<TvmSizeSort>,
     path: PersistentList<Int>,
     curMaxTlbDepth: Int,
-    dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>>,
+    dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr>>,
     possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
 ): UBoolExpr =
     with(state.ctx) {
-        val paramForAbstractGuards = SimpleAbstractionForUExpr(cellRef, path, state)
+        val paramForAbstractGuards = AbstractionForUExpr(cellRef, path, state)
 
         when (struct) {
             is TlbStructure.Empty -> {

@@ -23,8 +23,8 @@ fun calculateSizeInfoForLeaves(
     address: UConcreteHeapRef,
     state: TvmState,
     structure: TlbStructure,
-    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
-    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
+    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
+    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): List<Pair<TlbStructure.Leaf, VertexCalculatedSize>> =
     with(state.ctx) {
@@ -66,7 +66,7 @@ fun calculateSizeInfoForLeaves(
                                 val childrenStructure =
                                     childrenStructureFromPreviousDepth[label]
                                         ?: error("childrenStructureFromPreviousDepth for $label must be calculated")
-                                val param = SimpleAbstractionForUExpr(address, persistentListOf(curStruct.id), state)
+                                val param = AbstractionForUExpr(address, persistentListOf(curStruct.id), state)
                                 val refsOffset = childrenStructure.numberOfChildren(this).apply(param)
                                 dataOffset.apply(param) to refsOffset
                             }
@@ -114,8 +114,8 @@ fun calculateGeneralSizeConstraints(
     address: UConcreteHeapRef,
     state: TvmState,
     structure: TlbStructure,
-    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
-    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
+    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
+    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): UBoolExpr =
     with(state.ctx) {

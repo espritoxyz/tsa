@@ -47,7 +47,7 @@ class CalculatedTlbLabelInfo(
             "Cannot calculate dataCellSize for depth $maxDepth"
         }
         val abstractValue = dataLengths[maxDepth][label] ?: return null
-        return abstractValue.apply(SimpleAbstractionForUExpr(address, persistentListOf(), state))
+        return abstractValue.apply(AbstractionForUExpr(address, persistentListOf(), state))
     }
 
     fun getLabelChildStructure(
@@ -67,7 +67,7 @@ class CalculatedTlbLabelInfo(
             labelChildren[maxDepth][parentLabel]?.children?.get(childIdx)
                 ?: return null
         return childStructure.variants.entries.associate { (struct, abstractGuard) ->
-            val guard = abstractGuard.apply(SimpleAbstractionForUExpr(address, persistentListOf(), state))
+            val guard = abstractGuard.apply(AbstractionForUExpr(address, persistentListOf(), state))
             struct to guard
         }
     }
@@ -85,7 +85,7 @@ class CalculatedTlbLabelInfo(
             labelChildren[maxDepth][parentLabel]
                 ?: return null
         return childrenStructure.numberOfChildrenExceeded.apply(
-            SimpleAbstractionForUExpr(address, persistentListOf(), state),
+            AbstractionForUExpr(address, persistentListOf(), state),
         )
     }
 
@@ -204,10 +204,10 @@ class CalculatedTlbLabelInfo(
     private val maxRefSizes: List<Map<TlbCompositeLabel, Int>> =
         calculateMaximumRefs(maxTlbDepth, compositeLabels, individualMaxCellTlbDepth)
 
-    private val dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>> =
+    private val dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr>> =
         calculateDataLengths(ctx, labelsWithoutUnknownLeaves, individualMaxCellTlbDepth, possibleSwitchVariants)
 
-    private val labelChildren: List<Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>> =
+    private val labelChildren: List<Map<TlbCompositeLabel, ChildrenStructure>> =
         calculateChildrenStructures(
             ctx,
             labelsWithoutUnknownLeaves,

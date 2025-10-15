@@ -42,12 +42,16 @@ class TvmSliceToTlbStackMapper(
                     input.cellToInfo[cellAddress]
                         ?: error("Info for cell at ref $cellAddress must be known")
 
-                check(info !is TvmParameterInfo.DictCellInfo) {
-                    "Cannot instantiate slices fro dict cells"
-                }
-
-                if (info is TvmParameterInfo.DataCellInfo) {
-                    result.allocateInitialSlice(ctx, sliceAddress, info.dataCellStructure)
+                when (info) {
+                    is TvmParameterInfo.DataCellInfo -> {
+                        result.allocateInitialSlice(ctx, sliceAddress, info.dataCellStructure)
+                    }
+                    is TvmParameterInfo.DictCellInfo -> {
+                        error("Cannot instantiate slices for dict cells")
+                    }
+                    TvmParameterInfo.UnknownCellInfo -> {
+                        result.allocateInitialSlice(ctx, sliceAddress, label = null)
+                    }
                 }
             }
 
