@@ -639,14 +639,17 @@ val threeCoins =
             )
     }
 
-val bool = TlbCompositeLabel("Bool").also {
-    it.internalStructure = SwitchPrefix(
-        id = TlbStructureIdProvider.provideId(),
-        switchSize = 1,
-        givenVariants = mapOf(
-            "0" to Empty,
-            "1" to Empty,
-        ),
-        owner = it,
-    )
-}
+val bool =
+    TlbCompositeLabel("Bool").also {
+        it.internalStructure =
+            SwitchPrefix(
+                id = TlbStructureIdProvider.provideId(),
+                switchSize = 1,
+                givenVariants =
+                    mapOf(
+                        "0" to Empty,
+                        "1" to Empty,
+                    ),
+                owner = it,
+            )
+    }

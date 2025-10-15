@@ -226,8 +226,9 @@ data class TlbStack(
             ctx: TvmContext,
             label: TlbCompositeLabel?,
         ): TlbStack {
-            val struct = label?.internalStructure
-                ?: TlbStructure.Unknown
+            val struct =
+                label?.internalStructure
+                    ?: TlbStructure.Unknown
             val frame = buildFrameForStructure(ctx, struct, persistentListOf(), ctx.tvmOptions.tlbOptions.maxTlbDepth)
             val frames = frame?.let { listOf(it) } ?: emptyList()
             return TlbStack(frames)
