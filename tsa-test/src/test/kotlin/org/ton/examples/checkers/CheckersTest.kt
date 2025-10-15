@@ -1,10 +1,20 @@
 package org.ton.examples.checkers
 
+import org.ton.Endian
+import org.ton.TlbCoinsLabel
+import org.ton.TlbCompositeLabel
+import org.ton.TlbIntegerLabelOfConcreteSize
+import org.ton.TlbStructure
+import org.ton.TlbStructureIdProvider
 import org.ton.TvmContractHandlers
+import org.ton.TvmInputInfo
+import org.ton.TvmParameterInfo
 import org.ton.bitstring.BitString
 import org.ton.bytecode.TsaContractCode
 import org.ton.cell.Cell
+import org.ton.cell.buildCell
 import org.ton.communicationSchemeFromJson
+import org.ton.examples.types.bool
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.extractResource
@@ -442,12 +452,35 @@ class CheckersTest {
         val pathTactConfig = extractResource(tactConfig)
         val analyzedContract = getTactContract(TactSourcesDescription(pathTactConfig, "IntOptimization", "GuessGame"))
 
+        val c4Scheme = TlbCompositeLabel("c4").also {
+            it.internalStructure = TlbStructure.KnownTypePrefix(
+                id = TlbStructureIdProvider.provideId(),
+                typeLabel = TlbIntegerLabelOfConcreteSize(concreteSize = 1, isSigned = false, endian = Endian.BigEndian),
+                typeArgIds = emptyList(),
+                owner = it,
+                rest = TlbStructure.KnownTypePrefix(
+                    id = TlbStructureIdProvider.provideId(),
+                    typeLabel = TlbCoinsLabel,
+                    typeArgIds = emptyList(),
+                    owner = it,
+                    rest = TlbStructure.KnownTypePrefix(
+                        id = TlbStructureIdProvider.provideId(),
+                        typeLabel = TlbCoinsLabel,
+                        typeArgIds = emptyList(),
+                        owner = it,
+                        rest = TlbStructure.Empty,
+                    )
+                )
+            )
+        }
+
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = TvmOptions(turnOnTLBParsingChecks = false, timeout = 120.seconds),
+//                inputInfo = TvmInputInfo(c4Info = listOf(TvmParameterInfo.UnknownCellInfo, TvmParameterInfo.DataCellInfo(c4Scheme)))
             )
 
         // There is at least one failed execution with exit code 257

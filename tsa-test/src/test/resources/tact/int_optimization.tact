@@ -8,8 +8,8 @@ fun computeNumber(a: Int, b: Int): Int {
 
 contract GuessGame {
 
-  consecutiveWins: Int = 0;
-  triesCount: Int = 0;
+  consecutiveWins: Int as coins = 0;
+  triesCount: Int as coins = 0;
 
   init() { }
 

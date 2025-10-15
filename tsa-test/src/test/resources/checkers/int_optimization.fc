@@ -7,8 +7,8 @@
     ;; Initialize C4 for contract
     slice stateSlice = tsa_get_c4(1).begin_parse();
     int loaded = stateSlice~load_int(1);
-    int consecutiveWins = stateSlice~load_int(257);
-    int triesCount = stateSlice~load_int(257);
+    int consecutiveWins = stateSlice~load_coins();
+    int triesCount = stateSlice~load_coins();
     tsa_assert(loaded == -1);                           ;; The contract should be loaded
     tsa_assert(consecutiveWins == 0);                   ;; Initially, consecutiveWins is 0
     tsa_assert(triesCount == 0);                        ;; Initially, triesCount is 0
