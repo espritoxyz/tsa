@@ -18,37 +18,37 @@ import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 
 sealed interface AbstractionForUExpr<NewAbstraction> {
-    val address: UConcreteHeapRef
+    val ref: UConcreteHeapRef
     val path: PersistentList<Int>
     val state: TvmState
 
     val ctx: TvmContext
-        get() = address.ctx.tctx()
+        get() = ref.ctx.tctx()
 
     fun addTlbLevel(struct: TlbStructure.KnownTypePrefix): NewAbstraction
 }
 
 data class SimpleAbstractionForUExpr(
-    override val address: UConcreteHeapRef,
+    override val ref: UConcreteHeapRef,
     override val path: PersistentList<Int>,
     override val state: TvmState,
 ) : AbstractionForUExpr<SimpleAbstractionForUExpr> {
     override fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
         SimpleAbstractionForUExpr(
-            address,
+            ref,
             path.add(0, struct.id),
             state,
         )
 }
 
 data class AbstractionForUExprWithCellDataPrefix(
-    override val address: UConcreteHeapRef,
+    override val ref: UConcreteHeapRef,
     val prefixSize: UExpr<TvmSizeSort>,
     override val path: PersistentList<Int>,
     override val state: TvmState,
 ) : AbstractionForUExpr<AbstractionForUExprWithCellDataPrefix> {
     override fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
-        AbstractionForUExprWithCellDataPrefix(address, prefixSize, path.add(0, struct.id), state)
+        AbstractionForUExprWithCellDataPrefix(ref, prefixSize, path.add(0, struct.id), state)
 }
 
 @JvmInline
@@ -118,7 +118,7 @@ fun AbstractSizeExpr<SimpleAbstractionForUExpr>.add(numOfBits: AbstractSizeExpr<
 
 fun AbstractSizeExpr<SimpleAbstractionForUExpr>.convert(): AbstractSizeExpr<AbstractionForUExprWithCellDataPrefix> =
     AbstractSizeExpr { param ->
-        apply(SimpleAbstractionForUExpr(param.address, param.path, param.state))
+        apply(SimpleAbstractionForUExpr(param.ref, param.path, param.state))
     }
 
 class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
@@ -223,7 +223,7 @@ fun <Abstraction : AbstractionForUExpr<Abstraction>> getKnownTypePrefixDataLengt
     when (struct.typeLabel) {
         is TlbAtomicLabel -> {
             AbstractSizeExpr { param ->
-                val typeArgs = struct.typeArgs(param.state, param.address, param.path)
+                val typeArgs = struct.typeArgs(param.state, param.ref, param.path)
                 struct.typeLabel.dataLength(param.state, typeArgs)
             }
         }

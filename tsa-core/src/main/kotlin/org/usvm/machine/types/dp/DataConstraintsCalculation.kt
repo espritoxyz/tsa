@@ -1,137 +1,172 @@
 package org.usvm.machine.types.dp
 
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
+import org.usvm.UBoolExpr
+import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
 import org.usvm.api.readField
-import org.usvm.machine.TvmContext
+import org.usvm.isFalse
+import org.usvm.machine.TvmSizeSort
+import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutStructuralAsserts
-import org.usvm.machine.types.dp.AbstractGuard.Companion.abstractFalse
-import org.usvm.machine.types.dp.AbstractGuard.Companion.abstractTrue
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.generateCellDataConstraint
 import org.usvm.machine.types.memory.generateGuardForSwitch
 import org.usvm.mkSizeExpr
+import kotlin.math.min
 
-fun calculateDataConstraints(
-    ctx: TvmContext,
-    labels: Collection<TlbCompositeLabel>,
+fun calculateDataConstraint(
+    label: TlbCompositeLabel,
+    state: TvmState,
+    cellRef: UConcreteHeapRef,
+    curMaxTlbDepth: Int,
     dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>>,
     individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
     possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
-): List<Map<TlbCompositeLabel, AbstractGuard<AbstractionForUExprWithCellDataPrefix>>> =
-    calculateMapsByTlbDepth(ctx.tvmOptions.tlbOptions.maxTlbDepth, labels) { label, curDepth, prevDepthValues ->
-        val tlbDepthBound =
-            individualMaxCellTlbDepth[label]
-                ?: error("individualMaxCellTlbDepth must be calculated for all labels")
+): UBoolExpr {
+    val tlbDepthBound =
+        individualMaxCellTlbDepth[label]
+            ?: error("individualMaxCellTlbDepth must be calculated for all labels")
 
-        if (tlbDepthBound >= curDepth) {
-            val dataLengthsFromPreviousDepth = if (curDepth == 0) emptyMap() else dataLengths[curDepth - 1]
-            getDataConstraints(
-                ctx,
-                label.internalStructure,
-                prevDepthValues,
-                dataLengthsFromPreviousDepth,
-                possibleSwitchVariants[curDepth],
-            )
-        } else {
-            prevDepthValues[label] ?: error("The value should be counted by now")
-        }
-    }
+    return getDataConstraint(
+        label.internalStructure,
+        state,
+        cellRef,
+        prefixSize = state.ctx.zeroSizeExpr,
+        path = persistentListOf(),
+        curMaxTlbDepth = min(tlbDepthBound, curMaxTlbDepth),
+        dataLengths,
+        possibleSwitchVariants,
+    )
+}
 
-private fun getDataConstraints(
-    ctx: TvmContext,
+private fun getDataConstraint(
     struct: TlbStructure,
-    constraintsFromPreviousDepth: Map<TlbCompositeLabel, AbstractGuard<AbstractionForUExprWithCellDataPrefix>>,
-    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
-    possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
-): AbstractGuard<AbstractionForUExprWithCellDataPrefix> =
-    with(ctx) {
+    state: TvmState,
+    cellRef: UConcreteHeapRef,
+    prefixSize: UExpr<TvmSizeSort>,
+    path: PersistentList<Int>,
+    curMaxTlbDepth: Int,
+    dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>>,
+    possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
+): UBoolExpr =
+    with(state.ctx) {
+        val paramForAbstractGuards = SimpleAbstractionForUExpr(cellRef, path, state)
+
         when (struct) {
             is TlbStructure.Empty -> {
                 // no constraints here
-                abstractTrue()
+                trueExpr
             }
 
             is TlbStructure.LoadRef -> {
-                getDataConstraints(
-                    ctx,
+                getDataConstraint(
                     struct.rest,
-                    constraintsFromPreviousDepth,
-                    dataLengthsFromPreviousDepth,
+                    state,
+                    cellRef,
+                    prefixSize,
+                    path,
+                    curMaxTlbDepth,
+                    dataLengths,
                     possibleSwitchVariants,
                 )
             }
 
             is TlbStructure.KnownTypePrefix -> {
+                val dataLengthsFromPreviousDepth =
+                    if (curMaxTlbDepth == 0) {
+                        return falseExpr
+                    } else {
+                        dataLengths[curMaxTlbDepth - 1]
+                    }
+
                 val offset =
-                    getKnownTypePrefixDataLength(struct, dataLengthsFromPreviousDepth)?.convert()
-                        ?: return abstractFalse() // cannot construct with given depth
+                    getKnownTypePrefixDataLength(struct, dataLengthsFromPreviousDepth)
+                        ?.apply
+                        ?.let { it(paramForAbstractGuards) }
+                        ?: return falseExpr // cannot construct with given depth
 
                 val innerGuard =
                     if (struct.typeLabel is TlbCompositeLabel) {
-                        constraintsFromPreviousDepth[struct.typeLabel]?.addTlbLevel(struct)
-                            ?: return abstractFalse() // cannot construct with given depth
+                        getDataConstraint(
+                            struct.typeLabel.internalStructure,
+                            state,
+                            cellRef,
+                            prefixSize,
+                            path.add(struct.id),
+                            curMaxTlbDepth - 1,
+                            dataLengths,
+                            possibleSwitchVariants,
+                        )
                     } else {
-                        AbstractGuard {
-                            generateCellDataConstraint(struct, it)
-                        }
+                        generateCellDataConstraint(struct, cellRef, prefixSize, path, state)
                     }
 
+                if (innerGuard.isFalse) {
+                    return falseExpr
+                }
+
                 val further =
-                    getDataConstraints(
-                        ctx,
+                    getDataConstraint(
                         struct.rest,
-                        constraintsFromPreviousDepth,
-                        dataLengthsFromPreviousDepth,
+                        state,
+                        cellRef,
+                        mkBvAddExpr(prefixSize, offset),
+                        path,
+                        curMaxTlbDepth,
+                        dataLengths,
                         possibleSwitchVariants,
                     )
 
-                innerGuard and further.shift(offset)
+                innerGuard and further
             }
 
             is TlbStructure.SwitchPrefix -> {
                 val switchSize = mkSizeExpr(struct.switchSize)
                 val possibleVariants =
-                    possibleSwitchVariants[struct]
+                    possibleSwitchVariants[curMaxTlbDepth][struct]
                         ?: error("Switch variants not found for switch $struct")
-                possibleVariants.foldIndexed(abstractFalse()) { idx, acc, (key, variant) ->
+
+                possibleVariants.foldIndexed(falseExpr as UBoolExpr) { idx, acc, (key, variant) ->
                     val further =
-                        getDataConstraints(
-                            ctx,
+                        getDataConstraint(
                             variant,
-                            constraintsFromPreviousDepth,
-                            dataLengthsFromPreviousDepth,
+                            state,
+                            cellRef,
+                            mkBvAddExpr(prefixSize, switchSize),
+                            path,
+                            curMaxTlbDepth,
+                            dataLengths,
                             possibleSwitchVariants,
-                        ).shift(AbstractSizeExpr { switchSize })
+                        )
 
-                    val switchGuard =
-                        AbstractGuard<AbstractionForUExprWithCellDataPrefix> { (address, prefixSize, path, state) ->
-                            val variantConstraint =
-                                generateGuardForSwitch(struct, idx, possibleVariants, state, address, path)
-                            val data =
-                                state.preloadDataBitsFromCellWithoutStructuralAsserts(
-                                    address,
-                                    prefixSize,
-                                    struct.switchSize,
-                                )
-                            val expected = mkBv(key, struct.switchSize.toUInt())
-                            val dataConstraint = data eq expected
+                    val variantConstraint =
+                        generateGuardForSwitch(struct, idx, possibleVariants, state, cellRef, path)
 
-                            variantConstraint and dataConstraint
-                        }
+                    val data =
+                        state.preloadDataBitsFromCellWithoutStructuralAsserts(
+                            cellRef,
+                            prefixSize,
+                            struct.switchSize,
+                        )
+                    val expected = mkBv(key, struct.switchSize.toUInt())
+                    val dataConstraint = data eq expected
+
+                    val switchGuard = variantConstraint and dataConstraint
 
                     acc or (switchGuard and further)
                 }
             }
 
             is TlbStructure.Unknown -> {
-                AbstractGuard { (address, prefixSize, path, state) ->
-                    val field = UnknownBlockField(struct.id, path)
-                    val fieldValue = state.memory.readField(address, field, field.getSort(ctx))
-                    val curData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, address)
+                val field = UnknownBlockField(struct.id, path)
+                val fieldValue = state.memory.readField(cellRef, field, field.getSort(state.ctx))
+                val curData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cellRef)
 
-                    mkBvShiftLeftExpr(curData, prefixSize.zeroExtendToSort(cellDataSort)) eq fieldValue
-                }
+                mkBvShiftLeftExpr(curData, prefixSize.zeroExtendToSort(cellDataSort)) eq fieldValue
             }
         }
     }

@@ -25,7 +25,6 @@ import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
 import org.usvm.machine.state.loadIntFromCellWithoutChecksAndStructuralAsserts
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutStructuralAsserts
-import org.usvm.machine.types.dp.AbstractionForUExprWithCellDataPrefix
 import org.usvm.machine.types.memory.stack.TlbStack
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
@@ -33,7 +32,10 @@ import org.usvm.test.resolver.TvmTestStateResolver
 
 fun TvmContext.generateCellDataConstraint(
     struct: KnownTypePrefix,
-    param: AbstractionForUExprWithCellDataPrefix,
+    ref: UConcreteHeapRef,
+    prefixSize: UExpr<TvmSizeSort>,
+    path: PersistentList<Int>,
+    state: TvmState,
 ): UBoolExpr =
     when (struct.typeLabel) {
         is TlbCompositeLabel -> {
@@ -41,25 +43,22 @@ fun TvmContext.generateCellDataConstraint(
         }
 
         is FixedSizeDataLabel -> {
-            val (addr, prefixSize, path, state) = param
             val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
             val sort = field.getSort(this)
-            val symbol = state.memory.readField(addr, field, sort)
+            val symbol = state.memory.readField(ref, field, sort)
             val data =
-                state.preloadDataBitsFromCellWithoutStructuralAsserts(addr, prefixSize, struct.typeLabel.concreteSize)
+                state.preloadDataBitsFromCellWithoutStructuralAsserts(ref, prefixSize, struct.typeLabel.concreteSize)
             check(symbol.sort.sizeBits == data.sort.sizeBits)
             symbol eq data
         }
 
         is TlbIntegerLabelOfSymbolicSize -> {
-            val (addr, prefixSize, path, state) = param
-
-            val typeArgs = struct.typeArgs(state, addr, path)
+            val typeArgs = struct.typeArgs(state, ref, path)
             val intSize = struct.typeLabel.bitSize(state.ctx, typeArgs)
 
             val intFromData =
                 state.loadIntFromCellWithoutChecksAndStructuralAsserts(
-                    addr,
+                    ref,
                     prefixSize,
                     intSize,
                     struct.typeLabel.isSigned,
@@ -68,7 +67,7 @@ fun TvmContext.generateCellDataConstraint(
             val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
             val sort = field.getSort(this)
 
-            val intFromTlbField = state.memory.readField(addr, field, sort)
+            val intFromTlbField = state.memory.readField(ref, field, sort)
             val extendedIntFromTlbInt =
                 if (struct.typeLabel.isSigned) {
                     intFromTlbField.signedExtendToInteger()

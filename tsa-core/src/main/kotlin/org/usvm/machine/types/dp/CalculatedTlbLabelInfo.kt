@@ -91,18 +91,21 @@ class CalculatedTlbLabelInfo(
 
     fun getDataConstraints(
         state: TvmState,
-        address: UConcreteHeapRef,
+        ref: UConcreteHeapRef,
         label: TlbCompositeLabel,
         maxDepth: Int = maxTlbDepth,
-    ): UBoolExpr? {
+    ): UBoolExpr {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate switch constraints for depth $maxDepth"
         }
-        val abstract =
-            dataConstraints[maxDepth][label]
-                ?: return null
-        return abstract.apply(
-            AbstractionForUExprWithCellDataPrefix(address, ctx.zeroSizeExpr, persistentListOf(), state),
+        return calculateDataConstraint(
+            label,
+            state,
+            ref,
+            maxDepth,
+            dataLengths,
+            individualMaxCellTlbDepth,
+            possibleSwitchVariants,
         )
     }
 
@@ -212,9 +215,6 @@ class CalculatedTlbLabelInfo(
             individualMaxCellTlbDepth,
             possibleSwitchVariants,
         )
-
-    private val dataConstraints: List<Map<TlbCompositeLabel, AbstractGuard<AbstractionForUExprWithCellDataPrefix>>> =
-        calculateDataConstraints(ctx, compositeLabels, dataLengths, individualMaxCellTlbDepth, possibleSwitchVariants)
 
     init {
         // check correctness of declarations
