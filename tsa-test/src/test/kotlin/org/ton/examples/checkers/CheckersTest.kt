@@ -7,8 +7,6 @@ import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbStructure
 import org.ton.TlbStructureIdProvider
 import org.ton.TvmContractHandlers
-import org.ton.TvmInputInfo
-import org.ton.TvmParameterInfo
 import org.ton.bitstring.BitString
 import org.ton.bytecode.TsaContractCode
 import org.ton.cell.Cell

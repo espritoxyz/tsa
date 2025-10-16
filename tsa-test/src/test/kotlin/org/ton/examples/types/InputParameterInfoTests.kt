@@ -1958,12 +1958,12 @@ class InputParameterInfoTests {
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 }
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
         )
 
         TvmTestExecutor.executeGeneratedTests(tests, resourcePath, TsRenderer.ContractType.Func)
