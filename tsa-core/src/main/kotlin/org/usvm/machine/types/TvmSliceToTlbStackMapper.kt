@@ -16,7 +16,7 @@ class TvmSliceToTlbStackMapper(
     fun allocateInitialSlice(
         ctx: TvmContext,
         address: UConcreteHeapRef,
-        label: TlbCompositeLabel?,
+        label: TlbCompositeLabel,
     ) {
         sliceToTlbStack = sliceToTlbStack.put(address, TlbStack.new(ctx, label))
     }
@@ -42,16 +42,8 @@ class TvmSliceToTlbStackMapper(
                     input.cellToInfo[cellAddress]
                         ?: error("Info for cell at ref $cellAddress must be known")
 
-                when (info) {
-                    is TvmParameterInfo.DataCellInfo -> {
-                        result.allocateInitialSlice(ctx, sliceAddress, info.dataCellStructure)
-                    }
-                    is TvmParameterInfo.DictCellInfo -> {
-                        error("Cannot instantiate slices for dict cells")
-                    }
-                    TvmParameterInfo.UnknownCellInfo -> {
-                        result.allocateInitialSlice(ctx, sliceAddress, label = null)
-                    }
+                if (info is TvmParameterInfo.DataCellInfo) {
+                    result.allocateInitialSlice(ctx, sliceAddress, info.dataCellStructure)
                 }
             }
 

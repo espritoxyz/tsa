@@ -4,7 +4,6 @@ import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbCompositeLabel
-import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -224,11 +223,9 @@ data class TlbStack(
     companion object {
         fun new(
             ctx: TvmContext,
-            label: TlbCompositeLabel?,
+            label: TlbCompositeLabel,
         ): TlbStack {
-            val struct =
-                label?.internalStructure
-                    ?: TlbStructure.Unknown
+            val struct = label.internalStructure
             val frame = buildFrameForStructure(ctx, struct, persistentListOf(), ctx.tvmOptions.tlbOptions.maxTlbDepth)
             val frames = frame?.let { listOf(it) } ?: emptyList()
             return TlbStack(frames)

@@ -131,7 +131,7 @@ class CalculatedTlbLabelInfo(
 
     fun getSizeConstraints(
         state: TvmState,
-        address: UConcreteHeapRef,
+        ref: UConcreteHeapRef,
         label: TlbCompositeLabel,
         maxDepth: Int = maxTlbDepth,
     ): UBoolExpr? {
@@ -142,7 +142,7 @@ class CalculatedTlbLabelInfo(
             return null
         }
         return calculateGeneralSizeConstraints(
-            address,
+            ref,
             state,
             label.internalStructure,
             dataLengths[maxDepth - 1],

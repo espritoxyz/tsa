@@ -2,8 +2,10 @@ package org.usvm.machine.fields
 
 import io.ksmt.expr.KBvExtractExpr
 import kotlinx.collections.immutable.persistentMapOf
+import org.ton.TlbStructure
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
+import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -15,6 +17,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.memory.TlbField
 import org.usvm.memory.UWritableMemory
 import org.usvm.sizeSort
 import org.usvm.utils.flattenReferenceIte
@@ -148,5 +151,13 @@ class TvmCellDataLengthFieldManager(
         private val cellDataLengthField: TvmField = TvmFieldImpl(TvmCellType, "dataLength")
         private val sliceDataPosField: TvmField = TvmFieldImpl(TvmSliceType, "dataPos")
         private const val BITS_FOR_FIELD = 10u
+
+        data class UnknownBlockLengthField(
+            override val pathToStructure: List<Int>,
+        ) : TlbField {
+            override val structureId = TlbStructure.Unknown.id
+
+            override fun getSort(ctx: TvmContext): UBvSort = ctx.mkBvSort(BITS_FOR_FIELD)
+        }
     }
 }

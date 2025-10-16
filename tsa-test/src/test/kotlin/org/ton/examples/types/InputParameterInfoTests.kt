@@ -1923,7 +1923,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(
-                c4Info = listOf(DataCellInfo(int64Structure)),
+                c4Info = listOf(int64Structure),
             )
 
         val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)

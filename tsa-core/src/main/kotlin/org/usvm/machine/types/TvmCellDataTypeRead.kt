@@ -22,6 +22,7 @@ import org.ton.defaultTlbMaybeRefLabel
 import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UBoolSort
+import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
@@ -39,6 +40,7 @@ import org.usvm.machine.types.memory.extractInt
 import org.usvm.machine.types.memory.generateGuardForSwitch
 import org.usvm.machine.types.memory.readConcreteBv
 import org.usvm.mkSizeExpr
+import org.usvm.sizeSort
 import kotlin.math.min
 
 sealed interface TvmCellDataTypeRead<ReadResult> {
@@ -60,6 +62,12 @@ sealed interface TvmCellDataTypeRead<ReadResult> {
     fun createLeftBitsDataLoad(leftBits: UExpr<TvmSizeSort>): TvmCellDataTypeRead<ReadResult>? = null
 
     fun defaultTlbLabel(): TlbLabel?
+
+    fun defaultTlbLabelSize(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: List<Int>,
+    ): UExpr<TvmSizeSort>?
 }
 
 sealed interface SizedCellDataTypeRead {
@@ -115,6 +123,12 @@ data class TvmCellDataIntegerRead(
         } else {
             TlbIntegerLabelOfSymbolicSize(isSigned, endian, arity = 0) { _, _ -> sizeBits }
         }
+
+    override fun defaultTlbLabelSize(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: List<Int>,
+    ): UExpr<TvmSizeSort> = sizeBits
 }
 
 class TvmCellMaybeConstructorBitRead(
@@ -175,6 +189,12 @@ class TvmCellMaybeConstructorBitRead(
         }
 
     override fun defaultTlbLabel(): TlbLabel = defaultTlbMaybeRefLabel
+
+    override fun defaultTlbLabelSize(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: List<Int>,
+    ) = ctx.oneSizeExpr
 }
 
 // As a read result expects address length + slice with the address
@@ -257,7 +277,13 @@ class TvmCellDataMsgAddrRead(
             }
         }
 
-    override fun defaultTlbLabel(): TlbLabel = TlbBasicMsgAddrLabel
+    override fun defaultTlbLabel() = TlbBasicMsgAddrLabel
+
+    override fun defaultTlbLabelSize(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: List<Int>,
+    ) = ctx.mkSizeExpr(TvmContext.stdMsgAddrSize)
 }
 
 data class TvmCellDataBitArrayRead(
@@ -351,6 +377,12 @@ data class TvmCellDataBitArrayRead(
         } else {
             null
         }
+
+    override fun defaultTlbLabelSize(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: List<Int>,
+    ) = sizeBits
 }
 
 // As a read result expects bitvector of size 4 (coin prefix) + coin value as int257
@@ -385,36 +417,54 @@ class TvmCellDataCoinsRead(
         path: PersistentList<Int>,
         state: TvmState,
         leftTlbDepth: Int,
-    ): UExprPairReadResult<KBvSort, TvmContext.TvmInt257Sort>? =
+    ): UExprPairReadResult<KBvSort, TvmContext.TvmInt257Sort>? {
+        if (label !is TlbCoinsLabel) {
+            return null
+        }
+
+        val newPath = path.add(curStructure.id)
+        return extractTlbValueFromTlbCoinsLabelFields(address, newPath, state)
+    }
+
+    private fun extractTlbValueFromTlbCoinsLabelFields(
+        ref: UHeapRef,
+        path: List<Int>,
+        state: TvmState,
+    ): UExprPairReadResult<KBvSort, TvmContext.TvmInt257Sort> =
         with(state.ctx) {
-            if (label !is TlbCoinsLabel) {
-                return null
-            }
-
-            val newPath = path.add(curStructure.id)
-
-            val lengthStruct = label.internalStructure as KnownTypePrefix
+            val lengthStruct = TlbCoinsLabel.internalStructure as KnownTypePrefix
             check(lengthStruct.typeLabel is TlbIntegerLabelOfConcreteSize)
 
             val gramsStruct = lengthStruct.rest as KnownTypePrefix
             check(gramsStruct.typeLabel is TlbIntegerLabelOfSymbolicSize)
 
-            val gramsField = SymbolicSizeBlockField(gramsStruct.typeLabel.lengthUpperBound, gramsStruct.id, newPath)
+            val gramsField = SymbolicSizeBlockField(gramsStruct.typeLabel.lengthUpperBound, gramsStruct.id, path)
             val gramsValue =
                 state.memory
                     .readField(
-                        address,
+                        ref,
                         gramsField,
                         gramsField.getSort(this),
                     ).unsignedExtendToInteger()
 
-            val lengthField = ConcreteSizeBlockField(lengthStruct.typeLabel.concreteSize, lengthStruct.id, newPath)
-            val lengthValue = state.memory.readField(address, lengthField, lengthField.getSort(this))
+            val lengthField = ConcreteSizeBlockField(lengthStruct.typeLabel.concreteSize, lengthStruct.id, path)
+            val lengthValue = state.memory.readField(ref, lengthField, lengthField.getSort(this))
 
             UExprPairReadResult(lengthValue, gramsValue)
         }
 
     override fun defaultTlbLabel() = TlbCoinsLabel
+
+    override fun defaultTlbLabelSize(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: List<Int>,
+    ) = with(ctx) {
+        val value = extractTlbValueFromTlbCoinsLabelFields(ref, path, state)
+        val coinsLength = mkBvShiftLeftExpr(value.first.zeroExtendToSort(sizeSort), threeSizeExpr)
+        val fullLength = mkBvAddExpr(coinsLength, fourSizeExpr)
+        fullLength
+    }
 }
 
 fun <ReadResult> TvmCellDataTypeRead<ReadResult>.isEmptyRead(ctx: TvmContext): UBoolExpr =

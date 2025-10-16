@@ -12,6 +12,7 @@ import org.ton.TlbMaybeRefLabel
 import org.ton.TlbMsgAddrLabel
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
+import org.ton.compositeLabelOfUnknown
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -281,12 +282,24 @@ fun extractInputParametersAddresses(
     }
 
     if (inputInfo.c4Info != null) {
+        check(inputInfo.c4Info.size == initialState.contractIdToC4Register.size) {
+            "Unexpected size of c4Info"
+        }
+
         inputInfo.c4Info.forEachIndexed { index, cellInfo ->
             val c4 =
                 initialState.contractIdToC4Register[index]?.value?.value as? UConcreteHeapRef
                     ?: error("Unexpected value in c4: ${initialState.contractIdToC4Register[index]?.value?.value}")
 
-            cells[c4] = cellInfo
+            cells[c4] = TvmParameterInfo.DataCellInfo(cellInfo)
+        }
+    } else {
+        initialState.contractIdToC4Register.values.forEach { c4 ->
+            val c4Cell =
+                c4.value.value as? UConcreteHeapRef
+                    ?: error("Unexpected value in c4: ${c4.value.value}")
+
+            cells[c4Cell] = TvmParameterInfo.DataCellInfo(compositeLabelOfUnknown)
         }
     }
 

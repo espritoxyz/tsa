@@ -219,3 +219,8 @@ enum class Endian {
     LittleEndian,
     BigEndian,
 }
+
+val compositeLabelOfUnknown =
+    TlbCompositeLabel("Unknown", definitelyHasAny = true).also {
+        it.internalStructure = TlbStructure.Unknown
+    }
