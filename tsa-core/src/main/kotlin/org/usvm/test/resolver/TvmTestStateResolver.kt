@@ -4,6 +4,7 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbBitArrayByRef
+import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
@@ -352,7 +353,8 @@ class TvmTestStateResolver(
         }
 
         is TlbBitArrayByRef -> {
-            error("Cannot resolve TlbBitArrayByRef")
+            val concreteSize = resolveInt(label.sizeBits)
+            TlbBitArrayOfConcreteSize(concreteSize)
         }
     }
 

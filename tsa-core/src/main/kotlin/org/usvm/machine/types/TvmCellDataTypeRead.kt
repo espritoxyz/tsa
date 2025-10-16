@@ -195,7 +195,10 @@ class TvmCellDataMsgAddrRead(
                     null
                 }
             if (twoDataBits == "00") {
-                UExprPairReadResult(twoSizeExpr, state.allocSliceFromData(mkBv(0, sizeBits = 2u)))
+                val value = state.allocSliceFromData(mkBv(0, sizeBits = 2u))
+                state.dataCellInfoStorage.mapper.addAddressSlice(value)
+
+                UExprPairReadResult(twoSizeExpr, value)
             } else {
                 null
             }
@@ -243,6 +246,8 @@ class TvmCellDataMsgAddrRead(
                     val content = mkBvConcatExpr(prefix, restValue)
 
                     val value = state.allocSliceFromData(content)
+                    state.dataCellInfoStorage.mapper.addAddressSlice(value)
+
                     val length = mkSizeExpr(TvmContext.stdMsgAddrSize)
                     UExprPairReadResult(length, value)
                 }
