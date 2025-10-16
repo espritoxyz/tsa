@@ -52,7 +52,7 @@ data class KnownTypeTlbStackFrame(
                 return listOf(GuardedResult(trueExpr, StepError(error = null), value = null))
             }
 
-            val args = struct.typeArgs(state, loadData.cellAddress, path)
+            val args = struct.typeArgs(state, loadData.cellRef, path)
 
             val frameIsEmpty = struct.typeLabel.isEmptyLabel(this, args)
 
@@ -68,7 +68,7 @@ data class KnownTypeTlbStackFrame(
                 if (loadData.type is TvmCellDataBitArrayRead) {
                     extractKBvOfConcreteSizeFromTlbIfPossible(
                         struct,
-                        loadData.cellAddress,
+                        loadData.cellRef,
                         path,
                         state,
                     )
@@ -90,7 +90,7 @@ data class KnownTypeTlbStackFrame(
                 struct.typeLabel.extractTlbValueIfPossible(
                     struct,
                     loadData.type,
-                    loadData.cellAddress,
+                    loadData.cellRef,
                     path,
                     state,
                     leftTlbDepth,
@@ -135,7 +135,7 @@ data class KnownTypeTlbStackFrame(
         check(type is TvmCellDataBitArrayRead)
         return ContinueLoadOnNextFrame(
             LimitedLoadData(
-                loadData.cellAddress,
+                loadData.cellRef,
                 loadData.type.createLeftBitsDataLoad(leftBits),
             ),
             bvValue,

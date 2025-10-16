@@ -3,6 +3,7 @@ package org.usvm.machine.types.memory.stack
 import io.ksmt.expr.KBitVecValue
 import kotlinx.collections.immutable.PersistentList
 import org.ton.TlbStructure
+import org.ton.TlbStructureIdProvider
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.api.readField
@@ -15,11 +16,61 @@ import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 data class StackFrameOfUnknown(
     override val path: PersistentList<Int>,
     override val leftTlbDepth: Int,
+    val hasOffset: Boolean,
 ) : TlbStackFrame {
     override fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
-    ): List<GuardedResult<ReadResult>> = listOf(GuardedResult(state.ctx.trueExpr, NextFrame(this), value = null))
+    ): List<GuardedResult<ReadResult>> {
+        val inferenceManager = state.fieldManagers.cellDataFieldManager.inferenceManager
+        val inferredStruct = inferenceManager.getInferredStruct(loadData.cellRef, path)
+
+        if (inferredStruct != null) {
+            check(!hasOffset) {
+                "Unexpected offset in StackFrameOfUnknown"
+            }
+
+            val nextFrame =
+                buildFrameForStructure(state.ctx, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)
+                    ?: error("Unexpected null frame")
+
+            return nextFrame.step(state, loadData)
+        }
+
+        val defaultResult =
+            listOf(
+                GuardedResult<ReadResult>(
+                    state.ctx.trueExpr,
+                    NextFrame(StackFrameOfUnknown(path, leftTlbDepth, hasOffset = true)),
+                    value = null,
+                ),
+            )
+
+        if (hasOffset || inferenceManager.isFixated(loadData.cellRef)) {
+            return defaultResult
+        }
+
+        val label =
+            loadData.type.defaultTlbLabel()
+                ?: return defaultResult
+
+        val newStructure =
+            TlbStructure.KnownTypePrefix(
+                id = TlbStructureIdProvider.provideId(),
+                typeLabel = label,
+                typeArgIds = emptyList(),
+                owner = TlbStructure.UnknownStructOwner,
+                rest = TlbStructure.Unknown,
+            )
+
+        inferenceManager.addInferredStruct(loadData.cellRef, path, newStructure)
+
+        val nextFrame =
+            buildFrameForStructure(state.ctx, newStructure, path.add(TlbStructure.Unknown.id), leftTlbDepth)
+                ?: error("Unexpected null frame")
+
+        return nextFrame.step(state, loadData)
+    }
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
 
@@ -31,6 +82,10 @@ data class StackFrameOfUnknown(
         read: TlbStack.ConcreteReadInfo,
     ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
         with(read.resolver.state.ctx) {
+            check(!hasOffset) {
+                "Cannot read from StackFrameOfUnknown with offset"
+            }
+
             val inferredStruct =
                 read.resolver.state.fieldManagers.cellDataFieldManager.inferenceManager.getInferredStruct(
                     read.address,

@@ -172,7 +172,8 @@ class TlbMaybeRefLabel(
     }
 }
 
-private const val INTERNAL_STD_MSG_ADDR_SIZE = 8 + 256
+val defaultTlbMaybeRefLabel = TlbMaybeRefLabel(TvmParameterInfo.UnknownCellInfo)
+
 private const val INTERNAL_SHORT_STD_MSG_ADDR_SIZE = 256
 
 // artificial label

@@ -487,10 +487,10 @@ class CheckersTest {
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = TvmOptions(turnOnTLBParsingChecks = false, timeout = 120.seconds),
-                inputInfo =
-                    TvmInputInfo(
-                        c4Info = listOf(TvmParameterInfo.UnknownCellInfo, TvmParameterInfo.DataCellInfo(c4Scheme)),
-                    ),
+//                inputInfo =
+//                    TvmInputInfo(
+//                        c4Info = listOf(TvmParameterInfo.UnknownCellInfo, TvmParameterInfo.DataCellInfo(c4Scheme)),
+//                    ),
             )
 
         // There is at least one failed execution with exit code 257

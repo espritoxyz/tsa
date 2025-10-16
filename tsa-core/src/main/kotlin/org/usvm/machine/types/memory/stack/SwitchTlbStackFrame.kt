@@ -74,7 +74,7 @@ data class SwitchTlbStackFrame(
                 )
 
             possibleVariants.forEachIndexed { idx, (key, variant) ->
-                val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, loadData.cellAddress, path)
+                val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, loadData.cellRef, path)
 
                 // full read of switch
                 val stepResult =

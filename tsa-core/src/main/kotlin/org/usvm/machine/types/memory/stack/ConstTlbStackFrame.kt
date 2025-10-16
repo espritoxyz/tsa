@@ -97,7 +97,7 @@ data class ConstTlbStackFrame(
                         mkSizeGtExpr(readSize, leftBits),
                         ContinueLoadOnNextFrame(
                             LimitedLoadData(
-                                loadData.cellAddress,
+                                loadData.cellRef,
                                 type.createLeftBitsDataLoad(mkSizeSubExpr(readSize, leftBits)),
                             ),
                             concreteBvRead,

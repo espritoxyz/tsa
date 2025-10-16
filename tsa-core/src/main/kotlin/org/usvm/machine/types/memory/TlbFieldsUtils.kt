@@ -109,18 +109,26 @@ fun KnownTypePrefix.typeArgs(
 ): List<UExpr<TvmSizeSort>> =
     with(state.ctx) {
         typeArgIds.map {
-            val typeArgStruct = owner.getStructureById(it)
+            val typeArgStruct =
+                when (owner) {
+                    TlbStructure.UnknownStructOwner -> error("Structures from Unknown cannot have non-null arity")
+                    is TlbStructure.CompositeLabelOwner -> owner.owner.getStructureById(it)
+                }
+
             check(typeArgStruct is KnownTypePrefix) {
                 "Only KnownTypePrefix can be used as type argument, but found $typeArgStruct"
             }
+
             val label = typeArgStruct.typeLabel
             check(label is TlbIntegerLabelOfConcreteSize && !label.isSigned) {
                 "Only unsigned integer of concrete size can be used as type argument, but found $label"
             }
+
             val bitSize = label.concreteSize
             check(bitSize <= 31) {
                 "Only integers of size <= 31 can be used as type argument, but found $label of size $bitSize"
             }
+
             val field = ConcreteSizeBlockField(bitSize, it, path)
             val sort = field.getSort(this)
             val intValue = state.memory.readField(address, field, sort)

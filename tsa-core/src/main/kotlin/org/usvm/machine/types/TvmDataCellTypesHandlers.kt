@@ -360,13 +360,11 @@ fun TvmStepScopeManager.makeCellToSlice(
         possibleLabels.map { (label, guard) ->
             ActionOnCondition(
                 action = {
-                    label?.let {
-                        dataCellInfoStorage.sliceMapper.allocateInitialSlice(
-                            ctx,
-                            sliceAddress,
-                            label,
-                        )
-                    }
+                    dataCellInfoStorage.sliceMapper.allocateInitialSlice(
+                        ctx,
+                        sliceAddress,
+                        label,
+                    )
                 },
                 condition = guard,
                 caseIsExceptional = false,

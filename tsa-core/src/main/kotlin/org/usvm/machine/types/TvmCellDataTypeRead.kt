@@ -8,14 +8,17 @@ import org.ton.FixedSizeDataLabel
 import org.ton.TlbAddressByRef
 import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbBitArrayByRef
+import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
+import org.ton.TlbLabel
 import org.ton.TlbMaybeRefLabel
 import org.ton.TlbStructure.KnownTypePrefix
 import org.ton.TlbStructure.SwitchPrefix
+import org.ton.defaultTlbMaybeRefLabel
 import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UBoolSort
@@ -55,6 +58,8 @@ sealed interface TvmCellDataTypeRead<ReadResult> {
     ): ReadResult?
 
     fun createLeftBitsDataLoad(leftBits: UExpr<TvmSizeSort>): TvmCellDataTypeRead<ReadResult>? = null
+
+    fun defaultTlbLabel(): TlbLabel?
 }
 
 sealed interface SizedCellDataTypeRead {
@@ -102,6 +107,13 @@ data class TvmCellDataIntegerRead(
                 }
 
             UExprReadResult(result)
+        }
+
+    override fun defaultTlbLabel(): TlbLabel =
+        if (sizeBits is KInterpretedValue) {
+            TlbIntegerLabelOfConcreteSize(sizeBits.intValue(), isSigned, endian)
+        } else {
+            TlbIntegerLabelOfSymbolicSize(isSigned, endian, arity = 0) { _, _ -> sizeBits }
         }
 }
 
@@ -161,6 +173,8 @@ class TvmCellMaybeConstructorBitRead(
             val expr = generateGuardForSwitch(switchStruct, trueVariant, possibleVariants, state, address, newPath)
             UExprReadResult(expr)
         }
+
+    override fun defaultTlbLabel(): TlbLabel = defaultTlbMaybeRefLabel
 }
 
 // As a read result expects address length + slice with the address
@@ -237,6 +251,8 @@ class TvmCellDataMsgAddrRead(
                 null
             }
         }
+
+    override fun defaultTlbLabel(): TlbLabel = TlbBasicMsgAddrLabel
 }
 
 data class TvmCellDataBitArrayRead(
@@ -247,18 +263,17 @@ data class TvmCellDataBitArrayRead(
         state: TvmState,
         offset: UExpr<TvmSizeSort>,
         data: String,
-    ): UExprReadResult<UAddressSort>? =
-        with(offset.tctx) {
-            if (offset is KInterpretedValue) {
-                val bits =
-                    readConcreteBv(state.ctx, offset.intValue(), data, sizeBits)
-                        ?: return null
-                val slice = state.allocSliceFromData(bits)
-                UExprReadResult(slice)
-            } else {
-                null
-            }
+    ): UExprReadResult<UAddressSort>? {
+        return if (offset is KInterpretedValue) {
+            val bits =
+                readConcreteBv(state.ctx, offset.intValue(), data, sizeBits)
+                    ?: return null
+            val slice = state.allocSliceFromData(bits)
+            UExprReadResult(slice)
+        } else {
+            null
         }
+    }
 
     override fun extractTlbValueIfPossible(
         curStructure: KnownTypePrefix,
@@ -324,6 +339,13 @@ data class TvmCellDataBitArrayRead(
 
     override fun createLeftBitsDataLoad(leftBits: UExpr<TvmSizeSort>): TvmCellDataBitArrayRead =
         TvmCellDataBitArrayRead(leftBits)
+
+    override fun defaultTlbLabel(): TlbLabel? =
+        if (sizeBits is KInterpretedValue) {
+            TlbBitArrayOfConcreteSize(sizeBits.intValue())
+        } else {
+            null
+        }
 }
 
 // As a read result expects bitvector of size 4 (coin prefix) + coin value as int257
@@ -386,6 +408,8 @@ class TvmCellDataCoinsRead(
 
             UExprPairReadResult(lengthValue, gramsValue)
         }
+
+    override fun defaultTlbLabel() = TlbCoinsLabel
 }
 
 fun <ReadResult> TvmCellDataTypeRead<ReadResult>.isEmptyRead(ctx: TvmContext): UBoolExpr =

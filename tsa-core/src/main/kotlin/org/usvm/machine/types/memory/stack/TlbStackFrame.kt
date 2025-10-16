@@ -25,7 +25,7 @@ fun buildFrameForStructure(
             check(tlbLevel == 0) {
                 "`Unknown` is possible only on zero tlb level, but got tlb level $tlbLevel"
             }
-            StackFrameOfUnknown(path, leftTlbDepth)
+            StackFrameOfUnknown(path, leftTlbDepth, hasOffset = false)
         }
 
         is TlbStructure.Empty -> {
@@ -114,14 +114,14 @@ data class ContinueLoadOnNextFrame<ReadResult>(
 ) : StackFrameStepResult<ReadResult>
 
 data class LimitedLoadData<ReadResult>(
-    val cellAddress: UConcreteHeapRef,
+    val cellRef: UConcreteHeapRef,
     val type: TvmCellDataTypeRead<ReadResult>,
 ) {
     companion object {
         fun <ReadResult> fromLoadData(loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>) =
             LimitedLoadData(
                 type = loadData.type,
-                cellAddress = loadData.cellAddress,
+                cellRef = loadData.cellAddress,
             )
     }
 }

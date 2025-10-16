@@ -1,9 +1,12 @@
 package org.usvm.machine.types.dp
 
 import kotlinx.collections.immutable.persistentListOf
+import org.ton.TlbBasicMsgAddrLabel
+import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
 import org.ton.TvmParameterInfo
+import org.ton.defaultTlbMaybeRefLabel
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -18,7 +21,8 @@ class CalculatedTlbLabelInfo(
     private val ctx: TvmContext,
     givenCompositeLabels: Collection<TlbCompositeLabel>,
 ) {
-    private val compositeLabels = calculateClosure(givenCompositeLabels)
+    private val compositeLabels =
+        calculateClosure(givenCompositeLabels) + TlbCoinsLabel + defaultTlbMaybeRefLabel + TlbBasicMsgAddrLabel
 
     private val maxTlbDepth: Int
         get() = ctx.tvmOptions.tlbOptions.maxTlbDepth
