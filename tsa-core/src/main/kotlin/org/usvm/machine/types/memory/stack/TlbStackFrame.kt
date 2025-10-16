@@ -19,13 +19,13 @@ fun buildFrameForStructure(
     path: PersistentList<Int>,
     leftTlbDepth: Int,
 ): TlbStackFrame? {
-    val tlbLevel = path.size
+    val tlbLevel = path.count { it != TlbStructure.Unknown.id }
     return when (struct) {
         is TlbStructure.Unknown -> {
             check(tlbLevel == 0) {
                 "`Unknown` is possible only on zero tlb level, but got tlb level $tlbLevel"
             }
-            StackFrameOfUnknown
+            StackFrameOfUnknown(path, leftTlbDepth)
         }
 
         is TlbStructure.Empty -> {

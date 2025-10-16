@@ -1,6 +1,7 @@
 package org.usvm.machine.types.memory.stack
 
 import io.ksmt.expr.KBitVecValue
+import kotlinx.collections.immutable.PersistentList
 import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
@@ -11,11 +12,10 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 
-data object StackFrameOfUnknown : TlbStackFrame {
-    // [Unknown] can be used only on zero TL-B level
-    override val path = emptyList<Int>()
-    override val leftTlbDepth: Int = 0
-
+data class StackFrameOfUnknown(
+    override val path: PersistentList<Int>,
+    override val leftTlbDepth: Int,
+) : TlbStackFrame {
     override fun <ReadResult> step(
         state: TvmState,
         loadData: LimitedLoadData<ReadResult>,
@@ -31,15 +31,29 @@ data object StackFrameOfUnknown : TlbStackFrame {
         read: TlbStack.ConcreteReadInfo,
     ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
         with(read.resolver.state.ctx) {
-            val field = UnknownBlockField(TlbStructure.Unknown.id, path)
-            val dataSymbolic =
-                read.resolver.state.memory
-                    .readField(read.address, field, field.getSort(this))
-            val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
+            val inferredStruct =
+                read.resolver.state.fieldManagers.cellDataFieldManager.inferenceManager.getInferredStruct(
+                    read.address,
+                    path,
+                )
 
-            val newReadInfo = TlbStack.ConcreteReadInfo(read.address, read.resolver, leftBits = 0)
+            if (inferredStruct == null) {
+                val field = UnknownBlockField(TlbStructure.Unknown.id, path)
+                val dataSymbolic =
+                    read.resolver.state.memory
+                        .readField(read.address, field, field.getSort(this))
+                val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
 
-            Triple(data.take(read.leftBits), newReadInfo, emptyList())
+                val newReadInfo = TlbStack.ConcreteReadInfo(read.address, read.resolver, leftBits = 0)
+
+                Triple(data.take(read.leftBits), newReadInfo, emptyList())
+            } else {
+                val nextFrame =
+                    buildFrameForStructure(this, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)
+                        ?: error("Unexpected null frame")
+
+                nextFrame.readInModel(read)
+            }
         }
 
     override fun compareWithOtherFrame(

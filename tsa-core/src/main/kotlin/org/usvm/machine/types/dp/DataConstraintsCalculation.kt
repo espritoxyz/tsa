@@ -162,11 +162,28 @@ private fun getDataConstraint(
             }
 
             is TlbStructure.Unknown -> {
-                val field = UnknownBlockField(struct.id, path)
-                val fieldValue = state.memory.readField(cellRef, field, field.getSort(state.ctx))
-                val curData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cellRef)
+                val inferredStruct =
+                    state.fieldManagers.cellDataFieldManager.inferenceManager
+                        .getInferredStruct(cellRef, path)
 
-                mkBvShiftLeftExpr(curData, prefixSize.zeroExtendToSort(cellDataSort)) eq fieldValue
+                if (inferredStruct == null) {
+                    val field = UnknownBlockField(struct.id, path)
+                    val fieldValue = state.memory.readField(cellRef, field, field.getSort(state.ctx))
+                    val curData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cellRef)
+
+                    mkBvShiftLeftExpr(curData, prefixSize.zeroExtendToSort(cellDataSort)) eq fieldValue
+                } else {
+                    getDataConstraint(
+                        inferredStruct,
+                        state,
+                        cellRef,
+                        prefixSize,
+                        path.add(TlbStructure.Unknown.id),
+                        curMaxTlbDepth,
+                        dataLengths,
+                        possibleSwitchVariants,
+                    )
+                }
             }
         }
     }
