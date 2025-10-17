@@ -17,6 +17,7 @@ import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.api.readField
+import org.usvm.isStatic
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmSizeSort
@@ -291,7 +292,9 @@ fun extractInputParametersAddresses(
                 initialState.contractIdToC4Register[index]?.value?.value as? UConcreteHeapRef
                     ?: error("Unexpected value in c4: ${initialState.contractIdToC4Register[index]?.value?.value}")
 
-            cells[c4] = TvmParameterInfo.DataCellInfo(cellInfo)
+            if (c4.isStatic) {
+                cells[c4] = TvmParameterInfo.DataCellInfo(cellInfo)
+            }
         }
     } else {
         initialState.contractIdToC4Register.values.forEach { c4 ->
@@ -299,7 +302,9 @@ fun extractInputParametersAddresses(
                 c4.value.value as? UConcreteHeapRef
                     ?: error("Unexpected value in c4: ${c4.value.value}")
 
-            cells[c4Cell] = TvmParameterInfo.DataCellInfo(compositeLabelOfUnknown)
+            if (c4Cell.isStatic) {
+                cells[c4Cell] = TvmParameterInfo.DataCellInfo(compositeLabelOfUnknown)
+            }
         }
     }
 
