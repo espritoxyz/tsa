@@ -2,6 +2,7 @@ package org.usvm.machine.types.memory.stack
 
 import io.ksmt.expr.KBitVecValue
 import kotlinx.collections.immutable.PersistentList
+import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
 import org.ton.TlbStructureIdProvider
 import org.usvm.UBoolExpr
@@ -72,6 +73,21 @@ data class StackFrameOfUnknown(
                 loadData.type.defaultTlbLabelSize(this, loadData.cellRef, newPath.add(newStructure.id))
                     ?: error("Unexpected null defaultTlbLabelSize")
 
+            val tlbFieldConstraint =
+                if (label is TlbCompositeLabel) {
+                    scope.calcOnState {
+                        fieldManagers.cellDataFieldManager.addressToLabelMapper.calculatedTlbLabelInfo
+                            .getTlbFieldConstraints(
+                                this,
+                                loadData.cellRef,
+                                label,
+                                newPath.add(newStructure.id),
+                            )
+                    }
+                } else {
+                    trueExpr
+                }
+
             val restSizeField = UnknownBlockLengthField(newPath)
             val restSize = memory.readField(loadData.cellRef, restSizeField, restSizeField.getSort(ctx))
 
@@ -81,10 +97,12 @@ data class StackFrameOfUnknown(
             val sizeConstraint =
                 mkBvAddExpr(labelSize, restSize.zeroExtendToSort(sizeSort)) eq curSize.zeroExtendToSort(sizeSort)
 
-            scope.checkSat(sizeConstraint)
+            val constraint = sizeConstraint and tlbFieldConstraint
+
+            scope.checkSat(constraint)
                 ?: return@calcOnStateCtx defaultResult
 
-            scope.assert(sizeConstraint)
+            scope.assert(constraint)
                 ?: error("Unexpected solver result")
 
             inferenceManager.addInferredStruct(loadData.cellRef, path, newStructure)

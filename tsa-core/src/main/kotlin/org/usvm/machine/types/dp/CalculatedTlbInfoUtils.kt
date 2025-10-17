@@ -27,7 +27,7 @@ data class AbstractionForUExpr(
     fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
         AbstractionForUExpr(
             ref,
-            path.add(0, struct.id),
+            path.add(struct.id),
             state,
         )
 }

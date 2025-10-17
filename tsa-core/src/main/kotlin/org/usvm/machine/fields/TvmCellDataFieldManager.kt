@@ -11,6 +11,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
@@ -104,6 +105,12 @@ class TvmCellDataFieldManager(
             val dataConstraint = generatedDataConstraint(scope, newRefs)
             scope.assert(dataConstraint)
                 ?: return@with null
+
+            if (!dataConstraint.isTrue) {
+                scope.calcOnState {
+                    debugInfo.dataConstraints = debugInfo.dataConstraints.add(dataConstraint)
+                }
+            }
 
             scope.calcOnState {
                 memory.readField(cellRef, cellDataField, cellDataSort)

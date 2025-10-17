@@ -1,7 +1,6 @@
 package org.usvm.machine.types.memory
 
 import kotlinx.collections.immutable.PersistentList
-import kotlinx.collections.immutable.persistentListOf
 import org.ton.FixedSizeDataLabel
 import org.ton.TlbAddressByRef
 import org.ton.TlbBitArrayByRef
@@ -185,11 +184,12 @@ fun generateTlbFieldConstraints(
     label: TlbCompositeLabel,
     possibleSwitchVariants: List<Map<SwitchPrefix, List<SwitchPrefix.SwitchVariant>>>,
     maxTlbDepth: Int,
+    initialPath: PersistentList<Int>,
 ) = generateTlbFieldConstraints(
     state,
     ref,
     label.internalStructure,
-    persistentListOf(),
+    initialPath,
     possibleSwitchVariants,
     maxTlbDepth,
 )

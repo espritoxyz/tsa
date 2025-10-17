@@ -13,6 +13,7 @@ import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmRealInst
 import org.ton.targets.TvmTarget
 import org.usvm.PathNode
+import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
 import org.usvm.UCallStack
 import org.usvm.UConcreteHeapAddress
@@ -278,6 +279,8 @@ data class TvmContractExecutionMemory(
 
 class TvmStateDebugInfo(
     var numberOfDataEqualityConstraintsFromTlb: Int = 0,
+    var dataConstraints: PersistentSet<UBoolExpr> = persistentSetOf(),
+    var extractedTlbGrams: PersistentSet<UExpr<TvmContext.TvmInt257Sort>> = persistentSetOf(),
 ) {
-    fun clone() = TvmStateDebugInfo(numberOfDataEqualityConstraintsFromTlb)
+    fun clone() = TvmStateDebugInfo(numberOfDataEqualityConstraintsFromTlb, dataConstraints, extractedTlbGrams)
 }

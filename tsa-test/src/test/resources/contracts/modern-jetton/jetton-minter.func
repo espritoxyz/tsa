@@ -74,6 +74,7 @@ const int provide_address_gas_consumption = 10000000;
         int forward_ton_amount = in_msg_body~load_coins();
         int total_ton_amount = in_msg_body~load_coins();
         throw_unless(error::discovery_fee_not_matched, total_ton_amount > forward_ton_amount);
+        throw(1001);
         cell mint_request = begin_cell()
                 .store_op(op::internal_transfer)
                 .store_query_id(query_id)
@@ -87,6 +88,8 @@ const int provide_address_gas_consumption = 10000000;
         save_data(total_supply + jetton_amount, admin_address, content, jetton_wallet_code);
         return ();
     }
+
+    throw(1000);
 
     if (op == op::burn_notification) {
         int jetton_amount = in_msg_body~load_coins();

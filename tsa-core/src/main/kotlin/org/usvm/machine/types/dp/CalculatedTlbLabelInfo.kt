@@ -1,5 +1,6 @@
 package org.usvm.machine.types.dp
 
+import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbCoinsLabel
@@ -117,12 +118,13 @@ class CalculatedTlbLabelInfo(
         state: TvmState,
         address: UConcreteHeapRef,
         label: TlbCompositeLabel,
+        initialPath: PersistentList<Int> = persistentListOf(),
         maxDepth: Int = maxTlbDepth,
     ): UBoolExpr {
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate switch constraints for depth $maxDepth"
         }
-        return generateTlbFieldConstraints(state, address, label, possibleSwitchVariants, maxDepth)
+        return generateTlbFieldConstraints(state, address, label, possibleSwitchVariants, maxDepth, initialPath)
     }
 
     fun getIndividualTlbDepthBound(label: TlbCompositeLabel): Int? = individualMaxCellTlbDepth[label]

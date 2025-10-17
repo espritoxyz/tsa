@@ -569,6 +569,10 @@ fun sliceLoadGramsTlb(
         val (length, grams) =
             valueFromTlb?.let {
                 doWithState {
+                    debugInfo.extractedTlbGrams = debugInfo.extractedTlbGrams.add(valueFromTlb.second)
+                }
+
+                doWithState {
                     sliceMoveDataPtr(newSlice, bits = 4)
                 }
 
