@@ -22,6 +22,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.ContinueLoadOnNextFrameData
 import org.usvm.machine.types.TvmCellDataBitArrayRead
@@ -44,17 +45,17 @@ data class KnownTypeTlbStackFrame(
     override val leftTlbDepth: Int,
 ) : TlbStackFrame {
     override fun <ReadResult> step(
-        state: TvmState,
+        scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
-        with(state.ctx) {
+        scope.calcOnStateCtx {
             if (struct.typeLabel !is TlbBuiltinLabel) {
-                return listOf(GuardedResult(trueExpr, StepError(error = null), value = null))
+                return@calcOnStateCtx listOf(GuardedResult(trueExpr, StepError(error = null), value = null))
             }
 
-            val args = struct.typeArgs(state, loadData.cellRef, path)
+            val args = struct.typeArgs(this, loadData.cellRef, path)
 
-            val frameIsEmpty = struct.typeLabel.isEmptyLabel(this, args)
+            val frameIsEmpty = struct.typeLabel.isEmptyLabel(ctx, args)
 
             val continueLoadingOnNextFrameData = createContinueLoadingOnNextFrame(loadData, struct.typeLabel, args)
 
@@ -63,21 +64,21 @@ data class KnownTypeTlbStackFrame(
                     continueLoadingOnNextFrameData.guard or frameIsEmpty
                 } ?: frameIsEmpty
 
-            val accept = struct.typeLabel.accepts(state.ctx, args, loadData.type)
+            val accept = struct.typeLabel.accepts(ctx, args, loadData.type)
             val readBvValue =
                 if (loadData.type is TvmCellDataBitArrayRead) {
                     extractKBvOfConcreteSizeFromTlbIfPossible(
                         struct,
                         loadData.cellRef,
                         path,
-                        state,
+                        this,
                     )
                 } else {
                     null
                 }
             val nextFrame =
                 buildFrameForStructure(
-                    state.ctx,
+                    ctx,
                     struct.rest,
                     path,
                     leftTlbDepth,
@@ -85,14 +86,14 @@ data class KnownTypeTlbStackFrame(
                     NextFrame(it, readBvValue)
                 } ?: EndOfStackFrame
 
-            val error = createStepError(struct.typeLabel, args, loadData, state)
+            val error = createStepError(struct.typeLabel, args, loadData, this)
             val value =
                 struct.typeLabel.extractTlbValueIfPossible(
                     struct,
                     loadData.type,
                     loadData.cellRef,
                     path,
-                    state,
+                    this,
                     leftTlbDepth,
                 )
 

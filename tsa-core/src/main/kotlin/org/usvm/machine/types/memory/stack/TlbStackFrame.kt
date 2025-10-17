@@ -8,7 +8,6 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -61,7 +60,7 @@ sealed interface TlbStackFrame {
     val leftTlbDepth: Int
 
     fun <ReadResult> step(
-        state: TvmState,
+        scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>>
 

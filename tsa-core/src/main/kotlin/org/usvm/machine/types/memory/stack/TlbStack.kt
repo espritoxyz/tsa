@@ -10,9 +10,9 @@ import org.usvm.UExpr
 import org.usvm.isFalse
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.allocSliceFromData
+import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.UExprReadResult
 import org.usvm.machine.types.isEmptyRead
@@ -26,32 +26,34 @@ data class TlbStack(
         get() = frames.isEmpty()
 
     fun <ReadResult> step(
-        state: TvmState,
+        scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
-        with(state.ctx) {
-            val ctx = state.ctx
+        scope.doWithCtx {
+            val ctx = scope.ctx
             val result = mutableListOf<GuardedResult<ReadResult>>()
 
             val emptyRead = loadData.type.isEmptyRead(ctx)
 
             if (frames.isEmpty()) {
                 // finished parsing
-                return listOf(
-                    GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
-                    GuardedResult(
-                        emptyRead.not(),
-                        Error(TvmStructuralError(TvmUnexpectedDataReading(loadData.type), state.phase, state.stack)),
-                        value = null,
-                    ),
-                )
+                return@doWithCtx scope.calcOnState {
+                    listOf(
+                        GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
+                        GuardedResult(
+                            emptyRead.not(),
+                            Error(TvmStructuralError(TvmUnexpectedDataReading(loadData.type), phase, stack)),
+                            value = null,
+                        ),
+                    )
+                }
             }
 
             result.add(GuardedResult(emptyRead, NewStack(this@TlbStack), value = null))
 
             val lastFrame = frames.last()
 
-            val frameSteps = lastFrame.step(state, loadData)
+            val frameSteps = lastFrame.step(scope, loadData)
             frameSteps.forEach { (guard, stackFrameStepResult, value) ->
                 if (guard.isFalse) {
                     return@forEach
@@ -97,7 +99,7 @@ data class TlbStack(
                                     frames + nextLevelFrame,
                                     newDeepestError,
                                 )
-                            newStack.step(state, loadData).forEach { (innerGuard, stepResult, value) ->
+                            newStack.step(scope, loadData).forEach { (innerGuard, stepResult, value) ->
                                 val newGuard = ctx.mkAnd(guard, innerGuard)
                                 result.add(GuardedResult(newGuard and emptyRead.not(), stepResult, value))
                             }
@@ -125,7 +127,7 @@ data class TlbStack(
                         val newLoadData = stackFrameStepResult.loadData
                         val newFrames = skipSingleStep(ctx, frames)
                         val newStack = TlbStack(newFrames, deepestError)
-                        val stepResults = newStack.step(state, newLoadData)
+                        val stepResults = newStack.step(scope, newLoadData)
                         stepResults.forEach { (innerGuard, stepResult, _) ->
                             // values from steps are discarded as we are only interested
                             // in concrete bitvector reads when reading values across multiple
@@ -152,7 +154,7 @@ data class TlbStack(
                                     value =
                                         joinedConcreteValue?.let {
                                             UExprReadResult(
-                                                state.allocSliceFromData(it),
+                                                scope.calcOnState { allocSliceFromData(it) },
                                             ).uncheckedCast()
                                         },
                                 ),
@@ -164,7 +166,7 @@ data class TlbStack(
 
             result.removeAll { it.guard.isFalse }
 
-            return result
+            result
         }
 
     fun readInModel(readInfo: ConcreteReadInfo): Triple<String, ConcreteReadInfo, TlbStack> {

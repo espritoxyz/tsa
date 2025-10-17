@@ -10,7 +10,7 @@ import org.usvm.api.readField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.fields.TvmCellDataLengthFieldManager.Companion.UnknownBlockLengthField
-import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 import org.usvm.sizeSort
@@ -21,11 +21,11 @@ data class StackFrameOfUnknown(
     val hasOffset: Boolean,
 ) : TlbStackFrame {
     override fun <ReadResult> step(
-        state: TvmState,
+        scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
     ): List<GuardedResult<ReadResult>> =
-        with(state.ctx) {
-            val inferenceManager = state.fieldManagers.cellDataFieldManager.inferenceManager
+        scope.calcOnStateCtx {
+            val inferenceManager = fieldManagers.cellDataFieldManager.inferenceManager
             val inferredStruct = inferenceManager.getInferredStruct(loadData.cellRef, path)
 
             if (inferredStruct != null) {
@@ -34,28 +34,28 @@ data class StackFrameOfUnknown(
                 }
 
                 val nextFrame =
-                    buildFrameForStructure(state.ctx, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)
+                    buildFrameForStructure(ctx, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)
                         ?: error("Unexpected null frame")
 
-                return nextFrame.step(state, loadData)
+                return@calcOnStateCtx nextFrame.step(scope, loadData)
             }
 
             val defaultResult =
                 listOf(
                     GuardedResult<ReadResult>(
-                        state.ctx.trueExpr,
+                        ctx.trueExpr,
                         NextFrame(StackFrameOfUnknown(path, leftTlbDepth, hasOffset = true)),
                         value = null,
                     ),
                 )
 
             if (hasOffset || inferenceManager.isFixated(loadData.cellRef)) {
-                return defaultResult
+                return@calcOnStateCtx defaultResult
             }
 
             val label =
                 loadData.type.defaultTlbLabel()
-                    ?: return defaultResult
+                    ?: return@calcOnStateCtx defaultResult
 
             val newStructure =
                 TlbStructure.KnownTypePrefix(
@@ -66,36 +66,34 @@ data class StackFrameOfUnknown(
                     rest = TlbStructure.Unknown,
                 )
 
-            inferenceManager.addInferredStruct(loadData.cellRef, path, newStructure)
-
             val newPath = path.add(TlbStructure.Unknown.id)
 
             val labelSize =
-                loadData.type.defaultTlbLabelSize(state, loadData.cellRef, newPath.add(newStructure.id))
+                loadData.type.defaultTlbLabelSize(this, loadData.cellRef, newPath.add(newStructure.id))
                     ?: error("Unexpected null defaultTlbLabelSize")
 
             val restSizeField = UnknownBlockLengthField(newPath)
-            val restSize = state.memory.readField(loadData.cellRef, restSizeField, restSizeField.getSort(state.ctx))
+            val restSize = memory.readField(loadData.cellRef, restSizeField, restSizeField.getSort(ctx))
 
             val curSizeField = UnknownBlockLengthField(path)
-            val curSize = state.memory.readField(loadData.cellRef, curSizeField, curSizeField.getSort(state.ctx))
+            val curSize = memory.readField(loadData.cellRef, curSizeField, curSizeField.getSort(ctx))
 
             val sizeConstraint =
                 mkBvAddExpr(labelSize, restSize.zeroExtendToSort(sizeSort)) eq curSize.zeroExtendToSort(sizeSort)
 
+            scope.checkSat(sizeConstraint)
+                ?: return@calcOnStateCtx defaultResult
+
+            scope.assert(sizeConstraint)
+                ?: error("Unexpected solver result")
+
+            inferenceManager.addInferredStruct(loadData.cellRef, path, newStructure)
+
             val nextFrame =
-                buildFrameForStructure(state.ctx, newStructure, newPath, leftTlbDepth)
+                buildFrameForStructure(ctx, newStructure, newPath, leftTlbDepth)
                     ?: error("Unexpected null frame")
 
-            val furtherResult = nextFrame.step(state, loadData)
-
-            return furtherResult.map {
-                GuardedResult(
-                    guard = it.guard and sizeConstraint,
-                    result = it.result,
-                    value = it.value,
-                )
-            }
+            nextFrame.step(scope, loadData)
         }
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
