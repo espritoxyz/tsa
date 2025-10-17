@@ -26,6 +26,8 @@ import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
+import org.usvm.machine.interpreter.InputDict
+import org.usvm.machine.interpreter.InputDictRootInformation
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
@@ -92,6 +94,7 @@ class TvmState(
     var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
     var currentPhaseBeginTime: Int = 0,
     val debugInfo: TvmStateDebugInfo = TvmStateDebugInfo(),
+    var inputDictionaryStorage: InputDictionaryStorage = InputDictionaryStorage(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -204,6 +207,7 @@ class TvmState(
             eventsLog = eventsLog,
             currentPhaseBeginTime = currentPhaseBeginTime,
             debugInfo = debugInfo.clone(),
+            inputDictionaryStorage = inputDictionaryStorage.clone(),
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -283,4 +287,11 @@ class TvmStateDebugInfo(
     var extractedTlbGrams: PersistentSet<UExpr<TvmContext.TvmInt257Sort>> = persistentSetOf(),
 ) {
     fun clone() = TvmStateDebugInfo(numberOfDataEqualityConstraintsFromTlb, dataConstraints, extractedTlbGrams)
+}
+
+class InputDictionaryStorage(
+    val memory: PersistentMap<UConcreteHeapRef, InputDict> = persistentMapOf(),
+    val inputDicts: PersistentMap<Int, InputDictRootInformation> = persistentMapOf(),
+) {
+    fun clone() = this
 }

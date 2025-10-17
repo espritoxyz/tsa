@@ -4,20 +4,22 @@
     return ();
 }
 
+;; TODO add tests with (-1) pivot to check for signed stuff
 () check_same_result_when_same_input_get_next(slice in_msg) impure method_id (1) {
     cell some_cell = in_msg~load_dict();
-    (int i1, _, int found1) = some_cell.idict_get_next?(64, -1);
+    (int i1, _, int found1) = some_cell.udict_get_next?(64, 1);
     throw_if(300, ~ found1);
-    (int i2, _, int found2) = some_cell.idict_get_next?(64, -1);
+    (int i2, _, int found2) = some_cell.udict_get_next?(64, 1);
     throw_if(400, ~ found2);
     throw_if(401, found1 & found2 & i1 != i2);
+    throw(500);
 }
 
 () check_same_result_when_same_input_get_prev(slice in_msg) impure method_id (2) {
     cell some_cell = in_msg~load_dict();
-    (int i1, _, int found1) = some_cell.idict_get_prev?(64, -1);
+    (int i1, _, int found1) = some_cell.udict_get_prev?(64, 1);
     throw_if(300, ~ found1);
-    (int i2, _, int found2) = some_cell.idict_get_prev?(64, -1);
+    (int i2, _, int found2) = some_cell.udict_get_prev?(64, 1);
     throw_if(400, ~ found2);
     throw_if(401, found1 & found2 & i1 != i2);
     throw(500);
@@ -25,11 +27,11 @@
 
 () check_next_prev_is_id(slice in_msg) impure method_id (3) {
     cell some_cell = in_msg~load_dict();
-    (int initial, _, int found1) = some_cell.idict_get_next?(64, -1);
+    (int initial, _, int found1) = some_cell.udict_get_next?(64, 1);
     throw_if(301, ~ found1);
-    (int next, _, int found2) = some_cell.idict_get_next?(64, initial);
+    (int next, _, int found2) = some_cell.udict_get_next?(64, initial);
     throw_if(302, ~ found2);
-    (int nextprev, _, int found3) = some_cell.idict_get_prev?(64, next);
+    (int nextprev, _, int found3) = some_cell.udict_get_prev?(64, next);
     throw_if(303, ~ found3);
     throw_if(400, nextprev != initial);
     throw(500);
@@ -74,4 +76,15 @@
     throw_if(401, ~ some_key == 0);
     throw_if(402, ~ slice_hash(some_value) != ~ slice_hash(another_value));
     throw(500); ;; successfull execution
+}
+
+() check_same_result_when_same_input_get_next_notfound(slice in_msg) impure method_id (8) {
+    cell some_cell = in_msg~load_dict();
+    (_, _, int found0) = some_cell.udict_get_prev?(64, 1);
+    throw_if(300, ~ found0); ;; assert not empty
+    (_, _, int found1) = some_cell.udict_get_next?(64, 2);
+    throw_if(301, found1);
+    (_, _, int found2) = some_cell.udict_get_next?(64, 2);
+    throw_if(400, found2);
+    throw(500);
 }

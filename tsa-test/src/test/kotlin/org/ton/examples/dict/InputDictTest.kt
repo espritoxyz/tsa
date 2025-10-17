@@ -55,9 +55,16 @@ class InputDictTest {
         }
 
     @Test
+    fun `get_next is pure function when not found`() =
+        analyzeMethodAndRun(8) { tests ->
+            tests.assertHasExitCodes(300, 301, 500)
+            tests.assertDoesNotHaveExitCodes(400, 401)
+        }
+
+    @Test
     fun `get_prev is pure function`() =
         analyzeMethodAndRun(2) { tests ->
-            tests.assertHasExitCodes(300, 500)
+            tests.assertHasExitCodes(300)
             tests.assertDoesNotHaveExitCodes(400, 401)
         }
 
