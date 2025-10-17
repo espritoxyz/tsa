@@ -10,6 +10,7 @@ import org.usvm.memory.ULValue
 import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.UReadOnlyMemory
+import org.usvm.mkSizeExpr
 
 object TvmCellRefsRegionLValue : ULValue<TvmCellRefsRegionLValue, Nothing> {
     override val key: TvmCellRefsRegionLValue
@@ -72,6 +73,11 @@ fun TvmState.copyCellRefs(
     srcCell: UHeapRef,
     dstCell: UConcreteHeapRef,
 ) {
+    // to propagate structural constraints if needed
+    for (i in 0..3) {
+        readCellRef(srcCell, ctx.mkSizeExpr(i))
+    }
+
     val region = memory.tvmCellRefsRegion()
     val updatedRegion = region.copyRefValues(srcCell, dstCell)
     memory.setRegion(TvmCellRefsRegionId, updatedRegion)
