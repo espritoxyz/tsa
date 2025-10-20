@@ -2,6 +2,7 @@ package org.usvm.machine.types
 
 import org.ton.TlbCompositeLabel
 import org.ton.TvmParameterInfo
+import org.ton.compositeLabelOfUnknown
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.isAllocated
@@ -207,11 +208,12 @@ class TvmAddressToLabelMapper(
             }
 
             labelInfo.variants.entries.fold(trueExpr as UBoolExpr) { acc, (cellInfo, guard) ->
-                if (cellInfo !is TvmParameterInfo.DataCellInfo) {
-                    return@fold acc
-                }
-
-                val label = cellInfo.dataCellStructure
+                val label =
+                    when (cellInfo) {
+                        is TvmParameterInfo.DataCellInfo -> cellInfo.dataCellStructure
+                        is TvmParameterInfo.DictCellInfo -> return@fold acc
+                        TvmParameterInfo.UnknownCellInfo -> compositeLabelOfUnknown
+                    }
 
                 var curGuard = trueExpr as UBoolExpr
                 if (generateSizeConstraints) {
@@ -220,7 +222,7 @@ class TvmAddressToLabelMapper(
                 }
                 if (generateDataConstraints) {
                     val dataConstraints = calculatedTlbLabelInfo.getDataConstraints(state, ref, label)
-                    curGuard = curGuard and (dataConstraints ?: trueExpr)
+                    curGuard = curGuard and dataConstraints
                 }
                 if (generateTlbFieldConstraints) {
                     val tlbConstraints = calculatedTlbLabelInfo.getTlbFieldConstraints(state, ref, label)
