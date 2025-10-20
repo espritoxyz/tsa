@@ -242,7 +242,7 @@ data class KnownTypeTlbStackFrame(
 
                 is TlbIntegerLabelOfSymbolicSize -> {
                     val typeArgs = struct.typeArgs(state, read.ref, path)
-                    val intSizeSymbolic = struct.typeLabel.bitSize(state.ctx, typeArgs)
+                    val intSizeSymbolic = struct.typeLabel.bitSize(state.ctx, typeArgs).sizeBits
                     val intSize = model.eval(intSizeSymbolic).intValue()
                     check(read.leftBits >= intSize)
 

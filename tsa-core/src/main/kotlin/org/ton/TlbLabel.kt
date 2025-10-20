@@ -4,6 +4,7 @@ import org.ton.TlbStructure.Empty
 import org.ton.TlbStructure.KnownTypePrefix
 import org.ton.TlbStructure.LoadRef
 import org.ton.TlbStructure.SwitchPrefix
+import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
@@ -48,10 +49,39 @@ open class TlbCompositeLabel(
 sealed class TlbIntegerLabel :
     TlbAtomicLabel(),
     TlbBuiltinLabel {
-    abstract val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort>
+    abstract val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> BitSize
     abstract val isSigned: Boolean
     abstract val endian: Endian
     abstract val lengthUpperBound: Int
+
+    sealed interface BitSize {
+        val sizeBits: UExpr<TvmSizeSort>
+        val upperBoundConstraintIsNeeded: Boolean
+            get() = true
+    }
+
+    data class SizeExprBits(
+        override val sizeBits: UExpr<TvmSizeSort>,
+    ) : BitSize
+
+    data class VariantsList(
+        val ctx: TvmContext,
+        val variants: List<Pair<UBoolExpr, Int>>,
+        val other: Int,
+    ) : BitSize {
+        override val upperBoundConstraintIsNeeded: Boolean
+            get() = false
+
+        override val sizeBits: UExpr<TvmSizeSort>
+            get() =
+                variants.fold(ctx.mkSizeExpr(other)) { acc, (guard, size) ->
+                    ctx.mkIte(
+                        guard,
+                        trueBranch = ctx.mkSizeExpr(size),
+                        falseBranch = acc,
+                    )
+                }
+    }
 }
 
 sealed interface FixedSizeDataLabel {
@@ -101,8 +131,8 @@ data class TlbIntegerLabelOfConcreteSize(
     TlbResolvedBuiltinLabel,
     FixedSizeDataLabel {
     override val arity: Int = 0
-    override val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort> = { ctx, _ ->
-        ctx.mkSizeExpr(concreteSize)
+    override val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> BitSize = { ctx, _ ->
+        SizeExprBits(ctx.mkSizeExpr(concreteSize))
     }
     override val lengthUpperBound: Int
         get() = concreteSize
@@ -115,7 +145,7 @@ class TlbIntegerLabelOfSymbolicSize(
     override val endian: Endian,
     override val arity: Int,
     override val lengthUpperBound: Int = if (isSigned) 257 else 256,
-    override val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> UExpr<TvmSizeSort>,
+    override val bitSize: (TvmContext, List<UExpr<TvmSizeSort>>) -> BitSize,
 ) : TlbIntegerLabel()
 
 data object TlbEmptyLabel : TlbCompositeLabel("") {
@@ -204,7 +234,16 @@ data object TlbCoinsLabel : TlbResolvedBuiltinLabel, TlbCompositeLabel("Coins") 
                             lengthUpperBound = 120,
                             arity = 1,
                         ) { ctx, args ->
-                            ctx.mkBvMulExpr(args.single(), ctx.mkSizeExpr(8))
+                            val arg = args.single()
+                            val variants =
+                                List(16) {
+                                    ctx.mkEq(arg, ctx.mkSizeExpr(it)) to it * 8
+                                }
+                            TlbIntegerLabel.VariantsList(
+                                ctx,
+                                variants = variants.drop(1),
+                                other = 0,
+                            )
                         },
                         typeArgIds = listOf(coinPrefixId),
                         rest = Empty,

@@ -345,7 +345,7 @@ class TvmTestStateResolver(
         args: List<UExpr<TvmSizeSort>>,
     ) = when (label) {
         is TlbIntegerLabel -> {
-            val concreteSize = resolveInt(label.bitSize(ctx, args))
+            val concreteSize = resolveInt(label.bitSize(ctx, args).sizeBits)
             TlbIntegerLabelOfConcreteSize(concreteSize, label.isSigned, label.endian)
         }
 

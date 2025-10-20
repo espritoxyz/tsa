@@ -12,6 +12,7 @@ import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
+import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbLabel
@@ -128,7 +129,11 @@ data class TvmCellDataIntegerRead(
         if (sizeBits is KInterpretedValue) {
             TlbIntegerLabelOfConcreteSize(sizeBits.intValue(), isSigned, endian)
         } else {
-            TlbIntegerLabelOfSymbolicSize(isSigned, endian, arity = 0) { _, _ -> sizeBits }
+            TlbIntegerLabelOfSymbolicSize(
+                isSigned,
+                endian,
+                arity = 0,
+            ) { _, _ -> TlbIntegerLabel.SizeExprBits(sizeBits) }
         }
 
     override fun defaultTlbLabelSize(

@@ -10,6 +10,7 @@ import org.ton.TlbAddressByRef
 import org.ton.TlbBitArrayByRef
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
+import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbLabel
@@ -468,7 +469,12 @@ fun TvmState.storeIntTlbLabelToBuilder(
             state.memory.writeField(ref, field, field.getSort(this), valueShrinked, guard = trueExpr)
         }
     } else {
-        val label = TlbIntegerLabelOfSymbolicSize(isSigned, endian, arity = 0) { _, _ -> sizeBits }
+        val label =
+            TlbIntegerLabelOfSymbolicSize(
+                isSigned,
+                endian,
+                arity = 0,
+            ) { _, _ -> TlbIntegerLabel.SizeExprBits(sizeBits) }
         val valueShrinked = value.extractToSort(mkBvSort(label.lengthUpperBound.toUInt()))
 
         addTlbLabelToBuilder(oldBuilder, newBuilder, label) { state, ref, structId ->
