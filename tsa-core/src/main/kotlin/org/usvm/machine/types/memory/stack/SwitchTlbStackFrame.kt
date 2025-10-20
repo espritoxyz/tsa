@@ -7,6 +7,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.types.SizedCellDataTypeRead
@@ -112,9 +113,10 @@ data class SwitchTlbStackFrame(
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
 
-    override val isSkippable: Boolean = false
-
-    override fun skipLabel(ctx: TvmContext): TlbStackFrame? = null
+    override fun skipLabel(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ) = TlbStackFrame.SkipNotPossible
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo,
@@ -135,12 +137,12 @@ data class SwitchTlbStackFrame(
                 }
 
             possibleVariants.forEachIndexed { idx, (key, variant) ->
-                val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, read.address, path)
+                val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, read.ref, path)
                 if (model.eval(guard).isTrue) {
                     val further = buildFrameForStructure(this, variant, path, leftTlbDepth)
                     val newReadInfo =
                         TlbStack.ConcreteReadInfo(
-                            read.address,
+                            read.ref,
                             read.resolver,
                             read.leftBits - struct.switchSize,
                         )

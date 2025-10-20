@@ -11,6 +11,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.types.SizedCellDataTypeRead
@@ -152,10 +153,13 @@ data class ConstTlbStackFrame(
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
 
-    override val isSkippable: Boolean = true
-
-    override fun skipLabel(ctx: TvmContext): TlbStackFrame? =
-        buildFrameForStructure(ctx, nextStruct, path, leftTlbDepth)
+    override fun skipLabel(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ): TlbStackFrame.SkipResult =
+        buildFrameForStructure(state.ctx, nextStruct, path, leftTlbDepth)?.let {
+            TlbStackFrame.NextFrame(it)
+        } ?: TlbStackFrame.EndOfFrame
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo,
@@ -163,7 +167,7 @@ data class ConstTlbStackFrame(
         check(read.leftBits >= data.length)
         val newReadInfo =
             TlbStack.ConcreteReadInfo(
-                read.address,
+                read.ref,
                 read.resolver,
                 read.leftBits - data.length,
             )

@@ -8,6 +8,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -66,10 +67,6 @@ sealed interface TlbStackFrame {
 
     fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame?
 
-    val isSkippable: Boolean
-
-    fun skipLabel(ctx: TvmContext): TlbStackFrame?
-
     fun readInModel(read: TlbStack.ConcreteReadInfo): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>>
 
     fun compareWithOtherFrame(
@@ -84,6 +81,21 @@ sealed interface TlbStackFrame {
         val result: StackFrameStepResult<ReadResult>,
         val value: ReadResult?,
     )
+
+    fun skipLabel(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ): SkipResult
+
+    sealed interface SkipResult
+
+    data object EndOfFrame : SkipResult
+
+    data object SkipNotPossible : SkipResult
+
+    data class NextFrame(
+        val frame: TlbStackFrame,
+    ) : SkipResult
 }
 
 sealed interface StackFrameStepResult<out ReadResult>

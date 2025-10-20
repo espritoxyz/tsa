@@ -10,6 +10,7 @@ import org.usvm.UExpr
 import org.usvm.isFalse
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.doWithCtx
@@ -61,7 +62,10 @@ data class TlbStack(
 
                 when (stackFrameStepResult) {
                     is EndOfStackFrame -> {
-                        val newFrames = skipSingleStep(ctx, frames.viewWithoutLast())
+                        val newFrames =
+                            calcOnState {
+                                skipSingleStep(this, loadData.cellRef, frames.viewWithoutLast())
+                            }
                         result.add(
                             GuardedResult(
                                 guard and emptyRead.not(),
@@ -125,7 +129,10 @@ data class TlbStack(
 
                     is ContinueLoadOnNextFrame<ReadResult> -> {
                         val newLoadData = stackFrameStepResult.loadData
-                        val newFrames = skipSingleStep(ctx, frames)
+                        val newFrames =
+                            calcOnState {
+                                skipSingleStep(this, loadData.cellRef, frames)
+                            }
                         val newStack = TlbStack(newFrames, deepestError)
                         val stepResults = newStack.step(scope, newLoadData)
                         stepResults.forEach { (innerGuard, stepResult, _) ->
@@ -175,7 +182,7 @@ data class TlbStack(
         val (readValue, leftToRead, newFrames) = lastFrame.readInModel(readInfo)
         val deepFrames =
             if (newFrames.isEmpty()) {
-                skipSingleStep(readInfo.resolver.state.ctx, frames.viewWithoutLast())
+                skipSingleStep(readInfo.resolver.state, readInfo.ref, frames.viewWithoutLast())
             } else {
                 frames.viewWithoutLast()
             }
@@ -211,7 +218,7 @@ data class TlbStack(
     ) : StepResult
 
     data class ConcreteReadInfo(
-        val address: UConcreteHeapRef,
+        val ref: UConcreteHeapRef,
         val resolver: TvmTestStateResolver,
         val leftBits: Int,
     )
@@ -235,24 +242,27 @@ data class TlbStack(
 
         /**
          *  Until we can skip the label at the top frame, pop the frame (possibly zero times).
-         *  Then skip the label at the last fram and return the result.
+         *  Then skip the label at the last frame and return the result.
          */
         private fun skipSingleStep(
-            ctx: TvmContext,
+            state: TvmState,
+            ref: UConcreteHeapRef,
             framesToPop: List<TlbStackFrame>,
         ): List<TlbStackFrame> {
             if (framesToPop.isEmpty()) {
                 return framesToPop
             }
             val prevFrame = framesToPop.last()
-            check(prevFrame.isSkippable) {
-                "$prevFrame must be skippable, but it is not"
-            }
-            val newFrame = prevFrame.skipLabel(ctx)
-            return if (newFrame == null) {
-                skipSingleStep(ctx, framesToPop.viewWithoutLast())
-            } else {
-                framesToPop.viewWithoutLast() + newFrame
+            return when (val newFrame = prevFrame.skipLabel(state, ref)) {
+                TlbStackFrame.SkipNotPossible -> {
+                    error("Cannot skip frame $prevFrame")
+                }
+                TlbStackFrame.EndOfFrame -> {
+                    skipSingleStep(state, ref, framesToPop.viewWithoutLast())
+                }
+                is TlbStackFrame.NextFrame -> {
+                    framesToPop.viewWithoutLast() + newFrame.frame
+                }
             }
         }
     }

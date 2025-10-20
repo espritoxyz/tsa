@@ -192,9 +192,12 @@ data class KnownTypeTlbStackFrame(
         }
     }
 
-    override val isSkippable: Boolean = true
-
-    override fun skipLabel(ctx: TvmContext) = buildFrameForStructure(ctx, struct.rest, path, leftTlbDepth)
+    override fun skipLabel(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ) = buildFrameForStructure(state.ctx, struct.rest, path, leftTlbDepth)?.let {
+        TlbStackFrame.NextFrame(it)
+    } ?: TlbStackFrame.EndOfFrame
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo,
@@ -216,49 +219,49 @@ data class KnownTypeTlbStackFrame(
                     }
 
                     val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
-                    val contentSymbolic = state.memory.readField(read.address, field, field.getSort(this))
+                    val contentSymbolic = state.memory.readField(read.ref, field, field.getSort(this))
                     val content = model.eval(contentSymbolic)
                     val bits = (content as? KBitVecValue)?.stringValue ?: error("Unexpected expr $content")
 
                     val newRead =
                         TlbStack.ConcreteReadInfo(
-                            read.address,
+                            read.ref,
                             read.resolver,
                             read.leftBits - struct.typeLabel.concreteSize,
                         )
 
-                    val newFrame = skipLabel(this)
+                    val newFrame = (skipLabel(read.resolver.state, read.ref) as? TlbStackFrame.NextFrame)?.frame
 
                     Triple(bits, newRead, newFrame?.let { listOf(it) } ?: emptyList())
                 }
 
                 is TlbIntegerLabelOfSymbolicSize -> {
-                    val typeArgs = struct.typeArgs(state, read.address, path)
+                    val typeArgs = struct.typeArgs(state, read.ref, path)
                     val intSizeSymbolic = struct.typeLabel.bitSize(state.ctx, typeArgs)
                     val intSize = model.eval(intSizeSymbolic).intValue()
                     check(read.leftBits >= intSize)
 
                     val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
-                    val intValueSymbolic = state.memory.readField(read.address, field, field.getSort(this))
+                    val intValueSymbolic = state.memory.readField(read.ref, field, field.getSort(this))
                     val intValue = (model.eval(intValueSymbolic) as KBitVecValue<*>).stringValue
 
                     val intValueBinaryTrimmed = intValue.takeLast(intSize)
 
                     val newRead =
                         TlbStack.ConcreteReadInfo(
-                            read.address,
+                            read.ref,
                             read.resolver,
                             read.leftBits - intSize,
                         )
 
-                    val newFrame = skipLabel(this)
+                    val newFrame = (skipLabel(read.resolver.state, read.ref) as? TlbStackFrame.NextFrame)?.frame
 
                     Triple(intValueBinaryTrimmed, newRead, newFrame?.let { listOf(it) } ?: emptyList())
                 }
 
                 is TlbBitArrayByRef, is TlbAddressByRef -> {
                     val field = SliceRefField(struct.id, path)
-                    val slice = state.memory.readField(read.address, field, field.getSort(this))
+                    val slice = state.memory.readField(read.ref, field, field.getSort(this))
 
                     val content =
                         read.resolver.resolveRef(slice) as? TvmTestSliceValue
@@ -268,12 +271,12 @@ data class KnownTypeTlbStackFrame(
 
                     val newRead =
                         TlbStack.ConcreteReadInfo(
-                            read.address,
+                            read.ref,
                             read.resolver,
                             read.leftBits - curData.length,
                         )
 
-                    val newFrame = skipLabel(this)
+                    val newFrame = (skipLabel(read.resolver.state, read.ref) as? TlbStackFrame.NextFrame)?.frame
 
                     Triple(curData, newRead, newFrame?.let { listOf(it) } ?: emptyList())
                 }
