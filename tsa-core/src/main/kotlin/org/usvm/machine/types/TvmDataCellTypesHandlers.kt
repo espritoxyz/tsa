@@ -38,6 +38,7 @@ import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.types.memory.ConcreteSizeBlockField
 import org.usvm.machine.types.memory.SliceRefField
 import org.usvm.machine.types.memory.SymbolicSizeBlockField
+import org.usvm.machine.types.memory.stack.BadSizeContext
 import org.usvm.machine.types.memory.stack.LimitedLoadData
 import org.usvm.machine.types.memory.stack.TlbStack
 import org.usvm.mkSizeAddExpr
@@ -81,6 +82,8 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     oldSlice: UHeapRef,
     type: TvmCellDataTypeRead<ReadResult>,
     newSlice: UConcreteHeapRef,
+    badCellSizeIsExceptional: Boolean,
+    onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     restActions: TvmStepScopeManager.(ReadResult?) -> Unit,
 ) = doWithCtx {
     val turnOnTLBParsingChecks = doWithCtx { tvmOptions.turnOnTLBParsingChecks }
@@ -98,14 +101,26 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
             dataCellLoadedTypeInfo.loadData(this, offset, type, oldSlice)
         }
 
+    var died = false
+
     loadList.forEach { load ->
         val tlbStack =
             calcOnState {
                 dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceAddress)
+            } ?: run {
+                outcomes.addGuardedTypeloadOutcome(NoTlbStack, null, load.guard)
+                return@forEach
             }
-        tlbStack
-            ?.step(this, LimitedLoadData.fromLoadData(load))
-            ?.flatMap { (guard, stepResult, oldValue) ->
+
+        val stepResult: List<TlbStack.GuardedResult<ReadResult>> =
+            tlbStack.step(this, LimitedLoadData.fromLoadData(load), badCellSizeIsExceptional, onBadCellSize)
+                ?: run {
+                    died = true
+                    return@forEach
+                }
+
+        stepResult
+            .flatMap { (guard, stepResult, oldValue) ->
                 if (load.type is TvmCellDataIntegerRead &&
                     stepResult is TlbStack.Error &&
                     !ctx.tvmOptions.turnOnTLBParsingChecks
@@ -116,12 +131,16 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                         tlbStack,
                         stepResult,
                         this@makeSliceTypeLoad,
-                        ctx,
-                    )
+                        badCellSizeIsExceptional,
+                        onBadCellSize,
+                    ) ?: run {
+                        died = true
+                        return@forEach
+                    }
                 } else {
                     listOf(TlbStack.GuardedResult(guard, stepResult, oldValue))
                 }
-            }?.forEach { (guard, stepResult, value) ->
+            }.forEach { (guard, stepResult, value) ->
                 when (stepResult) {
                     is TlbStack.Error -> {
                         val outcome =
@@ -140,9 +159,11 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                         outcomes.addGuardedTypeloadOutcome(outcome, value, guard and load.guard)
                     }
                 }
-            } ?: run {
-            outcomes.addGuardedTypeloadOutcome(NoTlbStack, null, load.guard)
-        }
+            }
+    }
+
+    if (died) {
+        return@doWithCtx
     }
 
     outcomes.entries.forEach { (outcome, readValueToGuardMap) ->
@@ -196,8 +217,9 @@ private fun <ReadResult> retryWithBitvectorRead(
     tlbStack: TlbStack,
     stepResult: TlbStack.Error,
     scope: TvmStepScopeManager,
-    context: TvmContext,
-): List<TlbStack.GuardedResult<out ReadResult>> {
+    badCellSizeIsExceptional: Boolean,
+    onBadCellSize: (TvmState, BadSizeContext) -> Unit,
+): List<TlbStack.GuardedResult<ReadResult>>? {
     val bitArrayReadType = TvmCellDataBitArrayRead(type.sizeBits)
     val updatedLoad =
         TvmDataCellLoadedTypeInfo.LoadData(
@@ -208,8 +230,10 @@ private fun <ReadResult> retryWithBitvectorRead(
             load.sliceAddress,
         )
     val updatedLimitLoadData = LimitedLoadData.fromLoadData(updatedLoad)
-    return tlbStack
-        .step(scope, updatedLimitLoadData)
+    val newResult =
+        tlbStack.step(scope, updatedLimitLoadData, badCellSizeIsExceptional, onBadCellSize)
+            ?: return null
+    return newResult
         .map {
             val (guard, newStepResult, value) = it
             val stepResultOrOldError =
@@ -223,7 +247,7 @@ private fun <ReadResult> retryWithBitvectorRead(
             val result =
                 scope.slicePreloadInt(
                     expr,
-                    with(context) { type.sizeBits },
+                    type.sizeBits,
                     type.isSigned,
                 )
                     ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null)

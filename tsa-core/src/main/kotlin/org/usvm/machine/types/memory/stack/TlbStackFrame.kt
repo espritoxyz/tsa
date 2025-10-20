@@ -56,6 +56,12 @@ fun buildFrameForStructure(
     }
 }
 
+enum class BadSizeContext {
+    GoodSizeIsUnsat,
+    GoodSizeIsUnknown,
+    GoodSizeIsSat,
+}
+
 sealed interface TlbStackFrame {
     val path: List<Int>
     val leftTlbDepth: Int
@@ -63,7 +69,9 @@ sealed interface TlbStackFrame {
     fun <ReadResult> step(
         scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
-    ): List<GuardedResult<ReadResult>>
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
+    ): List<GuardedResult<ReadResult>>?
 
     fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame?
 
@@ -126,12 +134,14 @@ data class ContinueLoadOnNextFrame<ReadResult>(
 
 data class LimitedLoadData<ReadResult>(
     val cellRef: UConcreteHeapRef,
+    val guard: UBoolExpr,
     val type: TvmCellDataTypeRead<ReadResult>,
 ) {
     companion object {
         fun <ReadResult> fromLoadData(loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>) =
             LimitedLoadData(
                 type = loadData.type,
+                guard = loadData.guard,
                 cellRef = loadData.cellAddress,
             )
     }

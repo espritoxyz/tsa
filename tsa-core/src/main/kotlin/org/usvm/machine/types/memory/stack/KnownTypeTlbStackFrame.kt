@@ -47,6 +47,8 @@ data class KnownTypeTlbStackFrame(
     override fun <ReadResult> step(
         scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>> =
         scope.calcOnStateCtx {
             if (struct.typeLabel !is TlbBuiltinLabel) {
@@ -114,6 +116,7 @@ data class KnownTypeTlbStackFrame(
                         loadData,
                         continueLoadingOnNextFrameData.leftBits,
                         readBvValue,
+                        loadData.guard and continueLoadingOnNextFrameData.guard,
                     )
                 result.add(
                     GuardedResult(
@@ -131,12 +134,14 @@ data class KnownTypeTlbStackFrame(
         loadData: LimitedLoadData<ReadResult>,
         leftBits: UExpr<TvmSizeSort>,
         bvValue: UExpr<KBvSort>?,
+        guard: UBoolExpr,
     ): ContinueLoadOnNextFrame<ReadResult> {
         val type = loadData.type
         check(type is TvmCellDataBitArrayRead)
         return ContinueLoadOnNextFrame(
             LimitedLoadData(
                 loadData.cellRef,
+                guard,
                 loadData.type.createLeftBitsDataLoad(leftBits),
             ),
             bvValue,

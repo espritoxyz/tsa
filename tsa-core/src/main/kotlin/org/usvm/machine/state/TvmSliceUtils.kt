@@ -564,7 +564,13 @@ fun sliceLoadGramsTlb(
     val ctx = scope.calcOnState { ctx }
 
     val read = TvmCellDataCoinsRead(ctx)
-    scope.makeSliceTypeLoad(oldSlice, read, newSlice) { valueFromTlb ->
+    scope.makeSliceTypeLoad(
+        oldSlice,
+        read,
+        newSlice,
+        badCellSizeIsExceptional = true,
+        onBadCellSize = throwCellUnderflowErrorBasedOnContext,
+    ) { valueFromTlb ->
 
         val (length, grams) =
             valueFromTlb?.let {
@@ -1292,6 +1298,8 @@ fun sliceLoadIntTlb(
         slice,
         TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.BigEndian),
         updatedSlice,
+        badCellSizeIsExceptional = true,
+        onBadCellSize = throwCellUnderflowErrorBasedOnContext,
     ) { tlbValue ->
         val result =
             tlbValue?.expr ?: let {
@@ -1321,7 +1329,13 @@ fun sliceLoadAddrTlb(
     action: TvmStepScopeManager.(UHeapRef) -> Unit,
 ) {
     val ctx = scope.calcOnState { ctx }
-    scope.makeSliceTypeLoad(slice, TvmCellDataMsgAddrRead(ctx), updatedSlice) { tlbValue ->
+    scope.makeSliceTypeLoad(
+        slice,
+        TvmCellDataMsgAddrRead(ctx),
+        updatedSlice,
+        badCellSizeIsExceptional = true,
+        onBadCellSize = ctx.throwCellUnderflowErrorBasedOnContext,
+    ) { tlbValue ->
         calcOnStateCtx {
             val addrSlice =
                 if (tlbValue != null) {

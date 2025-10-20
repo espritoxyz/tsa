@@ -40,6 +40,8 @@ data class ConstTlbStackFrame(
     override fun <ReadResult> step(
         scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>> =
         scope.calcOnStateCtx {
             val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
@@ -93,12 +95,14 @@ data class ConstTlbStackFrame(
                 )
 
             if (type is TvmCellDataBitArrayRead) {
+                val curGuard = loadData.guard and mkSizeGtExpr(readSize, leftBits)
                 result.add(
                     GuardedResult(
                         mkSizeGtExpr(readSize, leftBits),
                         ContinueLoadOnNextFrame(
                             LimitedLoadData(
                                 loadData.cellRef,
+                                curGuard,
                                 type.createLeftBitsDataLoad(mkSizeSubExpr(readSize, leftBits)),
                             ),
                             concreteBvRead,

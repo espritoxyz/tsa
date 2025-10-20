@@ -56,6 +56,7 @@ import org.usvm.machine.state.setFailure
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.memory.stack.BadSizeContext
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import java.math.BigInteger
@@ -141,6 +142,15 @@ class TvmContext(
     val throwStructuralCellUnderflowError: (TvmState) -> Unit =
         setFailure(TvmCellUnderflowError, TvmFailureType.StructuralError)
     val throwRealCellUnderflowError: (TvmState) -> Unit = setFailure(TvmCellUnderflowError, TvmFailureType.RealError)
+
+    val throwCellUnderflowErrorBasedOnContext: (TvmState, BadSizeContext) -> Unit = { state, context ->
+        when (context) {
+            BadSizeContext.GoodSizeIsUnknown -> throwUnknownCellUnderflowError(state)
+            BadSizeContext.GoodSizeIsUnsat -> throwRealCellUnderflowError(state)
+            BadSizeContext.GoodSizeIsSat -> throwStructuralCellUnderflowError(state)
+        }
+    }
+
     val throwRealDictError: (TvmState) -> Unit = setFailure(TvmDictError, TvmFailureType.RealError)
 
     fun throwInsufficientFunds(contractId: ContractId): (TvmState) -> Unit = setFailure(InsufficientFunds(contractId))

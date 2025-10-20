@@ -34,6 +34,8 @@ data class SwitchTlbStackFrame(
     override fun <ReadResult> step(
         scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>> =
         scope.calcOnStateCtx {
             val possibleVariants =

@@ -8,6 +8,7 @@ import org.ton.TlbStructureIdProvider
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.api.readField
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.fields.TvmCellDataLengthFieldManager.Companion.UnknownBlockLengthField
@@ -25,7 +26,9 @@ data class StackFrameOfUnknown(
     override fun <ReadResult> step(
         scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
-    ): List<GuardedResult<ReadResult>> =
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
+    ): List<GuardedResult<ReadResult>>? =
         scope.calcOnStateCtx {
             val inferenceManager = fieldManagers.cellDataFieldManager.inferenceManager
             val inferredStruct = inferenceManager.getInferredStruct(loadData.cellRef, path)
@@ -39,7 +42,7 @@ data class StackFrameOfUnknown(
                     buildFrameForStructure(ctx, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)
                         ?: error("Unexpected null frame")
 
-                return@calcOnStateCtx nextFrame.step(scope, loadData)
+                return@calcOnStateCtx nextFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
             }
 
             val defaultResult =
@@ -51,13 +54,47 @@ data class StackFrameOfUnknown(
                     ),
                 )
 
-            if (hasOffset || inferenceManager.isFixated(loadData.cellRef)) {
+            if (hasOffset || inferenceManager.isFixated(loadData.cellRef) || !loadData.guard.isTrue) {
                 return@calcOnStateCtx defaultResult
             }
 
             val label =
                 loadData.type.defaultTlbLabel()
                     ?: return@calcOnStateCtx defaultResult
+
+            val curSizeField = UnknownBlockLengthField(path)
+            val curSize = memory.readField(loadData.cellRef, curSizeField, curSizeField.getSort(ctx))
+
+            val field = UnknownBlockField(TlbStructure.Unknown.id, path)
+            val dataSymbolic =
+                scope.calcOnState {
+                    memory.readField(loadData.cellRef, field, field.getSort(ctx))
+                }
+
+            // TODO: skip this step for now
+//            if (scope.allowFailuresOnCurrentStep) {
+//                val sizeIsBad =
+//                    loadData.type.sizeIsBad(dataSuffix = dataSymbolic, dataSuffixLength = curSize.zeroExtendToSort(sizeSort))
+//
+//                var badSizeContext = BadSizeContext.GoodSizeIsSat
+//
+//                check(loadData.guard.isTrue) {
+//                    "Unexpected loadData guard"
+//                }
+//
+//                scope.forkWithCheckerStatusKnowledge(
+//                    sizeIsBad.not(),
+//                    blockOnUnknownTrueState = {
+//                        badSizeContext = BadSizeContext.GoodSizeIsUnknown
+//                    },
+//                    blockOnUnsatTrueState = {
+//                        badSizeContext = BadSizeContext.GoodSizeIsUnsat
+//                    },
+//                    blockOnFalseState = {
+//                        onBadCellSize(this, badSizeContext)
+//                    },
+//                ) ?: return@calcOnStateCtx null
+//            }
 
             val newStructure =
                 TlbStructure.KnownTypePrefix(
@@ -92,18 +129,15 @@ data class StackFrameOfUnknown(
             val restSizeField = UnknownBlockLengthField(newPath)
             val restSize = memory.readField(loadData.cellRef, restSizeField, restSizeField.getSort(ctx))
 
-            val curSizeField = UnknownBlockLengthField(path)
-            val curSize = memory.readField(loadData.cellRef, curSizeField, curSizeField.getSort(ctx))
-
-            val sizeConstraint =
+            val tlbSizeConstraint =
                 mkBvAddExpr(labelSize, restSize.zeroExtendToSort(sizeSort)) eq curSize.zeroExtendToSort(sizeSort)
 
-            val constraint = sizeConstraint and tlbFieldConstraint
+            val tlbConstraint = tlbSizeConstraint and tlbFieldConstraint
 
-            scope.checkSat(constraint)
+            scope.checkSat(tlbConstraint)
                 ?: return@calcOnStateCtx defaultResult
 
-            scope.assert(constraint)
+            scope.assert(tlbConstraint)
                 ?: error("Unexpected solver result")
 
             inferenceManager.addInferredStruct(loadData.cellRef, path, newStructure)
@@ -112,7 +146,7 @@ data class StackFrameOfUnknown(
                 buildFrameForStructure(ctx, newStructure, newPath, leftTlbDepth)
                     ?: error("Unexpected null frame")
 
-            nextFrame.step(scope, loadData)
+            nextFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
         }
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null

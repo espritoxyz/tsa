@@ -29,7 +29,9 @@ data class TlbStack(
     fun <ReadResult> step(
         scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
-    ): List<GuardedResult<ReadResult>> =
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
+    ): List<GuardedResult<ReadResult>>? =
         scope.doWithCtx {
             val ctx = scope.ctx
             val result = mutableListOf<GuardedResult<ReadResult>>()
@@ -54,7 +56,9 @@ data class TlbStack(
 
             val lastFrame = frames.last()
 
-            val frameSteps = lastFrame.step(scope, loadData)
+            val frameSteps =
+                lastFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
+                    ?: return@doWithCtx null
             frameSteps.forEach { (guard, stackFrameStepResult, value) ->
                 if (guard.isFalse) {
                     return@forEach
@@ -103,7 +107,10 @@ data class TlbStack(
                                     frames + nextLevelFrame,
                                     newDeepestError,
                                 )
-                            newStack.step(scope, loadData).forEach { (innerGuard, stepResult, value) ->
+                            val newStepResult =
+                                newStack.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
+                                    ?: return@doWithCtx null
+                            newStepResult.forEach { (innerGuard, stepResult, value) ->
                                 val newGuard = ctx.mkAnd(guard, innerGuard)
                                 result.add(GuardedResult(newGuard and emptyRead.not(), stepResult, value))
                             }
@@ -134,7 +141,9 @@ data class TlbStack(
                                 skipSingleStep(this, loadData.cellRef, frames)
                             }
                         val newStack = TlbStack(newFrames, deepestError)
-                        val stepResults = newStack.step(scope, newLoadData)
+                        val stepResults =
+                            newStack.step(scope, newLoadData, badCellSizeIsExceptional, onBadCellSize)
+                                ?: return@doWithCtx null
                         stepResults.forEach { (innerGuard, stepResult, _) ->
                             // values from steps are discarded as we are only interested
                             // in concrete bitvector reads when reading values across multiple
