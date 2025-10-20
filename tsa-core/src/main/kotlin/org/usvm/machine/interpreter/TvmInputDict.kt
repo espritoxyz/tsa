@@ -41,7 +41,6 @@ sealed interface Modification {
 }
 
 sealed interface LazyUniversalQuantifierConstraint {
-    /** I */
     val context: PersistentList<Modification>
 
     fun createConstraint(
@@ -50,12 +49,18 @@ sealed interface LazyUniversalQuantifierConstraint {
     ): UBoolExpr
 }
 
-enum class CmpKind {
-    LE,
-    LT,
-    GE,
-    GT,
+data class NotEqualConstraint(
+    val value: K,
+    val condition: UBoolExpr,
+    override val context: PersistentList<Modification>,
+) : LazyUniversalQuantifierConstraint {
+    override fun createConstraint(
+        ctx: TvmContext,
+        symbol: K,
+    ): UBoolExpr = with(ctx) { condition implies (symbol neq value) }
 }
+
+enum class CmpKind { LE, LT, GE, GT }
 
 data class Cmp(
     val kind: CmpKind,
@@ -255,6 +260,11 @@ sealed interface DictNextResult {
     ) : DictNextResult
 }
 
+data class DictGetResult(
+    val constraints: ConstraintSet,
+    val updatedRootInfo: InputDictRootInformation,
+)
+
 data class InputDict(
     val rootInputDictId: Int = next(),
     val modifications: PersistentList<Modification> = persistentListOf(),
@@ -263,6 +273,29 @@ data class InputDict(
         private var counter: Int = 0
 
         fun next(): Int = counter++
+    }
+
+    fun doDictHasKey(
+        ctx: TvmContext,
+        key: K,
+        inputDict: InputDictRootInformation,
+        freshConstantForInput: K,
+        freshConstantForExistenceOfKey: UBoolExpr,
+    ): DictGetResult {
+        val exists = freshConstantForExistenceOfKey
+        val symbolConstraint = inputDict.createSymbolConstraints(ctx, freshConstantForInput)
+        val resultIsSomeKey = freshInputSymbolOrStoredKey(ctx, freshConstantForInput, key, inputDict)
+        val newSymbols = inputDict.symbols.add(freshConstantForInput)
+        val resultIsSomeKeyCs = with(ctx) { exists implies resultIsSomeKey }
+        val (universalInstancesCs, newLazyConstraints) =
+            inputDict.addLazyUniversalConstraint(ctx, NotEqualConstraint(key, ctx.mkNot(exists), modifications))
+        val updatedRootDictInfo =
+            InputDictRootInformation(
+                newLazyConstraints,
+                newSymbols,
+            )
+        val fullCs = symbolConstraint.add(resultIsSomeKeyCs).addAll(universalInstancesCs)
+        return DictGetResult(fullCs, updatedRootDictInfo)
     }
 
     /*
@@ -319,13 +352,27 @@ data class InputDict(
         isSigned: Boolean,
         pivot: K,
     ): DictNextResult.Exists {
-        val (t, cs) = freshInputSymbolOrStoredKey(ctx, freshConstantForInput, freshConstantForResult, inputDict)
+        val newSymbolConstraints = inputDict.createSymbolConstraints(ctx, freshConstantForInput)
+        val resultIsSomeKey =
+            freshInputSymbolOrStoredKey(
+                ctx,
+                freshConstantForInput,
+                freshConstantForResult,
+                inputDict,
+            )
         val ansCmp = Cmp(isLess = !isNext, isStrict = !mightBeEqualToPivot, isSigned = isSigned).createCmp(ctx)
-        val mainConstraint = ansCmp(t, pivot)
+        val mainConstraint = ansCmp(freshConstantForResult, pivot)
         val (nextCs, updatedUniversalConstraints) =
             inputDict.addLazyUniversalConstraint(
                 ctx,
-                NextPrevQueryConstraint(pivot, t, modifications, mightBeEqualToPivot, isNext, isSigned),
+                NextPrevQueryConstraint(
+                    pivot,
+                    freshConstantForResult,
+                    modifications,
+                    mightBeEqualToPivot,
+                    isNext,
+                    isSigned,
+                ),
             )
         val newInputDictInfo =
             InputDictRootInformation(
@@ -334,34 +381,33 @@ data class InputDict(
             )
         val element =
             DictNextResult.Exists(
-                answer = t,
-                constraintSet = cs.add(mainConstraint).addAll(nextCs),
+                answer = freshConstantForResult,
+                constraintSet = newSymbolConstraints.add(resultIsSomeKey).add(mainConstraint).addAll(nextCs),
                 newInputDictRootInformation = newInputDictInfo,
             )
         return element
     }
 
     /**
-     * [freshConstantForInput] must be explicitly added to the list of symbols
+     * [freshConstantForInput] must be explicitly added to the list of symbols after the call
+     * @return [result] to constraints
      */
     private fun freshInputSymbolOrStoredKey(
         ctx: TvmContext,
         freshConstantForInput: K,
-        freshConstantForResult: K,
+        result: K,
         inputDict: InputDictRootInformation,
-    ): Pair<K, ConstraintSet> {
+    ): UBoolExpr {
         val inputT: K = freshConstantForInput
-        val newSymbolConstraints = inputDict.createSymbolConstraints(ctx, inputT)
         val inputTCs = inputDict.createKeyCondition(ctx, inputT, modifications)
         val storedElements = with(ctx) { getExplicitlyStoredKeys(modifications) }
-        val t = freshConstantForResult // we will return this symbol
-        val tIsInKeys =
+
+        val resultInKeys =
             with(ctx) {
-                storedElements.fold(inputTCs and (t eq inputT)) { acc, next ->
-                    acc or (next.guard and (next.symbol eq t))
+                storedElements.fold(inputTCs and (result eq inputT)) { acc, next ->
+                    acc or (next.guard and (next.symbol eq result))
                 }
             }
-        val fullCs = newSymbolConstraints.add(tIsInKeys)
-        return t to fullCs
+        return resultInKeys
     }
 }

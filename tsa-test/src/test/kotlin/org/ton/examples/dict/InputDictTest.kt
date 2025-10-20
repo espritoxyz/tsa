@@ -76,6 +76,13 @@ class InputDictTest {
         }
 
     @Test
+    fun `get is pure function when found`() =
+        analyzeMethodAndRun(9) { tests ->
+            tests.assertHasExitCodes(300, 500)
+            tests.assertDoesNotHaveExitCodes(400, 401)
+        }
+
+    @Test
     fun `get_max returns the largest key`() =
         analyzeMethodAndRun(4) { tests ->
             tests.assertHasExitCodes(301, 500)

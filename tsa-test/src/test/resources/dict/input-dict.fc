@@ -59,19 +59,19 @@
 
 () check_get_next_and_get_consistency(slice in_msg) impure method_id (6) {
     cell some_cell = in_msg~load_dict();
-    (int some_key, slice some_value, int found1) = some_cell.idict_get_next?(64, -1);
+    (int some_key, slice some_value, int found1) = some_cell.udict_get_next?(64, 1);
     throw_if(300, ~ found1);
-    (slice another_value, int found2) = some_cell.idict_get?(64, some_key);
+    (slice another_value, int found2) = some_cell.udict_get?(64, some_key);
     throw_if(400, ~ found2);
-    throw_if(401, ~ slice_hash(some_value) != ~ slice_hash(another_value));
+    throw_if(401, slice_hash(some_value) != slice_hash(another_value));
     throw(500); ;; successfull execution
 }
 
 () check_get_next_and_get_consistency_2(slice in_msg) impure method_id (7) {
     cell some_cell = in_msg~load_dict();
-    (slice some_value, int found1) = some_cell.idict_get?(64, 0);
+    (slice some_value, int found1) = some_cell.udict_get?(64, 1);
     throw_if(300, ~ found1);
-    (int some_key, slice another_value, int found2) = some_cell.idict_get_next?(64, -1);
+    (int some_key, slice another_value, int found2) = some_cell.udict_get_next?(64, 0);
     throw_if(400, ~ found2);
     throw_if(401, ~ some_key == 0);
     throw_if(402, ~ slice_hash(some_value) != ~ slice_hash(another_value));
@@ -86,5 +86,15 @@
     throw_if(301, found1);
     (_, _, int found2) = some_cell.udict_get_next?(64, 2);
     throw_if(400, found2);
+    throw(500);
+}
+
+() check_get_is_id(slice in_msg) impure method_id (9) {
+    cell some_cell = in_msg~load_dict();
+    (slice value1, int found1) = some_cell.udict_get?(64, 2);
+    throw_if(300, ~ found1);
+    (slice value2, int found2) = some_cell.udict_get?(64, 2);
+    throw_if(400, ~ found2);
+    throw_if(401, slice_hash(value1) != slice_hash(value2));
     throw(500);
 }
