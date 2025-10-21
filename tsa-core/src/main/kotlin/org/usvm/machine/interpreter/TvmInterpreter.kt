@@ -642,7 +642,10 @@ class TvmInterpreter(
                 visit(scope, stmt)
 
                 globalStructuralConstraintsHolder.applyTo(scope)
-                    ?: error("Could not apply structural constraints") // TODO: add special exit for that
+                    ?: run {
+                        logger.warn { "Could not apply structural constraints" }
+                        scope.killCurrentState()
+                    }
             },
             exceptionHandler = {
                 logger.warn(it) {
