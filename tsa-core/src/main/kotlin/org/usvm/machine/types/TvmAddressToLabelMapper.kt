@@ -158,7 +158,7 @@ class TvmAddressToLabelMapper(
                 acc and generateProactiveStructuralConstraints(state, childAddress)
             }
 
-        state.globalStructuralConstraintsHolder.addStructuralConstraint(structuralConstraints)
+        state.structuralConstraintsHolder = state.structuralConstraintsHolder.add(structuralConstraints)
     }
 
     private fun generateProactiveStructuralConstraints(

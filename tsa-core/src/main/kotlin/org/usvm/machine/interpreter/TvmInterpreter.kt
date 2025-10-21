@@ -620,8 +620,8 @@ class TvmInterpreter(
             postProcessor.postProcessState(scope)
                 ?: return@filter false
 
-            val globalStructuralConstraintsHolder = state.globalStructuralConstraintsHolder
-            globalStructuralConstraintsHolder.applyTo(scope) != null
+            val structuralConstraintsHolder = state.structuralConstraintsHolder
+            structuralConstraintsHolder.applyTo(scope) != null
         }
     }
 
@@ -631,7 +631,6 @@ class TvmInterpreter(
         logger.debug("State id: {}, Step: {}", state.id, stmt)
 
         val initialGasUsage = state.gasUsageHistory
-        val globalStructuralConstraintsHolder = state.globalStructuralConstraintsHolder
 
         val allowFailures = state.allowFailures && !ctx.tvmOptions.excludeExecutionsWithFailures
         var scope = TvmStepScopeManager(state, forkBlackList, allowFailures)
@@ -641,7 +640,8 @@ class TvmInterpreter(
             body = {
                 visit(scope, stmt)
 
-                globalStructuralConstraintsHolder.applyTo(scope)
+                val structuralConstraintsHolder = scope.getStructuralConstraintsHolder()
+                structuralConstraintsHolder.applyTo(scope)
                     ?: run {
                         logger.warn { "Could not apply structural constraints" }
                         scope.killCurrentState()

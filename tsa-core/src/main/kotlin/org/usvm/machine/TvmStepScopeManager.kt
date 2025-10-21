@@ -12,6 +12,7 @@ import org.usvm.machine.TvmStepScopeManager.TvmStepScope.StepScopeState.CAN_BE_P
 import org.usvm.machine.TvmStepScopeManager.TvmStepScope.StepScopeState.DEAD
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.c2IsDefault
+import org.usvm.machine.types.TvmStructuralConstraintsHolder
 import org.usvm.machine.types.TvmType
 import org.usvm.solver.USatResult
 import org.usvm.solver.UUnknownResult
@@ -27,6 +28,8 @@ class TvmStepScopeManager(
     private val scope: TvmStepScope = TvmStepScope(originalState, forkBlackList, forkedStates)
 
     var doNotKillScopeOnDoWithConditions: Boolean = false
+
+    fun getStructuralConstraintsHolder(): TvmStructuralConstraintsHolder = originalState.structuralConstraintsHolder
 
     fun doWithState(block: TvmState.() -> Unit) = scope.doWithState(block)
 
