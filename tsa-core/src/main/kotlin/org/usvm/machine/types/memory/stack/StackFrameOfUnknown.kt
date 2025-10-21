@@ -10,10 +10,12 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.api.readField
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.fields.TvmCellDataLengthFieldManager.Companion.UnknownBlockLengthField
+import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.calcOnStateCtx
+import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
 import org.usvm.sizeSort
@@ -29,8 +31,11 @@ data class StackFrameOfUnknown(
         badCellSizeIsExceptional: Boolean,
         onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>>? =
-        scope.calcOnStateCtx {
-            val inferenceManager = fieldManagers.cellDataFieldManager.inferenceManager
+        scope.doWithCtx {
+            val inferenceManager =
+                scope.calcOnState {
+                    fieldManagers.cellDataFieldManager.inferenceManager
+                }
             val inferredStruct = inferenceManager.getInferredStruct(loadData.cellRef, path)
 
             if (inferredStruct != null) {
@@ -42,7 +47,7 @@ data class StackFrameOfUnknown(
                     buildFrameForStructure(ctx, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)
                         ?: error("Unexpected null frame")
 
-                return@calcOnStateCtx nextFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
+                return@doWithCtx nextFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
             }
 
             val defaultResult =
@@ -55,15 +60,23 @@ data class StackFrameOfUnknown(
                 )
 
             if (hasOffset || inferenceManager.isFixated(loadData.cellRef) || !loadData.guard.isTrue) {
-                return@calcOnStateCtx defaultResult
+                return@doWithCtx defaultResult
             }
 
             val label =
                 loadData.type.defaultTlbLabel()
-                    ?: return@calcOnStateCtx defaultResult
+                    ?: return@doWithCtx defaultResult
 
             val curSizeField = UnknownBlockLengthField(path)
-            val curSize = memory.readField(loadData.cellRef, curSizeField, curSizeField.getSort(ctx))
+            val curSize =
+                scope.calcOnState {
+                    memory
+                        .readField(
+                            loadData.cellRef,
+                            curSizeField,
+                            curSizeField.getSort(ctx),
+                        ).zeroExtendToSort(sizeSort)
+                }
 
             val field = UnknownBlockField(TlbStructure.Unknown.id, path)
             val dataSymbolic =
@@ -71,30 +84,43 @@ data class StackFrameOfUnknown(
                     memory.readField(loadData.cellRef, field, field.getSort(ctx))
                 }
 
-            // TODO: skip this step for now
-//            if (scope.allowFailuresOnCurrentStep) {
-//                val sizeIsBad =
-//                    loadData.type.sizeIsBad(dataSuffix = dataSymbolic, dataSuffixLength = curSize.zeroExtendToSort(sizeSort))
-//
-//                var badSizeContext = BadSizeContext.GoodSizeIsSat
-//
-//                check(loadData.guard.isTrue) {
-//                    "Unexpected loadData guard"
-//                }
-//
-//                scope.forkWithCheckerStatusKnowledge(
-//                    sizeIsBad.not(),
-//                    blockOnUnknownTrueState = {
-//                        badSizeContext = BadSizeContext.GoodSizeIsUnknown
-//                    },
-//                    blockOnUnsatTrueState = {
-//                        badSizeContext = BadSizeContext.GoodSizeIsUnsat
-//                    },
-//                    blockOnFalseState = {
-//                        onBadCellSize(this, badSizeContext)
-//                    },
-//                ) ?: return@calcOnStateCtx null
-//            }
+            var forgottenConstraint = trueExpr as UBoolExpr
+
+            if (scope.allowFailuresOnCurrentStep) {
+                val (sizeIsBad, assumeValue) =
+                    loadData.type.sizeIsBad(
+                        dataSuffix = dataSymbolic,
+                        dataSuffixLength = curSize,
+                    )
+
+                scope.checkSat(assumeValue)
+                    ?: return@doWithCtx defaultResult
+
+                scope.assert(assumeValue)
+                    ?: error("unexpected solver result")
+
+                var badSizeContext = BadSizeContext.GoodSizeIsSat
+
+                check(loadData.guard.isTrue) {
+                    "Unexpected loadData guard"
+                }
+
+                forgottenConstraint = sizeIsBad.not()
+
+                scope.forkWithCheckerStatusKnowledge(
+                    sizeIsBad.not(),
+                    blockOnUnknownTrueState = {
+                        badSizeContext = BadSizeContext.GoodSizeIsUnknown
+                    },
+                    blockOnUnsatTrueState = {
+                        badSizeContext = BadSizeContext.GoodSizeIsUnsat
+                    },
+                    blockOnFalseState = {
+                        onBadCellSize(this, badSizeContext)
+                    },
+                    doNotAddConstraintToTrueState = true, // because further constraints are stronger
+                ) ?: return@doWithCtx null
+            }
 
             val newStructure =
                 TlbStructure.KnownTypePrefix(
@@ -108,7 +134,11 @@ data class StackFrameOfUnknown(
             val newPath = path.add(TlbStructure.Unknown.id)
 
             val labelSize =
-                loadData.type.defaultTlbLabelSize(this, loadData.cellRef, newPath.add(newStructure.id))
+                loadData.type.defaultTlbLabelSize(
+                    scope.calcOnState { this },
+                    loadData.cellRef,
+                    newPath.add(newStructure.id),
+                )
                     ?: error("Unexpected null defaultTlbLabelSize")
 
             val tlbFieldConstraint =
@@ -127,15 +157,27 @@ data class StackFrameOfUnknown(
                 }
 
             val restSizeField = UnknownBlockLengthField(newPath)
-            val restSize = memory.readField(loadData.cellRef, restSizeField, restSizeField.getSort(ctx))
+            val restSize =
+                scope.calcOnState {
+                    memory
+                        .readField(
+                            loadData.cellRef,
+                            restSizeField,
+                            restSizeField.getSort(ctx),
+                        ).zeroExtendToSort(sizeSort)
+                }
 
             val tlbSizeConstraint =
-                mkBvAddExpr(labelSize, restSize.zeroExtendToSort(sizeSort)) eq curSize.zeroExtendToSort(sizeSort)
+                mkBvAddExpr(labelSize, restSize) eq curSize
 
             val tlbConstraint = tlbSizeConstraint and tlbFieldConstraint
 
             scope.checkSat(tlbConstraint)
-                ?: return@calcOnStateCtx defaultResult
+                ?: run {
+                    scope.assert(forgottenConstraint)
+                        ?: error("Unexpected solver result")
+                    return@doWithCtx defaultResult
+                }
 
             scope.assert(tlbConstraint)
                 ?: error("Unexpected solver result")
@@ -188,6 +230,20 @@ data class StackFrameOfUnknown(
                     read.resolver.state.memory
                         .readField(read.ref, field, field.getSort(this))
                 val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
+
+                val restSizeField = UnknownBlockLengthField(path)
+                val restSize =
+                    read.resolver.state.memory
+                        .readField(
+                            read.ref,
+                            restSizeField,
+                            restSizeField.getSort(read.ref.ctx.tctx()),
+                        ).zeroExtendToSort(sizeSort)
+                val concreteRestSize = read.resolver.eval(restSize).intValue()
+
+                check(concreteRestSize == read.leftBits) {
+                    "Unexpected read in StackFrameOfUnknown"
+                }
 
                 val newReadInfo = TlbStack.ConcreteReadInfo(read.ref, read.resolver, leftBits = 0)
 

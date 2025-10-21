@@ -712,7 +712,7 @@ fun TvmState.allocEmptyBuilder(): UConcreteHeapRef =
 fun TvmState.builderCopyFromBuilder(
     original: UConcreteHeapRef,
     result: UConcreteHeapRef,
-) = with(ctx) {
+) {
     val cellData =
         fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderCopyFromBuilder, original)
     fieldManagers.cellDataFieldManager.writeCellData(this@builderCopyFromBuilder, result, cellData)

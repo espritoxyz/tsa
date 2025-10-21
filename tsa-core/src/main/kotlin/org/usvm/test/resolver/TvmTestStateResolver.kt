@@ -719,7 +719,7 @@ class TvmTestStateResolver(
         val data = extractCellData(evaluateInModel(symbolicData))
         val dataLength =
             resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell)).also {
-                check(it in 0..TvmContext.MAX_DATA_LENGTH) {
+                check(it in 0..MAX_DATA_LENGTH) {
                     "Unexpected data length"
                 }
             }

@@ -115,9 +115,7 @@ class TvmCellDataLengthFieldManager(
         value: UExpr<TvmSizeSort>,
         upperBound: Int?,
     ) = with(ctx) {
-        if (upperBound != null) {
-            builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(cellRef, upperBound)
-        }
+        builderLengthUpperBoundTracker = builderLengthUpperBoundTracker.setUpperBound(cellRef, upperBound)
         val valueToWrite = mkBvExtractExprNoSimplify(high = BITS_FOR_FIELD.toInt() - 1, low = 0, value)
         memory.writeField(cellRef, cellDataLengthField, cellDataLengthSort, valueToWrite, guard = trueExpr)
     }

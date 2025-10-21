@@ -72,10 +72,13 @@ sealed interface TvmCellDataTypeRead<ReadResult> {
         path: List<Int>,
     ): UExpr<TvmSizeSort>?
 
+    /**
+     * The first returned value is the [sizeIsBad] guard, the second is a value for assume.
+     * */
     fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ): UBoolExpr
+    ): Pair<UBoolExpr, UBoolExpr>
 }
 
 sealed interface SizedCellDataTypeRead {
@@ -145,10 +148,9 @@ data class TvmCellDataIntegerRead(
     override fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ): UBoolExpr =
-        with(dataSuffix.ctx.tctx()) {
-            mkSizeLtExpr(dataSuffixLength, sizeBits)
-        }
+    ) = with(dataSuffix.ctx.tctx()) {
+        mkSizeLtExpr(dataSuffixLength, sizeBits) to trueExpr
+    }
 }
 
 class TvmCellMaybeConstructorBitRead(
@@ -219,10 +221,9 @@ class TvmCellMaybeConstructorBitRead(
     override fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ): UBoolExpr =
-        with(dataSuffix.ctx.tctx()) {
-            mkSizeLtExpr(dataSuffixLength, oneSizeExpr)
-        }
+    ) = with(dataSuffix.ctx.tctx()) {
+        mkSizeLtExpr(dataSuffixLength, oneSizeExpr) to trueExpr
+    }
 }
 
 // As a read result expects address length + slice with the address
@@ -316,10 +317,18 @@ class TvmCellDataMsgAddrRead(
     override fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ): UBoolExpr =
-        with(dataSuffix.ctx.tctx()) {
-            TODO()
-        }
+    ) = with(dataSuffix.ctx.tctx()) {
+        val tag =
+            mkBvExtractExpr(
+                high = cellDataSort.sizeBits.toInt() - 1,
+                low = cellDataSort.sizeBits.toInt() - 2,
+                dataSuffix,
+            )
+        val assumeCond = tag eq mkBv("10", tag.sort.sizeBits)
+        val badSizeCond = mkSizeLtExpr(dataSuffixLength, mkSizeExpr(TvmContext.stdMsgAddrSize))
+
+        badSizeCond to assumeCond
+    }
 }
 
 data class TvmCellDataBitArrayRead(
@@ -423,10 +432,9 @@ data class TvmCellDataBitArrayRead(
     override fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ): UBoolExpr =
-        with(dataSuffix.ctx.tctx()) {
-            mkSizeLtExpr(dataSuffixLength, sizeBits)
-        }
+    ) = with(dataSuffix.ctx.tctx()) {
+        mkSizeLtExpr(dataSuffixLength, sizeBits) to trueExpr
+    }
 }
 
 // As a read result expects bitvector of size 4 (coin prefix) + coin value as int257
@@ -513,10 +521,18 @@ class TvmCellDataCoinsRead(
     override fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ): UBoolExpr =
-        with(dataSuffix.ctx.tctx()) {
-            TODO()
-        }
+    ) = with(dataSuffix.ctx.tctx()) {
+        val prefix =
+            mkBvExtractExpr(
+                high = cellDataSort.sizeBits.toInt() - 1,
+                low = cellDataSort.sizeBits.toInt() - 4,
+                dataSuffix,
+            )
+        val coinPartLength = mkBvMulExpr(prefix.zeroExtendToSort(sizeSort), eightSizeExpr)
+        val minLength = mkBvAddExpr(coinPartLength, fourSizeExpr)
+
+        mkSizeLtExpr(dataSuffixLength, minLength) to trueExpr
+    }
 }
 
 fun <ReadResult> TvmCellDataTypeRead<ReadResult>.isEmptyRead(ctx: TvmContext): UBoolExpr =
