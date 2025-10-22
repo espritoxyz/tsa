@@ -145,7 +145,7 @@ fun calculateGeneralSizeConstraints(
                     val newGuard =
                         (dataLength eq dataLengthField) and mkSizeGeExpr(refsLengthField, sizeInfo.refsLength)
 
-                    acc and (sizeInfo.guard implies newGuard)
+                    acc and (sizeInfo.guard implies newGuard) and mkSizeGeExpr(blockLength, zeroSizeExpr)
                 }
                 is TlbStructure.Empty -> {
                     val newGuard = (dataLengthField eq sizeInfo.dataLength) and (refsLengthField eq sizeInfo.refsLength)
