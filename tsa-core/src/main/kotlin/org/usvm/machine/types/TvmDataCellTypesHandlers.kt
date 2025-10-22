@@ -124,7 +124,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
             .flatMap { (guard, stepResult, oldValue) ->
                 if (load.type is TvmCellDataIntegerRead &&
                     stepResult is TlbStack.Error &&
-                    !ctx.tvmOptions.turnOnTLBParsingChecks
+                    (!ctx.tvmOptions.turnOnTLBParsingChecks || stepResult.fromMutableTlb)
                 ) {
                     retryWithBitvectorRead(
                         load.type,
@@ -146,7 +146,8 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                     is TlbStack.Error -> {
                         val outcome =
                             if (turnOnTLBParsingChecks &&
-                                (!load.cellAddress.isAllocated || performTlbChecksOnAllocatedCells)
+                                (!load.cellAddress.isAllocated || performTlbChecksOnAllocatedCells) &&
+                                !stepResult.fromMutableTlb
                             ) {
                                 Error(stepResult.error)
                             } else {

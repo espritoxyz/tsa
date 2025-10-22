@@ -65,7 +65,6 @@ data class StackFrameOfUnknown(
             if (hasOffset || inferenceManager.isFixated(loadData.cellRef) || !loadData.guard.isTrue) {
                 return@doWithCtx defaultResult
             }
-//            return@doWithCtx defaultResult
 
             val label =
                 loadData.type.defaultTlbLabel()
@@ -180,7 +179,7 @@ data class StackFrameOfUnknown(
             scope.checkSat(tlbConstraint)
                 ?: run {
                     scope.assert(forgottenConstraint)
-                        ?: error("Unexpected solver result")
+                        ?: return@doWithCtx null
 
                     inferenceManager.fixateRef(loadData.cellRef) // because UnknownBlockField got into constraints
 

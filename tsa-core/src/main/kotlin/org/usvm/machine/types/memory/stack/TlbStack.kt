@@ -4,6 +4,7 @@ import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbCompositeLabel
+import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -45,7 +46,10 @@ data class TlbStack(
                         GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
                         GuardedResult(
                             emptyRead.not(),
-                            Error(TvmStructuralError(TvmUnexpectedDataReading(loadData.type), phase, stack)),
+                            Error(
+                                TvmStructuralError(TvmUnexpectedDataReading(loadData.type), phase, stack),
+                                fromMutableTlb = false,
+                            ),
                             value = null,
                         ),
                     )
@@ -130,7 +134,12 @@ data class TlbStack(
                                 "Error was not set after unsuccessful TlbStack step."
                             }
 
-                            result.add(GuardedResult(guard and emptyRead.not(), Error(error), value = null))
+                            val fromMutableTlb =
+                                lastFrame is StackFrameOfUnknown || lastFrame.path.any { it == TlbStructure.Unknown.id }
+
+                            result.add(
+                                GuardedResult(guard and emptyRead.not(), Error(error, fromMutableTlb), value = null),
+                            )
                         }
                     }
 
@@ -219,6 +228,7 @@ data class TlbStack(
 
     data class Error(
         val error: TvmStructuralError,
+        val fromMutableTlb: Boolean,
     ) : StepResult
 
     data class NewStack(
