@@ -180,6 +180,9 @@ data class StackFrameOfUnknown(
                 ?: run {
                     scope.assert(forgottenConstraint)
                         ?: error("Unexpected solver result")
+
+                    inferenceManager.fixateRef(loadData.cellRef) // because UnknownBlockField git into constraints
+
                     return@doWithCtx defaultResult
                 }
 

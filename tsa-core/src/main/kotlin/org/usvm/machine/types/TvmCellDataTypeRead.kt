@@ -386,7 +386,16 @@ class TvmCellDataMsgAddrRead(
         badSizeCond to assumeCond
     }
 
-    // TODO: writeToNextLabelFields
+//    override fun writeToNextLabelFields(
+//        state: TvmState,
+//        ref: UConcreteHeapRef,
+//        path: List<Int>,
+//        structureId: Int,
+//        dataSuffix: UExpr<TvmContext.TvmCellDataSort>
+//    ) {
+//
+//        super.writeToNextLabelFields(state, ref, path, structureId, dataSuffix)
+//    }
 }
 
 data class TvmCellDataBitArrayRead(
