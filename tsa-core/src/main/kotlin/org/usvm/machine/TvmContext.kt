@@ -7,6 +7,7 @@ import io.ksmt.expr.KBvLogicalShiftRightExpr
 import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KExpr
+import io.ksmt.expr.KInterpretedValue
 import io.ksmt.expr.rewrite.simplify.simplifyAnd
 import io.ksmt.expr.rewrite.simplify.simplifyBoolIteConstBranches
 import io.ksmt.expr.rewrite.simplify.simplifyBoolIteSameConditionBranch
@@ -208,6 +209,20 @@ class TvmContext(
             INT_EXT256_BITS -> int257Ext256Sort
             else -> super.mkBvSort(sizeBits)
         }
+
+    override fun <T : KBvSort> mkBvSignedLessOrEqualExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<KBoolSort> {
+        if (arg0 is KInterpretedValue &&
+            arg0.intValue() == 0 &&
+            arg1 is KBvZeroExtensionExpr &&
+            arg1.extensionSize > 0
+        ) {
+            return trueExpr
+        }
+        return super.mkBvSignedLessOrEqualExpr(arg0, arg1)
+    }
 
     override fun <T : KBvSort> mkBvExtractExpr(
         high: Int,

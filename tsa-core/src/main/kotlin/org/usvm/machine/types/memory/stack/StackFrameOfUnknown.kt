@@ -63,6 +63,8 @@ data class StackFrameOfUnknown(
                 return@doWithCtx defaultResult
             }
 
+//            return@doWithCtx defaultResult
+
             val label =
                 loadData.type.defaultTlbLabel()
                     ?: return@doWithCtx defaultResult

@@ -1,15 +1,20 @@
 package org.usvm.machine.types
 
+import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbCompositeLabel
+import org.ton.TlbStructure
 import org.ton.TvmParameterInfo
 import org.ton.compositeLabelOfUnknown
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
+import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.isTrue
+import org.usvm.machine.fields.TvmCellDataLengthFieldManager.Companion.UnknownBlockLengthField
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
+import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.mkSizeExpr
 import org.usvm.model.UModelBase
 import kotlin.math.max
@@ -179,6 +184,7 @@ class TvmAddressToLabelMapper(
             generateSizeConstraints = true,
             generateDataConstraints = false,
             generateTlbFieldConstraints = true,
+            fillUnknownBlockField = true,
         )
     }
 
@@ -200,6 +206,7 @@ class TvmAddressToLabelMapper(
         generateSizeConstraints: Boolean,
         generateDataConstraints: Boolean,
         generateTlbFieldConstraints: Boolean,
+        fillUnknownBlockField: Boolean = false,
     ): UBoolExpr =
         with(state.ctx) {
             val labelInfo = inputAddressToLabels[ref]
@@ -214,6 +221,17 @@ class TvmAddressToLabelMapper(
                         is TvmParameterInfo.DictCellInfo -> return@fold acc
                         TvmParameterInfo.UnknownCellInfo -> compositeLabelOfUnknown
                     }
+
+                if (label.internalStructure is TlbStructure.Unknown && fillUnknownBlockField) {
+                    val blockField = UnknownBlockField(TlbStructure.Unknown.id, persistentListOf())
+                    val cellData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, ref)
+                    state.memory.writeField(ref, blockField, blockField.getSort(this), cellData, guard = trueExpr)
+
+                    val sizeField = UnknownBlockLengthField(persistentListOf())
+                    val cellDataLength = state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, ref)
+                    val sort = sizeField.getSort(this)
+                    state.memory.writeField(ref, sizeField, sort, cellDataLength.extractToSort(sort), guard = trueExpr)
+                }
 
                 var curGuard = trueExpr as UBoolExpr
                 if (generateSizeConstraints) {
