@@ -1493,7 +1493,27 @@ class TvmDictOperationInterpreter(
                 dictCellRef?.let { memory.setEntries(it, dictId, keySort, DictKeyInfo) }
             }
         if (allSetEntries != null && allSetEntries.isInput) {
-            error("Not supported yet")
+            if (getOldValue) {
+                error("unsupported getting old value in input dicts `set` operation")
+            }
+            val dictConcreteRef =
+                dictCellRef as? UConcreteHeapRef
+                    ?: error("unsupported")
+            val (baseInputDit, _) = scope.calcOnState { readInputDictionary(dictConcreteRef) }
+            val appliedModification = Modification.Store(ctx.extendDictKey(key, keyType))
+            val newInputDict =
+                InputDict(
+                    modifications = baseInputDit.modifications.add(0, appliedModification),
+                    rootInputDictId = baseInputDit.rootInputDictId,
+                )
+            scope.calcOnStateCtx {
+                val dictKeyLength = memory.readField(dictConcreteRef, dictKeyLengthField, sizeSort)
+                memory.writeField(resultDict, dictKeyLengthField, sizeSort, dictKeyLength, guard = trueExpr)
+                inputDictionaryStorage = inputDictionaryStorage.set(resultDict, newInputDict)
+                addOnStack(resultDict, TvmCellType)
+                newStmt(inst.nextStmt())
+            }
+            return
         }
 
         val dictContainsKey =
@@ -1633,16 +1653,24 @@ class TvmDictOperationInterpreter(
 
         assertDictKeyLength(scope, dictCellRef, keyLength)
             ?: return
-        assertDictIsNotEmpty(scope, dictCellRef, dictId)
-            ?: return
 
         val keySort = ctx.mkBvSort(keyLength.toUInt())
         val allSetEntries =
             scope.calcOnStateCtx {
                 memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
             }
+        val isInput =
+            allSetEntries.isInput ||
+                scope.calcOnState {
+                    this.inputDictionaryStorage.memory.keys
+                        .contains(dictCellRef)
+                }
+        if (!isInput) {
+            assertDictIsNotEmpty(scope, dictCellRef, dictId)
+                ?: return
+        }
         val dictContainsKey =
-            if (allSetEntries.isInput) {
+            if (isInput) {
                 val dictConcreteRef =
                     dictCellRef as? UConcreteHeapRef
                         ?: error("unsupported")
@@ -1726,13 +1754,48 @@ class TvmDictOperationInterpreter(
 
         assertDictKeyLength(scope, dictCellRef, keyLength)
             ?: return
-        assertDictIsNotEmpty(scope, dictCellRef, dictId)
-            ?: return
 
         val keySort = ctx.mkBvSort(keyLength.toUInt())
         val allSetEntries = scope.calcOnStateCtx { memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo) }
-        if (allSetEntries.isInput) {
-            error("Not supported yet")
+        val isInput =
+            allSetEntries.isInput || scope.calcOnState { inputDictionaryStorage.memory.keys.contains(dictCellRef) }
+        if (!isInput) {
+            assertDictIsNotEmpty(scope, dictCellRef, dictId)
+                ?: return
+        }
+        if (isInput) {
+            if (getOldValue) {
+                error("unsupported getting old value in input dicts `delete` operation")
+            }
+            val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
+            val dictConcreteRef =
+                dictCellRef as? UConcreteHeapRef
+                    ?: error("unsupported")
+            val (baseInputDit, rootInfo) = scope.calcOnState { readInputDictionary(dictConcreteRef) }
+            val k = ctx.extendDictKey(key, keyType)
+            val (c1, exists) =
+                scope.calcOnState {
+                    Pair(makeSymbolicPrimitive(ctx.cellDataSort), makeSymbolicPrimitive(ctx.boolSort))
+                }
+            val dictHasKey = baseInputDit.doDictHasKey(ctx, k, rootInfo, c1, exists)
+            scope.assert(ctx.mkAnd(dictHasKey.constraints))
+                ?: return
+            val appliedModification = Modification.Remove(k)
+            val newInputDict =
+                InputDict(
+                    modifications = baseInputDit.modifications.add(0, appliedModification),
+                    rootInputDictId = baseInputDit.rootInputDictId,
+                )
+            scope.calcOnStateCtx {
+                val dictKeyLength = memory.readField(dictConcreteRef, dictKeyLengthField, sizeSort)
+                memory.writeField(resultDict, dictKeyLengthField, sizeSort, dictKeyLength, guard = trueExpr)
+                inputDictionaryStorage =
+                    inputDictionaryStorage.set(resultDict, newInputDict, dictHasKey.updatedRootInfo)
+                addOnStack(resultDict, TvmCellType)
+                addOnStack(exists, TvmIntegerType)
+                newStmt(inst.nextStmt())
+            }
+            return
         }
 
         val dictContainsKey = scope.calcOnState { dictContainsKey(dictCellRef, dictId, key) }
@@ -1820,7 +1883,9 @@ class TvmDictOperationInterpreter(
             scope.calcOnStateCtx {
                 memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
             }
-        if (allSetEntries.isInput) {
+        val isInput =
+            allSetEntries.isInput || scope.calcOnState { inputDictionaryStorage.memory.keys.contains(dictCellRef) }
+        if (isInput) {
             if (removeKey) {
                 error("not supported yet")
             }
@@ -2005,8 +2070,6 @@ class TvmDictOperationInterpreter(
 
         assertDictKeyLength(scope, dictCellRef, keyLength)
             ?: return
-        assertDictIsNotEmpty(scope, dictCellRef, dictId)
-            ?: return
 
         val keySort = ctx.mkBvSort(keyLength.toUInt())
 
@@ -2015,7 +2078,14 @@ class TvmDictOperationInterpreter(
             scope.calcOnStateCtx {
                 memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
             }
-        if (allSetEntries.isInput) {
+        val isInput =
+            allSetEntries.isInput ||
+                scope.calcOnState { inputDictionaryStorage.memory.keys.contains(dictCellRef) }
+        if (!isInput) {
+            assertDictIsNotEmpty(scope, dictCellRef, dictId)
+                ?: return
+        }
+        if (isInput) {
             val dictConcreteRef =
                 dictCellRef as? UConcreteHeapRef
                     ?: error("unsupported")

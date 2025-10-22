@@ -226,20 +226,24 @@ data class InputDictRootInformation(
         }
     }
 
-    fun TvmContext.getCurrentlyDiscoveredKeys(modifications: List<Modification>): List<KeySymbol> {
-        val (head, tail) = modifications.splitHeadTail() ?: return symbols.map { KeySymbol(it, trueExpr) }
-        val tailSymbols = getCurrentlyDiscoveredKeys(tail)
-        return when (head) {
-            is Modification.Store ->
-                tailSymbols.map { (s, cond) -> KeySymbol(s, cond or (s eq head.k)) } +
-                    KeySymbol(head.k, trueExpr)
+    fun getCurrentlyDiscoveredKeys(
+        ctx: TvmContext,
+        modifications: List<Modification>,
+    ): List<KeySymbol> =
+        with(ctx) {
+            val (head, tail) = modifications.splitHeadTail() ?: return symbols.map { KeySymbol(it, trueExpr) }
+            val tailSymbols = getCurrentlyDiscoveredKeys(this, tail)
+            return when (head) {
+                is Modification.Store ->
+                    tailSymbols.map { (s, cond) -> KeySymbol(s, cond or (s eq head.k)) } +
+                        KeySymbol(head.k, trueExpr)
 
-            is Modification.Remove ->
-                tailSymbols.map { (symbol, condition) ->
-                    KeySymbol(symbol, condition and (symbol neq head.k))
-                }
+                is Modification.Remove ->
+                    tailSymbols.map { (symbol, condition) ->
+                        KeySymbol(symbol, condition and (symbol neq head.k))
+                    }
+            }
         }
-    }
 }
 
 sealed interface DictNextResult {
@@ -273,8 +277,8 @@ sealed interface DictMaxResult {
 }
 
 data class InputDict(
-    val rootInputDictId: Int = next(),
     val modifications: PersistentList<Modification> = persistentListOf(),
+    val rootInputDictId: Int = next(),
 ) {
     companion object {
         private var counter: Int = 0

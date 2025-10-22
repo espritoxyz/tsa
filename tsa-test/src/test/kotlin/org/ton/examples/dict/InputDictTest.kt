@@ -116,4 +116,36 @@ class InputDictTest {
             tests.assertHasExitCodes(300, 500)
             tests.assertDoesNotHaveExitCodes(400, 401, 402)
         }
+
+    @Test
+    fun `set and get are consistent`() {
+        analyzeMethodAndRun(11) { tests ->
+            tests.assertHasExitCodes(500)
+            tests.assertDoesNotHaveExitCodes(400)
+        }
+    }
+
+    @Test
+    fun `set overrides values`() {
+        analyzeMethodAndRun(12) { tests ->
+            tests.assertHasExitCodes(300, 500)
+            tests.assertDoesNotHaveExitCodes(400)
+        }
+    }
+
+    @Test
+    fun `get and delete are consistent`() {
+        analyzeMethodAndRun(13) { tests ->
+            tests.assertHasExitCodes(500)
+            tests.assertDoesNotHaveExitCodes(400)
+        }
+    }
+
+    @Test
+    fun `delete overrides values`() {
+        analyzeMethodAndRun(14) { tests ->
+            tests.assertHasExitCodes(300, 500)
+            tests.assertDoesNotHaveExitCodes(400)
+        }
+    }
 }

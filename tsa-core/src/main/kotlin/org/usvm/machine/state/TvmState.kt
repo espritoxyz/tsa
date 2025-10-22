@@ -295,13 +295,20 @@ class InputDictionaryStorage(
 ) {
     fun clone() = this
 
+    /**
+     * @param newInputDictRootInformation is null iff you don't want to update the root dictionary
+     */
     fun set(
         dictConcreteRef: UConcreteHeapRef,
         inputDict: InputDict,
-        newInputDictRootInformation: InputDictRootInformation,
+        newInputDictRootInformation: InputDictRootInformation? = null,
     ): InputDictionaryStorage =
         InputDictionaryStorage(
             memory.put(dictConcreteRef, inputDict),
-            inputDicts.put(inputDict.rootInputDictId, newInputDictRootInformation),
+            if (newInputDictRootInformation != null) {
+                inputDicts.put(inputDict.rootInputDictId, newInputDictRootInformation)
+            } else {
+                inputDicts
+            },
         )
 }

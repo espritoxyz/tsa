@@ -107,3 +107,44 @@
     throw_if(400, found2);
     throw(500); ;; successfull execution
 }
+
+() check_dict_set_works(slice in_msg) impure method_id (11) {
+    cell some_cell = in_msg~load_dict();
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell set_dict = udict_set(some_cell, 64, 37, empty_slice);
+    (_, int found) = set_dict.udict_get?(64, 37);
+    throw_if(400, ~ found);
+    throw(500); ;; successfull execution
+}
+
+() check_dict_set_overrides_value(slice in_msg) impure method_id (12) {
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell some_cell = in_msg~load_dict();
+    (_, int found) = some_cell.udict_get?(64, 37);
+    throw_unless(300, ~ found); ;; assert does not exist
+
+    cell set_dict = udict_set(some_cell, 64, 37, empty_slice);
+    (_, int found1) = set_dict.udict_get?(64, 37);
+    throw_if(400, ~ found1);
+    throw(500); ;; successfull execution
+}
+
+() check_dict_delete_works(slice in_msg) impure method_id (13) {
+    cell some_cell = in_msg~load_dict();
+    (cell rem_dict, _) = udict_delete?(some_cell, 64, 37);
+    (_, int found) = rem_dict.udict_get?(64, 37);
+    throw_if(400, found);
+    throw(500); ;; successfull execution
+}
+
+() check_dict_delete_overrides_value(slice in_msg) impure method_id (14) {
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell some_cell = in_msg~load_dict();
+    (_, int found) = some_cell.udict_get?(64, 37);
+    throw_unless(300, ~ found); ;; assert exists
+
+    cell set_dict = udict_set(some_cell, 64, 37, empty_slice);
+    (_, int found1) = set_dict.udict_get?(64, 37);
+    throw_if(400, ~ found1);
+    throw(500); ;; successfull execution
+}
