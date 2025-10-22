@@ -65,6 +65,7 @@ data class StackFrameOfUnknown(
             if (hasOffset || inferenceManager.isFixated(loadData.cellRef) || !loadData.guard.isTrue) {
                 return@doWithCtx defaultResult
             }
+//            return@doWithCtx defaultResult
 
             val label =
                 loadData.type.defaultTlbLabel()
@@ -99,19 +100,16 @@ data class StackFrameOfUnknown(
                 scope.checkSat(assumeValue)
                     ?: return@doWithCtx defaultResult
 
-                scope.assert(assumeValue)
-                    ?: error("unexpected solver result")
-
                 var badSizeContext = BadSizeContext.GoodSizeIsSat
 
                 check(loadData.guard.isTrue) {
                     "Unexpected loadData guard"
                 }
 
-                forgottenConstraint = sizeIsBad.not()
+                forgottenConstraint = sizeIsBad.not() and assumeValue
 
                 scope.forkWithCheckerStatusKnowledge(
-                    sizeIsBad.not(),
+                    assumeValue implies sizeIsBad.not(),
                     blockOnUnknownTrueState = {
                         badSizeContext = BadSizeContext.GoodSizeIsUnknown
                     },
