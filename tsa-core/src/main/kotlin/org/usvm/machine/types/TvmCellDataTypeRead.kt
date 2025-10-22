@@ -96,6 +96,28 @@ sealed interface SizedCellDataTypeRead {
     val sizeBits: UExpr<TvmSizeSort>
 }
 
+private fun writeToNextLabelFieldsForConcreteSize(
+    state: TvmState,
+    ref: UConcreteHeapRef,
+    path: List<Int>,
+    structureId: Int,
+    dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
+    bits: Int,
+) = with(state.ctx) {
+    val field = ConcreteSizeBlockField(bits, structureId, path)
+    val data =
+        mkBvExtractExpr(
+            high = TvmContext.CELL_DATA_BITS.toInt() - 1,
+            low = TvmContext.CELL_DATA_BITS.toInt() - bits,
+            dataSuffix,
+        )
+    state.memory.writeField(ref, field, field.getSort(this), data, guard = trueExpr)
+
+    val unknownField = UnknownBlockField(TlbStructure.Unknown.id, path)
+    val unknownBlockData = mkBvShiftLeftExpr(dataSuffix, mkBv(bits, cellDataSort))
+    state.memory.writeField(ref, unknownField, unknownField.getSort(this), unknownBlockData, guard = trueExpr)
+}
+
 data class TvmCellDataIntegerRead(
     override val sizeBits: UExpr<TvmSizeSort>,
     val isSigned: Boolean,
@@ -169,23 +191,11 @@ data class TvmCellDataIntegerRead(
         path: List<Int>,
         structureId: Int,
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
-    ) = with(state.ctx) {
+    ) {
         if (sizeBits !is KInterpretedValue) {
             return
         }
-        val bits = sizeBits.intValue()
-        val field = ConcreteSizeBlockField(bits, structureId, path)
-        val data =
-            mkBvExtractExpr(
-                high = TvmContext.CELL_DATA_BITS.toInt() - 1,
-                low = TvmContext.CELL_DATA_BITS.toInt() - bits,
-                dataSuffix,
-            )
-        state.memory.writeField(ref, field, field.getSort(this), data, guard = trueExpr)
-
-        val unknownField = UnknownBlockField(TlbStructure.Unknown.id, path)
-        val unknownBlockData = mkBvShiftLeftExpr(dataSuffix, sizeBits.zeroExtendToSort(cellDataSort))
-        state.memory.writeField(ref, unknownField, unknownField.getSort(this), unknownBlockData, guard = trueExpr)
+        writeToNextLabelFieldsForConcreteSize(state, ref, path, structureId, dataSuffix, sizeBits.intValue())
     }
 }
 
@@ -259,6 +269,16 @@ class TvmCellMaybeConstructorBitRead(
         dataSuffixLength: UExpr<TvmSizeSort>,
     ) = with(dataSuffix.ctx.tctx()) {
         mkSizeLtExpr(dataSuffixLength, oneSizeExpr) to trueExpr
+    }
+
+    override fun writeToNextLabelFields(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: List<Int>,
+        structureId: Int,
+        dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
+    ) {
+        writeToNextLabelFieldsForConcreteSize(state, ref, path, structureId, dataSuffix, 1)
     }
 }
 
@@ -365,6 +385,8 @@ class TvmCellDataMsgAddrRead(
 
         badSizeCond to assumeCond
     }
+
+    // TODO: writeToNextLabelFields
 }
 
 data class TvmCellDataBitArrayRead(
@@ -470,6 +492,19 @@ data class TvmCellDataBitArrayRead(
         dataSuffixLength: UExpr<TvmSizeSort>,
     ) = with(dataSuffix.ctx.tctx()) {
         mkSizeLtExpr(dataSuffixLength, sizeBits) to trueExpr
+    }
+
+    override fun writeToNextLabelFields(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: List<Int>,
+        structureId: Int,
+        dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
+    ) {
+        if (sizeBits !is KInterpretedValue) {
+            return
+        }
+        writeToNextLabelFieldsForConcreteSize(state, ref, path, structureId, dataSuffix, sizeBits.intValue())
     }
 }
 
