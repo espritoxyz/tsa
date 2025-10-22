@@ -8,16 +8,19 @@ import org.ton.TlbStructureIdProvider
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.api.readField
+import org.usvm.api.writeField
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.fields.TvmCellDataLengthFieldManager.Companion.UnknownBlockLengthField
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.types.memory.UnknownBlockField
+import org.usvm.machine.types.memory.UnknownBlockLengthField
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
+import org.usvm.mkSizeGeExpr
+import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
 
 data class StackFrameOfUnknown(
@@ -143,6 +146,20 @@ data class StackFrameOfUnknown(
                 )
                     ?: error("Unexpected null defaultTlbLabelSize")
 
+            val restSizeValue = mkSizeSubExpr(curSize, labelSize)
+            val restSizeField = UnknownBlockLengthField(newPath)
+
+            // if we don't use this scheme after all, we will just ignore this field
+            scope.doWithState {
+                memory.writeField(
+                    loadData.cellRef,
+                    restSizeField,
+                    restSizeField.getSort(ctx),
+                    restSizeValue,
+                    guard = trueExpr,
+                )
+            }
+
             val tlbFieldConstraint =
                 if (label is TlbCompositeLabel) {
                     scope.calcOnState {
@@ -158,20 +175,7 @@ data class StackFrameOfUnknown(
                     trueExpr
                 }
 
-            val restSizeField = UnknownBlockLengthField(newPath)
-            val restSize =
-                scope.calcOnState {
-                    memory
-                        .readField(
-                            loadData.cellRef,
-                            restSizeField,
-                            restSizeField.getSort(ctx),
-                        ).zeroExtendToSort(sizeSort)
-                }
-
-            val tlbSizeConstraint =
-                mkBvAddExpr(labelSize, restSize) eq curSize
-
+            val tlbSizeConstraint = mkSizeGeExpr(restSizeValue, zeroSizeExpr)
             val tlbConstraint = tlbSizeConstraint and tlbFieldConstraint
 
             scope.checkSat(tlbConstraint)

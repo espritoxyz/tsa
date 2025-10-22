@@ -9,15 +9,14 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.api.readField
 import org.usvm.machine.TvmSizeSort
-import org.usvm.machine.fields.TvmCellDataLengthFieldManager.Companion.UnknownBlockLengthField
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.dataLength
+import org.usvm.machine.types.memory.UnknownBlockLengthField
 import org.usvm.machine.types.memory.generateGuardForSwitch
 import org.usvm.machine.types.memory.typeArgs
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.mkSizeGeExpr
-import org.usvm.sizeSort
 
 /**
  * Returns size information for lists (Empty or Unknown).
@@ -140,7 +139,7 @@ fun calculateGeneralSizeConstraints(
             when (leaf) {
                 is TlbStructure.Unknown -> {
                     val field = UnknownBlockLengthField(listOf())
-                    val blockLength = state.memory.readField(ref, field, field.getSort(this)).zeroExtendToSort(sizeSort)
+                    val blockLength = state.memory.readField(ref, field, field.getSort(this))
                     val dataLength = mkBvAddExpr(sizeInfo.dataLength, blockLength)
 
                     val newGuard =
