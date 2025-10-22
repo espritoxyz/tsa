@@ -86,7 +86,7 @@ sealed interface TvmCellDataTypeRead<ReadResult> {
     fun writeToNextLabelFields(
         state: TvmState,
         ref: UConcreteHeapRef,
-        path: List<Int>,
+        path: PersistentList<Int>,
         structureId: Int,
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
     ) = run { }
@@ -188,7 +188,7 @@ data class TvmCellDataIntegerRead(
     override fun writeToNextLabelFields(
         state: TvmState,
         ref: UConcreteHeapRef,
-        path: List<Int>,
+        path: PersistentList<Int>,
         structureId: Int,
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
     ) {
@@ -274,7 +274,7 @@ class TvmCellMaybeConstructorBitRead(
     override fun writeToNextLabelFields(
         state: TvmState,
         ref: UConcreteHeapRef,
-        path: List<Int>,
+        path: PersistentList<Int>,
         structureId: Int,
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
     ) {
@@ -386,16 +386,42 @@ class TvmCellDataMsgAddrRead(
         badSizeCond to assumeCond
     }
 
-//    override fun writeToNextLabelFields(
-//        state: TvmState,
-//        ref: UConcreteHeapRef,
-//        path: List<Int>,
-//        structureId: Int,
-//        dataSuffix: UExpr<TvmContext.TvmCellDataSort>
-//    ) {
-//
-//        super.writeToNextLabelFields(state, ref, path, structureId, dataSuffix)
-//    }
+    override fun writeToNextLabelFields(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+        path: PersistentList<Int>,
+        structureId: Int,
+        dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
+    ) = with(state.ctx) {
+        val label = defaultTlbLabel()
+        val struct = label.internalStructure
+
+        check(struct is SwitchPrefix && struct.variants.size == 1) {
+            "Unexpected default struct for message address"
+        }
+
+        val further =
+            struct.variants.single().struct as? KnownTypePrefix
+                ?: error("Unexpected structure: ${struct.variants.single().struct}")
+
+        check(further.typeLabel is FixedSizeDataLabel) {
+            "Unexpected label: ${further.typeLabel}"
+        }
+
+        val newPath = path.add(structureId)
+        val field = ConcreteSizeBlockField(further.typeLabel.concreteSize, further.id, newPath)
+        val data =
+            mkBvExtractExpr(
+                high = TvmContext.CELL_DATA_BITS.toInt() - 1 - struct.switchSize,
+                low = TvmContext.CELL_DATA_BITS.toInt() - struct.switchSize - further.typeLabel.concreteSize,
+                dataSuffix,
+            )
+        state.memory.writeField(ref, field, field.getSort(this), data, guard = trueExpr)
+
+        val unknownField = UnknownBlockField(TlbStructure.Unknown.id, path)
+        val unknownBlockData = mkBvShiftLeftExpr(dataSuffix, mkBv(TvmContext.stdMsgAddrSize, cellDataSort))
+        state.memory.writeField(ref, unknownField, unknownField.getSort(this), unknownBlockData, guard = trueExpr)
+    }
 }
 
 data class TvmCellDataBitArrayRead(
@@ -506,7 +532,7 @@ data class TvmCellDataBitArrayRead(
     override fun writeToNextLabelFields(
         state: TvmState,
         ref: UConcreteHeapRef,
-        path: List<Int>,
+        path: PersistentList<Int>,
         structureId: Int,
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
     ) {

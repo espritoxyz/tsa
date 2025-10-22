@@ -119,6 +119,9 @@ data class StackFrameOfUnknown(
                         badSizeContext = BadSizeContext.GoodSizeIsUnsat
                     },
                     blockOnFalseState = {
+                        // because UnknownBlockField got into constraints
+                        fieldManagers.cellDataFieldManager.inferenceManager.fixateRef(loadData.cellRef)
+
                         onBadCellSize(this, badSizeContext)
                     },
                     doNotAddConstraintToTrueState = true, // because further constraints are stronger
@@ -181,7 +184,7 @@ data class StackFrameOfUnknown(
                     scope.assert(forgottenConstraint)
                         ?: error("Unexpected solver result")
 
-                    inferenceManager.fixateRef(loadData.cellRef) // because UnknownBlockField git into constraints
+                    inferenceManager.fixateRef(loadData.cellRef) // because UnknownBlockField got into constraints
 
                     return@doWithCtx defaultResult
                 }
