@@ -17,7 +17,6 @@ import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbLabel
 import org.ton.TlbMaybeRefLabel
-import org.ton.TlbStructure
 import org.ton.TlbStructure.KnownTypePrefix
 import org.ton.TlbStructure.SwitchPrefix
 import org.ton.defaultTlbMaybeRefLabel
@@ -28,7 +27,6 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
-import org.usvm.api.writeField
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
@@ -40,7 +38,6 @@ import org.usvm.machine.tctx
 import org.usvm.machine.types.memory.ConcreteSizeBlockField
 import org.usvm.machine.types.memory.SliceRefField
 import org.usvm.machine.types.memory.SymbolicSizeBlockField
-import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.extractInt
 import org.usvm.machine.types.memory.generateGuardForSwitch
 import org.usvm.machine.types.memory.readConcreteBv
@@ -162,7 +159,7 @@ data class TvmCellDataIntegerRead(
     ) = with(dataSuffix.ctx.tctx()) {
         mkSizeLtExpr(dataSuffixLength, sizeBits) to trueExpr
     }
-
+//
 //    override fun writeToNextLabelFields(
 //        state: TvmState,
 //        ref: UConcreteHeapRef,
@@ -183,7 +180,8 @@ data class TvmCellDataIntegerRead(
 //        state.memory.writeField(ref, field, field.getSort(this), data, guard = trueExpr)
 //
 //        val unknownField = UnknownBlockField(TlbStructure.Unknown.id, path)
-//        TODO()
+//        val unknownBlockData = mkBvShiftLeftExpr(dataSuffix, sizeBits.zeroExtendToSort(cellDataSort))
+//        state.memory.writeField(ref, unknownField, unknownField.getSort(this), unknownBlockData, guard = trueExpr)
 //    }
 }
 
