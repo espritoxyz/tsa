@@ -85,7 +85,7 @@ class InputDictTest {
     @Test
     fun `get_max returns the largest key`() =
         analyzeMethodAndRun(4) { tests ->
-            tests.assertHasExitCodes(301, 500)
+            tests.assertHasExitCodes(300, 500)
             tests.assertDoesNotHaveExitCodes(400, 401)
         }
 
@@ -93,6 +93,13 @@ class InputDictTest {
     fun `get_max returns the largest key 2`() =
         analyzeMethodAndRun(5) { tests ->
             tests.assertHasExitCodes(300, 301, 500)
+            tests.assertDoesNotHaveExitCodes(400, 401)
+        }
+
+    @Test
+    fun `get_max returns not found implies empty`() =
+        analyzeMethodAndRun(10) { tests ->
+            tests.assertHasExitCodes(300, 500)
             tests.assertDoesNotHaveExitCodes(400, 401)
         }
 

@@ -151,7 +151,7 @@ class TvmState(
         get() {
             var node: PathNode<*>? = pathNode
             while (node?.statementOrNull() !is TvmRealInst?) {
-                node = node?.parent
+                node = node.parent
             }
             return (node?.statementOrNull() as? TvmRealInst)
         }
@@ -294,4 +294,14 @@ class InputDictionaryStorage(
     val inputDicts: PersistentMap<Int, InputDictRootInformation> = persistentMapOf(),
 ) {
     fun clone() = this
+
+    fun set(
+        dictConcreteRef: UConcreteHeapRef,
+        inputDict: InputDict,
+        newInputDictRootInformation: InputDictRootInformation,
+    ): InputDictionaryStorage =
+        InputDictionaryStorage(
+            memory.put(dictConcreteRef, inputDict),
+            inputDicts.put(inputDict.rootInputDictId, newInputDictRootInformation),
+        )
 }

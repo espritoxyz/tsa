@@ -39,9 +39,9 @@
 
 () check_get_max_returns_the_largest_key(slice in_msg, int lower_bound) impure method_id (4) {
     cell some_cell = in_msg~load_dict();
-    (int some_key, _, int found1) = some_cell.idict_get_next?(64, lower_bound);
-    throw_if(301, ~ found1);
-    (int max_key, _, int found2) = some_cell.idict_get_max?(64);
+    (int some_key, _, int found1) = some_cell.udict_get_next?(64, lower_bound);
+    throw_if(300, ~ found1);
+    (int max_key, _, int found2) = some_cell.udict_get_max?(64);
     throw_if(400, ~ found2); ;; unreachable, as it is not empty
     throw_if(401, max_key < some_key);
     throw(500); ;; successfull execution
@@ -97,4 +97,13 @@
     throw_if(400, ~ found2);
     throw_if(401, slice_hash(value1) != slice_hash(value2));
     throw(500);
+}
+
+() check_get_max_returns_none_implies_empty(slice in_msg, int lower_bound) impure method_id (10) {
+    cell some_cell = in_msg~load_dict();
+    (_, _, int found1) = some_cell.udict_get_max?(64);
+    throw_if(300, found1); ;; throw if not empty
+    (_, _, int found2) = some_cell.udict_get_next?(64, lower_bound);
+    throw_if(400, found2);
+    throw(500); ;; successfull execution
 }

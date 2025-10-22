@@ -265,6 +265,13 @@ data class DictGetResult(
     val updatedRootInfo: InputDictRootInformation,
 )
 
+sealed interface DictMaxResult {
+    data class Exists(
+        val constraintSet: ConstraintSet,
+        val newInputDictRootInformation: InputDictRootInformation,
+    ) : DictMaxResult
+}
+
 data class InputDict(
     val rootInputDictId: Int = next(),
     val modifications: PersistentList<Modification> = persistentListOf(),
@@ -296,6 +303,38 @@ data class InputDict(
             )
         val fullCs = symbolConstraint.add(resultIsSomeKeyCs).addAll(universalInstancesCs)
         return DictGetResult(fullCs, updatedRootDictInfo)
+    }
+
+    /**
+     * ```
+     * max(d) = p <->
+     *     p \in keys(d)
+     *     \forall x <- keys(d), x <= p
+     * max(d) = \bot <->
+     *     \forall x <- keys(d), \bot
+     * ```
+     */
+    fun doDictMaxMin(
+        ctx: TvmContext,
+        rootInformation: InputDictRootInformation,
+        isMax: Boolean,
+        freshConstantForInput: K,
+        freshConstantForResult: K,
+        isSigned: Boolean,
+    ): DictMaxResult.Exists {
+        val symbolConstraint = rootInformation.createSymbolConstraints(ctx, freshConstantForInput)
+        val resultIsSomeKeyCs =
+            freshInputSymbolOrStoredKey(ctx, freshConstantForInput, freshConstantForResult, rootInformation)
+        val newSymbols = rootInformation.symbols.add(freshConstantForInput)
+        val (universalInstancesCs, newLazyConstraints) =
+            rootInformation.addLazyUniversalConstraint(
+                ctx,
+                UpperLowerBoundConstraint(freshConstantForResult, isMax, false, isSigned, modifications),
+            )
+        val updatedRootDictInfo = InputDictRootInformation(newLazyConstraints, newSymbols)
+
+        val fullCs = symbolConstraint.add(resultIsSomeKeyCs).addAll(universalInstancesCs)
+        return DictMaxResult.Exists(fullCs, updatedRootDictInfo)
     }
 
     /*
