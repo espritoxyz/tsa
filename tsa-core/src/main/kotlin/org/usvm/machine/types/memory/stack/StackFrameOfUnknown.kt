@@ -66,8 +66,6 @@ data class StackFrameOfUnknown(
                 return@doWithCtx defaultResult
             }
 
-//            return@doWithCtx defaultResult
-
             val label =
                 loadData.type.defaultTlbLabel()
                     ?: return@doWithCtx defaultResult
@@ -189,6 +187,16 @@ data class StackFrameOfUnknown(
                 ?: error("Unexpected solver result")
 
             inferenceManager.addInferredStruct(loadData.cellRef, path, newStructure)
+
+            loadData.type.writeToNextLabelFields(
+                scope.calcOnState {
+                    this
+                },
+                loadData.cellRef,
+                newPath,
+                newStructure.id,
+                dataSymbolic,
+            )
 
             val nextFrame =
                 buildFrameForStructure(ctx, newStructure, newPath, leftTlbDepth)

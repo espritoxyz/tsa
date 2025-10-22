@@ -4,6 +4,7 @@ import io.ksmt.KAst
 import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvLogicalShiftRightExpr
+import io.ksmt.expr.KBvShiftLeftExpr
 import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KExpr
@@ -241,6 +242,18 @@ class TvmContext(
                 }
             }
         }
+        if (value is KBvShiftLeftExpr && value.shift is KBitVecValue) {
+            val maxSizeBits = value.sort.sizeBits.toInt()
+            val shiftBI = (value.shift as KBitVecValue).toBigIntegerSigned()
+            if (shiftBI < maxSizeBits.toBigInteger() && shiftBI >= BigInteger.ZERO) {
+                val shift = shiftBI.toInt()
+                val newHigh = high - shift
+                val newLow = low - shift
+                if (newLow >= 0 && newHigh < maxSizeBits) {
+                    return super.mkBvExtractExpr(newHigh, newLow, value.arg)
+                }
+            }
+        }
         if (value is KBvZeroExtensionExpr && value.value.sort.sizeBits > high.toUInt()) {
             return super.mkBvExtractExpr(high, low, value.value)
         }
@@ -248,6 +261,20 @@ class TvmContext(
             return super.mkBvExtractExpr(high, low, value.value)
         }
         return super.mkBvExtractExpr(high, low, value)
+    }
+
+    override fun <T : KBvSort> mkBvShiftLeftExpr(
+        arg: KExpr<T>,
+        shift: KExpr<T>,
+    ): KExpr<T> {
+        if (arg is KBvShiftLeftExpr && arg.shift is KBitVecValue && shift is KBitVecValue) {
+            val maxSizeBits = arg.sort.sizeBits.toInt()
+            val shiftBI = (arg.shift as KBitVecValue).toBigIntegerSigned() + shift.toBigIntegerSigned()
+            if (shiftBI < maxSizeBits.toBigInteger() && shiftBI >= BigInteger.ZERO) {
+                return mkBvShiftLeftExpr(arg.arg, mkBvAddExpr(arg.shift, shift))
+            }
+        }
+        return super.mkBvShiftLeftExpr(arg, shift)
     }
 
     private fun tvmSimplifyBoolIte(
