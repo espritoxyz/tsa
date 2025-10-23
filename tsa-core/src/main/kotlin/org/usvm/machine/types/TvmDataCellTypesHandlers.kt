@@ -79,6 +79,14 @@ private fun <ReadResult> MutableMap<
     innerMap.addGuardedOutcome(readValue, guard)
 }
 
+private fun TlbStack.Error.ignore(
+    ctx: TvmContext,
+    cellRef: UConcreteHeapRef,
+): Boolean =
+    !ctx.tvmOptions.turnOnTLBParsingChecks ||
+        fromMutableTlb ||
+        (cellRef.isAllocated && !ctx.tvmOptions.tlbOptions.performTlbChecksOnAllocatedCells)
+
 fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     oldSlice: UHeapRef,
     type: TvmCellDataTypeRead<ReadResult>,
@@ -87,9 +95,6 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     restActions: TvmStepScopeManager.(ReadResult?) -> Unit,
 ) = doWithCtx {
-    val turnOnTLBParsingChecks = doWithCtx { tvmOptions.turnOnTLBParsingChecks }
-    val performTlbChecksOnAllocatedCells = doWithCtx { tvmOptions.tlbOptions.performTlbChecksOnAllocatedCells }
-
     val conditionsForFork = mutableListOf<Triple<UBoolExpr, MakeSliceTypeLoadOutcome, ReadResult?>>()
 
     val outcomes = hashMapOf<MakeSliceTypeLoadOutcome, MutableMap<ReadResult?, UBoolExpr>>()
@@ -107,7 +112,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     loadList.forEach { load ->
         val tlbStack =
             calcOnState {
-                dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceAddress)
+                dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceRef)
             } ?: run {
                 outcomes.addGuardedTypeloadOutcome(NoTlbStack, null, load.guard)
                 return@forEach
@@ -124,7 +129,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
             .flatMap { (guard, stepResult, oldValue) ->
                 if (load.type is TvmCellDataIntegerRead &&
                     stepResult is TlbStack.Error &&
-                    (!ctx.tvmOptions.turnOnTLBParsingChecks || stepResult.fromMutableTlb)
+                    stepResult.ignore(ctx, load.cellRef)
                 ) {
                     retryWithBitvectorRead(
                         load.type,
@@ -145,10 +150,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                 when (stepResult) {
                     is TlbStack.Error -> {
                         val outcome =
-                            if (turnOnTLBParsingChecks &&
-                                (!load.cellAddress.isAllocated || performTlbChecksOnAllocatedCells) &&
-                                !stepResult.fromMutableTlb
-                            ) {
+                            if (!stepResult.ignore(ctx, load.cellRef)) {
                                 Error(stepResult.error)
                             } else {
                                 NoTlbStack
@@ -226,10 +228,10 @@ private fun <ReadResult> retryWithBitvectorRead(
     val updatedLoad =
         TvmDataCellLoadedTypeInfo.LoadData(
             load.guard,
-            load.cellAddress,
+            load.cellRef,
             bitArrayReadType,
             load.offset,
-            load.sliceAddress,
+            load.sliceRef,
         )
     val updatedLimitLoadData = LimitedLoadData.fromLoadData(updatedLoad)
     val newResult =
@@ -294,7 +296,7 @@ fun TvmStepScopeManager.assertEndOfCell(slice: UHeapRef): Unit? {
         val actions = dataCellLoadedTypeInfo.makeEndOfCell(cellAddress, offset, refNumber)
         actions.forEach {
             val noConflictCond =
-                if (it.cellAddress.isAllocated) {
+                if (it.cellRef.isAllocated) {
                     trueExpr
                 } else {
                     dataCellInfoStorage.getNoUnexpectedEndOfReadingCondition(this, it)
@@ -324,7 +326,7 @@ fun TvmStepScopeManager.makeSliceRefLoad(
             val loadList = dataCellLoadedTypeInfo.loadRef(cellAddress, refNumber)
             loadList.forEach { load ->
                 val noConflictCond =
-                    if (load.cellAddress.isAllocated) {
+                    if (load.cellRef.isAllocated) {
                         trueExpr
                     } else {
                         dataCellInfoStorage.getNoUnexpectedLoadRefCondition(this, load)

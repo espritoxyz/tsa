@@ -21,26 +21,26 @@ class TvmDataCellLoadedTypeInfo(
 ) {
     sealed interface Action {
         val guard: UBoolExpr
-        val cellAddress: UConcreteHeapRef
+        val cellRef: UConcreteHeapRef
     }
 
     class LoadData<ReadResult>(
         override val guard: UBoolExpr,
-        override val cellAddress: UConcreteHeapRef,
+        override val cellRef: UConcreteHeapRef,
         val type: TvmCellDataTypeRead<ReadResult>,
         val offset: UExpr<TvmSizeSort>,
-        val sliceAddress: UConcreteHeapRef,
+        val sliceRef: UConcreteHeapRef,
     ) : Action
 
     class LoadRef(
         override val guard: UBoolExpr,
-        override val cellAddress: UConcreteHeapRef,
+        override val cellRef: UConcreteHeapRef,
         val refNumber: UExpr<TvmSizeSort>,
     ) : Action
 
     class EndOfCell(
         override val guard: UBoolExpr,
-        override val cellAddress: UConcreteHeapRef,
+        override val cellRef: UConcreteHeapRef,
         val offset: UExpr<TvmSizeSort>,
         val refNumber: UExpr<TvmSizeSort>,
     ) : Action

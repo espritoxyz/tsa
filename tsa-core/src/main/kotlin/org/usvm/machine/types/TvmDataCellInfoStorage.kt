@@ -55,7 +55,7 @@ class TvmDataCellInfoStorage private constructor(
     ): UBoolExpr =
         with(ctx) {
             val labelInfo =
-                mapper.getLabelInfo(endOfCell.cellAddress)
+                mapper.getLabelInfo(endOfCell.cellRef)
                     ?: return trueExpr
             return labelInfo.variants.entries.fold(trueExpr as UBoolExpr) { acc, (curInfo, guard) ->
                 if (curInfo !is TvmParameterInfo.DataCellInfo) {
@@ -64,7 +64,7 @@ class TvmDataCellInfoStorage private constructor(
                 }
                 val label = curInfo.dataCellStructure
                 val leafInfo =
-                    mapper.calculatedTlbLabelInfo.getLeavesInfo(state, endOfCell.cellAddress, label)
+                    mapper.calculatedTlbLabelInfo.getLeavesInfo(state, endOfCell.cellRef, label)
                         ?: return@fold acc
 
                 leafInfo.fold(acc) { innerAcc, (struct, sizeInfo) ->
@@ -93,7 +93,7 @@ class TvmDataCellInfoStorage private constructor(
     ): UBoolExpr =
         with(ctx) {
             val labelInfo =
-                mapper.getLabelInfo(loadRef.cellAddress)
+                mapper.getLabelInfo(loadRef.cellRef)
                     ?: return trueExpr
             return labelInfo.variants.entries.fold(trueExpr as UBoolExpr) { acc, (curInfo, guard) ->
                 if (curInfo !is TvmParameterInfo.DataCellInfo) {
@@ -102,7 +102,7 @@ class TvmDataCellInfoStorage private constructor(
                 }
                 val label = curInfo.dataCellStructure
                 val leafInfo =
-                    mapper.calculatedTlbLabelInfo.getLeavesInfo(state, loadRef.cellAddress, label)
+                    mapper.calculatedTlbLabelInfo.getLeavesInfo(state, loadRef.cellRef, label)
                         ?: return@fold acc
 
                 leafInfo.fold(acc) { innerAcc, (struct, sizeInfo) ->

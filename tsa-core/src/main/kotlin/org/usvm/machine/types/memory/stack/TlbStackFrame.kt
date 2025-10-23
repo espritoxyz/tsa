@@ -142,7 +142,7 @@ data class LimitedLoadData<ReadResult>(
             LimitedLoadData(
                 type = loadData.type,
                 guard = loadData.guard,
-                cellRef = loadData.cellAddress,
+                cellRef = loadData.cellRef,
             )
     }
 }

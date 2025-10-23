@@ -269,8 +269,12 @@ class TvmContext(
     ): KExpr<T> {
         if (arg is KBvShiftLeftExpr && arg.shift is KBitVecValue && shift is KBitVecValue) {
             val maxSizeBits = arg.sort.sizeBits.toInt()
-            val shiftBI = (arg.shift as KBitVecValue).toBigIntegerSigned() + shift.toBigIntegerSigned()
-            if (shiftBI < maxSizeBits.toBigInteger() && shiftBI >= BigInteger.ZERO) {
+            val shiftBI1 = (arg.shift as KBitVecValue).toBigIntegerSigned()
+            val shiftBI2 = shift.toBigIntegerSigned()
+            if (shiftBI1 + shiftBI2 < maxSizeBits.toBigInteger() &&
+                shiftBI1 >= BigInteger.ZERO &&
+                shiftBI2 >= BigInteger.ZERO
+            ) {
                 return mkBvShiftLeftExpr(arg.arg, mkBvAddExpr(arg.shift, shift))
             }
         }
