@@ -8,10 +8,10 @@ import org.usvm.machine.types.memory.generateGuardForSwitch
 fun calculateChildrenStructures(
     ctx: TvmContext,
     labelsWithoutUnknowns: Collection<TlbCompositeLabel>,
-    dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>>,
+    dataLengths: List<Map<TlbCompositeLabel, AbstractSizeExpr>>,
     individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
     possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
-): List<Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>> =
+): List<Map<TlbCompositeLabel, ChildrenStructure>> =
     calculateMapsByTlbDepth(
         ctx.tvmOptions.tlbOptions.maxTlbDepth,
         labelsWithoutUnknowns,
@@ -37,10 +37,10 @@ fun calculateChildrenStructures(
 private fun getChildrenStructure(
     ctx: TvmContext,
     struct: TlbStructure,
-    structuresFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
-    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
+    structuresFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure>,
+    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
-): ChildrenStructure<SimpleAbstractionForUExpr>? =
+): ChildrenStructure? =
     with(ctx) {
         when (struct) {
             is TlbStructure.Unknown -> {
@@ -65,7 +65,7 @@ private fun getChildrenStructure(
 
                 val newChildren =
                     listOf(
-                        ChildStructure<SimpleAbstractionForUExpr>(mapOf(struct.ref to AbstractGuard.abstractTrue())),
+                        ChildStructure(mapOf(struct.ref to AbstractGuard.abstractTrue())),
                     ) + furtherChildren.children.subList(0, furtherChildren.children.size - 1)
 
                 ChildrenStructure(newChildren, exceededGuard)
@@ -100,7 +100,7 @@ private fun getChildrenStructure(
                     List(4) { childIdx ->
                         var result = innerChildren.children[childIdx]
                         for (childrenInInner in 0..childIdx) {
-                            val guard = innerChildren.exactNumberOfChildren(ctx, childrenInInner)
+                            val guard = innerChildren.exactNumberOfChildren(childrenInInner)
                             result = result union (furtherChildren.children[childIdx - childrenInInner] and guard)
                         }
                         result
@@ -116,7 +116,7 @@ private fun getChildrenStructure(
                         ?: error("Switch variants not found for switch $struct")
                 val result =
                     possibleVariants.foldIndexed(
-                        ChildrenStructure.empty<SimpleAbstractionForUExpr>(),
+                        ChildrenStructure.empty(),
                     ) { idx, acc, (key, rest) ->
                         val further =
                             getChildrenStructure(
@@ -129,7 +129,7 @@ private fun getChildrenStructure(
 
                         atLeastOneBranch = true
                         val variantGuard =
-                            AbstractGuard<SimpleAbstractionForUExpr> { (address, path, state) ->
+                            AbstractGuard { (address, path, state) ->
                                 generateGuardForSwitch(struct, idx, possibleVariants, state, address, path)
                             }
 

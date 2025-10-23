@@ -1,18 +1,20 @@
 package org.usvm.machine.types
 
+import kotlinx.collections.immutable.PersistentSet
+import kotlinx.collections.immutable.persistentSetOf
 import org.usvm.UBoolExpr
 import org.usvm.isTrue
 import org.usvm.machine.TvmStepScopeManager
 
-class GlobalStructuralConstraintsHolder {
-    private val constraints = hashSetOf<UBoolExpr>()
-
-    fun addStructuralConstraint(constraint: UBoolExpr) {
+class TvmStructuralConstraintsHolder(
+    private var constraints: PersistentSet<UBoolExpr> = persistentSetOf(),
+) {
+    fun add(constraint: UBoolExpr): TvmStructuralConstraintsHolder {
         if (constraint.isTrue) {
-            return
+            return this
         }
 
-        constraints.add(constraint)
+        return TvmStructuralConstraintsHolder(constraints.add(constraint))
     }
 
     fun applyTo(stepScope: TvmStepScopeManager): Unit? {

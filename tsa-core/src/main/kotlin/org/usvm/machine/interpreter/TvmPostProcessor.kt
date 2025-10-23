@@ -38,10 +38,13 @@ class TvmPostProcessor(
     fun postProcessState(scope: TvmStepScopeManager): Unit? =
         with(ctx) {
             assertConstraints(scope) { resolver ->
-                mkAnd(
-                    generateHashConstraint(scope, resolver),
-                    generateDepthConstraint(scope, resolver),
-                )
+                val hashConstraint =
+                    generateHashConstraint(scope, resolver)
+                        ?: return@assertConstraints null
+                val depthConstraint =
+                    generateDepthConstraint(scope, resolver)
+                        ?: return@assertConstraints null
+                mkAnd(hashConstraint, depthConstraint)
             } ?: return null
 
             // must be asserted separately since it relies on correct hash values
@@ -52,10 +55,12 @@ class TvmPostProcessor(
 
     private inline fun assertConstraints(
         scope: TvmStepScopeManager,
-        constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr,
+        constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr?,
     ): Unit? {
         val resolver = scope.calcOnState { TvmTestStateResolver(ctx, models.first(), this) }
-        val constraints = constraintsBuilder(resolver)
+        val constraints =
+            constraintsBuilder(resolver)
+                ?: return null
 
         return scope.assert(constraints)
     }
@@ -77,14 +82,14 @@ class TvmPostProcessor(
     private fun generateDepthConstraint(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
-    ): UBoolExpr =
+    ): UBoolExpr? =
         with(ctx) {
             val addressToDepth = scope.calcOnState { refToDepth }
 
             addressToDepth.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
                 val curConstraint =
                     fixateValueAndDepth(scope, mkConcreteHeapRef(ref), depth, resolver)
-                        ?: falseExpr
+                        ?: return@with null
                 acc and curConstraint
             }
         }
@@ -92,14 +97,14 @@ class TvmPostProcessor(
     private fun generateHashConstraint(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
-    ): UBoolExpr =
+    ): UBoolExpr? =
         with(ctx) {
             val addressToHash = scope.calcOnState { refToHash }
 
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
                 val curConstraint =
                     fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash, resolver)
-                        ?: falseExpr
+                        ?: return null
                 acc and curConstraint
             }
         }

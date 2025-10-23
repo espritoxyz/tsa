@@ -11,10 +11,11 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.writeField
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.types.TvmAddressToLabelMapper
+import org.usvm.machine.types.TlbInferenceManager
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UWritableMemory
@@ -22,19 +23,17 @@ import org.usvm.utils.flattenReferenceIte
 
 class TvmCellDataFieldManager(
     private val ctx: TvmContext,
-    private var addressesWithRequestedCellDataField: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
-    private var addressesWithAssertedCellData: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
+    private var refsWithRequestedCellDataField: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
+    private var refsWithAssertedCellData: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
+    val inferenceManager: TlbInferenceManager = TlbInferenceManager(),
 ) {
     fun clone(): TvmCellDataFieldManager =
         TvmCellDataFieldManager(
             ctx,
-            addressesWithRequestedCellDataField,
-            addressesWithAssertedCellData,
-        ).also {
-            it.addressToLabelMapper = addressToLabelMapper
-        }
-
-    lateinit var addressToLabelMapper: TvmAddressToLabelMapper
+            refsWithRequestedCellDataField,
+            refsWithAssertedCellData,
+            inferenceManager = inferenceManager.clone(),
+        )
 
     fun writeCellData(
         state: TvmState,
@@ -55,16 +54,6 @@ class TvmCellDataFieldManager(
         cellRef: UConcreteHeapRef,
     ): UExpr<TvmContext.TvmCellDataSort> =
         with(ctx) {
-            if (::addressToLabelMapper.isInitialized) {
-                val hasStructuralConstraints =
-                    addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(
-                        cellRef,
-                    )
-                check(!hasStructuralConstraints) {
-                    "readCellDataForAllocatedCell cannot be used for cells with structural constraints"
-                }
-            }
-
             state.memory.readField(cellRef, cellDataField, cellDataSort)
         }
 
@@ -73,9 +62,10 @@ class TvmCellDataFieldManager(
         refs: List<UConcreteHeapRef>,
     ): UBoolExpr =
         scope.calcOnState {
+            val refToLabelMapper = dataCellInfoStorage.mapper
             refs.fold(trueExpr as UBoolExpr) { acc, ref ->
-                if (addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(ref)) {
-                    val curDataConstraint = addressToLabelMapper.generateLazyDataConstraints(this, ref)
+                if (refToLabelMapper.proactiveStructuralConstraintsWereCalculated(ref)) {
+                    val curDataConstraint = refToLabelMapper.generateLazyDataConstraints(this, ref)
                     acc and curDataConstraint
                 } else {
                     // case when ref doesn't have TL-B
@@ -91,13 +81,22 @@ class TvmCellDataFieldManager(
         with(ctx) {
             val staticRefs = flattenReferenceIte(cellRef, extractAllocated = false, extractStatic = true)
 
-            val newRefs = staticRefs.map { it.second }.filter { it.address !in addressesWithAssertedCellData }
-            addressesWithAssertedCellData = addressesWithAssertedCellData.addAll(newRefs.map { it.address })
-            addressesWithRequestedCellDataField = addressesWithRequestedCellDataField.addAll(newRefs.map { it.address })
+            val newRefs = staticRefs.map { it.second }.filter { it.address !in refsWithAssertedCellData }
+            refsWithAssertedCellData = refsWithAssertedCellData.addAll(newRefs.map { it.address })
+            refsWithRequestedCellDataField = refsWithRequestedCellDataField.addAll(newRefs.map { it.address })
+            newRefs.forEach {
+                inferenceManager.fixateRef(it)
+            }
 
             val dataConstraint = generatedDataConstraint(scope, newRefs)
             scope.assert(dataConstraint)
                 ?: return@with null
+
+            if (!dataConstraint.isTrue) {
+                scope.calcOnState {
+                    debugInfo.dataConstraints = debugInfo.dataConstraints.add(dataConstraint)
+                }
+            }
 
             scope.calcOnState {
                 memory.readField(cellRef, cellDataField, cellDataSort)
@@ -113,15 +112,15 @@ class TvmCellDataFieldManager(
         cellRef: UHeapRef,
     ) = with(ctx) {
         val staticRefs = flattenReferenceIte(cellRef, extractAllocated = false, extractStatic = true)
-        addressesWithRequestedCellDataField =
-            addressesWithRequestedCellDataField.addAll(staticRefs.map { it.second.address })
+        refsWithRequestedCellDataField =
+            refsWithRequestedCellDataField.addAll(staticRefs.map { it.second.address })
 
         state.memory.readField(cellRef, cellDataField, cellDataSort)
     }
 
-    fun getCellsWithRequestedCellDataField(): Set<UConcreteHeapAddress> = addressesWithRequestedCellDataField
+    fun getCellsWithRequestedCellDataField(): Set<UConcreteHeapAddress> = refsWithRequestedCellDataField
 
-    fun getCellsWithAssertedCellData(): Set<UConcreteHeapAddress> = addressesWithAssertedCellData
+    fun getCellsWithAssertedCellData(): Set<UConcreteHeapAddress> = refsWithAssertedCellData
 
     companion object {
         private val cellDataField: TvmField = TvmFieldImpl(TvmCellType, "data")

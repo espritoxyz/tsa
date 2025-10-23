@@ -4,9 +4,11 @@ import io.ksmt.KAst
 import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvLogicalShiftRightExpr
+import io.ksmt.expr.KBvShiftLeftExpr
 import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KExpr
+import io.ksmt.expr.KInterpretedValue
 import io.ksmt.expr.rewrite.simplify.simplifyAnd
 import io.ksmt.expr.rewrite.simplify.simplifyBoolIteConstBranches
 import io.ksmt.expr.rewrite.simplify.simplifyBoolIteSameConditionBranch
@@ -56,6 +58,7 @@ import org.usvm.machine.state.setFailure
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.memory.stack.BadSizeContext
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import java.math.BigInteger
@@ -141,6 +144,15 @@ class TvmContext(
     val throwStructuralCellUnderflowError: (TvmState) -> Unit =
         setFailure(TvmCellUnderflowError, TvmFailureType.StructuralError)
     val throwRealCellUnderflowError: (TvmState) -> Unit = setFailure(TvmCellUnderflowError, TvmFailureType.RealError)
+
+    val throwCellUnderflowErrorBasedOnContext: (TvmState, BadSizeContext) -> Unit = { state, context ->
+        when (context) {
+            BadSizeContext.GoodSizeIsUnknown -> throwUnknownCellUnderflowError(state)
+            BadSizeContext.GoodSizeIsUnsat -> throwRealCellUnderflowError(state)
+            BadSizeContext.GoodSizeIsSat -> throwStructuralCellUnderflowError(state)
+        }
+    }
+
     val throwRealDictError: (TvmState) -> Unit = setFailure(TvmDictError, TvmFailureType.RealError)
 
     fun throwInsufficientFunds(contractId: ContractId): (TvmState) -> Unit = setFailure(InsufficientFunds(contractId))
@@ -199,6 +211,20 @@ class TvmContext(
             else -> super.mkBvSort(sizeBits)
         }
 
+    override fun <T : KBvSort> mkBvSignedLessOrEqualExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<KBoolSort> {
+        if (arg0 is KInterpretedValue &&
+            arg0.intValue() == 0 &&
+            arg1 is KBvZeroExtensionExpr &&
+            arg1.extensionSize > 0
+        ) {
+            return trueExpr
+        }
+        return super.mkBvSignedLessOrEqualExpr(arg0, arg1)
+    }
+
     override fun <T : KBvSort> mkBvExtractExpr(
         high: Int,
         low: Int,
@@ -216,6 +242,18 @@ class TvmContext(
                 }
             }
         }
+        if (value is KBvShiftLeftExpr && value.shift is KBitVecValue) {
+            val maxSizeBits = value.sort.sizeBits.toInt()
+            val shiftBI = (value.shift as KBitVecValue).toBigIntegerSigned()
+            if (shiftBI < maxSizeBits.toBigInteger() && shiftBI >= BigInteger.ZERO) {
+                val shift = shiftBI.toInt()
+                val newHigh = high - shift
+                val newLow = low - shift
+                if (newLow >= 0 && newHigh < maxSizeBits) {
+                    return super.mkBvExtractExpr(newHigh, newLow, value.arg)
+                }
+            }
+        }
         if (value is KBvZeroExtensionExpr && value.value.sort.sizeBits > high.toUInt()) {
             return super.mkBvExtractExpr(high, low, value.value)
         }
@@ -223,6 +261,24 @@ class TvmContext(
             return super.mkBvExtractExpr(high, low, value.value)
         }
         return super.mkBvExtractExpr(high, low, value)
+    }
+
+    override fun <T : KBvSort> mkBvShiftLeftExpr(
+        arg: KExpr<T>,
+        shift: KExpr<T>,
+    ): KExpr<T> {
+        if (arg is KBvShiftLeftExpr && arg.shift is KBitVecValue && shift is KBitVecValue) {
+            val maxSizeBits = arg.sort.sizeBits.toInt()
+            val shiftBI1 = (arg.shift as KBitVecValue).toBigIntegerSigned()
+            val shiftBI2 = shift.toBigIntegerSigned()
+            if (shiftBI1 + shiftBI2 < maxSizeBits.toBigInteger() &&
+                shiftBI1 >= BigInteger.ZERO &&
+                shiftBI2 >= BigInteger.ZERO
+            ) {
+                return mkBvShiftLeftExpr(arg.arg, mkBvAddExpr(arg.shift, shift))
+            }
+        }
+        return super.mkBvShiftLeftExpr(arg, shift)
     }
 
     private fun tvmSimplifyBoolIte(

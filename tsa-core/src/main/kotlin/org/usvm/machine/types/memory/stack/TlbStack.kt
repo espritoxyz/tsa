@@ -4,6 +4,7 @@ import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbCompositeLabel
+import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -13,6 +14,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.allocSliceFromData
+import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.UExprReadResult
 import org.usvm.machine.types.isEmptyRead
@@ -26,32 +28,41 @@ data class TlbStack(
         get() = frames.isEmpty()
 
     fun <ReadResult> step(
-        state: TvmState,
+        scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
-    ): List<GuardedResult<ReadResult>> =
-        with(state.ctx) {
-            val ctx = state.ctx
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
+    ): List<GuardedResult<ReadResult>>? =
+        scope.doWithCtx {
+            val ctx = scope.ctx
             val result = mutableListOf<GuardedResult<ReadResult>>()
 
             val emptyRead = loadData.type.isEmptyRead(ctx)
 
             if (frames.isEmpty()) {
                 // finished parsing
-                return listOf(
-                    GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
-                    GuardedResult(
-                        emptyRead.not(),
-                        Error(TvmStructuralError(TvmUnexpectedDataReading(loadData.type), state.phase, state.stack)),
-                        value = null,
-                    ),
-                )
+                return@doWithCtx scope.calcOnState {
+                    listOf(
+                        GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
+                        GuardedResult(
+                            emptyRead.not(),
+                            Error(
+                                TvmStructuralError(TvmUnexpectedDataReading(loadData.type), phase, stack),
+                                fromMutableTlb = false,
+                            ),
+                            value = null,
+                        ),
+                    )
+                }
             }
 
             result.add(GuardedResult(emptyRead, NewStack(this@TlbStack), value = null))
 
             val lastFrame = frames.last()
 
-            val frameSteps = lastFrame.step(state, loadData)
+            val frameSteps =
+                lastFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
+                    ?: return@doWithCtx null
             frameSteps.forEach { (guard, stackFrameStepResult, value) ->
                 if (guard.isFalse) {
                     return@forEach
@@ -59,7 +70,10 @@ data class TlbStack(
 
                 when (stackFrameStepResult) {
                     is EndOfStackFrame -> {
-                        val newFrames = skipSingleStep(ctx, frames.viewWithoutLast())
+                        val newFrames =
+                            calcOnState {
+                                skipSingleStep(this, loadData.cellRef, frames.viewWithoutLast())
+                            }
                         result.add(
                             GuardedResult(
                                 guard and emptyRead.not(),
@@ -97,7 +111,10 @@ data class TlbStack(
                                     frames + nextLevelFrame,
                                     newDeepestError,
                                 )
-                            newStack.step(state, loadData).forEach { (innerGuard, stepResult, value) ->
+                            val newStepResult =
+                                newStack.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
+                                    ?: return@doWithCtx null
+                            newStepResult.forEach { (innerGuard, stepResult, value) ->
                                 val newGuard = ctx.mkAnd(guard, innerGuard)
                                 result.add(GuardedResult(newGuard and emptyRead.not(), stepResult, value))
                             }
@@ -117,15 +134,25 @@ data class TlbStack(
                                 "Error was not set after unsuccessful TlbStack step."
                             }
 
-                            result.add(GuardedResult(guard and emptyRead.not(), Error(error), value = null))
+                            val fromMutableTlb =
+                                lastFrame is StackFrameOfUnknown || lastFrame.path.any { it == TlbStructure.Unknown.id }
+
+                            result.add(
+                                GuardedResult(guard and emptyRead.not(), Error(error, fromMutableTlb), value = null),
+                            )
                         }
                     }
 
                     is ContinueLoadOnNextFrame<ReadResult> -> {
                         val newLoadData = stackFrameStepResult.loadData
-                        val newFrames = skipSingleStep(ctx, frames)
+                        val newFrames =
+                            calcOnState {
+                                skipSingleStep(this, loadData.cellRef, frames)
+                            }
                         val newStack = TlbStack(newFrames, deepestError)
-                        val stepResults = newStack.step(state, newLoadData)
+                        val stepResults =
+                            newStack.step(scope, newLoadData, badCellSizeIsExceptional, onBadCellSize)
+                                ?: return@doWithCtx null
                         stepResults.forEach { (innerGuard, stepResult, _) ->
                             // values from steps are discarded as we are only interested
                             // in concrete bitvector reads when reading values across multiple
@@ -152,7 +179,7 @@ data class TlbStack(
                                     value =
                                         joinedConcreteValue?.let {
                                             UExprReadResult(
-                                                state.allocSliceFromData(it),
+                                                scope.calcOnState { allocSliceFromData(it) },
                                             ).uncheckedCast()
                                         },
                                 ),
@@ -164,7 +191,7 @@ data class TlbStack(
 
             result.removeAll { it.guard.isFalse }
 
-            return result
+            result
         }
 
     fun readInModel(readInfo: ConcreteReadInfo): Triple<String, ConcreteReadInfo, TlbStack> {
@@ -173,7 +200,7 @@ data class TlbStack(
         val (readValue, leftToRead, newFrames) = lastFrame.readInModel(readInfo)
         val deepFrames =
             if (newFrames.isEmpty()) {
-                skipSingleStep(readInfo.resolver.state.ctx, frames.viewWithoutLast())
+                skipSingleStep(readInfo.resolver.state, readInfo.ref, frames.viewWithoutLast())
             } else {
                 frames.viewWithoutLast()
             }
@@ -201,6 +228,7 @@ data class TlbStack(
 
     data class Error(
         val error: TvmStructuralError,
+        val fromMutableTlb: Boolean,
     ) : StepResult
 
     data class NewStack(
@@ -209,7 +237,7 @@ data class TlbStack(
     ) : StepResult
 
     data class ConcreteReadInfo(
-        val address: UConcreteHeapRef,
+        val ref: UConcreteHeapRef,
         val resolver: TvmTestStateResolver,
         val leftBits: Int,
     )
@@ -233,24 +261,27 @@ data class TlbStack(
 
         /**
          *  Until we can skip the label at the top frame, pop the frame (possibly zero times).
-         *  Then skip the label at the last fram and return the result.
+         *  Then skip the label at the last frame and return the result.
          */
         private fun skipSingleStep(
-            ctx: TvmContext,
+            state: TvmState,
+            ref: UConcreteHeapRef,
             framesToPop: List<TlbStackFrame>,
         ): List<TlbStackFrame> {
             if (framesToPop.isEmpty()) {
                 return framesToPop
             }
             val prevFrame = framesToPop.last()
-            check(prevFrame.isSkippable) {
-                "$prevFrame must be skippable, but it is not"
-            }
-            val newFrame = prevFrame.skipLabel(ctx)
-            return if (newFrame == null) {
-                skipSingleStep(ctx, framesToPop.viewWithoutLast())
-            } else {
-                framesToPop.viewWithoutLast() + newFrame
+            return when (val newFrame = prevFrame.skipLabel(state, ref)) {
+                TlbStackFrame.SkipNotPossible -> {
+                    error("Cannot skip frame $prevFrame")
+                }
+                TlbStackFrame.EndOfFrame -> {
+                    skipSingleStep(state, ref, framesToPop.viewWithoutLast())
+                }
+                is TlbStackFrame.NextFrame -> {
+                    framesToPop.viewWithoutLast() + newFrame.frame
+                }
             }
         }
     }

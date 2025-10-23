@@ -1,8 +1,11 @@
 package org.usvm.machine.types.memory
 
+import org.ton.TlbStructure
 import org.ton.bytecode.TvmField
 import org.usvm.USort
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmSizeSort
+import org.usvm.sizeSort
 import org.usvm.util.log2
 
 interface TlbField : TvmField {
@@ -58,4 +61,12 @@ data class UnknownBlockField(
     override val pathToStructure: List<Int>,
 ) : TlbField {
     override fun getSort(ctx: TvmContext) = ctx.cellDataSort
+}
+
+data class UnknownBlockLengthField(
+    override val pathToStructure: List<Int>,
+) : TlbField {
+    override val structureId = TlbStructure.Unknown.id
+
+    override fun getSort(ctx: TvmContext): TvmSizeSort = ctx.sizeSort
 }

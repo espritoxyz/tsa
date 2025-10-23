@@ -16,7 +16,7 @@ import org.usvm.utils.flattenReferenceIte
 
 class TvmDataCellInfoStorage private constructor(
     private val ctx: TvmContext,
-    val mapper: TvmAddressToLabelMapper,
+    val mapper: TvmReferenceToLabelMapper,
     val sliceMapper: TvmSliceToTlbStackMapper,
 ) {
     fun notifyAboutChildRequest(
@@ -34,10 +34,10 @@ class TvmDataCellInfoStorage private constructor(
 
     fun getLabelForFreshSlice(cellRef: UHeapRef): Map<TvmParameterInfo.CellInfo, UBoolExpr> =
         with(ctx) {
-            val staticAddresses = flattenReferenceIte(cellRef, extractAllocated = true)
+            val concreteRefs = flattenReferenceIte(cellRef, extractAllocated = true)
             val result = hashMapOf<TvmParameterInfo.CellInfo, UBoolExpr>()
 
-            staticAddresses.forEach { (guard, ref) ->
+            concreteRefs.forEach { (guard, ref) ->
                 val labelInfo =
                     mapper.getLabelInfo(ref) ?: LabelInfo(mapOf(TvmParameterInfo.UnknownCellInfo to trueExpr))
                 labelInfo.variants.forEach { (info, innerGuard) ->
@@ -55,7 +55,7 @@ class TvmDataCellInfoStorage private constructor(
     ): UBoolExpr =
         with(ctx) {
             val labelInfo =
-                mapper.getLabelInfo(endOfCell.cellAddress)
+                mapper.getLabelInfo(endOfCell.cellRef)
                     ?: return trueExpr
             return labelInfo.variants.entries.fold(trueExpr as UBoolExpr) { acc, (curInfo, guard) ->
                 if (curInfo !is TvmParameterInfo.DataCellInfo) {
@@ -64,7 +64,7 @@ class TvmDataCellInfoStorage private constructor(
                 }
                 val label = curInfo.dataCellStructure
                 val leafInfo =
-                    mapper.calculatedTlbLabelInfo.getLeavesInfo(state, endOfCell.cellAddress, label)
+                    mapper.calculatedTlbLabelInfo.getLeavesInfo(state, endOfCell.cellRef, label)
                         ?: return@fold acc
 
                 leafInfo.fold(acc) { innerAcc, (struct, sizeInfo) ->
@@ -93,7 +93,7 @@ class TvmDataCellInfoStorage private constructor(
     ): UBoolExpr =
         with(ctx) {
             val labelInfo =
-                mapper.getLabelInfo(loadRef.cellAddress)
+                mapper.getLabelInfo(loadRef.cellRef)
                     ?: return trueExpr
             return labelInfo.variants.entries.fold(trueExpr as UBoolExpr) { acc, (curInfo, guard) ->
                 if (curInfo !is TvmParameterInfo.DataCellInfo) {
@@ -102,7 +102,7 @@ class TvmDataCellInfoStorage private constructor(
                 }
                 val label = curInfo.dataCellStructure
                 val leafInfo =
-                    mapper.calculatedTlbLabelInfo.getLeavesInfo(state, loadRef.cellAddress, label)
+                    mapper.calculatedTlbLabelInfo.getLeavesInfo(state, loadRef.cellRef, label)
                         ?: return@fold acc
 
                 leafInfo.fold(acc) { innerAcc, (struct, sizeInfo) ->
@@ -119,7 +119,7 @@ class TvmDataCellInfoStorage private constructor(
             }
         }
 
-    fun clone(): TvmDataCellInfoStorage = TvmDataCellInfoStorage(ctx, mapper, sliceMapper.clone())
+    fun clone(): TvmDataCellInfoStorage = TvmDataCellInfoStorage(ctx, mapper.clone(), sliceMapper.clone())
 
     companion object {
         fun build(
@@ -140,7 +140,7 @@ class TvmDataCellInfoStorage private constructor(
                     (it as? TvmParameterInfo.DataCellInfo)?.dataCellStructure
                 } + additionalLabels
             val calculatedTlbLabelInfo = CalculatedTlbLabelInfo(state.ctx, labels)
-            val mapper = TvmAddressToLabelMapper(state, addressesWithCellInfo, calculatedTlbLabelInfo)
+            val mapper = TvmReferenceToLabelMapper.build(state, addressesWithCellInfo, calculatedTlbLabelInfo)
             val sliceMapper = TvmSliceToTlbStackMapper.constructInitialSliceMapper(state.ctx, addressesWithCellInfo)
 
             return TvmDataCellInfoStorage(state.ctx, mapper, sliceMapper)

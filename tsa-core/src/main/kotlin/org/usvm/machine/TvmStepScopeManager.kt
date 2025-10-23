@@ -12,6 +12,7 @@ import org.usvm.machine.TvmStepScopeManager.TvmStepScope.StepScopeState.CAN_BE_P
 import org.usvm.machine.TvmStepScopeManager.TvmStepScope.StepScopeState.DEAD
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.c2IsDefault
+import org.usvm.machine.types.TvmStructuralConstraintsHolder
 import org.usvm.machine.types.TvmType
 import org.usvm.solver.USatResult
 import org.usvm.solver.UUnknownResult
@@ -27,6 +28,8 @@ class TvmStepScopeManager(
     private val scope: TvmStepScope = TvmStepScope(originalState, forkBlackList, forkedStates)
 
     var doNotKillScopeOnDoWithConditions: Boolean = false
+
+    fun getStructuralConstraintsHolder(): TvmStructuralConstraintsHolder = originalState.structuralConstraintsHolder
 
     fun doWithState(block: TvmState.() -> Unit) = scope.doWithState(block)
 
@@ -114,6 +117,7 @@ class TvmStepScopeManager(
         blockOnUnknownTrueState: TvmState.() -> Unit = {},
         blockOnUnsatTrueState: TvmState.() -> Unit = {},
         blockOnFalseState: TvmState.() -> Unit = {},
+        doNotAddConstraintToTrueState: Boolean = false,
     ): Unit? {
         check(allowFailuresOnCurrentStep) {
             "[forkWithCheckerStatusKnowledge] should be called only with allowFailuresOnCurrentStep=true, but now it is false."
@@ -123,6 +127,7 @@ class TvmStepScopeManager(
             blockOnUnknownTrueState = blockOnUnknownTrueState,
             blockOnUnsatTrueState = blockOnUnsatTrueState,
             blockOnFalseState = blockOnFalseState,
+            doNotAddConstraintToTrueState = doNotAddConstraintToTrueState,
         )
     }
 
@@ -296,6 +301,7 @@ class TvmStepScopeManager(
             blockOnUnknownFalseState: TvmState.() -> Unit = {},
             blockOnUnsatFalseState: TvmState.() -> Unit = {},
             blockOnFalseState: TvmState.() -> Unit = {},
+            doNotAddConstraintToTrueState: Boolean = false, // may be used for optimizations
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -313,6 +319,7 @@ class TvmStepScopeManager(
                     blockOnUnknownTrueState()
                 },
                 satBlock = blockOnTrueState,
+                doNotAddConstraint = doNotAddConstraintToTrueState,
             ) ?: run {
                 /**
                  * Hack: change [stepScopeState] to make assert with opposite constraint possible.
@@ -416,6 +423,7 @@ class TvmStepScopeManager(
             satBlock: TvmState.() -> Unit = {},
             unsatBlock: TvmState.() -> Unit = {},
             unknownBlock: TvmState.() -> Unit = {},
+            doNotAddConstraint: Boolean = false, // may be used for optimizations
         ): Unit? =
             assert(
                 constraint,
@@ -423,6 +431,7 @@ class TvmStepScopeManager(
                 satBlock,
                 unsatBlock,
                 unknownBlock,
+                doNotAddConstraint,
             )
 
         /**
@@ -435,6 +444,7 @@ class TvmStepScopeManager(
             satBlock: TvmState.() -> Unit = {},
             unsatBlock: TvmState.() -> Unit = {},
             unknownBlock: TvmState.() -> Unit = {},
+            doNotAddConstraint: Boolean = false, // may be used for optimizations
         ): Unit? {
             check(canProcessFurtherOnCurrentStep)
 
@@ -481,7 +491,9 @@ class TvmStepScopeManager(
                 }
             }
 
-            originalState.pathConstraints += constraint
+            if (!doNotAddConstraint) {
+                originalState.pathConstraints += constraint
+            }
 
             if (registerForkPoint) {
                 originalState.forkPoints += possibleForkPoint

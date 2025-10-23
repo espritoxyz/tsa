@@ -90,6 +90,8 @@ class InputParameterInfoTests {
     private val readStoredConstAddrNonePath = "/types/read_stored_const_addr_none.fc"
     private val storeAndComparePath = "/types/store_and_compare.fc"
     private val loadCoinsFromC4Path = "/types/load_coins_from_c4.fc"
+    private val lengthConsistencyPath = "/types/length_consistency.fc"
+    private val errorFromMutableTlbPath = "/types/error_from_mutable_tlb.fc"
 
     @Test
     fun testCorrectMaybe() {
@@ -1922,7 +1924,7 @@ class InputParameterInfoTests {
 
         val inputInfo =
             TvmInputInfo(
-                c4Info = listOf(DataCellInfo(int64Structure)),
+                c4Info = listOf(int64Structure),
             )
 
         val options = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false)
@@ -1945,5 +1947,42 @@ class InputParameterInfoTests {
                 exit is TvmReadingOfUnexpectedType
             },
         )
+    }
+
+    @Test
+    fun testLengthConsistency() {
+        val resourcePath = extractResource(lengthConsistencyPath)
+
+        val results = funcCompileAndAnalyzeAllMethods(resourcePath)
+        assertEquals(1, results.testSuites.size)
+        val tests = results.testSuites.first()
+
+        propertiesFound(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+        )
+
+        TvmTestExecutor.executeGeneratedTests(tests, resourcePath, TsRenderer.ContractType.Func)
+    }
+
+    @Test
+    fun testErrorFromMutableTlb() {
+        val resourcePath = extractResource(errorFromMutableTlbPath)
+
+        val results = funcCompileAndAnalyzeAllMethods(resourcePath)
+        assertEquals(1, results.testSuites.size)
+        val tests = results.testSuites.first()
+
+        propertiesFound(
+            tests,
+            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+        )
+
+        TvmTestExecutor.executeGeneratedTests(tests, resourcePath, TsRenderer.ContractType.Func)
     }
 }

@@ -9,8 +9,12 @@ value class TvmBuilderLengthUpperBoundTracker(
 ) {
     fun setUpperBound(
         ref: UConcreteHeapRef,
-        bound: Int,
+        bound: Int?,
     ) = TvmBuilderLengthUpperBoundTracker(
-        builderRefToLengthUpperBound.put(ref, bound),
+        if (bound != null) {
+            builderRefToLengthUpperBound.put(ref, bound)
+        } else {
+            builderRefToLengthUpperBound.remove(ref)
+        },
     )
 }

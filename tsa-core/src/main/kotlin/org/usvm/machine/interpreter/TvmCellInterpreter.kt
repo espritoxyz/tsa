@@ -993,6 +993,10 @@ class TvmCellInterpreter(
         with(ctx) {
             scope.consumeDefaultGas(stmt)
 
+            if (quiet) {
+                TODO("quiet visitLoadIntXInst")
+            }
+
             val sizeBits = scope.takeLastIntOrThrowTypeError() ?: return
             val slice = scope.calcOnState { takeLastSlice() }
             if (slice == null) {
@@ -1019,6 +1023,8 @@ class TvmCellInterpreter(
                 slice,
                 TvmCellDataIntegerRead(sizeBits.extractToSizeSort(), isSigned, Endian.BigEndian),
                 updatedSliceAddress,
+                badCellSizeIsExceptional = true, // TODO: quiet version
+                onBadCellSize = throwCellUnderflowErrorBasedOnContext,
             ) { valueFromTlb ->
                 val result =
                     valueFromTlb?.expr ?: let {
@@ -1045,6 +1051,10 @@ class TvmCellInterpreter(
     ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
+        if (quiet) {
+            TODO("quiet visitLoadIntLEInst")
+        }
+
         val slice = scope.calcOnState { takeLastSlice() }
         if (slice == null) {
             scope.doWithState(throwTypeCheckError)
@@ -1058,6 +1068,8 @@ class TvmCellInterpreter(
             slice,
             TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.LittleEndian),
             updatedSliceAddress,
+            badCellSizeIsExceptional = true, // TODO: quiet version
+            onBadCellSize = throwCellUnderflowErrorBasedOnContext,
         ) {
             // TODO: process value from TL-B (or not?). For now, we didn't encounter TL-B for little-endian
 
@@ -1100,6 +1112,10 @@ class TvmCellInterpreter(
     ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
+        if (quiet) {
+            TODO("quiet visitLoadSliceInst")
+        }
+
         check(sizeBits in 1..256) { "Unexpected bits size $sizeBits" }
 
         val slice = scope.calcOnState { takeLastSlice() }
@@ -1113,6 +1129,8 @@ class TvmCellInterpreter(
             slice,
             TvmCellDataBitArrayRead(mkBv(sizeBits)),
             updatedSliceAddress,
+            badCellSizeIsExceptional = true, // TODO: quiet version
+            onBadCellSize = throwCellUnderflowErrorBasedOnContext,
         ) { valueFromTlb ->
             val result =
                 valueFromTlb?.expr ?: let {
@@ -1162,6 +1180,10 @@ class TvmCellInterpreter(
                 slice,
                 TvmCellDataBitArrayRead(sizeBits.extractToSizeSort()),
                 updatedSliceAddress,
+                badCellSizeIsExceptional = quietBlock == null,
+                onBadCellSize =
+                    quietBlock?.let { { state, _ -> quietBlock(state) } }
+                        ?: throwCellUnderflowErrorBasedOnContext,
             ) { valueFromTlb ->
                 if (pushResultOnStack) {
                     val result =

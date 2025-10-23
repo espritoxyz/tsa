@@ -13,6 +13,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.types.SizedCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead
@@ -37,34 +38,36 @@ data class ConstTlbStackFrame(
     override val leftTlbDepth: Int,
 ) : TlbStackFrame {
     override fun <ReadResult> step(
-        state: TvmState,
+        scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>> =
-        with(state.ctx) {
+        scope.calcOnStateCtx {
             val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
             val leftBits = mkSizeSubExpr(mkSizeExpr(data.length), offset)
 
             val type = loadData.type
             val readSize =
-                extractReadSizeFromType(type, concreteOffset) ?: return@with listOf(
+                extractReadSizeFromType(type, concreteOffset) ?: return@calcOnStateCtx listOf(
                     GuardedResult(
                         trueExpr,
                         StepError(
                             TvmStructuralError(
                                 TvmReadingSwitchWithUnexpectedType(type),
-                                state.phase,
-                                state.stack,
+                                phase,
+                                stack,
                             ),
                         ),
                         value = null,
                     ),
                 )
 
-            val concreteBvRead = readConcreteBv(state.ctx, concreteOffset, data, readSize)
+            val concreteBvRead = readConcreteBv(ctx, concreteOffset, data, readSize)
             // full read of constant
             val stepResult =
                 buildFrameForStructure(
-                    state.ctx,
+                    ctx,
                     nextStruct,
                     path,
                     leftTlbDepth,
@@ -72,7 +75,7 @@ data class ConstTlbStackFrame(
                     NextFrame(it, concreteBvRead)
                 } ?: EndOfStackFrame
 
-            val value = type.readFromConstant(state, offset, data)
+            val value = type.readFromConstant(this, offset, data)
 
             val result =
                 mutableListOf(
@@ -92,12 +95,14 @@ data class ConstTlbStackFrame(
                 )
 
             if (type is TvmCellDataBitArrayRead) {
+                val curGuard = loadData.guard and mkSizeGtExpr(readSize, leftBits)
                 result.add(
                     GuardedResult(
                         mkSizeGtExpr(readSize, leftBits),
                         ContinueLoadOnNextFrame(
                             LimitedLoadData(
-                                loadData.cellAddress,
+                                loadData.cellRef,
+                                curGuard,
                                 type.createLeftBitsDataLoad(mkSizeSubExpr(readSize, leftBits)),
                             ),
                             concreteBvRead,
@@ -112,8 +117,8 @@ data class ConstTlbStackFrame(
                         StepError(
                             TvmStructuralError(
                                 TvmReadingOutOfSwitchBounds(type),
-                                state.phase,
-                                state.stack,
+                                phase,
+                                stack,
                             ),
                         ),
                         value = null,
@@ -121,7 +126,7 @@ data class ConstTlbStackFrame(
                 )
             }
 
-            return result
+            result
         }
 
     private fun <ReadResult> TvmContext.extractReadSizeFromType(
@@ -152,10 +157,13 @@ data class ConstTlbStackFrame(
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
 
-    override val isSkippable: Boolean = true
-
-    override fun skipLabel(ctx: TvmContext): TlbStackFrame? =
-        buildFrameForStructure(ctx, nextStruct, path, leftTlbDepth)
+    override fun skipLabel(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ): TlbStackFrame.SkipResult =
+        buildFrameForStructure(state.ctx, nextStruct, path, leftTlbDepth)?.let {
+            TlbStackFrame.NextFrame(it)
+        } ?: TlbStackFrame.EndOfFrame
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo,
@@ -163,7 +171,7 @@ data class ConstTlbStackFrame(
         check(read.leftBits >= data.length)
         val newReadInfo =
             TlbStack.ConcreteReadInfo(
-                read.address,
+                read.ref,
                 read.resolver,
                 read.leftBits - data.length,
             )

@@ -5,6 +5,7 @@ plugins {
 }
 
 dependencies {
+    implementation(group = Packages.tvmDisasm, name = "tvm-disasm", version = Versions.tvmDisasm)
     implementation(group = Packages.tvmDisasm, name = "tvm-opcodes", version = Versions.tvmDisasm)
 
     implementation(group = Packages.tonKotlin, name = "ton-kotlin-crypto", version = Versions.tonKotlin)

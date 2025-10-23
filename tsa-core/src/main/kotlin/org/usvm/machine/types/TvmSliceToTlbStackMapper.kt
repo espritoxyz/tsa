@@ -41,6 +41,7 @@ class TvmSliceToTlbStackMapper(
                 val info =
                     input.cellToInfo[cellAddress]
                         ?: error("Info for cell at ref $cellAddress must be known")
+
                 if (info is TvmParameterInfo.DataCellInfo) {
                     result.allocateInitialSlice(ctx, sliceAddress, info.dataCellStructure)
                 }

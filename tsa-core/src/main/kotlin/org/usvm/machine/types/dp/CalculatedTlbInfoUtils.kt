@@ -9,7 +9,6 @@ import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.machine.TvmContext
-import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.dataLength
@@ -17,134 +16,98 @@ import org.usvm.machine.types.memory.typeArgs
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 
-sealed interface AbstractionForUExpr<NewAbstraction> {
-    val address: UConcreteHeapRef
-    val path: PersistentList<Int>
-    val state: TvmState
-
+data class AbstractionForUExpr(
+    val ref: UConcreteHeapRef,
+    val path: PersistentList<Int>,
+    val state: TvmState,
+) {
     val ctx: TvmContext
-        get() = address.ctx.tctx()
+        get() = state.ctx
 
-    fun addTlbLevel(struct: TlbStructure.KnownTypePrefix): NewAbstraction
-}
-
-data class SimpleAbstractionForUExpr(
-    override val address: UConcreteHeapRef,
-    override val path: PersistentList<Int>,
-    override val state: TvmState,
-) : AbstractionForUExpr<SimpleAbstractionForUExpr> {
-    override fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
-        SimpleAbstractionForUExpr(
-            address,
-            path.add(0, struct.id),
+    fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
+        AbstractionForUExpr(
+            ref,
+            path.add(struct.id),
             state,
         )
 }
 
-data class AbstractionForUExprWithCellDataPrefix(
-    override val address: UConcreteHeapRef,
-    val prefixSize: UExpr<TvmSizeSort>,
-    override val path: PersistentList<Int>,
-    override val state: TvmState,
-) : AbstractionForUExpr<AbstractionForUExprWithCellDataPrefix> {
-    override fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
-        AbstractionForUExprWithCellDataPrefix(address, prefixSize, path.add(0, struct.id), state)
-}
-
 @JvmInline
-value class AbstractGuard<Abstraction : AbstractionForUExpr<Abstraction>>(
-    val apply: (Abstraction) -> UBoolExpr,
+value class AbstractGuard(
+    val apply: (AbstractionForUExpr) -> UBoolExpr,
 ) {
-    infix fun or(other: AbstractGuard<Abstraction>) =
-        AbstractGuard<Abstraction> {
+    infix fun or(other: AbstractGuard) =
+        AbstractGuard {
             with(it.ctx) {
                 apply(it) or other.apply(it)
             }
         }
 
-    infix fun and(other: AbstractGuard<Abstraction>) =
-        AbstractGuard<Abstraction> {
+    infix fun and(other: AbstractGuard) =
+        AbstractGuard {
             with(it.ctx) {
                 apply(it) and other.apply(it)
             }
         }
 
     fun not() =
-        AbstractGuard<Abstraction> {
+        AbstractGuard {
             with(it.ctx) {
                 apply(it).not()
             }
         }
 
     fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
-        AbstractGuard<Abstraction> { param ->
+        AbstractGuard { param ->
             val newParam = param.addTlbLevel(struct)
             apply(newParam)
         }
 
     companion object {
-        fun <Abstraction : AbstractionForUExpr<Abstraction>> abstractTrue(): AbstractGuard<Abstraction> =
-            AbstractGuard { it.ctx.trueExpr }
+        fun abstractTrue(): AbstractGuard = AbstractGuard { it.ctx.trueExpr }
 
-        fun <Abstraction : AbstractionForUExpr<Abstraction>> abstractFalse(): AbstractGuard<Abstraction> =
-            AbstractGuard { it.ctx.falseExpr }
+        fun abstractFalse(): AbstractGuard = AbstractGuard { it.ctx.falseExpr }
     }
 }
 
-fun AbstractGuard<AbstractionForUExprWithCellDataPrefix>.shift(
-    numOfBits: AbstractSizeExpr<AbstractionForUExprWithCellDataPrefix>,
-) = AbstractGuard<AbstractionForUExprWithCellDataPrefix> { param ->
-    val offset = numOfBits.apply(param)
-    val (address, prefixSize, path, state) = param
-    apply(AbstractionForUExprWithCellDataPrefix(address, param.ctx.mkSizeAddExpr(prefixSize, offset), path, state))
-}
-
 @JvmInline
-value class AbstractSizeExpr<Abstraction : AbstractionForUExpr<Abstraction>>(
-    val apply: (Abstraction) -> UExpr<TvmSizeSort>,
+value class AbstractSizeExpr(
+    val apply: (AbstractionForUExpr) -> UExpr<TvmSizeSort>,
 ) {
     fun addTlbLevel(struct: TlbStructure.KnownTypePrefix) =
-        AbstractSizeExpr<Abstraction> { param ->
+        AbstractSizeExpr { param ->
             val newParam = param.addTlbLevel(struct)
             apply(newParam)
         }
 }
 
-fun AbstractSizeExpr<SimpleAbstractionForUExpr>.add(numOfBits: AbstractSizeExpr<SimpleAbstractionForUExpr>) =
-    AbstractSizeExpr<SimpleAbstractionForUExpr> { param ->
+fun AbstractSizeExpr.add(numOfBits: AbstractSizeExpr) =
+    AbstractSizeExpr { param ->
         val offset = numOfBits.apply(param)
         param.ctx.mkSizeAddExpr(offset, apply(param))
     }
 
-fun AbstractSizeExpr<SimpleAbstractionForUExpr>.convert(): AbstractSizeExpr<AbstractionForUExprWithCellDataPrefix> =
-    AbstractSizeExpr { param ->
-        apply(SimpleAbstractionForUExpr(param.address, param.path, param.state))
-    }
-
-class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
-    val children: List<ChildStructure<Abstraction>>,
-    val numberOfChildrenExceeded: AbstractGuard<Abstraction>,
+class ChildrenStructure(
+    val children: List<ChildStructure>,
+    val numberOfChildrenExceeded: AbstractGuard,
 ) {
     init {
         require(children.size == TvmContext.MAX_REFS_NUMBER)
     }
 
-    fun exactNumberOfChildren(
-        ctx: TvmContext,
-        num: Int,
-    ): AbstractGuard<Abstraction> =
-        with(ctx) {
-            require(num in 0..TvmContext.MAX_REFS_NUMBER)
-            when (num) {
-                0 -> children[0].exists().not()
-                TvmContext.MAX_REFS_NUMBER ->
-                    children[TvmContext.MAX_REFS_NUMBER - 1].exists() and
-                        numberOfChildrenExceeded.not()
-                else -> children[num - 1].exists() and children[num].exists().not()
-            }
-        }
+    fun exactNumberOfChildren(num: Int): AbstractGuard {
+        require(num in 0..TvmContext.MAX_REFS_NUMBER)
+        return when (num) {
+            0 -> children[0].exists().not()
+            TvmContext.MAX_REFS_NUMBER ->
+                children[TvmContext.MAX_REFS_NUMBER - 1].exists() and
+                    numberOfChildrenExceeded.not()
 
-    fun numberOfChildren(ctx: TvmContext): AbstractSizeExpr<Abstraction> =
+            else -> children[num - 1].exists() and children[num].exists().not()
+        }
+    }
+
+    fun numberOfChildren(ctx: TvmContext): AbstractSizeExpr =
         with(ctx) {
             AbstractSizeExpr { param ->
                 children.foldIndexed(zeroSizeExpr) { childIndex, acc, struct ->
@@ -163,20 +126,20 @@ class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
             numberOfChildrenExceeded.addTlbLevel(struct),
         )
 
-    infix fun and(newGuard: AbstractGuard<Abstraction>) =
+    infix fun and(newGuard: AbstractGuard) =
         ChildrenStructure(
             children.map { it and newGuard },
             numberOfChildrenExceeded and newGuard,
         )
 
-    infix fun union(other: ChildrenStructure<Abstraction>) =
+    infix fun union(other: ChildrenStructure) =
         ChildrenStructure(
             (children zip other.children).map { (x, y) -> x union y },
             numberOfChildrenExceeded or other.numberOfChildrenExceeded,
         )
 
     companion object {
-        fun <Abstraction : AbstractionForUExpr<Abstraction>> empty(): ChildrenStructure<Abstraction> =
+        fun empty(): ChildrenStructure =
             ChildrenStructure(
                 List(TvmContext.MAX_REFS_NUMBER) { ChildStructure(emptyMap()) },
                 AbstractGuard.abstractFalse(),
@@ -184,10 +147,10 @@ class ChildrenStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
     }
 }
 
-class ChildStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
-    val variants: Map<TvmParameterInfo.CellInfo, AbstractGuard<Abstraction>>,
+class ChildStructure(
+    val variants: Map<TvmParameterInfo.CellInfo, AbstractGuard>,
 ) {
-    fun exists(): AbstractGuard<Abstraction> =
+    fun exists(): AbstractGuard =
         variants.values.fold(AbstractGuard.abstractFalse()) { acc, guard ->
             acc or guard
         }
@@ -199,7 +162,7 @@ class ChildStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
             },
         )
 
-    infix fun union(other: ChildStructure<Abstraction>): ChildStructure<Abstraction> {
+    infix fun union(other: ChildStructure): ChildStructure {
         val result = variants.toMutableMap()
         other.variants.entries.forEach { (struct, guard) ->
             val oldValue = result[struct]
@@ -208,7 +171,7 @@ class ChildStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
         return ChildStructure(result)
     }
 
-    infix fun and(newGuard: AbstractGuard<Abstraction>) =
+    infix fun and(newGuard: AbstractGuard) =
         ChildStructure(
             variants.entries.associate { (struct, guard) ->
                 struct to (guard and newGuard)
@@ -216,14 +179,14 @@ class ChildStructure<Abstraction : AbstractionForUExpr<Abstraction>>(
         )
 }
 
-fun <Abstraction : AbstractionForUExpr<Abstraction>> getKnownTypePrefixDataLength(
+fun getKnownTypePrefixDataLength(
     struct: TlbStructure.KnownTypePrefix,
-    lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<Abstraction>>,
-): AbstractSizeExpr<Abstraction>? =
+    lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
+): AbstractSizeExpr? =
     when (struct.typeLabel) {
         is TlbAtomicLabel -> {
             AbstractSizeExpr { param ->
-                val typeArgs = struct.typeArgs(param.state, param.address, param.path)
+                val typeArgs = struct.typeArgs(param.state, param.ref, param.path)
                 struct.typeLabel.dataLength(param.state, typeArgs)
             }
         }

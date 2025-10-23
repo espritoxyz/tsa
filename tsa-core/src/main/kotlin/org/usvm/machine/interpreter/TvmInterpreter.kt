@@ -8,9 +8,9 @@ import kotlinx.collections.immutable.toPersistentMap
 import mu.KLogging
 import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TvmInputInfo
+import org.ton.TvmParameterInfo
 import org.ton.TvmParameterInfo.CellInfo
 import org.ton.TvmParameterInfo.SliceInfo
-import org.ton.TvmParameterInfo.UnknownCellInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaArtificialExecuteContInst
 import org.ton.bytecode.TsaContractCode
@@ -200,6 +200,7 @@ import org.ton.bytecode.TvmStackComplexXcpuInst
 import org.ton.bytecode.TvmStackComplexXcpuxcInst
 import org.ton.bytecode.TvmTupleInst
 import org.ton.bytecode.disassembleCell
+import org.ton.compositeLabelOfUnknown
 import org.ton.targets.TvmTarget
 import org.usvm.StepResult
 import org.usvm.UBoolExpr
@@ -492,7 +493,8 @@ class TvmInterpreter(
                     inputInfo.parameterInfos[0]?.let {
                         (it as? SliceInfo)
                             ?: error("Incorrect input info for message body")
-                    }
+                    } ?: SliceInfo(TvmParameterInfo.DataCellInfo(compositeLabelOfUnknown))
+
                 val msgBodyCellNonBounced =
                     state.memory.readField(
                         input.msgBodySliceNonBounced,
@@ -500,11 +502,7 @@ class TvmInterpreter(
                         ctx.addressSort,
                     ) as UConcreteHeapRef
 
-                if (lastInputInfo != null) {
-                    newInputInfo[msgBodyCellNonBounced] = lastInputInfo.cellInfo
-                } else {
-                    newInputInfo[msgBodyCellNonBounced] = UnknownCellInfo
-                }
+                newInputInfo[msgBodyCellNonBounced] = lastInputInfo.cellInfo
 
                 val dataCellInfoStorage =
                     TvmDataCellInfoStorage.build(
@@ -549,7 +547,6 @@ class TvmInterpreter(
         dataCellInfoStorage: TvmDataCellInfoStorage,
     ) {
         state.dataCellInfoStorage = dataCellInfoStorage
-        state.fieldManagers.cellDataFieldManager.addressToLabelMapper = dataCellInfoStorage.mapper
 
         val structuralConstraints = state.dataCellInfoStorage.mapper.getInitialStructuralConstraints(state)
         state.pathConstraints += structuralConstraints
@@ -622,8 +619,8 @@ class TvmInterpreter(
             postProcessor.postProcessState(scope)
                 ?: return@filter false
 
-            val globalStructuralConstraintsHolder = state.globalStructuralConstraintsHolder
-            globalStructuralConstraintsHolder.applyTo(scope) != null
+            val structuralConstraintsHolder = state.structuralConstraintsHolder
+            structuralConstraintsHolder.applyTo(scope) != null
         }
     }
 
@@ -633,7 +630,6 @@ class TvmInterpreter(
         logger.debug("State id: {}, Step: {}", state.id, stmt)
 
         val initialGasUsage = state.gasUsageHistory
-        val globalStructuralConstraintsHolder = state.globalStructuralConstraintsHolder
 
         val allowFailures = state.allowFailures && !ctx.tvmOptions.excludeExecutionsWithFailures
         var scope = TvmStepScopeManager(state, forkBlackList, allowFailures)
@@ -643,8 +639,12 @@ class TvmInterpreter(
             body = {
                 visit(scope, stmt)
 
-                globalStructuralConstraintsHolder.applyTo(scope)
-                    ?: error("Could not apply structural constraints") // TODO: add special exit for that
+                val structuralConstraintsHolder = scope.getStructuralConstraintsHolder()
+                structuralConstraintsHolder.applyTo(scope)
+                    ?: run {
+                        logger.warn { "Could not apply structural constraints" }
+                        scope.killCurrentState()
+                    }
             },
             exceptionHandler = {
                 logger.warn(it) {

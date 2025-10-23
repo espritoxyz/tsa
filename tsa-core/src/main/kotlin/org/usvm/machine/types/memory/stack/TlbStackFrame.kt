@@ -19,13 +19,13 @@ fun buildFrameForStructure(
     path: PersistentList<Int>,
     leftTlbDepth: Int,
 ): TlbStackFrame? {
-    val tlbLevel = path.size
+    val tlbLevel = path.count { it != TlbStructure.Unknown.id }
     return when (struct) {
         is TlbStructure.Unknown -> {
             check(tlbLevel == 0) {
                 "`Unknown` is possible only on zero tlb level, but got tlb level $tlbLevel"
             }
-            StackFrameOfUnknown
+            StackFrameOfUnknown(path, leftTlbDepth, hasOffset = false)
         }
 
         is TlbStructure.Empty -> {
@@ -56,20 +56,24 @@ fun buildFrameForStructure(
     }
 }
 
+enum class BadSizeContext {
+    GoodSizeIsUnsat,
+    GoodSizeIsUnknown,
+    GoodSizeIsSat,
+}
+
 sealed interface TlbStackFrame {
     val path: List<Int>
     val leftTlbDepth: Int
 
     fun <ReadResult> step(
-        state: TvmState,
+        scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
-    ): List<GuardedResult<ReadResult>>
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
+    ): List<GuardedResult<ReadResult>>?
 
     fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame?
-
-    val isSkippable: Boolean
-
-    fun skipLabel(ctx: TvmContext): TlbStackFrame?
 
     fun readInModel(read: TlbStack.ConcreteReadInfo): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>>
 
@@ -85,6 +89,21 @@ sealed interface TlbStackFrame {
         val result: StackFrameStepResult<ReadResult>,
         val value: ReadResult?,
     )
+
+    fun skipLabel(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ): SkipResult
+
+    sealed interface SkipResult
+
+    data object EndOfFrame : SkipResult
+
+    data object SkipNotPossible : SkipResult
+
+    data class NextFrame(
+        val frame: TlbStackFrame,
+    ) : SkipResult
 }
 
 sealed interface StackFrameStepResult<out ReadResult>
@@ -114,14 +133,16 @@ data class ContinueLoadOnNextFrame<ReadResult>(
 ) : StackFrameStepResult<ReadResult>
 
 data class LimitedLoadData<ReadResult>(
-    val cellAddress: UConcreteHeapRef,
+    val cellRef: UConcreteHeapRef,
+    val guard: UBoolExpr,
     val type: TvmCellDataTypeRead<ReadResult>,
 ) {
     companion object {
         fun <ReadResult> fromLoadData(loadData: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>) =
             LimitedLoadData(
                 type = loadData.type,
-                cellAddress = loadData.cellAddress,
+                guard = loadData.guard,
+                cellRef = loadData.cellRef,
             )
     }
 }

@@ -10,12 +10,12 @@ import org.ton.TlbAddressByRef
 import org.ton.TlbBitArrayByRef
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
+import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbLabel
 import org.ton.TlbStructure
 import org.ton.TvmParameterInfo
-import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -39,6 +39,7 @@ import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.types.memory.ConcreteSizeBlockField
 import org.usvm.machine.types.memory.SliceRefField
 import org.usvm.machine.types.memory.SymbolicSizeBlockField
+import org.usvm.machine.types.memory.stack.BadSizeContext
 import org.usvm.machine.types.memory.stack.LimitedLoadData
 import org.usvm.machine.types.memory.stack.TlbStack
 import org.usvm.mkSizeAddExpr
@@ -78,93 +79,128 @@ private fun <ReadResult> MutableMap<
     innerMap.addGuardedOutcome(readValue, guard)
 }
 
+private fun TlbStack.Error.ignore(
+    ctx: TvmContext,
+    cellRef: UConcreteHeapRef,
+): Boolean =
+    !ctx.tvmOptions.turnOnTLBParsingChecks ||
+        fromMutableTlb ||
+        (cellRef.isAllocated && !ctx.tvmOptions.tlbOptions.performTlbChecksOnAllocatedCells)
+
 fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     oldSlice: UHeapRef,
     type: TvmCellDataTypeRead<ReadResult>,
     newSlice: UConcreteHeapRef,
+    badCellSizeIsExceptional: Boolean,
+    onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     restActions: TvmStepScopeManager.(ReadResult?) -> Unit,
-) {
-    val turnOnTLBParsingChecks = doWithCtx { tvmOptions.turnOnTLBParsingChecks }
-    val performTlbChecksOnAllocatedCells = doWithCtx { tvmOptions.tlbOptions.performTlbChecksOnAllocatedCells }
-
+) = doWithCtx {
     val conditionsForFork = mutableListOf<Triple<UBoolExpr, MakeSliceTypeLoadOutcome, ReadResult?>>()
 
-    calcOnStateCtx {
-        val outcomes = hashMapOf<MakeSliceTypeLoadOutcome, MutableMap<ReadResult?, UBoolExpr>>()
-        val offset = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, oldSlice)
-        val loadList = dataCellLoadedTypeInfo.loadData(this, offset, type, oldSlice)
-
-        loadList.forEach { load ->
-            val tlbStack = dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceAddress)
-            tlbStack
-                ?.step(this, LimitedLoadData.fromLoadData(load))
-                ?.flatMap { (guard, stepResult, oldValue) ->
-                    if (load.type is TvmCellDataIntegerRead &&
-                        stepResult is TlbStack.Error &&
-                        !ctx.tvmOptions.turnOnTLBParsingChecks
-                    ) {
-                        retryWithBitvectorRead(
-                            load.type,
-                            load,
-                            tlbStack,
-                            this,
-                            stepResult,
-                            this@makeSliceTypeLoad,
-                            this@calcOnStateCtx.ctx,
-                        )
-                    } else {
-                        listOf(TlbStack.GuardedResult(guard, stepResult, oldValue))
-                    }
-                }?.forEach { (guard, stepResult, value) ->
-                    when (stepResult) {
-                        is TlbStack.Error -> {
-                            val outcome =
-                                if (turnOnTLBParsingChecks &&
-                                    (!load.cellAddress.isAllocated || performTlbChecksOnAllocatedCells)
-                                ) {
-                                    Error(stepResult.error)
-                                } else {
-                                    NoTlbStack
-                                }
-                            outcomes.addGuardedTypeloadOutcome(outcome, value, guard and load.guard)
-                        }
-
-                        is TlbStack.NewStack -> {
-                            val outcome = NewTlbStack(stepResult.stack)
-                            outcomes.addGuardedTypeloadOutcome(outcome, value, guard and load.guard)
-                        }
-                    }
-                } ?: run {
-                outcomes.addGuardedTypeloadOutcome(NoTlbStack, null, load.guard)
-            }
+    val outcomes = hashMapOf<MakeSliceTypeLoadOutcome, MutableMap<ReadResult?, UBoolExpr>>()
+    val offset =
+        calcOnState {
+            fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, oldSlice)
+        }
+    val loadList =
+        calcOnState {
+            dataCellLoadedTypeInfo.loadData(this, offset, type, oldSlice)
         }
 
-        outcomes.entries.forEach { (outcome, readValueToGuardMap) ->
-            val outcomeAndNoValueGuard = readValueToGuardMap[null] ?: falseExpr
-            conditionsForFork.add(Triple(outcomeAndNoValueGuard, outcome, null))
+    var died = false
 
-            readValueToGuardMap.remove(null)
-            if (readValueToGuardMap.isEmpty()) {
+    loadList.forEach { load ->
+        val tlbStack =
+            calcOnState {
+                dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceRef)
+            } ?: run {
+                outcomes.addGuardedTypeloadOutcome(NoTlbStack, null, load.guard)
                 return@forEach
             }
 
-            val readValueToGuardList = readValueToGuardMap.entries.toList()
-            val result =
-                readValueToGuardList
-                    .subList(1, readValueToGuardList.size)
-                    .fold(readValueToGuardList.first().key!!) { acc, (value, guard) ->
-                        mkIte(
-                            ctx,
-                            guard,
-                            trueBranch = value!!,
-                            falseBranch = acc,
+        val stepResult: List<TlbStack.GuardedResult<ReadResult>> =
+            tlbStack.step(this, LimitedLoadData.fromLoadData(load), badCellSizeIsExceptional, onBadCellSize)
+                ?: run {
+                    died = true
+                    return@forEach
+                }
+
+        stepResult
+            .flatMap { (guard, stepResult, oldValue) ->
+                if (load.type is TvmCellDataIntegerRead &&
+                    stepResult is TlbStack.Error &&
+                    stepResult.ignore(ctx, load.cellRef)
+                ) {
+                    retryWithBitvectorRead(
+                        load.type,
+                        load,
+                        tlbStack,
+                        stepResult,
+                        this@makeSliceTypeLoad,
+                        badCellSizeIsExceptional,
+                        onBadCellSize,
+                    )?.map {
+                        TlbStack.GuardedResult<ReadResult>(
+                            it.guard,
+                            it.result,
+                            value = null, // TODO: figure out why this value decreases coverage
                         )
+                    } ?: run {
+                        died = true
+                        return@forEach
+                    }
+                } else {
+                    listOf(TlbStack.GuardedResult(guard, stepResult, oldValue))
+                }
+            }.forEach { (guard, stepResult, value) ->
+                when (stepResult) {
+                    is TlbStack.Error -> {
+                        val outcome =
+                            if (!stepResult.ignore(ctx, load.cellRef)) {
+                                Error(stepResult.error)
+                            } else {
+                                NoTlbStack
+                            }
+                        outcomes.addGuardedTypeloadOutcome(outcome, value, guard and load.guard)
                     }
 
-            val guard = readValueToGuardList.fold(falseExpr as UBoolExpr) { acc, (_, guard) -> acc or guard }
+                    is TlbStack.NewStack -> {
+                        val outcome = NewTlbStack(stepResult.stack)
+                        outcomes.addGuardedTypeloadOutcome(outcome, value, guard and load.guard)
+                    }
+                }
+            }
+    }
 
-            conditionsForFork.add(Triple(guard, outcome, result))
+    if (died) {
+        return@doWithCtx
+    }
+
+    outcomes.entries.forEach { (outcome, readValueToGuardMap) ->
+        val outcomeAndNoValueGuard = readValueToGuardMap[null] ?: falseExpr
+        conditionsForFork.add(Triple(outcomeAndNoValueGuard, outcome, null))
+
+        readValueToGuardMap.remove(null)
+        if (readValueToGuardMap.isEmpty()) {
+            return@forEach
         }
+
+        val readValueToGuardList = readValueToGuardMap.entries.toList()
+        val result =
+            readValueToGuardList
+                .subList(1, readValueToGuardList.size)
+                .fold(readValueToGuardList.first().key!!) { acc, (value, guard) ->
+                    mkIte(
+                        ctx,
+                        guard,
+                        trueBranch = value!!,
+                        falseBranch = acc,
+                    )
+                }
+
+        val guard = readValueToGuardList.fold(falseExpr as UBoolExpr) { acc, (_, guard) -> acc or guard }
+
+        conditionsForFork.add(Triple(guard, outcome, result))
     }
 
     doWithConditions(
@@ -189,24 +225,26 @@ private fun <ReadResult> retryWithBitvectorRead(
     type: TvmCellDataIntegerRead,
     load: TvmDataCellLoadedTypeInfo.LoadData<ReadResult>,
     tlbStack: TlbStack,
-    state: TvmState,
     stepResult: TlbStack.Error,
     scope: TvmStepScopeManager,
-    context: TvmContext,
-): List<TlbStack.GuardedResult<out ReadResult>> {
+    badCellSizeIsExceptional: Boolean,
+    onBadCellSize: (TvmState, BadSizeContext) -> Unit,
+): List<TlbStack.GuardedResult<ReadResult>>? {
     val bitArrayReadType = TvmCellDataBitArrayRead(type.sizeBits)
     val updatedLoad =
         TvmDataCellLoadedTypeInfo.LoadData(
             load.guard,
-            load.cellAddress,
+            load.cellRef,
             bitArrayReadType,
             load.offset,
-            load.sliceAddress,
+            load.sliceRef,
         )
     val updatedLimitLoadData = LimitedLoadData.fromLoadData(updatedLoad)
-    return tlbStack
-        .step(state, updatedLimitLoadData)
-        .map<TlbStack.GuardedResult<UExprReadResult<UAddressSort>>, TlbStack.GuardedResult<out ReadResult>> {
+    val newResult =
+        tlbStack.step(scope, updatedLimitLoadData, badCellSizeIsExceptional, onBadCellSize)
+            ?: return null
+    return newResult
+        .map {
             val (guard, newStepResult, value) = it
             val stepResultOrOldError =
                 if (newStepResult is TlbStack.Error) {
@@ -219,7 +257,7 @@ private fun <ReadResult> retryWithBitvectorRead(
             val result =
                 scope.slicePreloadInt(
                     expr,
-                    with(context) { type.sizeBits },
+                    type.sizeBits,
                     type.isSigned,
                 )
                     ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null)
@@ -264,7 +302,7 @@ fun TvmStepScopeManager.assertEndOfCell(slice: UHeapRef): Unit? {
         val actions = dataCellLoadedTypeInfo.makeEndOfCell(cellAddress, offset, refNumber)
         actions.forEach {
             val noConflictCond =
-                if (it.cellAddress.isAllocated) {
+                if (it.cellRef.isAllocated) {
                     trueExpr
                 } else {
                     dataCellInfoStorage.getNoUnexpectedEndOfReadingCondition(this, it)
@@ -294,7 +332,7 @@ fun TvmStepScopeManager.makeSliceRefLoad(
             val loadList = dataCellLoadedTypeInfo.loadRef(cellAddress, refNumber)
             loadList.forEach { load ->
                 val noConflictCond =
-                    if (load.cellAddress.isAllocated) {
+                    if (load.cellRef.isAllocated) {
                         trueExpr
                     } else {
                         dataCellInfoStorage.getNoUnexpectedLoadRefCondition(this, load)
@@ -440,7 +478,12 @@ fun TvmState.storeIntTlbLabelToBuilder(
             state.memory.writeField(ref, field, field.getSort(this), valueShrinked, guard = trueExpr)
         }
     } else {
-        val label = TlbIntegerLabelOfSymbolicSize(isSigned, endian, arity = 0) { _, _ -> sizeBits }
+        val label =
+            TlbIntegerLabelOfSymbolicSize(
+                isSigned,
+                endian,
+                arity = 0,
+            ) { _, _ -> TlbIntegerLabel.SizeExprBits(sizeBits) }
         val valueShrinked = value.extractToSort(mkBvSort(label.lengthUpperBound.toUInt()))
 
         addTlbLabelToBuilder(oldBuilder, newBuilder, label) { state, ref, structId ->

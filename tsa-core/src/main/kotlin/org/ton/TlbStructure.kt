@@ -1,6 +1,14 @@
 package org.ton
 
 sealed interface TlbStructure {
+    sealed interface Owner
+
+    data object UnknownStructOwner : Owner
+
+    data class CompositeLabelOwner(
+        val owner: TlbCompositeLabel,
+    ) : Owner
+
     data object Unknown : Leaf {
         override val id: Int = 0
     }
@@ -14,31 +22,37 @@ sealed interface TlbStructure {
         val typeLabel: TlbLabel,
         val typeArgIds: List<Int>,
         val rest: TlbStructure,
-        override val owner: TlbCompositeLabel,
+        override val owner: Owner,
     ) : TlbStructure,
         CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
 
         override fun hashCode(): Int = calculateHash()
+
+        constructor(id: Int, typeLabel: TlbLabel, typeArgIds: List<Int>, rest: TlbStructure, owner: TlbCompositeLabel) :
+            this(id, typeLabel, typeArgIds, rest, CompositeLabelOwner(owner))
     }
 
     class LoadRef(
         override val id: Int,
         val ref: TvmParameterInfo.CellInfo,
         val rest: TlbStructure,
-        override val owner: TlbCompositeLabel,
+        override val owner: Owner,
     ) : TlbStructure,
         CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
 
         override fun hashCode(): Int = calculateHash()
+
+        constructor(id: Int, ref: TvmParameterInfo.CellInfo, rest: TlbStructure, owner: TlbCompositeLabel) :
+            this(id, ref, rest, CompositeLabelOwner(owner))
     }
 
     class SwitchPrefix(
         override val id: Int,
         val switchSize: Int,
         givenVariants: Map<String, TlbStructure>,
-        override val owner: TlbCompositeLabel,
+        override val owner: Owner,
     ) : TlbStructure,
         CompositeNode {
         override fun equals(other: Any?): Boolean = performEquals(other)
@@ -58,6 +72,9 @@ sealed interface TlbStructure {
             }
         }
 
+        constructor(id: Int, switchSize: Int, givenVariants: Map<String, TlbStructure>, owner: TlbCompositeLabel) :
+            this(id, switchSize, givenVariants, CompositeLabelOwner(owner))
+
         data class SwitchVariant(
             val key: String,
             val struct: TlbStructure,
@@ -67,7 +84,7 @@ sealed interface TlbStructure {
     sealed interface Leaf : TlbStructure
 
     sealed interface CompositeNode : TlbStructure {
-        val owner: TlbCompositeLabel
+        val owner: Owner
 
         fun performEquals(other: Any?): Boolean {
             if (other !is CompositeNode) {

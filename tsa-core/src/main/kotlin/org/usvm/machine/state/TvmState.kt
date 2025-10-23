@@ -13,6 +13,7 @@ import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmRealInst
 import org.ton.targets.TvmTarget
 import org.usvm.PathNode
+import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
 import org.usvm.UCallStack
 import org.usvm.UConcreteHeapAddress
@@ -32,10 +33,10 @@ import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.ReceivedMessage
-import org.usvm.machine.types.GlobalStructuralConstraintsHolder
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
 import org.usvm.machine.types.TvmRealReferenceType
+import org.usvm.machine.types.TvmStructuralConstraintsHolder
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
@@ -69,7 +70,7 @@ class TvmState(
     var lastCommitedStateOfContracts: PersistentMap<ContractId, TvmCommitedState> = persistentMapOf(),
     val dataCellLoadedTypeInfo: TvmDataCellLoadedTypeInfo = TvmDataCellLoadedTypeInfo.empty(),
     var stateInitialized: Boolean = false,
-    val globalStructuralConstraintsHolder: GlobalStructuralConstraintsHolder = GlobalStructuralConstraintsHolder(),
+    var structuralConstraintsHolder: TvmStructuralConstraintsHolder = TvmStructuralConstraintsHolder(),
     val fieldManagers: TvmFieldManagers = TvmFieldManagers(ctx),
     var allowFailures: Boolean = true, // new value starts being active only from the next step
     var contractStack: PersistentList<TvmEventInformation> = persistentListOf(),
@@ -181,7 +182,7 @@ class TvmState(
             lastCommitedStateOfContracts = lastCommitedStateOfContracts,
             dataCellLoadedTypeInfo = dataCellLoadedTypeInfo.clone(),
             stateInitialized = stateInitialized,
-            globalStructuralConstraintsHolder = globalStructuralConstraintsHolder,
+            structuralConstraintsHolder = structuralConstraintsHolder,
             allowFailures = allowFailures,
             contractStack = contractStack,
             currentContract = currentContract,
@@ -278,6 +279,8 @@ data class TvmContractExecutionMemory(
 
 class TvmStateDebugInfo(
     var numberOfDataEqualityConstraintsFromTlb: Int = 0,
+    var dataConstraints: PersistentSet<UBoolExpr> = persistentSetOf(),
+    var extractedTlbGrams: PersistentSet<UExpr<TvmContext.TvmInt257Sort>> = persistentSetOf(),
 ) {
-    fun clone() = TvmStateDebugInfo(numberOfDataEqualityConstraintsFromTlb)
+    fun clone() = TvmStateDebugInfo(numberOfDataEqualityConstraintsFromTlb, dataConstraints, extractedTlbGrams)
 }

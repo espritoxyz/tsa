@@ -5,10 +5,6 @@
     if (slice_bits(in_msg) < 10) {
         var bits = in_msg~load_bits(100);
 
-        ;; store value so that it won't be optimized out
-        var msg = begin_cell()
-            .store_slice(bits)
-            .end_cell();
-        msg~impure_touch();
+        bits~impure_touch();
     }
 }

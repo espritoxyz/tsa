@@ -1,0 +1,12 @@
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    slice in_msg_copy = in_msg;
+    in_msg_copy~skip_bits(10);
+    in_msg_copy~impure_touch();
+
+    int x = in_msg~load_uint(5);
+    x~impure_touch();
+    throw(1000);
+}

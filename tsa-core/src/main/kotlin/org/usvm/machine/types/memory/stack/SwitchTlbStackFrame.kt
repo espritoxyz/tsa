@@ -9,6 +9,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.types.SizedCellDataTypeRead
 import org.usvm.machine.types.TvmCellMaybeConstructorBitRead
 import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
@@ -31,12 +32,14 @@ data class SwitchTlbStackFrame(
     }
 
     override fun <ReadResult> step(
-        state: TvmState,
+        scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,
+        badCellSizeIsExceptional: Boolean,
+        onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>> =
-        with(state.ctx) {
+        scope.calcOnStateCtx {
             val possibleVariants =
-                state.dataCellInfoStorage.mapper.calculatedTlbLabelInfo
+                dataCellInfoStorage.mapper.calculatedTlbLabelInfo
                     .getPossibleSwitchVariants(struct, leftTlbDepth)
 
             // reading long tag with `load_maybe_ref` or `load_dict` (which is actually the same instruction)
@@ -44,14 +47,14 @@ data class SwitchTlbStackFrame(
             val isBadMaybeRead = struct.switchSize > 1 && loadData.type is TvmCellMaybeConstructorBitRead
 
             if (loadData.type !is SizedCellDataTypeRead || isBadMaybeRead) {
-                return@with listOf(
+                return@calcOnStateCtx listOf(
                     GuardedResult(
                         trueExpr,
                         StepError(
                             TvmStructuralError(
                                 TvmReadingSwitchWithUnexpectedType(loadData.type),
-                                state.phase,
-                                state.stack,
+                                phase,
+                                stack,
                             ),
                         ),
                         value = null,
@@ -67,19 +70,19 @@ data class SwitchTlbStackFrame(
                     GuardedResult(
                         mkSizeGtExpr(readSize, switchSize),
                         StepError(
-                            TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), state.phase, state.stack),
+                            TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), phase, stack),
                         ),
                         value = null,
                     ),
                 )
 
             possibleVariants.forEachIndexed { idx, (key, variant) ->
-                val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, loadData.cellAddress, path)
+                val guard = generateGuardForSwitch(struct, idx, possibleVariants, this, loadData.cellRef, path)
 
                 // full read of switch
                 val stepResult =
                     buildFrameForStructure(
-                        state.ctx,
+                        ctx,
                         variant,
                         path,
                         leftTlbDepth,
@@ -87,7 +90,7 @@ data class SwitchTlbStackFrame(
                         NextFrame(it)
                     } ?: EndOfStackFrame
 
-                val value = loadData.type.readFromConstant(state, zeroSizeExpr, key)
+                val value = loadData.type.readFromConstant(this, zeroSizeExpr, key)
 
                 result.add(
                     GuardedResult(
@@ -112,9 +115,10 @@ data class SwitchTlbStackFrame(
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
 
-    override val isSkippable: Boolean = false
-
-    override fun skipLabel(ctx: TvmContext): TlbStackFrame? = null
+    override fun skipLabel(
+        state: TvmState,
+        ref: UConcreteHeapRef,
+    ) = TlbStackFrame.SkipNotPossible
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo,
@@ -135,12 +139,12 @@ data class SwitchTlbStackFrame(
                 }
 
             possibleVariants.forEachIndexed { idx, (key, variant) ->
-                val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, read.address, path)
+                val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, read.ref, path)
                 if (model.eval(guard).isTrue) {
                     val further = buildFrameForStructure(this, variant, path, leftTlbDepth)
                     val newReadInfo =
                         TlbStack.ConcreteReadInfo(
-                            read.address,
+                            read.ref,
                             read.resolver,
                             read.leftBits - struct.switchSize,
                         )

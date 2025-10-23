@@ -564,10 +564,20 @@ fun sliceLoadGramsTlb(
     val ctx = scope.calcOnState { ctx }
 
     val read = TvmCellDataCoinsRead(ctx)
-    scope.makeSliceTypeLoad(oldSlice, read, newSlice) { valueFromTlb ->
+    scope.makeSliceTypeLoad(
+        oldSlice,
+        read,
+        newSlice,
+        badCellSizeIsExceptional = true,
+        onBadCellSize = throwCellUnderflowErrorBasedOnContext,
+    ) { valueFromTlb ->
 
         val (length, grams) =
             valueFromTlb?.let {
+                doWithState {
+                    debugInfo.extractedTlbGrams = debugInfo.extractedTlbGrams.add(valueFromTlb.second)
+                }
+
                 doWithState {
                     sliceMoveDataPtr(newSlice, bits = 4)
                 }
@@ -702,7 +712,7 @@ fun TvmState.allocEmptyBuilder(): UConcreteHeapRef =
 fun TvmState.builderCopyFromBuilder(
     original: UConcreteHeapRef,
     result: UConcreteHeapRef,
-) = with(ctx) {
+) {
     val cellData =
         fieldManagers.cellDataFieldManager.readCellDataForBuilderOrAllocatedCell(this@builderCopyFromBuilder, original)
     fieldManagers.cellDataFieldManager.writeCellData(this@builderCopyFromBuilder, result, cellData)
@@ -1288,6 +1298,8 @@ fun sliceLoadIntTlb(
         slice,
         TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.BigEndian),
         updatedSlice,
+        badCellSizeIsExceptional = true,
+        onBadCellSize = throwCellUnderflowErrorBasedOnContext,
     ) { tlbValue ->
         val result =
             tlbValue?.expr ?: let {
@@ -1317,7 +1329,13 @@ fun sliceLoadAddrTlb(
     action: TvmStepScopeManager.(UHeapRef) -> Unit,
 ) {
     val ctx = scope.calcOnState { ctx }
-    scope.makeSliceTypeLoad(slice, TvmCellDataMsgAddrRead(ctx), updatedSlice) { tlbValue ->
+    scope.makeSliceTypeLoad(
+        slice,
+        TvmCellDataMsgAddrRead(ctx),
+        updatedSlice,
+        badCellSizeIsExceptional = true,
+        onBadCellSize = ctx.throwCellUnderflowErrorBasedOnContext,
+    ) { tlbValue ->
         calcOnStateCtx {
             val addrSlice =
                 if (tlbValue != null) {

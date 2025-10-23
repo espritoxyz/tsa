@@ -12,7 +12,7 @@ fun calculateDataLengths(
     labelsWithoutUnknowns: Collection<TlbCompositeLabel>,
     individualMaxCellTlbDepth: Map<TlbCompositeLabel, Int>,
     possibleSwitchVariants: List<Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>>,
-): List<Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>> =
+): List<Map<TlbCompositeLabel, AbstractSizeExpr>> =
     calculateMapsByTlbDepth(
         ctx.tvmOptions.tlbOptions.maxTlbDepth,
         labelsWithoutUnknowns,
@@ -34,9 +34,9 @@ fun calculateDataLengths(
 private fun getDataLength(
     ctx: TvmContext,
     struct: TlbStructure,
-    lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
+    lengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
-): AbstractSizeExpr<SimpleAbstractionForUExpr>? =
+): AbstractSizeExpr? =
     with(ctx) {
         when (struct) {
             is TlbStructure.Unknown -> {
@@ -77,7 +77,7 @@ private fun getDataLength(
                                 ?: return@mapIndexedNotNull null // cannot construct this variant with given depth
 
                         val condition =
-                            AbstractGuard<SimpleAbstractionForUExpr> { (address, path, state) ->
+                            AbstractGuard { (address, path, state) ->
                                 generateGuardForSwitch(struct, idx, possibleVariants, state, address, path)
                             }
 

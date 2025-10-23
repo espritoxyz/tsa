@@ -1259,7 +1259,13 @@ class TvmDictOperationInterpreter(
         }
 
         val updatedSlice = scope.calcOnState { memory.allocConcrete(TvmSliceType) }
-        scope.makeSliceTypeLoad(slice, TvmCellMaybeConstructorBitRead(ctx), updatedSlice) { isNotEmptyValueFromTlb ->
+        scope.makeSliceTypeLoad(
+            slice,
+            TvmCellMaybeConstructorBitRead(ctx),
+            updatedSlice,
+            badCellSizeIsExceptional = true,
+            onBadCellSize = ctx.throwCellUnderflowErrorBasedOnContext,
+        ) { isNotEmptyValueFromTlb ->
             val isNotEmpty =
                 isNotEmptyValueFromTlb?.expr ?: let {
                     val maybeConstructorTypeBit =

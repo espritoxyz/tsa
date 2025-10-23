@@ -4,6 +4,7 @@ import org.ton.Endian
 import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
+import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbMaybeRefLabel
@@ -453,7 +454,7 @@ val symbolicIntLabel =
     ) { ctx, args ->
         val n = args.single()
         check(n.sort.sizeBits == ctx.sizeSort.sizeBits)
-        ctx.mkBvMulExpr(n, ctx.mkSizeExpr(10))
+        TlbIntegerLabel.SizeExprBits(ctx.mkBvMulExpr(n, ctx.mkSizeExpr(10)))
     }
 
 private val rootIdForCustomVarUInteger = TlbStructureIdProvider.provideId()
@@ -636,5 +637,20 @@ val threeCoins =
                                 rest = Empty,
                             ),
                     ),
+            )
+    }
+
+val bool =
+    TlbCompositeLabel("Bool").also {
+        it.internalStructure =
+            SwitchPrefix(
+                id = TlbStructureIdProvider.provideId(),
+                switchSize = 1,
+                givenVariants =
+                    mapOf(
+                        "0" to Empty,
+                        "1" to Empty,
+                    ),
+                owner = it,
             )
     }

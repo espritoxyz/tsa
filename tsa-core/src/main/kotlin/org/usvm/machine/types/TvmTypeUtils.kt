@@ -1,5 +1,6 @@
 package org.usvm.machine.types
 
+import io.ksmt.expr.KInterpretedValue
 import org.ton.FixedSizeDataLabel
 import org.ton.TlbAddressByRef
 import org.ton.TlbAtomicLabel
@@ -12,10 +13,12 @@ import org.ton.TlbMaybeRefLabel
 import org.ton.TlbMsgAddrLabel
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
+import org.ton.compositeLabelOfUnknown
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.api.readField
+import org.usvm.isStatic
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmSizeSort
@@ -66,7 +69,7 @@ fun <ReadResult> TlbBuiltinLabel.accepts(
                             symbolicTypeRead is TvmCellDataBitArrayRead
                     )
                 ) {
-                    symbolicTypeRead.sizeBits eq bitSize(this, labelArgs)
+                    symbolicTypeRead.sizeBits eq bitSize(this, labelArgs).sizeBits
                 } else {
                     falseExpr
                 }
@@ -122,7 +125,7 @@ fun TlbBuiltinLabel.passBitArrayRead(
     with(ctx) {
         when (this@passBitArrayRead) {
             is TlbIntegerLabel -> {
-                val intLength = bitSize(this, labelArgs)
+                val intLength = bitSize(this, labelArgs).sizeBits
                 val leftBits = mkSizeSubExpr(bitArrayLength, intLength)
                 ContinueLoadOnNextFrameData(
                     mkSizeGtExpr(bitArrayLength, intLength),
@@ -160,7 +163,7 @@ fun TlbBuiltinLabel.isEmptyLabel(
     with(ctx) {
         when (this@isEmptyLabel) {
             is TlbIntegerLabel -> {
-                bitSize(this, labelArgs) eq zeroSizeExpr
+                bitSize(this, labelArgs).sizeBits eq zeroSizeExpr
             }
 
             is TlbMsgAddrLabel -> {
@@ -191,7 +194,7 @@ fun TlbAtomicLabel.dataLength(
 ): UExpr<TvmSizeSort> =
     with(state.ctx) {
         when (this@dataLength) {
-            is TlbIntegerLabel -> bitSize(this, args)
+            is TlbIntegerLabel -> bitSize(this, args).sizeBits
             is FixedSizeDataLabel -> mkSizeExpr(concreteSize)
             is TlbBitArrayByRef -> sizeBits
             is TlbAddressByRef -> sizeBits
@@ -201,7 +204,10 @@ fun TlbAtomicLabel.dataLength(
 fun TlbAtomicLabel.defaultCellValue(ctx: TvmContext): String =
     when (this) {
         is TlbIntegerLabel -> {
-            val defaultLength = bitSize(ctx, List(arity) { ctx.zeroSizeExpr }).intValue()
+            val lengthWithZero = bitSize(ctx, List(arity) { ctx.zeroSizeExpr }).sizeBits
+            val defaultLength =
+                (lengthWithZero as? KInterpretedValue)?.intValue()
+                    ?: error("Unexpected integer size with zero arg: $lengthWithZero")
             "0".repeat(defaultLength)
         }
 
@@ -281,12 +287,28 @@ fun extractInputParametersAddresses(
     }
 
     if (inputInfo.c4Info != null) {
+        check(inputInfo.c4Info.size == initialState.contractIdToC4Register.size) {
+            "Unexpected size of c4Info"
+        }
+
         inputInfo.c4Info.forEachIndexed { index, cellInfo ->
             val c4 =
                 initialState.contractIdToC4Register[index]?.value?.value as? UConcreteHeapRef
                     ?: error("Unexpected value in c4: ${initialState.contractIdToC4Register[index]?.value?.value}")
 
-            cells[c4] = cellInfo
+            if (c4.isStatic) {
+                cells[c4] = TvmParameterInfo.DataCellInfo(cellInfo)
+            }
+        }
+    } else {
+        initialState.contractIdToC4Register.values.forEach { c4 ->
+            val c4Cell =
+                c4.value.value as? UConcreteHeapRef
+                    ?: error("Unexpected value in c4: ${c4.value.value}")
+
+            if (c4Cell.isStatic) {
+                cells[c4Cell] = TvmParameterInfo.DataCellInfo(compositeLabelOfUnknown)
+            }
         }
     }
 

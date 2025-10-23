@@ -1,11 +1,12 @@
 package org.usvm.machine.types.memory
 
+import io.ksmt.sort.KBvSort
 import kotlinx.collections.immutable.PersistentList
-import kotlinx.collections.immutable.persistentListOf
 import org.ton.FixedSizeDataLabel
 import org.ton.TlbAddressByRef
 import org.ton.TlbBitArrayByRef
 import org.ton.TlbCompositeLabel
+import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
 import org.ton.TlbIntegerLabelOfSymbolicSize
 import org.ton.TlbStructure
@@ -13,11 +14,13 @@ import org.ton.TlbStructure.KnownTypePrefix
 import org.ton.TlbStructure.LoadRef
 import org.ton.TlbStructure.SwitchPrefix
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
@@ -25,7 +28,6 @@ import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
 import org.usvm.machine.state.loadIntFromCellWithoutChecksAndStructuralAsserts
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutStructuralAsserts
-import org.usvm.machine.types.dp.AbstractionForUExprWithCellDataPrefix
 import org.usvm.machine.types.memory.stack.TlbStack
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
@@ -33,7 +35,10 @@ import org.usvm.test.resolver.TvmTestStateResolver
 
 fun TvmContext.generateCellDataConstraint(
     struct: KnownTypePrefix,
-    param: AbstractionForUExprWithCellDataPrefix,
+    ref: UConcreteHeapRef,
+    prefixSize: UExpr<TvmSizeSort>,
+    path: PersistentList<Int>,
+    state: TvmState,
 ): UBoolExpr =
     when (struct.typeLabel) {
         is TlbCompositeLabel -> {
@@ -41,25 +46,22 @@ fun TvmContext.generateCellDataConstraint(
         }
 
         is FixedSizeDataLabel -> {
-            val (addr, prefixSize, path, state) = param
             val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
             val sort = field.getSort(this)
-            val symbol = state.memory.readField(addr, field, sort)
+            val symbol = state.memory.readField(ref, field, sort)
             val data =
-                state.preloadDataBitsFromCellWithoutStructuralAsserts(addr, prefixSize, struct.typeLabel.concreteSize)
+                state.preloadDataBitsFromCellWithoutStructuralAsserts(ref, prefixSize, struct.typeLabel.concreteSize)
             check(symbol.sort.sizeBits == data.sort.sizeBits)
             symbol eq data
         }
 
         is TlbIntegerLabelOfSymbolicSize -> {
-            val (addr, prefixSize, path, state) = param
-
-            val typeArgs = struct.typeArgs(state, addr, path)
-            val intSize = struct.typeLabel.bitSize(state.ctx, typeArgs)
+            val typeArgs = struct.typeArgs(state, ref, path)
+            val intSize = struct.typeLabel.bitSize(state.ctx, typeArgs).sizeBits
 
             val intFromData =
                 state.loadIntFromCellWithoutChecksAndStructuralAsserts(
-                    addr,
+                    ref,
                     prefixSize,
                     intSize,
                     struct.typeLabel.isSigned,
@@ -68,7 +70,7 @@ fun TvmContext.generateCellDataConstraint(
             val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
             val sort = field.getSort(this)
 
-            val intFromTlbField = state.memory.readField(addr, field, sort)
+            val intFromTlbField = state.memory.readField(ref, field, sort)
             val extendedIntFromTlbInt =
                 if (struct.typeLabel.isSigned) {
                     intFromTlbField.signedExtendToInteger()
@@ -110,18 +112,26 @@ fun KnownTypePrefix.typeArgs(
 ): List<UExpr<TvmSizeSort>> =
     with(state.ctx) {
         typeArgIds.map {
-            val typeArgStruct = owner.getStructureById(it)
+            val typeArgStruct =
+                when (owner) {
+                    TlbStructure.UnknownStructOwner -> error("Structures from Unknown cannot have non-null arity")
+                    is TlbStructure.CompositeLabelOwner -> owner.owner.getStructureById(it)
+                }
+
             check(typeArgStruct is KnownTypePrefix) {
                 "Only KnownTypePrefix can be used as type argument, but found $typeArgStruct"
             }
+
             val label = typeArgStruct.typeLabel
             check(label is TlbIntegerLabelOfConcreteSize && !label.isSigned) {
                 "Only unsigned integer of concrete size can be used as type argument, but found $label"
             }
+
             val bitSize = label.concreteSize
             check(bitSize <= 31) {
                 "Only integers of size <= 31 can be used as type argument, but found $label of size $bitSize"
             }
+
             val field = ConcreteSizeBlockField(bitSize, it, path)
             val sort = field.getSort(this)
             val intValue = state.memory.readField(address, field, sort)
@@ -178,11 +188,12 @@ fun generateTlbFieldConstraints(
     label: TlbCompositeLabel,
     possibleSwitchVariants: List<Map<SwitchPrefix, List<SwitchPrefix.SwitchVariant>>>,
     maxTlbDepth: Int,
+    initialPath: PersistentList<Int>,
 ) = generateTlbFieldConstraints(
     state,
     ref,
     label.internalStructure,
-    persistentListOf(),
+    initialPath,
     possibleSwitchVariants,
     maxTlbDepth,
 )
@@ -254,32 +265,55 @@ fun generateTlbFieldConstraints(
 
                     is TlbIntegerLabelOfSymbolicSize -> {
                         val typeArgs = structure.typeArgs(state, ref, path)
-                        val bitSize = structure.typeLabel.bitSize(this, typeArgs)
+                        val bitSizeNonCasted = structure.typeLabel.bitSize(this, typeArgs)
+                        val bitSize = bitSizeNonCasted.sizeBits
 
                         val field = SymbolicSizeBlockField(structure.typeLabel.lengthUpperBound, structure.id, path)
                         val fieldValue = state.memory.readField(ref, field, field.getSort(this))
-                        val bits = field.getSort(this).sizeBits
-
-                        val oneValue = mkBv(1, bits)
+                        val sort = field.getSort(this)
 
                         val valueConstraint =
-                            if (structure.typeLabel.isSigned) {
-                                val sort = mkBvSort(bits)
-                                val minValue = bvMinValueSignedExtended(bitSize.zeroExtendToSort(sort))
-                                val maxValue = bvMaxValueSignedExtended(bitSize.zeroExtendToSort(sort))
+                            when (bitSizeNonCasted) {
+                                is TlbIntegerLabel.SizeExprBits -> {
+                                    bitSizeConstraint(bitSize, structure.typeLabel.isSigned, fieldValue, sort)
+                                }
 
-                                mkBvSignedLessOrEqualExpr(fieldValue, maxValue) and
-                                    mkBvSignedGreaterOrEqualExpr(fieldValue, minValue)
-                            } else {
-                                val shift = bitSize.zeroExtendToSort(mkBvSort(bits))
-                                val maxValue = mkBvSubExpr(mkBvShiftLeftExpr(oneValue, shift), oneValue)
-
-                                mkBvUnsignedLessOrEqualExpr(fieldValue, maxValue)
+                                is TlbIntegerLabel.VariantsList -> {
+                                    val initial =
+                                        bitSizeConstraint(
+                                            mkSizeExpr(bitSizeNonCasted.other),
+                                            structure.typeLabel.isSigned,
+                                            fieldValue,
+                                            sort,
+                                        )
+                                    bitSizeNonCasted.variants.fold(initial) { acc, (guard, curSize) ->
+                                        mkIte(
+                                            guard,
+                                            trueBranch =
+                                                bitSizeConstraint(
+                                                    mkSizeExpr(curSize),
+                                                    structure.typeLabel.isSigned,
+                                                    fieldValue,
+                                                    sort,
+                                                ),
+                                            falseBranch = acc,
+                                        )
+                                    }
+                                }
                             }
 
                         val cur =
-                            mkBvUnsignedLessOrEqualExpr(bitSize, mkSizeExpr(structure.typeLabel.lengthUpperBound)) and
+                            if (bitSizeNonCasted.upperBoundConstraintIsNeeded) {
+                                val upperBoundConstraint =
+                                    mkBvUnsignedLessOrEqualExpr(
+                                        bitSize,
+                                        mkSizeExpr(structure.typeLabel.lengthUpperBound),
+                                    )
+                                upperBoundConstraint and valueConstraint
+                            } else {
                                 valueConstraint
+                            }
+
                         cur and
                             generateTlbFieldConstraints(
                                 state,
@@ -296,5 +330,28 @@ fun generateTlbFieldConstraints(
                     }
                 }
             }
+        }
+    }
+
+private fun bitSizeConstraint(
+    bitSize: UExpr<TvmSizeSort>,
+    isSigned: Boolean,
+    value: UExpr<KBvSort>,
+    sort: UBvSort,
+): UBoolExpr =
+    with(bitSize.ctx.tctx()) {
+        val oneValue = mkBv(1, sort)
+
+        if (isSigned) {
+            val minValue = bvMinValueSignedExtended(bitSize.zeroExtendToSort(sort))
+            val maxValue = bvMaxValueSignedExtended(bitSize.zeroExtendToSort(sort))
+
+            mkBvSignedLessOrEqualExpr(value, maxValue) and
+                mkBvSignedGreaterOrEqualExpr(value, minValue)
+        } else {
+            val shift = bitSize.zeroExtendToSort(sort)
+            val maxValue = mkBvSubExpr(mkBvShiftLeftExpr(oneValue, shift), oneValue)
+
+            mkBvUnsignedLessOrEqualExpr(value, maxValue)
         }
     }

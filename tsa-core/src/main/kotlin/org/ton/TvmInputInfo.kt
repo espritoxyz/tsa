@@ -7,5 +7,5 @@ package org.ton
  * */
 data class TvmInputInfo(
     val parameterInfos: Map<Int, TvmParameterInfo> = emptyMap(),
-    val c4Info: List<TvmParameterInfo.CellInfo>? = null,
+    val c4Info: List<TlbCompositeLabel>? = null,
 )

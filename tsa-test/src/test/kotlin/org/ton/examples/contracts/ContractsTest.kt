@@ -105,7 +105,6 @@ class ContractsTest {
         analyzeFuncContract(jettonMinterPath, methodsNumber = 4, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun jettonWallet() {
         analyzeFuncContract(jettonWalletPath, methodsNumber = 3, enableTestGeneration = true)
@@ -121,7 +120,6 @@ class ContractsTest {
         analyzeFuncContract(storagePath, methodsNumber = 7, enableTestGeneration = true)
     }
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun vestingLockupWallet() {
         analyzeFuncContract(vestingLockupWalletPath, methodsNumber = 6, enableTestGeneration = true)

@@ -4,6 +4,7 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbBitArrayByRef
+import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbIntegerLabel
 import org.ton.TlbIntegerLabelOfConcreteSize
@@ -30,6 +31,7 @@ import org.usvm.isFalse
 import org.usvm.isStatic
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
@@ -343,7 +345,7 @@ class TvmTestStateResolver(
         args: List<UExpr<TvmSizeSort>>,
     ) = when (label) {
         is TlbIntegerLabel -> {
-            val concreteSize = resolveInt(label.bitSize(ctx, args))
+            val concreteSize = resolveInt(label.bitSize(ctx, args).sizeBits)
             TlbIntegerLabelOfConcreteSize(concreteSize, label.isSigned, label.endian)
         }
 
@@ -352,7 +354,8 @@ class TvmTestStateResolver(
         }
 
         is TlbBitArrayByRef -> {
-            error("Cannot resolve TlbBitArrayByRef")
+            val concreteSize = resolveInt(label.sizeBits)
+            TlbBitArrayOfConcreteSize(concreteSize)
         }
     }
 
@@ -670,51 +673,59 @@ class TvmTestStateResolver(
         return TvmTestIntegerValue(value)
     }
 
-    private fun resolveCellData(cell: UHeapRef): String =
-        with(ctx) {
-            val modelRef = model.eval(cell) as UConcreteHeapRef
+    private fun resolveCellData(cell: UHeapRef): String {
+        val modelRef = model.eval(cell) as UConcreteHeapRef
 
-            if (labelMapper.addressWasGiven(modelRef)) {
-                val label = labelMapper.getLabelFromModel(model, modelRef)
-                if (label is TvmParameterInfo.DataCellInfo) {
-                    val valueFromTlbFields =
-                        readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
+        if (labelMapper.addressWasGiven(modelRef)) {
+            val label = labelMapper.getLabelFromModel(model, modelRef)
+            if (label is TvmParameterInfo.DataCellInfo) {
+                val valueFromTlbFields =
+                    readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
 
-                    if (performAdditionalChecks &&
-                        modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()
-                    ) {
-                        val symbolicData =
-                            state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
-                                state,
-                                cell,
-                            )
-                        val data = extractCellData(evaluateInModel(symbolicData))
-                        val dataLength =
-                            resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell))
-                                .coerceAtMost(TvmContext.MAX_DATA_LENGTH)
-                                .coerceAtLeast(0)
-                        val dataFromField = data.take(dataLength)
-
-                        check(dataFromField == valueFromTlbFields) {
-                            "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
-                                "cellDataField: $dataFromField\n" +
-                                "   tlb fields: $valueFromTlbFields"
+                val dataLength =
+                    resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell)).also {
+                        check(it in 0..MAX_DATA_LENGTH) {
+                            "Unexpected data length"
                         }
                     }
 
-                    return valueFromTlbFields
+                check(valueFromTlbFields.length == dataLength) {
+                    "Inconsistent data from TL-B field"
+                }
+
+                if (performAdditionalChecks &&
+                    modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()
+                ) {
+                    val symbolicData =
+                        state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
+                            state,
+                            cell,
+                        )
+                    val data = extractCellData(evaluateInModel(symbolicData))
+                    val dataFromField = data.take(dataLength)
+
+                    check(dataFromField == valueFromTlbFields) {
+                        "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
+                            "cellDataField: $dataFromField\n" +
+                            "   tlb fields: $valueFromTlbFields"
+                    }
+                }
+
+                return valueFromTlbFields
+            }
+        }
+
+        val symbolicData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
+        val data = extractCellData(evaluateInModel(symbolicData))
+        val dataLength =
+            resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell)).also {
+                check(it in 0..MAX_DATA_LENGTH) {
+                    "Unexpected data length"
                 }
             }
 
-            val symbolicData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
-            val data = extractCellData(evaluateInModel(symbolicData))
-            val dataLength =
-                resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell))
-                    .coerceAtMost(TvmContext.MAX_DATA_LENGTH)
-                    .coerceAtLeast(0)
-
-            return data.take(dataLength)
-        }
+        return data.take(dataLength)
+    }
 
     private fun resolveInt(expr: UExpr<out USort>): Int = extractInt(evaluateInModel(expr))
 

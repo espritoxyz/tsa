@@ -7,9 +7,11 @@ import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.api.readField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.dataLength
+import org.usvm.machine.types.memory.UnknownBlockLengthField
 import org.usvm.machine.types.memory.generateGuardForSwitch
 import org.usvm.machine.types.memory.typeArgs
 import org.usvm.mkSizeAddExpr
@@ -20,11 +22,11 @@ import org.usvm.mkSizeGeExpr
  * Returns size information for lists (Empty or Unknown).
  * */
 fun calculateSizeInfoForLeaves(
-    address: UConcreteHeapRef,
+    ref: UConcreteHeapRef,
     state: TvmState,
     structure: TlbStructure,
-    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
-    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
+    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
+    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): List<Pair<TlbStructure.Leaf, VertexCalculatedSize>> =
     with(state.ctx) {
@@ -56,7 +58,7 @@ fun calculateSizeInfoForLeaves(
                     val (curDataOffset, curRefsOffset) =
                         when (val label = curStruct.typeLabel) {
                             is TlbAtomicLabel -> {
-                                val args = curStruct.typeArgs(state, address, emptyList())
+                                val args = curStruct.typeArgs(state, ref, emptyList())
                                 label.dataLength(state, args) to zeroSizeExpr
                             }
                             is TlbCompositeLabel -> {
@@ -66,7 +68,7 @@ fun calculateSizeInfoForLeaves(
                                 val childrenStructure =
                                     childrenStructureFromPreviousDepth[label]
                                         ?: error("childrenStructureFromPreviousDepth for $label must be calculated")
-                                val param = SimpleAbstractionForUExpr(address, persistentListOf(curStruct.id), state)
+                                val param = AbstractionForUExpr(ref, persistentListOf(curStruct.id), state)
                                 val refsOffset = childrenStructure.numberOfChildren(this).apply(param)
                                 dataOffset.apply(param) to refsOffset
                             }
@@ -88,7 +90,7 @@ fun calculateSizeInfoForLeaves(
 
                     possibleVariants.forEachIndexed { idx, (_, nextStruct) ->
                         val switchGuard =
-                            generateGuardForSwitch(curStruct, idx, possibleVariants, state, address, persistentListOf())
+                            generateGuardForSwitch(curStruct, idx, possibleVariants, state, ref, persistentListOf())
                         val newSize =
                             VertexCalculatedSize(
                                 curSize.guard and switchGuard,
@@ -111,21 +113,21 @@ data class VertexCalculatedSize(
 )
 
 fun calculateGeneralSizeConstraints(
-    address: UConcreteHeapRef,
+    ref: UConcreteHeapRef,
     state: TvmState,
     structure: TlbStructure,
-    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr<SimpleAbstractionForUExpr>>,
-    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure<SimpleAbstractionForUExpr>>,
+    dataLengthsFromPreviousDepth: Map<TlbCompositeLabel, AbstractSizeExpr>,
+    childrenStructureFromPreviousDepth: Map<TlbCompositeLabel, ChildrenStructure>,
     possibleSwitchVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
 ): UBoolExpr =
     with(state.ctx) {
         val dataLengthField =
-            state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
-        val refsLengthField = state.fieldManagers.cellRefsLengthFieldManager.readCellRefLength(state, address)
+            state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, ref)
+        val refsLengthField = state.fieldManagers.cellRefsLengthFieldManager.readCellRefLength(state, ref)
 
         val info =
             calculateSizeInfoForLeaves(
-                address,
+                ref,
                 state,
                 structure,
                 dataLengthsFromPreviousDepth,
@@ -136,10 +138,14 @@ fun calculateGeneralSizeConstraints(
         return info.fold(trueExpr as UBoolExpr) { acc, (leaf, sizeInfo) ->
             when (leaf) {
                 is TlbStructure.Unknown -> {
+                    val field = UnknownBlockLengthField(listOf())
+                    val blockLength = state.memory.readField(ref, field, field.getSort(this))
+                    val dataLength = mkBvAddExpr(sizeInfo.dataLength, blockLength)
+
                     val newGuard =
-                        mkSizeGeExpr(dataLengthField, sizeInfo.dataLength) and
-                            mkSizeGeExpr(refsLengthField, sizeInfo.refsLength)
-                    acc and (sizeInfo.guard implies newGuard)
+                        (dataLength eq dataLengthField) and mkSizeGeExpr(refsLengthField, sizeInfo.refsLength)
+
+                    acc and (sizeInfo.guard implies newGuard) and mkSizeGeExpr(blockLength, zeroSizeExpr)
                 }
                 is TlbStructure.Empty -> {
                     val newGuard = (dataLengthField eq sizeInfo.dataLength) and (refsLengthField eq sizeInfo.refsLength)
