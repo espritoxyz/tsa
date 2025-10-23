@@ -1,198 +1,45 @@
-package org.usvm.machine.interpreter
+package org.usvm.machine.interpreter.inputdict
 
-import io.ksmt.sort.KBvSort
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.usvm.UBoolExpr
-import org.usvm.UBvSort
-import org.usvm.UExpr
-import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
-import org.usvm.machine.splitHeadTail
-import org.usvm.machine.state.TvmState
 
-typealias KeySort = TvmContext.TvmCellDataSort
-typealias K = UExpr<UBvSort>
-typealias KExtended = UExpr<KeySort>
-typealias ConstraintSet = PersistentList<UBoolExpr>
-
-fun TvmState.makeFreshKeyConstant(
-    keySort: KBvSort,
-    keyKind: TvmDictOperationInterpreter.DictKeyKind,
-): KeyType = KeyType(makeSymbolicPrimitive(keySort), keyKind)
-
-private data class ConstraintBuilder(
-    private val ctx: TvmContext,
-    private val constraints: MutableList<UBoolExpr> = mutableListOf(),
-) {
-    fun build(): PersistentList<UBoolExpr> = constraints.toPersistentList()
-
-    fun addCs(cs: TvmContext.() -> UBoolExpr) {
-        constraints += cs(ctx)
-    }
-}
-
-data class KeyType(
-    val expr: K,
-    val kind: TvmDictOperationInterpreter.DictKeyKind,
-) {
-    fun toExtendedKey(ctx: TvmContext) = ctx.extendDictKey(expr, kind)
-}
-
-data class GuardedKeySymbol(
-    val symbol: KeyType,
-    val guard: UBoolExpr,
-)
-
-sealed interface Modification {
-    data class Remove(
-        val key: KeyType,
-    ) : Modification
-
-    data class Store(
-        val key: KeyType,
-    ) : Modification
-}
-
-sealed interface LazyUniversalQuantifierConstraint {
-    val context: PersistentList<Modification>
-
-    /**
-     * @param symbol is of KExtended sort as all the comparisons must be done on the extended key type
-     */
-    fun createConstraint(
-        ctx: TvmContext,
-        symbol: KExtended,
-    ): UBoolExpr
-}
-
-data class NotEqualConstraint(
-    val value: KExtended,
-    val condition: UBoolExpr,
-    override val context: PersistentList<Modification>,
-) : LazyUniversalQuantifierConstraint {
-    override fun createConstraint(
-        ctx: TvmContext,
-        symbol: KExtended,
-    ): UBoolExpr = with(ctx) { condition implies (symbol neq value) }
-}
-
-enum class CmpKind { LE, LT, GE, GT }
-
-data class Cmp(
-    val kind: CmpKind,
-    val isSigned: Boolean = false,
-) {
-    constructor(isLess: Boolean, isStrict: Boolean, isSigned: Boolean = false) : this(
-        when {
-            isLess && isStrict -> CmpKind.LT
-            isLess && !isStrict -> CmpKind.LE
-            !isLess && isStrict -> CmpKind.GT
-            !isLess && !isStrict -> CmpKind.GE
-            else -> error("unreachable")
-        },
-        isSigned,
-    )
-
-    fun createCmp(ctx: TvmContext): (KExtended, KExtended) -> UBoolExpr =
-        when (kind) {
-            CmpKind.LE ->
-                if (isSigned) {
-                    { a, b -> ctx.mkBvSignedLessOrEqualExpr(a, b) }
-                } else {
-                    { a, b -> ctx.mkBvUnsignedLessOrEqualExpr(a, b) }
-                }
-
-            CmpKind.LT ->
-                if (isSigned) {
-                    { a, b -> ctx.mkBvSignedLessExpr(a, b) }
-                } else {
-                    { a, b -> ctx.mkBvUnsignedLessExpr(a, b) }
-                }
-
-            CmpKind.GE ->
-                if (isSigned) {
-                    { a, b -> ctx.mkBvSignedGreaterOrEqualExpr(a, b) }
-                } else {
-                    { a, b -> ctx.mkBvUnsignedGreaterOrEqualExpr(a, b) }
-                }
-
-            CmpKind.GT ->
-                if (isSigned) {
-                    { a, b -> ctx.mkBvSignedGreaterExpr(a, b) }
-                } else {
-                    { a, b -> ctx.mkBvUnsignedGreaterExpr(a, b) }
-                }
-        }
-}
-
-data class NextPrevQueryConstraint(
-    val pivot: KExtended,
-    val answer: KExtended,
-    override val context: PersistentList<Modification>,
-    val mightBeEqualToPivot: Boolean,
-    val isNext: Boolean,
-    val isSigned: Boolean,
-) : LazyUniversalQuantifierConstraint {
-    override fun createConstraint(
-        ctx: TvmContext,
-        symbol: KExtended,
-    ): UBoolExpr {
-        val pivotCmp =
-            when {
-                !mightBeEqualToPivot && isNext -> Cmp(CmpKind.LT)
-                !mightBeEqualToPivot && !isNext -> Cmp(CmpKind.GT)
-                mightBeEqualToPivot && isNext -> Cmp(CmpKind.LE)
-                else -> Cmp(CmpKind.GE)
-            }.copy(isSigned = isSigned).createCmp(ctx)
-        val answerCmp = (if (isNext) Cmp(CmpKind.LT) else Cmp(CmpKind.GT)).createCmp(ctx)
-
-        return with(ctx) {
-            (pivotCmp(pivot, symbol) and answerCmp(symbol, answer)).not()
-        }
-    }
-}
-
-data class UpperLowerBoundConstraint(
-    val bound: KExtended,
-    val isMax: Boolean,
-    val isStrictBound: Boolean,
-    val isSigned: Boolean,
-    override val context: PersistentList<Modification>,
-) : LazyUniversalQuantifierConstraint {
-    override fun createConstraint(
-        ctx: TvmContext,
-        symbol: KExtended,
-    ): UBoolExpr {
-        val cmp = Cmp(isMax, isStrictBound, isSigned)
-        return cmp.createCmp(ctx)(symbol, bound)
-    }
-}
-
-/** @return keys that were explicitly added to the dictionary */
-fun TvmContext.getExplicitlyStoredKeys(modifications: List<Modification>): List<GuardedKeySymbol> {
-    val (head, tail) = modifications.splitHeadTail() ?: return emptyList()
-    val tailSymbols = getExplicitlyStoredKeys(tail)
-    return when (head) {
-        is Modification.Store ->
-            tailSymbols.map { (keySymbol, cond) ->
-                GuardedKeySymbol(
-                    keySymbol,
-                    cond or (keySymbol.expr eq head.key.expr),
-                )
-            } +
-                GuardedKeySymbol(head.key, trueExpr)
-
-        is Modification.Remove ->
-            tailSymbols.map { (symbol, condition) ->
-                GuardedKeySymbol(symbol, condition and (symbol.expr neq head.key.expr))
-            }
-    }
-}
-
+/**
+ * This class represents an input dictionary (that is, a dictionary with an arbitrary content).
+ * The idea of operations on the input dictionary is as follows.
+ * We will maintain a list of [symbols] which will be the model of the set of keys of our dictionary
+ * (in [symbols] there might be expressions that would be evaluated to the same key).
+ * When we perform an operation, we would extend if needed the list of symbols and we would generate constraints
+ * that guarantee the formal semantics of dictionary operation in every model of the resulted path constraints.
+ *
+ * Further, we will discuss the general review of the operations that semantically do not mutate the underlying dictionary.
+ * We will call such operations *queries*.
+ * For the descriptions of semantically mutating operations, see the docs in [InputDict].
+ *
+ * To perform a query, we write down the mathematical formula that describes the semantics of a query.
+ * Such a formula will usually contain quantifiers over `dict.keys`, either universal or existential.
+ * To satisfy the existential quantifier over the set of `dict.keys`, we will generate a fresh symbol, add it to
+ * [symbols] and use it as a witness for the quantifier. To satisfy the universal quantifier constraint,
+ * we will store this constraint in [lazyUniversalQuantifierConstraints] and *lazily* instantiate it for all symbols in
+ * [symbols]. In particular, we would add an instance of the constraint for every `symbol` that would be added to [symbols]
+ * later in the execution.
+ *
+ * For example, `getNext` must a return a key in the dictionary which is also the minimal key not greater than `p`
+ * (see [func docs](https://docs.ton.org/v3/documentation/smart-contracts/func/docs/stdlib/#dict_get_next)).
+ * We would write the semantics of this query as follows:
+ * ```
+ * getNext(p) = a <->
+ *     \exists k <- dict.keys: k = a \land
+ *     \forall k <- dict.keys, k > p \implies k >= a
+ * ```
+ * To answer this query, we would create a fresh symbol that would be the answer to our query (the `a`)
+ * and add a [NextPrevQueryConstraint] via [addLazyUniversalConstraint] that is responsible for instantiating quantifiers.
+ *
+ */
 data class InputDictRootInformation(
     private val lazyUniversalQuantifierConstraints: PersistentList<LazyUniversalQuantifierConstraint> =
         persistentListOf(),
@@ -209,14 +56,13 @@ data class InputDictRootInformation(
         constraint: LazyUniversalQuantifierConstraint,
     ): Pair<ConstraintSet, PersistentList<LazyUniversalQuantifierConstraint>> {
         val constraintsBuilder = ConstraintBuilder(ctx)
-        val context = constraint.context
         // ensuring (1) for already discovered symbols
         for (symbol in symbols) {
-            val cs = createKeyCondition(ctx, symbol.toExtendedKey(ctx), context)
+            val cs = constraint.modifications.createKeyCondition(ctx, symbol.toExtendedKey(ctx))
             constraintsBuilder.addCs { cs implies constraint.createConstraint(this, symbol.toExtendedKey(ctx)) }
         }
         // ensuring (2)
-        val explicitlyStoredKeys = with(ctx) { getExplicitlyStoredKeys(context) }
+        val explicitlyStoredKeys = constraint.modifications.getExplicitlyStoredKeys(ctx)
         for ((key, cond) in explicitlyStoredKeys) {
             constraintsBuilder.addCs { cond implies constraint.createConstraint(this, key.toExtendedKey(ctx)) }
         }
@@ -231,51 +77,10 @@ data class InputDictRootInformation(
         with(ctx) {
             val constraints =
                 lazyUniversalQuantifierConstraints.map { lazyConstraint ->
-                    val cs = createKeyCondition(ctx, t, lazyConstraint.context)
+                    val cs = lazyConstraint.modifications.createKeyCondition(ctx, t)
                     cs and lazyConstraint.createConstraint(this, t)
                 }
             constraints.toPersistentList()
-        }
-
-    /** @return the condition that would be of a corresponding key in `getKeys` structure */
-    fun createKeyCondition(
-        ctx: TvmContext,
-        t: KExtended,
-        modification: List<Modification>,
-    ): UBoolExpr {
-        val (head, tail) = modification.splitHeadTail() ?: return ctx.trueExpr
-        val prevCond = createKeyCondition(ctx, t, tail)
-        return when (head) {
-            is Modification.Store -> with(ctx) { prevCond or (t eq head.key.toExtendedKey(ctx)) }
-            is Modification.Remove -> with(ctx) { prevCond and (t neq head.key.toExtendedKey(ctx)) }
-        }
-    }
-
-    fun getCurrentlyDiscoveredKeys(
-        ctx: TvmContext,
-        modifications: List<Modification>,
-    ): List<GuardedKeySymbol> =
-        with(ctx) {
-            val (head, tail) = modifications.splitHeadTail() ?: return symbols.map { GuardedKeySymbol(it, trueExpr) }
-            val tailSymbols = getCurrentlyDiscoveredKeys(this, tail)
-            return when (head) {
-                is Modification.Store ->
-                    tailSymbols.map { (s, cond) ->
-                        GuardedKeySymbol(
-                            s,
-                            cond or (s.toExtendedKey(ctx) eq head.key.toExtendedKey(ctx)),
-                        )
-                    } +
-                        GuardedKeySymbol(head.key, trueExpr)
-
-                is Modification.Remove ->
-                    tailSymbols.map { (symbol, condition) ->
-                        GuardedKeySymbol(
-                            symbol,
-                            condition and (symbol.toExtendedKey(ctx) neq head.key.toExtendedKey(ctx)),
-                        )
-                    }
-            }
         }
 }
 
@@ -309,6 +114,19 @@ sealed interface DictMaxResult {
     ) : DictMaxResult
 }
 
+/**
+ * To perform mutating operation on an input dictionary, we represent each
+ * input dictionary as some root input dictionary and a list of [modifications]
+ * performed on top of it (`modifications.first()` is the last operation applied).
+ * The general formalism for queries to the input dictionary is the same as described in
+ * [InputDictRootInformation], with the only difference being the key calculation.
+ * To get the keys of the dictionary, one would take the keys of the root dictionary
+ * and create a condition expression that would represent whether this element belongs to `this`
+ * (see [getCurrentlyDiscoveredKeys] and [createKeyCondition] implementations).
+ *
+ * The root information is referenced via [rootInputDictId]; for explanations, see
+ * [InputDictionaryStorage] docs.
+ */
 data class InputDict(
     val modifications: PersistentList<Modification> = persistentListOf(),
     val rootInputDictId: Int = next(),
@@ -318,6 +136,12 @@ data class InputDict(
 
         fun next(): Int = counter++
     }
+
+    fun getCurrentlyDiscoveredKeys(
+        ctx: TvmContext,
+        rootInformation: InputDictRootInformation,
+    ): List<GuardedKeySymbol> =
+        modifications.foldOnSymbols(ctx, rootInformation.symbols.map { GuardedKeySymbol(it, ctx.trueExpr) })
 
     fun doDictHasKey(
         ctx: TvmContext,
@@ -333,7 +157,6 @@ data class InputDict(
                 ctx,
                 freshConstantForInput.toExtendedKey(ctx),
                 key.toExtendedKey(ctx),
-                inputDict,
             )
         val newSymbols = inputDict.symbols.add(freshConstantForInput)
         val resultIsSomeKeyCs = with(ctx) { exists implies resultIsSomeKey }
@@ -356,8 +179,6 @@ data class InputDict(
      * max(d) = p <->
      *     p \in keys(d)
      *     \forall x <- keys(d), x <= p
-     * max(d) = \bot <->
-     *     \forall x <- keys(d), \bot
      * ```
      */
     fun doDictMaxMin(
@@ -374,7 +195,6 @@ data class InputDict(
                 ctx,
                 freshConstantForInput.toExtendedKey(ctx),
                 freshConstantForResult.toExtendedKey(ctx),
-                rootInformation,
             )
         val newSymbols = rootInformation.symbols.add(freshConstantForInput)
         val (universalInstancesCs, newLazyConstraints) =
@@ -394,11 +214,13 @@ data class InputDict(
         return DictMaxResult.Exists(fullCs, updatedRootDictInfo)
     }
 
-    /*
-    $next(d, p) = x <->
-      x > p (or equal if allowed)
-      x \in keys(d) \land
-      \forall k <- keys(d), k \not \in (p, x)$
+    /**
+     *  ```    
+     *  next(d, p) = x <->
+     *      x > p (or equal if allowed)
+     *      x \in keys(d)
+     *      \forall k <- keys(d), k \not \in (p, x)$
+     * ```
      */
     fun doDictNext(
         ctx: TvmContext,
@@ -454,7 +276,6 @@ data class InputDict(
                 ctx,
                 freshConstantForInput.toExtendedKey(ctx),
                 freshConstantForResult.toExtendedKey(ctx),
-                inputDict,
             )
         val ansCmp = Cmp(isLess = !isNext, isStrict = !mightBeEqualToPivot, isSigned = isSigned).createCmp(ctx)
         val mainConstraint = ansCmp(freshConstantForResult.toExtendedKey(ctx), pivot)
@@ -492,11 +313,10 @@ data class InputDict(
         ctx: TvmContext,
         freshConstantForInput: KExtended,
         result: KExtended,
-        inputDict: InputDictRootInformation,
     ): UBoolExpr {
         val inputT: KExtended = freshConstantForInput
-        val inputTCs = inputDict.createKeyCondition(ctx, inputT, modifications)
-        val storedElements = with(ctx) { getExplicitlyStoredKeys(modifications) }
+        val inputTCs = modifications.createKeyCondition(ctx, inputT)
+        val storedElements = modifications.getExplicitlyStoredKeys(ctx)
 
         val resultInKeys =
             with(ctx) {

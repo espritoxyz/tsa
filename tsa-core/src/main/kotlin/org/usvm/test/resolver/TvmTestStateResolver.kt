@@ -35,7 +35,7 @@ import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
-import org.usvm.machine.interpreter.InputDict
+import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.TvmCellRefsRegionValueInfo
@@ -551,13 +551,12 @@ class TvmTestStateResolver(
             state.inputDictionaryStorage.inputDicts[inputDict.rootInputDictId]
                 ?: error("no root input dict")
         val resultEntries =
-            rootInputDictInfo
-                .getCurrentlyDiscoveredKeys(ctx, inputDict.modifications)
+            inputDict
+                .getCurrentlyDiscoveredKeys(ctx, rootInputDictInfo)
                 .mapNotNull { (key, condition) ->
                     if (evaluateInModel(condition).isTrue) {
                         val evaluatedKey = evaluateInModel(key.expr)
                         val resolvedKey = TvmTestIntegerValue(extractInt257(evaluatedKey))
-//                        error("unsupported")
                         val value = state.dictGetValue(dict, dictId, evaluatedKey)
                         val resolvedValue = resolveSlice(value)
                         resolvedKey to resolvedValue

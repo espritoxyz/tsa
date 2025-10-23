@@ -148,8 +148,14 @@ import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
-import org.usvm.machine.interpreter.TvmDictOperationInterpreter.DictKeyKind
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
+import org.usvm.machine.interpreter.inputdict.DictKeyKind
+import org.usvm.machine.interpreter.inputdict.InputDict
+import org.usvm.machine.interpreter.inputdict.InputDictRootInformation
+import org.usvm.machine.interpreter.inputdict.KeyType
+import org.usvm.machine.interpreter.inputdict.Modification
+import org.usvm.machine.interpreter.inputdict.extendDictKey
+import org.usvm.machine.interpreter.inputdict.makeFreshKeyConstant
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.DictKeyInfo
 import org.usvm.machine.state.TvmState
@@ -2609,12 +2615,6 @@ class TvmDictOperationInterpreter(
             }
     }
 
-    enum class DictKeyKind {
-        SIGNED_INT,
-        UNSIGNED_INT,
-        SLICE,
-    }
-
     private enum class DictSetMode {
         SET, // always set
         ADD, // set only if absent
@@ -2637,15 +2637,3 @@ class TvmDictOperationInterpreter(
         BUILDER,
     }
 }
-
-fun TvmContext.extendDictKey(
-    value: UExpr<UBvSort>,
-    keyType: DictKeyKind,
-): UExpr<TvmCellDataSort> =
-    when (keyType) {
-        DictKeyKind.SIGNED_INT -> value.signExtendToSort(cellDataSort)
-
-        DictKeyKind.UNSIGNED_INT,
-        DictKeyKind.SLICE,
-        -> value.zeroExtendToSort(cellDataSort)
-    }
