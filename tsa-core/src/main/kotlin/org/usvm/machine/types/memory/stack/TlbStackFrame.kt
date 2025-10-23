@@ -124,7 +124,7 @@ data class NextFrame(
 data object EndOfStackFrame : StackFrameStepResult<Nothing>
 
 /**
- * @param loadData the action that must be applied to the stack that was created after partially the partial loading
+ * @param loadData the action that must be applied to the stack that was created after the partial loading
  * that spans across multiple Tlb frames.
  */
 data class ContinueLoadOnNextFrame<ReadResult>(
