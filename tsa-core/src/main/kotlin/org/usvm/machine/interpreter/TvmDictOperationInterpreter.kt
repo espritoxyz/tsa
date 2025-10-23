@@ -2,6 +2,7 @@ package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.sort.KBvSort
+import kotlinx.collections.immutable.persistentSetOf
 import org.ton.bytecode.TvmDictDeleteDictdelInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetrefInst
@@ -147,6 +148,7 @@ import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.interpreter.TvmDictOperationInterpreter.DictKeyKind
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.DictKeyInfo
@@ -230,7 +232,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -240,7 +242,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -250,7 +252,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -260,7 +262,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -270,7 +272,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -280,7 +282,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -290,7 +292,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -300,7 +302,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -310,7 +312,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -320,7 +322,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -330,7 +332,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -340,7 +342,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -350,7 +352,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -360,7 +362,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -370,7 +372,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -380,7 +382,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -390,7 +392,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -400,7 +402,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -410,7 +412,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -420,7 +422,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -430,7 +432,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -440,7 +442,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -450,7 +452,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -460,7 +462,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -470,7 +472,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -480,7 +482,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -490,7 +492,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -500,7 +502,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -510,7 +512,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -520,7 +522,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -530,7 +532,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -540,7 +542,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -550,7 +552,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -560,7 +562,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -570,7 +572,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -580,7 +582,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -597,7 +599,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -607,7 +609,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -617,7 +619,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -627,7 +629,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -637,7 +639,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -647,7 +649,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -657,7 +659,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -667,7 +669,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -677,7 +679,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -687,7 +689,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -697,7 +699,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -707,7 +709,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -717,7 +719,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.ADD,
@@ -727,7 +729,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.ADD,
@@ -737,7 +739,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.REPLACE,
@@ -747,7 +749,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.REPLACE,
@@ -757,7 +759,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = false,
                     DictSetMode.SET,
@@ -767,7 +769,7 @@ class TvmDictOperationInterpreter(
                 doDictSet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.BUILDER,
                     getOldValue = true,
                     DictSetMode.SET,
@@ -784,7 +786,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     nullDefaultValue = false,
                 )
@@ -793,7 +795,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     nullDefaultValue = false,
                 )
@@ -802,7 +804,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     nullDefaultValue = false,
                 )
@@ -811,7 +813,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     nullDefaultValue = false,
                 )
@@ -820,7 +822,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     nullDefaultValue = false,
                 )
@@ -829,7 +831,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     nullDefaultValue = false,
                 )
@@ -845,7 +847,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     nullDefaultValue = true,
                 )
@@ -854,7 +856,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     nullDefaultValue = true,
                 )
@@ -863,7 +865,7 @@ class TvmDictOperationInterpreter(
                 doDictGet(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     nullDefaultValue = true,
                 )
@@ -881,7 +883,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     getOldValue = false,
                 )
@@ -890,7 +892,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     getOldValue = true,
                 )
@@ -899,7 +901,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     getOldValue = true,
                 )
@@ -908,7 +910,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
                 )
@@ -917,7 +919,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
                 )
@@ -926,7 +928,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
                 )
@@ -935,7 +937,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = false,
                 )
@@ -944,7 +946,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     getOldValue = true,
                 )
@@ -953,7 +955,7 @@ class TvmDictOperationInterpreter(
                 doDictDelete(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     getOldValue = true,
                 )
@@ -985,7 +987,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
                     removeKey = false,
@@ -995,7 +997,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
                     removeKey = false,
@@ -1005,7 +1007,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
                     removeKey = false,
@@ -1015,7 +1017,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
                     removeKey = false,
@@ -1025,7 +1027,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
                     removeKey = true,
@@ -1035,7 +1037,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
                     removeKey = true,
@@ -1045,7 +1047,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
                     removeKey = true,
@@ -1055,7 +1057,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
                     removeKey = true,
@@ -1065,7 +1067,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
                     removeKey = false,
@@ -1075,7 +1077,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
                     removeKey = false,
@@ -1085,7 +1087,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
                     removeKey = false,
@@ -1095,7 +1097,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
                     removeKey = false,
@@ -1105,7 +1107,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
                     removeKey = true,
@@ -1115,7 +1117,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
                     removeKey = true,
@@ -1125,7 +1127,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
                     removeKey = true,
@@ -1135,7 +1137,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
                     removeKey = true,
@@ -1145,7 +1147,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
                     removeKey = false,
@@ -1155,7 +1157,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
                     removeKey = false,
@@ -1165,7 +1167,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
                     removeKey = false,
@@ -1175,7 +1177,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
                     removeKey = false,
@@ -1185,7 +1187,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MAX,
                     removeKey = true,
@@ -1195,7 +1197,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MAX,
                     removeKey = true,
@@ -1205,7 +1207,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictMinMaxMode.MIN,
                     removeKey = true,
@@ -1215,7 +1217,7 @@ class TvmDictOperationInterpreter(
                 doDictMinMax(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.CELL,
                     DictMinMaxMode.MIN,
                     removeKey = true,
@@ -1232,7 +1234,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
                     allowEq = false,
@@ -1242,7 +1244,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
                     allowEq = true,
@@ -1252,7 +1254,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
                     allowEq = false,
@@ -1262,7 +1264,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.SLICE,
+                    DictKeyKind.SLICE,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
                     allowEq = true,
@@ -1272,7 +1274,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
                     allowEq = false,
@@ -1282,7 +1284,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
                     allowEq = true,
@@ -1292,7 +1294,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
                     allowEq = false,
@@ -1302,7 +1304,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.SIGNED_INT,
+                    DictKeyKind.SIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
                     allowEq = true,
@@ -1312,7 +1314,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
                     allowEq = false,
@@ -1322,7 +1324,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.NEXT,
                     allowEq = true,
@@ -1332,7 +1334,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
                     allowEq = false,
@@ -1342,7 +1344,7 @@ class TvmDictOperationInterpreter(
                 doDictNextPrev(
                     inst,
                     scope,
-                    DictKeyType.UNSIGNED_INT,
+                    DictKeyKind.UNSIGNED_INT,
                     DictValueType.SLICE,
                     DictNextPrevMode.PREV,
                     allowEq = true,
@@ -1466,7 +1468,7 @@ class TvmDictOperationInterpreter(
     private fun doDictSet(
         inst: TvmDictInst,
         scope: TvmStepScopeManager,
-        keyType: DictKeyType,
+        keyKind: DictKeyKind,
         valueType: DictValueType,
         getOldValue: Boolean,
         mode: DictSetMode,
@@ -1476,7 +1478,7 @@ class TvmDictOperationInterpreter(
                 ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
-        val key = loadKey(scope, keyType, keyLength) ?: return
+        val key = loadKey(scope, keyKind, keyLength) ?: return
         val value = loadValue(scope, valueType)
 
         if (value == null) {
@@ -1499,8 +1501,8 @@ class TvmDictOperationInterpreter(
             val dictConcreteRef =
                 dictCellRef as? UConcreteHeapRef
                     ?: error("unsupported")
-            val (baseInputDit, _) = scope.calcOnState { readInputDictionary(dictConcreteRef) }
-            val appliedModification = Modification.Store(ctx.extendDictKey(key, keyType))
+            val (baseInputDit, _) = scope.calcOnState { readInputDictionary(dictConcreteRef, keySort, keyKind) }
+            val appliedModification = Modification.Store(KeyType(key, keyKind))
             val newInputDict =
                 InputDict(
                     modifications = baseInputDit.modifications.add(0, appliedModification),
@@ -1630,7 +1632,7 @@ class TvmDictOperationInterpreter(
     private fun doDictGet(
         inst: TvmInst,
         scope: TvmStepScopeManager,
-        keyType: DictKeyType,
+        keyKind: DictKeyKind,
         valueType: DictValueType,
         nullDefaultValue: Boolean,
     ) = with(ctx) {
@@ -1639,7 +1641,7 @@ class TvmDictOperationInterpreter(
                 ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
-        val key = loadKey(scope, keyType, keyLength) ?: return
+        val key = loadKey(scope, keyKind, keyLength) ?: return
 
         if (dictCellRef == null) {
             scope.doWithState {
@@ -1674,14 +1676,17 @@ class TvmDictOperationInterpreter(
                 val dictConcreteRef =
                     dictCellRef as? UConcreteHeapRef
                         ?: error("unsupported")
-                val (inputDict, rootInputDictInfo) = scope.calcOnState { readInputDictionary(dictConcreteRef) }
+                val (inputDict, rootInputDictInfo) =
+                    scope.calcOnState {
+                        readInputDictionary(dictConcreteRef, keySort, keyKind)
+                    }
                 val keyExists = scope.calcOnState { makeSymbolicPrimitive(boolSort) }
                 val (cs, updatedRootInfo) =
                     inputDict.doDictHasKey(
                         ctx,
-                        key.zeroExtendToSort(TvmCellDataSort(ctx)),
+                        KeyType(key, keyKind),
                         rootInputDictInfo,
-                        scope.calcOnState { makeSymbolicPrimitive(KeySort(ctx)) },
+                        scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) },
                         keyExists,
                     )
                 scope.assert(ctx.mkAnd(cs))
@@ -1730,7 +1735,7 @@ class TvmDictOperationInterpreter(
     private fun doDictDelete(
         inst: TvmDictDeleteInst,
         scope: TvmStepScopeManager,
-        keyType: DictKeyType,
+        keyKind: DictKeyKind,
         valueType: DictValueType,
         getOldValue: Boolean,
     ) {
@@ -1739,7 +1744,7 @@ class TvmDictOperationInterpreter(
                 ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
-        val key = loadKey(scope, keyType, keyLength) ?: return
+        val key = loadKey(scope, keyKind, keyLength) ?: return
 
         if (dictCellRef == null) {
             scope.doWithStateCtx {
@@ -1771,16 +1776,18 @@ class TvmDictOperationInterpreter(
             val dictConcreteRef =
                 dictCellRef as? UConcreteHeapRef
                     ?: error("unsupported")
-            val (baseInputDit, rootInfo) = scope.calcOnState { readInputDictionary(dictConcreteRef) }
-            val k = ctx.extendDictKey(key, keyType)
+            val (baseInputDit, rootInfo) = scope.calcOnState { readInputDictionary(dictConcreteRef, keySort, keyKind) }
             val (c1, exists) =
                 scope.calcOnState {
-                    Pair(makeSymbolicPrimitive(ctx.cellDataSort), makeSymbolicPrimitive(ctx.boolSort))
+                    Pair(
+                        scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) },
+                        makeSymbolicPrimitive(ctx.boolSort),
+                    )
                 }
-            val dictHasKey = baseInputDit.doDictHasKey(ctx, k, rootInfo, c1, exists)
+            val dictHasKey = baseInputDit.doDictHasKey(ctx, KeyType(key, keyKind), rootInfo, c1, exists)
             scope.assert(ctx.mkAnd(dictHasKey.constraints))
                 ?: return
-            val appliedModification = Modification.Remove(k)
+            val appliedModification = Modification.Remove(KeyType(key, keyKind))
             val newInputDict =
                 InputDict(
                     modifications = baseInputDit.modifications.add(0, appliedModification),
@@ -1849,13 +1856,13 @@ class TvmDictOperationInterpreter(
     private fun doDictMinMax(
         inst: TvmDictMinInst,
         scope: TvmStepScopeManager,
-        keyType: DictKeyType,
+        keyKind: DictKeyKind,
         valueType: DictValueType,
         mode: DictMinMaxMode,
         removeKey: Boolean,
     ) = with(ctx) {
         val keyLength =
-            loadKeyLength(scope, rangeOpMaxKeyLength(keyType))
+            loadKeyLength(scope, rangeOpMaxKeyLength(keyKind))
                 ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
@@ -1892,19 +1899,20 @@ class TvmDictOperationInterpreter(
             val dictConcreteRef =
                 dictCellRef as? UConcreteHeapRef
                     ?: error("ite refs are not supported yet")
-            val (inputDict, rootInputDictInfo) = scope.calcOnState { readInputDictionary(dictConcreteRef) }
-            val resultSymbol = scope.calcOnState { makeSymbolicPrimitive(keySort) }
-            val resultSymbolExtended = extendDictKey(resultSymbol, keyType)
-            val freshConstantForInput =
-                scope.calcOnState { makeSymbolicPrimitive(TvmCellDataSort(ctx)) }
+            val (inputDict, rootInputDictInfo) =
+                scope.calcOnState {
+                    readInputDictionary(dictConcreteRef, keySort, keyKind)
+                }
+            val resultSymbol = scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) }
+            val freshConstantForInput = scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) }
             val dictMaxResult =
                 inputDict.doDictMaxMin(
                     ctx,
                     rootInputDictInfo,
                     mode == DictMinMaxMode.MAX,
                     freshConstantForInput,
-                    resultSymbolExtended,
-                    keyType == DictKeyType.SIGNED_INT,
+                    resultSymbol,
+                    keyKind == DictKeyKind.SIGNED_INT,
                 )
             scope.assert(ctx.mkAnd(dictMaxResult.constraintSet))
                 ?: return
@@ -1914,7 +1922,7 @@ class TvmDictOperationInterpreter(
                     inputDictionaryStorage.set(dictConcreteRef, inputDict, dictMaxResult.newInputDictRootInformation)
             }
 
-            val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, resultSymbol) }
+            val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, resultSymbol.expr) }
             val unwrappedValue =
                 unwrapDictValue(scope, value, valueType)
                     ?: return
@@ -1923,7 +1931,7 @@ class TvmDictOperationInterpreter(
                 ?: return
 
             // assuming we don't have to remove the key
-            composeStackAfterDictMinMaxOp(scope, valueType, unwrappedValue, keyType, resultSymbol, inst)
+            composeStackAfterDictMinMaxOp(scope, valueType, unwrappedValue, keyKind, resultSymbol.expr, inst)
             return
         }
         val storedKeys =
@@ -1935,7 +1943,7 @@ class TvmDictOperationInterpreter(
             }
 
         val resultElement = scope.calcOnState { makeSymbolicPrimitive(keySort) }
-        val resultElementExtended = extendDictKey(resultElement, keyType)
+        val resultElementExtended = extendDictKey(resultElement, keyKind)
         val dictContainsResultElement =
             scope.calcOnState {
                 dictContainsKey(dictCellRef, dictId, resultElement)
@@ -1952,11 +1960,11 @@ class TvmDictOperationInterpreter(
                             }
                         val cmp =
                             compareKeys(
-                                keyType,
+                                keyKind,
                                 compareLessThan,
                                 allowEq = true,
                                 resultElementExtended,
-                                extendDictKey(storeKey, keyType),
+                                extendDictKey(storeKey, keyKind),
                             )
                         mkImplies(storedKeyContains, cmp)
                     }.let { mkAnd(it) }
@@ -1976,7 +1984,7 @@ class TvmDictOperationInterpreter(
             ?: return
 
         if (!removeKey) {
-            composeStackAfterDictMinMaxOp(scope, valueType, unwrappedValue, keyType, resultElement, inst)
+            composeStackAfterDictMinMaxOp(scope, valueType, unwrappedValue, keyKind, resultElement, inst)
             return
         }
 
@@ -1989,7 +1997,7 @@ class TvmDictOperationInterpreter(
                 addOnStack(ctx.nullValue, TvmNullType)
 
                 addValueOnStack(valueType, unwrappedValue)
-                addKeyOnStack(keyType, resultElement)
+                addKeyOnStack(keyKind, resultElement)
                 addOnStack(ctx.trueValue, TvmIntegerType)
                 newStmt(inst.nextStmt())
             },
@@ -1997,7 +2005,7 @@ class TvmDictOperationInterpreter(
                 addOnStack(resultDict, TvmCellType)
 
                 addValueOnStack(valueType, unwrappedValue)
-                addKeyOnStack(keyType, resultElement)
+                addKeyOnStack(keyKind, resultElement)
                 addOnStack(ctx.trueValue, TvmIntegerType)
                 newStmt(inst.nextStmt())
             },
@@ -2008,7 +2016,7 @@ class TvmDictOperationInterpreter(
         scope: TvmStepScopeManager,
         valueType: DictValueType,
         unwrappedValue: UHeapRef,
-        keyType: DictKeyType,
+        keyType: DictKeyKind,
         resultElement: UExpr<KBvSort>,
         inst: TvmDictMinInst,
     ) {
@@ -2026,21 +2034,21 @@ class TvmDictOperationInterpreter(
     private fun doDictNextPrev(
         inst: TvmDictNextInst,
         scope: TvmStepScopeManager,
-        keyType: DictKeyType,
+        keyKind: DictKeyKind,
         valueType: DictValueType,
         mode: DictNextPrevMode,
         allowEq: Boolean,
     ) = with(ctx) {
         val keyLength =
-            loadKeyLength(scope, rangeOpMaxKeyLength(keyType))
+            loadKeyLength(scope, rangeOpMaxKeyLength(keyKind))
                 ?: return
         val (dictCellRef, status) = loadDict(scope, keyLength)
         status ?: return
 
         val key =
-            when (keyType) {
-                DictKeyType.SIGNED_INT,
-                DictKeyType.UNSIGNED_INT,
+            when (keyKind) {
+                DictKeyKind.SIGNED_INT,
+                DictKeyKind.UNSIGNED_INT,
                 -> {
                     // key does not necessarily fit into [keyLength] bits
                     // and in case of unsigned key is not necessarily non-negative
@@ -2048,7 +2056,7 @@ class TvmDictOperationInterpreter(
                         ?: return
                 }
 
-                DictKeyType.SLICE -> {
+                DictKeyKind.SLICE -> {
                     val slice =
                         scope.calcOnState { takeLastSlice() }
                             ?: return scope.doWithState(throwTypeCheckError)
@@ -2089,17 +2097,19 @@ class TvmDictOperationInterpreter(
             val dictConcreteRef =
                 dictCellRef as? UConcreteHeapRef
                     ?: error("unsupported")
-            val (inputDict, rootInputDictInfo) = scope.calcOnState { readInputDictionary(dictConcreteRef) }
-            val resultSymbol = scope.calcOnState { makeSymbolicPrimitive(keySort) }
-            val resultSymbolExtended = extendDictKey(resultSymbol, keyType)
-            val freshConstantForInput = scope.calcOnState { makeSymbolicPrimitive(TvmCellDataSort(ctx)) }
+            val (inputDict, rootInputDictInfo) =
+                scope.calcOnState {
+                    readInputDictionary(dictConcreteRef, keySort, keyKind)
+                }
+            val resultSymbol = scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) }
+            val freshConstantForInput = scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) }
             val dictNextApplied =
                 inputDict.doDictNext(
                     scope.ctx,
                     key,
                     rootInputDictInfo,
                     freshConstantForInput,
-                    resultSymbolExtended,
+                    resultSymbol,
                     mode == DictNextPrevMode.NEXT,
                     allowEq,
                 )
@@ -2113,7 +2123,7 @@ class TvmDictOperationInterpreter(
                         inputDictionaryStorage.set(dictConcreteRef, inputDict, updated.newInputDictRootInformation)
                 }
                 if (updated.answer != null) {
-                    val value = this.calcOnState { dictGetValue(dictCellRef, dictId, resultSymbol) }
+                    val value = this.calcOnState { dictGetValue(dictCellRef, dictId, resultSymbol.expr) }
                     val unwrappedValue =
                         unwrapDictValue(this, value, valueType)
                             ?: return@doWithConditions
@@ -2123,7 +2133,7 @@ class TvmDictOperationInterpreter(
 
                     this.doWithStateCtx {
                         addValueOnStack(valueType, unwrappedValue)
-                        addKeyOnStack(keyType, resultSymbol)
+                        addKeyOnStack(keyKind, resultSymbol.expr)
                         addOnStack(trueValue, TvmIntegerType)
                         newStmt(inst.nextStmt())
                     }
@@ -2151,7 +2161,7 @@ class TvmDictOperationInterpreter(
                 dictContainsKey(dictCellRef, dictId, resultElement)
             }
 
-        val resultElementExtended = extendDictKey(resultElement, keyType)
+        val resultElementExtended = extendDictKey(resultElement, keyKind)
         val resultIsNextPrev =
             scope.calcOnStateCtx {
                 val compareLessThan =
@@ -2159,20 +2169,20 @@ class TvmDictOperationInterpreter(
                         DictNextPrevMode.NEXT -> false
                         DictNextPrevMode.PREV -> true
                     }
-                compareKeys(keyType, compareLessThan, allowEq, resultElementExtended, key)
+                compareKeys(keyKind, compareLessThan, allowEq, resultElementExtended, key)
             }
 
         val resultIsClosest =
             scope.calcOnStateCtx {
                 storedKeys
                     .map { (storeKey, storedKeyContains) ->
-                        val storeKeyExtended = extendDictKey(storeKey, keyType)
+                        val storeKeyExtended = extendDictKey(storeKey, keyKind)
                         val compareLessThan =
                             when (mode) {
                                 DictNextPrevMode.NEXT -> false
                                 DictNextPrevMode.PREV -> true
                             }
-                        val storedKeyRelevant = compareKeys(keyType, compareLessThan, allowEq, storeKeyExtended, key)
+                        val storedKeyRelevant = compareKeys(keyKind, compareLessThan, allowEq, storeKeyExtended, key)
 
                         val compareClosestLessThan =
                             when (mode) {
@@ -2181,7 +2191,7 @@ class TvmDictOperationInterpreter(
                             }
                         val resultIsClosest =
                             compareKeys(
-                                keyType,
+                                keyKind,
                                 compareClosestLessThan,
                                 allowEq = true,
                                 resultElementExtended,
@@ -2220,7 +2230,7 @@ class TvmDictOperationInterpreter(
 
         scope.doWithStateCtx {
             addValueOnStack(valueType, unwrappedValue)
-            addKeyOnStack(keyType, resultElement)
+            addKeyOnStack(keyKind, resultElement)
             addOnStack(trueValue, TvmIntegerType)
             newStmt(inst.nextStmt())
         }
@@ -2228,10 +2238,16 @@ class TvmDictOperationInterpreter(
 
     private fun TvmState.readInputDictionary(
         dictConcreteRef: UConcreteHeapRef,
+        dictKeySort: UBvSort,
+        dictKeyKind: DictKeyKind,
     ): Pair<InputDict, InputDictRootInformation> {
         val inputDict = inputDictionaryStorage.memory[dictConcreteRef] ?: InputDict()
         val rootInputDictInfo =
-            inputDictionaryStorage.inputDicts[inputDict.rootInputDictId] ?: InputDictRootInformation()
+            inputDictionaryStorage.inputDicts[inputDict.rootInputDictId] ?: run {
+                // we must ensure that the dictionary is not empty
+                val symbol = makeFreshKeyConstant(dictKeySort, dictKeyKind)
+                InputDictRootInformation(symbols = persistentSetOf(symbol))
+            }
         return Pair(inputDict, rootInputDictInfo)
     }
 
@@ -2241,35 +2257,23 @@ class TvmDictOperationInterpreter(
      * @see [doDictMinMax]
      * @see [doDictNextPrev]
      */
-    private fun rangeOpMaxKeyLength(keyType: DictKeyType): Int =
+    private fun rangeOpMaxKeyLength(keyType: DictKeyKind): Int =
         when (keyType) {
-            DictKeyType.UNSIGNED_INT -> 256
-            DictKeyType.SIGNED_INT -> 257
-            DictKeyType.SLICE -> TvmContext.MAX_DATA_LENGTH
-        }
-
-    private fun TvmContext.extendDictKey(
-        value: UExpr<UBvSort>,
-        keyType: DictKeyType,
-    ): UExpr<TvmCellDataSort> =
-        when (keyType) {
-            DictKeyType.SIGNED_INT -> value.signExtendToSort(cellDataSort)
-
-            DictKeyType.UNSIGNED_INT,
-            DictKeyType.SLICE,
-            -> value.zeroExtendToSort(cellDataSort)
+            DictKeyKind.UNSIGNED_INT -> 256
+            DictKeyKind.SIGNED_INT -> 257
+            DictKeyKind.SLICE -> TvmContext.MAX_DATA_LENGTH
         }
 
     private fun TvmContext.compareKeys(
-        keyType: DictKeyType,
+        keyType: DictKeyKind,
         compareLessThan: Boolean,
         allowEq: Boolean,
         left: UExpr<TvmCellDataSort>,
         right: UExpr<TvmCellDataSort>,
     ): UBoolExpr =
         when (keyType) {
-            DictKeyType.UNSIGNED_INT,
-            DictKeyType.SIGNED_INT,
+            DictKeyKind.UNSIGNED_INT,
+            DictKeyKind.SIGNED_INT,
             ->
                 when {
                     compareLessThan && allowEq -> mkBvSignedLessOrEqualExpr(left, right)
@@ -2278,7 +2282,7 @@ class TvmDictOperationInterpreter(
                     else -> mkBvSignedGreaterExpr(left, right)
                 }
 
-            DictKeyType.SLICE ->
+            DictKeyKind.SLICE ->
                 when {
                     compareLessThan && allowEq -> mkBvUnsignedLessOrEqualExpr(left, right)
                     compareLessThan && !allowEq -> mkBvUnsignedLessExpr(left, right)
@@ -2393,23 +2397,23 @@ class TvmDictOperationInterpreter(
 
     private fun loadKey(
         scope: TvmStepScopeManager,
-        keyType: DictKeyType,
+        keyType: DictKeyKind,
         keyLength: Int,
     ): UExpr<UBvSort>? =
         with(ctx) {
             // todo: handle keyLength errors
             when (keyType) {
-                DictKeyType.SIGNED_INT ->
+                DictKeyKind.SIGNED_INT ->
                     scope
                         .takeLastIntOrThrowTypeError()
                         ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
 
-                DictKeyType.UNSIGNED_INT ->
+                DictKeyKind.UNSIGNED_INT ->
                     scope
                         .takeLastIntOrThrowTypeError()
                         ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
 
-                DictKeyType.SLICE -> {
+                DictKeyKind.SLICE -> {
                     val slice = scope.calcOnState { takeLastSlice() }
                     if (slice == null) {
                         scope.doWithState(throwTypeCheckError)
@@ -2422,21 +2426,21 @@ class TvmDictOperationInterpreter(
         }
 
     private fun TvmState.addKeyOnStack(
-        keyType: DictKeyType,
+        keyType: DictKeyKind,
         key: UExpr<UBvSort>,
     ) = with(ctx) {
         when (keyType) {
-            DictKeyType.SIGNED_INT -> {
+            DictKeyKind.SIGNED_INT -> {
                 val keyValue = key.signedExtendToInteger()
                 addOnStack(keyValue, TvmIntegerType)
             }
 
-            DictKeyType.UNSIGNED_INT -> {
+            DictKeyKind.UNSIGNED_INT -> {
                 val keyValue = key.unsignedExtendToInteger()
                 addOnStack(keyValue, TvmIntegerType)
             }
 
-            DictKeyType.SLICE -> {
+            DictKeyKind.SLICE -> {
                 val resultSlice = this@addKeyOnStack.allocSliceFromData(key)
                 addOnStack(resultSlice, TvmSliceType)
             }
@@ -2605,7 +2609,7 @@ class TvmDictOperationInterpreter(
             }
     }
 
-    private enum class DictKeyType {
+    enum class DictKeyKind {
         SIGNED_INT,
         UNSIGNED_INT,
         SLICE,
@@ -2633,3 +2637,15 @@ class TvmDictOperationInterpreter(
         BUILDER,
     }
 }
+
+fun TvmContext.extendDictKey(
+    value: UExpr<UBvSort>,
+    keyType: DictKeyKind,
+): UExpr<TvmCellDataSort> =
+    when (keyType) {
+        DictKeyKind.SIGNED_INT -> value.signExtendToSort(cellDataSort)
+
+        DictKeyKind.UNSIGNED_INT,
+        DictKeyKind.SLICE,
+        -> value.zeroExtendToSort(cellDataSort)
+    }

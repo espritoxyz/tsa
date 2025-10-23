@@ -555,12 +555,12 @@ class TvmTestStateResolver(
                 .getCurrentlyDiscoveredKeys(ctx, inputDict.modifications)
                 .mapNotNull { (key, condition) ->
                     if (evaluateInModel(condition).isTrue) {
-                        val evaluatedKey = evaluateInModel(key)
+                        val evaluatedKey = evaluateInModel(key.expr)
                         val resolvedKey = TvmTestIntegerValue(extractInt257(evaluatedKey))
-                        error("unsupported")
-//                        val value = state.dictGetValue(dict, dictId, evaluatedKey)
-//                        val resolvedValue = resolveSlice(value)
-//                        resolvedKey to resolvedValue
+//                        error("unsupported")
+                        val value = state.dictGetValue(dict, dictId, evaluatedKey)
+                        val resolvedValue = resolveSlice(value)
+                        resolvedKey to resolvedValue
                     } else {
                         null
                     }
