@@ -63,11 +63,12 @@ class ContractsTest {
     @Test
     fun testPumpersMaster() {
         /**
-         * test generation here is disabled due to a bug connected to test data generations
+         * TODO: figure out why TL-B load retry reduces coverage
+         * Without TL-B retry, test generation here is disabled due to a bug connected to test data generations
          * from cells of dict type.
-         * TODO enable the tests after the issue above is fixed
+         * TODO: resolve the issue above is fixed
          */
-        analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
+        analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = true)
     }
 
     @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)

@@ -42,7 +42,7 @@ class ArgsConstraintsTest {
         val result =
             funcCompileAndAnalyzeAllMethods(
                 path,
-                tvmOptions = TvmOptions(analyzeBouncedMessaged = true, turnOnTLBParsingChecks = false),
+                tvmOptions = TvmOptions(analyzeBouncedMessaged = true),
             )
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
     }
