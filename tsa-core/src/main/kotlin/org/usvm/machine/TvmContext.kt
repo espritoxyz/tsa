@@ -245,6 +245,7 @@ class TvmContext(
                 }
             }
         }
+
         if (value is KBvShiftLeftExpr && value.shift is KBitVecValue) {
             val maxSizeBits = value.sort.sizeBits.toInt()
             val shiftBI = (value.shift as KBitVecValue).toBigIntegerSigned()
@@ -257,28 +258,29 @@ class TvmContext(
                 }
             }
         }
+
         if (value is KBvZeroExtensionExpr && value.value.sort.sizeBits > high.toUInt()) {
             return mkBvExtractExpr(high, low, value.value)
         }
+
         if (value is KBvSignExtensionExpr && value.value.sort.sizeBits > high.toUInt()) {
             return mkBvExtractExpr(high, low, value.value)
         }
+
         if (low == 0 && value is KBvSignExtensionExpr && value.value.sort.sizeBits <= high.toUInt()) {
-            return mkBvSignExtensionExpr(
-                high -
-                    value.value.sort.sizeBits
-                        .toInt() + 1,
-                value.value,
-            )
+            val bits =
+                value.value.sort.sizeBits
+                    .toInt()
+            return mkBvSignExtensionExpr(high + 1 - bits, value.value)
         }
+
         if (low == 0 && value is KBvZeroExtensionExpr && value.value.sort.sizeBits <= high.toUInt()) {
-            return mkBvZeroExtensionExpr(
-                high -
-                    value.value.sort.sizeBits
-                        .toInt() + 1,
-                value.value,
-            )
+            val bits =
+                value.value.sort.sizeBits
+                    .toInt()
+            return mkBvZeroExtensionExpr(high + 1 - bits, value.value)
         }
+
         if (value is KIteExpr) {
             return mkIte(
                 value.condition,
@@ -286,6 +288,7 @@ class TvmContext(
                 falseBranch = mkBvExtractExpr(high, low, value.falseBranch),
             )
         }
+
         return super.mkBvExtractExpr(high, low, value)
     }
 
