@@ -547,7 +547,6 @@ class TvmInterpreter(
         dataCellInfoStorage: TvmDataCellInfoStorage,
     ) {
         state.dataCellInfoStorage = dataCellInfoStorage
-        state.fieldManagers.cellDataFieldManager.addressToLabelMapper = dataCellInfoStorage.mapper
 
         val structuralConstraints = state.dataCellInfoStorage.mapper.getInitialStructuralConstraints(state)
         state.pathConstraints += structuralConstraints

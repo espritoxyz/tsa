@@ -16,7 +16,6 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TlbInferenceManager
-import org.usvm.machine.types.TvmAddressToLabelMapper
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UWritableMemory
@@ -34,11 +33,7 @@ class TvmCellDataFieldManager(
             refsWithRequestedCellDataField,
             refsWithAssertedCellData,
             inferenceManager = inferenceManager.clone(),
-        ).also {
-            it.addressToLabelMapper = addressToLabelMapper
-        }
-
-    lateinit var addressToLabelMapper: TvmAddressToLabelMapper
+        )
 
     fun writeCellData(
         state: TvmState,
@@ -59,16 +54,6 @@ class TvmCellDataFieldManager(
         cellRef: UConcreteHeapRef,
     ): UExpr<TvmContext.TvmCellDataSort> =
         with(ctx) {
-            if (::addressToLabelMapper.isInitialized) {
-                val hasStructuralConstraints =
-                    addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(
-                        cellRef,
-                    )
-                check(!hasStructuralConstraints) {
-                    "readCellDataForAllocatedCell cannot be used for cells with structural constraints"
-                }
-            }
-
             state.memory.readField(cellRef, cellDataField, cellDataSort)
         }
 
@@ -77,9 +62,10 @@ class TvmCellDataFieldManager(
         refs: List<UConcreteHeapRef>,
     ): UBoolExpr =
         scope.calcOnState {
+            val refToLabelMapper = dataCellInfoStorage.mapper
             refs.fold(trueExpr as UBoolExpr) { acc, ref ->
-                if (addressToLabelMapper.proactiveStructuralConstraintsWereCalculated(ref)) {
-                    val curDataConstraint = addressToLabelMapper.generateLazyDataConstraints(this, ref)
+                if (refToLabelMapper.proactiveStructuralConstraintsWereCalculated(ref)) {
+                    val curDataConstraint = refToLabelMapper.generateLazyDataConstraints(this, ref)
                     acc and curDataConstraint
                 } else {
                     // case when ref doesn't have TL-B

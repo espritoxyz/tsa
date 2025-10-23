@@ -161,7 +161,7 @@ data class StackFrameOfUnknown(
             val tlbFieldConstraint =
                 if (label is TlbCompositeLabel) {
                     scope.calcOnState {
-                        fieldManagers.cellDataFieldManager.addressToLabelMapper.calculatedTlbLabelInfo
+                        dataCellInfoStorage.mapper.calculatedTlbLabelInfo
                             .getTlbFieldConstraints(
                                 this,
                                 loadData.cellRef,
