@@ -139,7 +139,13 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                         this@makeSliceTypeLoad,
                         badCellSizeIsExceptional,
                         onBadCellSize,
-                    ) ?: run {
+                    )?.map {
+                        TlbStack.GuardedResult<ReadResult>(
+                            it.guard,
+                            it.result,
+                            value = null, // TODO: figure out why this value decreases coverage
+                        )
+                    } ?: run {
                         died = true
                         return@forEach
                     }
