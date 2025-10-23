@@ -31,7 +31,7 @@ class TvmReferenceToLabelMapper private constructor(
     val calculatedTlbLabelInfo: CalculatedTlbLabelInfo,
     private val initialRefs: Set<UConcreteHeapRef>,
     private var inputAddressToLabels: PersistentMap<UConcreteHeapAddress, LabelInfo> = persistentMapOf(),
-    private var grandchildrenOfAddressInitialized: PersistentSet<UConcreteHeapAddress> = persistentSetOf(),
+    private var grandchildrenOfRefInitialized: PersistentSet<UConcreteHeapAddress> = persistentSetOf(),
     private var proactiveConstraintsCalculatedFor: PersistentSet<UConcreteHeapAddress> = persistentSetOf(),
     private var builderLabels: PersistentMap<UConcreteHeapAddress, TlbStructureBuilder> = persistentMapOf(),
     private var allocatedAddressToCellInfo: PersistentMap<UConcreteHeapAddress, TvmParameterInfo.CellInfo> =
@@ -44,7 +44,7 @@ class TvmReferenceToLabelMapper private constructor(
             calculatedTlbLabelInfo,
             initialRefs,
             inputAddressToLabels,
-            grandchildrenOfAddressInitialized,
+            grandchildrenOfRefInitialized,
             proactiveConstraintsCalculatedFor,
             builderLabels,
             allocatedAddressToCellInfo,
@@ -99,7 +99,7 @@ class TvmReferenceToLabelMapper private constructor(
             inputAddressToLabels[ref.address]
                 ?: error("CellInfo of ref $ref must be known at this point")
 
-        check(ref.address !in grandchildrenOfAddressInitialized) {
+        check(ref.address !in grandchildrenOfRefInitialized) {
             "Grandchildren must not be known yet"
         }
 
@@ -173,11 +173,11 @@ class TvmReferenceToLabelMapper private constructor(
                 "given state's result is ${state.methodResult}"
         }
 
-        if (ref.address !in inputAddressToLabels || ref.address in grandchildrenOfAddressInitialized) {
+        if (ref.address !in inputAddressToLabels || ref.address in grandchildrenOfRefInitialized) {
             return
         }
 
-        grandchildrenOfAddressInitialized = grandchildrenOfAddressInitialized.add(ref.address)
+        grandchildrenOfRefInitialized = grandchildrenOfRefInitialized.add(ref.address)
 
         val childAddresses = getChildrenAddresses(state, ref)
         check(childAddresses.all { it.address in inputAddressToLabels }) {
