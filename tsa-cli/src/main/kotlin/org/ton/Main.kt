@@ -161,19 +161,24 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
         .help("TODO")
 }
 
-private fun writeCoveredInstructions(analysisOptions: AnalysisOptions, result: TvmContractSymbolicTestResult) {
-    val path = analysisOptions.coveredInstructionsListPath
-        ?: return
+private fun writeCoveredInstructions(
+    analysisOptions: AnalysisOptions,
+    result: TvmContractSymbolicTestResult,
+) {
+    val path =
+        analysisOptions.coveredInstructionsListPath
+            ?: return
 
-    val lines = result.flatMap { tests ->
-        tests.flatMap {
-            it.coveredInstructions.mapNotNull { inst ->
-                (inst as? TvmRealInst)?.physicalLocation?.let { loc ->
-                    "${loc.cellHashHex} ${loc.offset}"
+    val lines =
+        result.flatMap { tests ->
+            tests.flatMap {
+                it.coveredInstructions.mapNotNull { inst ->
+                    (inst as? TvmRealInst)?.physicalLocation?.let { loc ->
+                        "${loc.cellHashHex} ${loc.offset}"
+                    }
                 }
             }
         }
-    }
     val text = lines.toSet().joinToString("\n")
     path.writeText(text)
 }
@@ -204,27 +209,28 @@ private fun <SourcesDescription> performAnalysis(
 
     val concreteData = TvmConcreteContractData(contractC4 = contractData?.hexToCell())
 
-    val result = if (methodIds == null) {
-        analyzer.analyzeAllMethods(
-            sources,
-            concreteContractData = concreteData,
-            inputInfo = inputInfo,
-            tvmOptions = options,
-        )
-    } else {
-        val testSets =
-            methodIds.map { methodId ->
-                analyzer.analyzeSpecificMethod(
-                    sources,
-                    methodId,
-                    concreteContractData = concreteData,
-                    inputInfo = inputInfo[methodId] ?: TvmInputInfo(),
-                    tvmOptions = options,
-                )
-            }
+    val result =
+        if (methodIds == null) {
+            analyzer.analyzeAllMethods(
+                sources,
+                concreteContractData = concreteData,
+                inputInfo = inputInfo,
+                tvmOptions = options,
+            )
+        } else {
+            val testSets =
+                methodIds.map { methodId ->
+                    analyzer.analyzeSpecificMethod(
+                        sources,
+                        methodId,
+                        concreteContractData = concreteData,
+                        inputInfo = inputInfo[methodId] ?: TvmInputInfo(),
+                        tvmOptions = options,
+                    )
+                }
 
-        TvmContractSymbolicTestResult(testSets)
-    }
+            TvmContractSymbolicTestResult(testSets)
+        }
 
     writeCoveredInstructions(analysisOptions, result)
 
