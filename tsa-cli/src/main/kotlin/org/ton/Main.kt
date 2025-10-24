@@ -27,6 +27,7 @@ import com.github.ajalt.clikt.parameters.types.path
 import io.ksmt.utils.uncheckedCast
 import org.ton.boc.BagOfCells
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.TvmRealInst
 import org.ton.sarif.toSarifReport
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.gen.generateTests
@@ -154,6 +155,27 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
             "Do not stop analysis if an exception occurred in some analyzed contract. " +
                 "If an exception occurred in checker contract, stop anyway.",
         )
+
+    val coveredInstructionsListPath by option("--covered-instructions-list")
+        .path()
+        .help("TODO")
+}
+
+private fun writeCoveredInstructions(analysisOptions: AnalysisOptions, result: TvmContractSymbolicTestResult) {
+    val path = analysisOptions.coveredInstructionsListPath
+        ?: return
+
+    val lines = result.flatMap { tests ->
+        tests.flatMap {
+            it.coveredInstructions.mapNotNull { inst ->
+                (inst as? TvmRealInst)?.physicalLocation?.let { loc ->
+                    "${loc.cellHashHex} ${loc.offset}"
+                }
+            }
+        }
+    }
+    val text = lines.toSet().joinToString("\n")
+    path.writeText(text)
 }
 
 private fun <SourcesDescription> performAnalysis(
@@ -182,7 +204,7 @@ private fun <SourcesDescription> performAnalysis(
 
     val concreteData = TvmConcreteContractData(contractC4 = contractData?.hexToCell())
 
-    return if (methodIds == null) {
+    val result = if (methodIds == null) {
         analyzer.analyzeAllMethods(
             sources,
             concreteContractData = concreteData,
@@ -203,6 +225,10 @@ private fun <SourcesDescription> performAnalysis(
 
         TvmContractSymbolicTestResult(testSets)
     }
+
+    writeCoveredInstructions(analysisOptions, result)
+
+    return result
 }
 
 private fun performAnalysisInterContract(
