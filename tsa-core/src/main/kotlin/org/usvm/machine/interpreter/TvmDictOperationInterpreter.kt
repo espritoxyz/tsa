@@ -2,6 +2,7 @@ package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.sort.KBvSort
+import io.ksmt.utils.asExpr
 import kotlinx.collections.immutable.persistentSetOf
 import org.ton.bytecode.TvmDictDeleteDictdelInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetInst
@@ -158,6 +159,7 @@ import org.usvm.machine.interpreter.inputdict.extendDictKey
 import org.usvm.machine.interpreter.inputdict.makeFreshKeyConstant
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.DictKeyInfo
+import org.usvm.machine.state.TvmDictValueRegionId
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
@@ -178,6 +180,7 @@ import org.usvm.machine.state.dictAddKeyValue
 import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictRemoveKey
+import org.usvm.machine.state.dictValueRegion
 import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getSliceRemainingBitsCount
@@ -204,6 +207,7 @@ import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
+import org.usvm.utils.flattenReferenceIte
 
 class TvmDictOperationInterpreter(
     private val ctx: TvmContext,
@@ -1437,7 +1441,7 @@ class TvmDictOperationInterpreter(
         }
 
         // this instruction can be used to store data cells, not just dict cells
-        val (dictCellRef, status) = loadDict(scope, keyLengthForAssertingDictType = null)
+        val (dictCellRef, status) = popDictFromStack(scope, keyLengthForAssertingDictType = null)
         status ?: return
 
         val resultBuilder = scope.calcOnStateCtx { memory.allocConcrete(TvmBuilderType) }
@@ -1482,7 +1486,7 @@ class TvmDictOperationInterpreter(
         val keyLength =
             loadKeyLength(scope)
                 ?: return
-        val (dictCellRef, status) = loadDict(scope, keyLength)
+        val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
         val key = loadKey(scope, keyKind, keyLength) ?: return
         val value = loadValue(scope, valueType)
@@ -1500,14 +1504,19 @@ class TvmDictOperationInterpreter(
             scope.calcOnStateCtx {
                 dictCellRef?.let { memory.setEntries(it, dictId, keySort, DictKeyInfo) }
             }
-        if (allSetEntries != null && allSetEntries.isInput) {
+        val isInput =
+            (allSetEntries != null && allSetEntries.isInput) ||
+                scope.calcOnState {
+                    inputDictionaryStorage.memory.keys.contains(dictCellRef)
+                }
+        if (isInput) {
             if (getOldValue) {
                 error("unsupported getting old value in input dicts `set` operation")
             }
-            val dictConcreteRef =
+            val dictOriginalConcrete =
                 dictCellRef as? UConcreteHeapRef
                     ?: error("unsupported")
-            val (baseInputDit, _) = scope.calcOnState { readInputDictionary(dictConcreteRef, keySort, keyKind) }
+            val (baseInputDit, _) = scope.calcOnState { readInputDictionary(dictOriginalConcrete, keySort, keyKind) }
             val appliedModification = Modification.Store(KeyType(key, keyKind))
             val newInputDict =
                 InputDict(
@@ -1515,8 +1524,17 @@ class TvmDictOperationInterpreter(
                     rootInputDictId = baseInputDit.rootInputDictId,
                 )
             scope.calcOnStateCtx {
-                val dictKeyLength = memory.readField(dictConcreteRef, dictKeyLengthField, sizeSort)
+                val dictKeyLength = memory.readField(dictOriginalConcrete, dictKeyLengthField, sizeSort)
                 memory.writeField(resultDict, dictKeyLengthField, sizeSort, dictKeyLength, guard = trueExpr)
+
+                val dictValueRegionId = TvmDictValueRegionId(dictId, keySort)
+                val dictValueRegion = memory.dictValueRegion(dictValueRegionId)
+                val updatedValues =
+                    dictValueRegion
+                        .copyRefValues(dictOriginalConcrete, resultDict)
+                        .writeRefValue(resultDict, key, value.asExpr(ctx.addressSort), guard = ctx.trueExpr)
+                memory.setRegion(dictValueRegionId, updatedValues)
+
                 inputDictionaryStorage = inputDictionaryStorage.set(resultDict, newInputDict)
                 addOnStack(resultDict, TvmCellType)
                 newStmt(inst.nextStmt())
@@ -1645,7 +1663,7 @@ class TvmDictOperationInterpreter(
         val keyLength =
             loadKeyLength(scope)
                 ?: return
-        val (dictCellRef, status) = loadDict(scope, keyLength)
+        val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
         val key = loadKey(scope, keyKind, keyLength) ?: return
 
@@ -1656,13 +1674,49 @@ class TvmDictOperationInterpreter(
             }
             return
         }
+        /*
+        To properly avoid forking, the code in `doDictGetImpl` must be clearly separated into interpreter part and
+        logical part. After making such a division, the logical part must be rewritten with the use of guards
+        and dictionary type (input dictionary or non-input dictionary).
+         */
+        val dicts = flattenReferenceIte(dictCellRef, extractAllocated = true)
+        val actions = dicts.map { (cond, dict) -> TvmStepScopeManager.ActionOnCondition({}, false, cond, dict) }
+        if (dicts.size == 1) {
+            doDictGetImpl(
+                scope,
+                this@with,
+                keyLength,
+                dicts.single().second,
+                keyKind,
+                key,
+                nullDefaultValue,
+                inst,
+                valueType,
+            )
+        } else {
+            scope.doWithConditions(actions) { dictCellRef ->
+                doDictGetImpl(this, this@with, keyLength, dictCellRef, keyKind, key, nullDefaultValue, inst, valueType)
+            }
+        }
+    }
 
+    private fun doDictGetImpl(
+        scope: TvmStepScopeManager,
+        ctx: TvmContext,
+        keyLength: Int,
+        dictCellRef: UConcreteHeapRef,
+        keyKind: DictKeyKind,
+        key: UExpr<UBvSort>,
+        nullDefaultValue: Boolean,
+        inst: TvmInst,
+        valueType: DictValueType,
+    ) {
         val dictId = DictId(keyLength)
 
         assertDictKeyLength(scope, dictCellRef, keyLength)
             ?: return
 
-        val keySort = ctx.mkBvSort(keyLength.toUInt())
+        val keySort = scope.ctx.mkBvSort(keyLength.toUInt())
         val allSetEntries =
             scope.calcOnStateCtx {
                 memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
@@ -1679,24 +1733,22 @@ class TvmDictOperationInterpreter(
         }
         val dictContainsKey =
             if (isInput) {
-                val dictConcreteRef =
-                    dictCellRef as? UConcreteHeapRef
-                        ?: error("unsupported")
+                val dictConcreteRef = dictCellRef
                 val (inputDict, rootInputDictInfo) =
                     scope.calcOnState {
                         readInputDictionary(dictConcreteRef, keySort, keyKind)
                     }
-                val keyExists = scope.calcOnState { makeSymbolicPrimitive(boolSort) }
+                val keyExists = scope.calcOnState { makeSymbolicPrimitive(ctx.boolSort) }
                 val (cs, updatedRootInfo) =
                     inputDict.doDictHasKey(
-                        ctx,
+                        scope.ctx,
                         KeyType(key, keyKind),
                         rootInputDictInfo,
                         scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) },
                         keyExists,
                     )
-                scope.assert(ctx.mkAnd(cs))
-                    ?: return@with
+                scope.assert(scope.ctx.mkAnd(cs))
+                    ?: return
                 scope.calcOnStateCtx {
                     inputDictionaryStorage = inputDictionaryStorage.set(dictConcreteRef, inputDict, updatedRootInfo)
                 }
@@ -1712,9 +1764,9 @@ class TvmDictOperationInterpreter(
             falseStateIsExceptional = false,
             blockOnFalseState = {
                 if (nullDefaultValue) {
-                    addOnStack(nullValue, TvmNullType)
+                    addOnStack(ctx.nullValue, TvmNullType)
                 } else {
-                    addOnStack(falseValue, TvmIntegerType)
+                    addOnStack(ctx.falseValue, TvmIntegerType)
                 }
                 newStmt(inst.nextStmt())
             },
@@ -1732,7 +1784,7 @@ class TvmDictOperationInterpreter(
         scope.doWithState {
             addValueOnStack(valueType, unwrappedValue)
             if (!nullDefaultValue) {
-                addOnStack(trueValue, TvmIntegerType)
+                addOnStack(ctx.trueValue, TvmIntegerType)
             }
             newStmt(inst.nextStmt())
         }
@@ -1748,7 +1800,7 @@ class TvmDictOperationInterpreter(
         val keyLength =
             loadKeyLength(scope)
                 ?: return
-        val (dictCellRef, status) = loadDict(scope, keyLength)
+        val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
         val key = loadKey(scope, keyKind, keyLength) ?: return
 
@@ -1870,7 +1922,7 @@ class TvmDictOperationInterpreter(
         val keyLength =
             loadKeyLength(scope, rangeOpMaxKeyLength(keyKind))
                 ?: return
-        val (dictCellRef, status) = loadDict(scope, keyLength)
+        val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
 
         if (dictCellRef == null) {
@@ -2048,7 +2100,7 @@ class TvmDictOperationInterpreter(
         val keyLength =
             loadKeyLength(scope, rangeOpMaxKeyLength(keyKind))
                 ?: return
-        val (dictCellRef, status) = loadDict(scope, keyLength)
+        val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
 
         val key =
@@ -2153,6 +2205,9 @@ class TvmDictOperationInterpreter(
             return
         }
 
+        if (dictCellRef is UConcreteHeapRef) {
+            println("here!")
+        }
         val storedKeys =
             scope.calcOnStateCtx {
                 allSetEntries.entries.map { entry ->
@@ -2339,7 +2394,7 @@ class TvmDictOperationInterpreter(
     }
 
     // todo: verify key length
-    private fun loadDict(
+    private fun popDictFromStack(
         scope: TvmStepScopeManager,
         keyLengthForAssertingDictType: Int?,
     ): Pair<UHeapRef?, Unit?> =

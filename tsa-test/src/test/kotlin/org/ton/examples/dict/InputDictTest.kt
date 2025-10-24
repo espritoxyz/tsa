@@ -126,6 +126,30 @@ class InputDictTest {
     }
 
     @Test
+    fun `set stores the value at its parameter`() {
+        analyzeMethodAndRun(16) { tests ->
+            tests.assertHasExitCodes(500)
+            tests.assertDoesNotHaveExitCodes(400, 401)
+        }
+    }
+
+    @Test
+    fun `set does not override other values`() {
+        analyzeMethodAndRun(17) { tests ->
+            tests.assertHasExitCodes(300, 301, 500)
+            tests.assertDoesNotHaveExitCodes(400)
+        }
+    }
+
+//    @Test
+//    fun `remove does not override other values`() {
+//        analyzeMethodAndRun(18) { tests ->
+//            tests.assertHasExitCodes(300, 301, 500)
+//            tests.assertDoesNotHaveExitCodes(400)
+//        }
+//    }
+
+    @Test
     fun `set overrides values`() {
         analyzeMethodAndRun(12) { tests ->
             tests.assertHasExitCodes(300, 500)
@@ -144,6 +168,14 @@ class InputDictTest {
     @Test
     fun `delete overrides values`() {
         analyzeMethodAndRun(14) { tests ->
+            tests.assertHasExitCodes(300, 500)
+            tests.assertDoesNotHaveExitCodes(400)
+        }
+    }
+
+    @Test
+    fun `input dict ite get`() {
+        analyzeMethodAndRun(15) { tests ->
             tests.assertHasExitCodes(300, 500)
             tests.assertDoesNotHaveExitCodes(400)
         }

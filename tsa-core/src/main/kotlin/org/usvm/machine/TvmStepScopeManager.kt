@@ -7,6 +7,7 @@ import org.usvm.UBoolExpr
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isFalse
 import org.usvm.isTrue
+import org.usvm.logger
 import org.usvm.machine.TvmStepScopeManager.TvmStepScope.StepScopeState.CANNOT_BE_PROCESSED
 import org.usvm.machine.TvmStepScopeManager.TvmStepScope.StepScopeState.CAN_BE_PROCESSED
 import org.usvm.machine.TvmStepScopeManager.TvmStepScope.StepScopeState.DEAD
@@ -189,6 +190,9 @@ class TvmStepScopeManager(
                     newScopeManager.doForAllBlock(action.paramForDoForAllBlock)
 
                     val newScopeResults = newScopeManager.stepResult()
+                    logger.debug {
+                        "${state.id} -> [${newScopeResults.forkedStates.map { it.id }.joinToString(", ")}] ]"
+                    }
                     forkedStates += newScopeResults.forkedStates
                     stateAlive = newScopeResults.originalStateAlive
 
