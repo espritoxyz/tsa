@@ -46,13 +46,15 @@ class RecvInternalInput(
             )
         }
 
-    // bounced:Bool
-    val bounced =
+    private val bouncedFlag =
         if (state.ctx.tvmOptions.analyzeBouncedMessaged) {
-            state.makeSymbolicPrimitive(state.ctx.boolSort)
+            state.makeSymbolicPrimitive(state.ctx.mkBvSort(1u))
         } else {
-            state.ctx.falseExpr
+            state.ctx.mkBv(0, 1u)
         }
+
+    // bounced:Bool
+    val bounced = state.ctx.mkEq(bouncedFlag, state.ctx.mkBv(1, 1u))
 
     private val msgBodyCellBounced: UConcreteHeapRef by lazy {
         with(state.ctx) {
@@ -173,7 +175,7 @@ class RecvInternalInput(
                 intMsgInfo = zeroValue,
                 ihrDisabled = this@RecvInternalInput.ihrDisabled.asIntValue(),
                 bounce = bounce.asIntValue(),
-                bounced = bounced.asIntValue(),
+                bounced = bouncedFlag.zeroExtendToSort(int257sort),
             )
         }
 }

@@ -63,9 +63,11 @@ class ContractsTest {
     @Test
     fun testPumpersMaster() {
         /**
+         * TODO: figure out why TL-B load retry reduces coverage
          * test generation here is disabled due to a bug connected to test data generations
          * from cells of dict type.
-         * TODO enable the tests after the issue above is fixed
+         * This happens Without TL-B retry (and even sometimes with it).
+         * TODO: enable test generation when resolve the issue above is fixed
          */
         analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
     }

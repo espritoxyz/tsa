@@ -8,11 +8,11 @@ import org.usvm.machine.TvmContext
 
 sealed interface TvmCellDataTypeReadValue
 
-class UExprReadResult<Sort : KSort>(
+data class UExprReadResult<Sort : KSort>(
     val expr: UExpr<Sort>,
 ) : TvmCellDataTypeReadValue
 
-class UExprPairReadResult<Sort1 : KSort, Sort2 : KSort>(
+data class UExprPairReadResult<Sort1 : KSort, Sort2 : KSort>(
     val first: UExpr<Sort1>,
     val second: UExpr<Sort2>,
 ) : TvmCellDataTypeReadValue

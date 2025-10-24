@@ -3,12 +3,14 @@ package org.usvm.machine
 import io.ksmt.KAst
 import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KBvConcatExpr
 import io.ksmt.expr.KBvLogicalShiftRightExpr
 import io.ksmt.expr.KBvShiftLeftExpr
 import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KExpr
 import io.ksmt.expr.KInterpretedValue
+import io.ksmt.expr.KIteExpr
 import io.ksmt.expr.rewrite.simplify.simplifyAnd
 import io.ksmt.expr.rewrite.simplify.simplifyBoolIteConstBranches
 import io.ksmt.expr.rewrite.simplify.simplifyBoolIteSameConditionBranch
@@ -28,6 +30,7 @@ import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.asExpr
 import io.ksmt.utils.powerOfTwo
 import io.ksmt.utils.toBigInteger
+import io.ksmt.utils.uncheckedCast
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
@@ -238,10 +241,11 @@ class TvmContext(
                 val newHigh = high + shift
                 val newLow = low + shift
                 if (newLow >= 0 && newHigh < maxSizeBits) {
-                    return super.mkBvExtractExpr(newHigh, newLow, value.arg)
+                    return mkBvExtractExpr(newHigh, newLow, value.arg)
                 }
             }
         }
+
         if (value is KBvShiftLeftExpr && value.shift is KBitVecValue) {
             val maxSizeBits = value.sort.sizeBits.toInt()
             val shiftBI = (value.shift as KBitVecValue).toBigIntegerSigned()
@@ -250,17 +254,57 @@ class TvmContext(
                 val newHigh = high - shift
                 val newLow = low - shift
                 if (newLow >= 0 && newHigh < maxSizeBits) {
-                    return super.mkBvExtractExpr(newHigh, newLow, value.arg)
+                    return mkBvExtractExpr(newHigh, newLow, value.arg)
                 }
             }
         }
+
         if (value is KBvZeroExtensionExpr && value.value.sort.sizeBits > high.toUInt()) {
-            return super.mkBvExtractExpr(high, low, value.value)
+            return mkBvExtractExpr(high, low, value.value)
         }
+
         if (value is KBvSignExtensionExpr && value.value.sort.sizeBits > high.toUInt()) {
-            return super.mkBvExtractExpr(high, low, value.value)
+            return mkBvExtractExpr(high, low, value.value)
         }
+
+        if (low == 0 && value is KBvSignExtensionExpr && value.value.sort.sizeBits <= high.toUInt()) {
+            val bits =
+                value.value.sort.sizeBits
+                    .toInt()
+            return mkBvSignExtensionExpr(high + 1 - bits, value.value)
+        }
+
+        if (low == 0 && value is KBvZeroExtensionExpr && value.value.sort.sizeBits <= high.toUInt()) {
+            val bits =
+                value.value.sort.sizeBits
+                    .toInt()
+            return mkBvZeroExtensionExpr(high + 1 - bits, value.value)
+        }
+
+        if (value is KIteExpr) {
+            return mkIte(
+                value.condition,
+                trueBranch = mkBvExtractExpr(high, low, value.trueBranch),
+                falseBranch = mkBvExtractExpr(high, low, value.falseBranch),
+            )
+        }
+
         return super.mkBvExtractExpr(high, low, value)
+    }
+
+    override fun <T : KBvSort> mkBvLogicalShiftRightExpr(
+        arg: KExpr<T>,
+        shift: KExpr<T>,
+    ): KExpr<T> {
+        if (shift is KInterpretedValue &&
+            arg is KBvConcatExpr &&
+            arg.arg1.sort.sizeBits
+                .toInt()
+                .toBigInteger() == shift.bigIntValue()
+        ) {
+            return arg.arg0.zeroExtendToSort(arg.sort)
+        }
+        return super.mkBvLogicalShiftRightExpr(arg, shift)
     }
 
     override fun <T : KBvSort> mkBvShiftLeftExpr(
@@ -277,6 +321,18 @@ class TvmContext(
             ) {
                 return mkBvShiftLeftExpr(arg.arg, mkBvAddExpr(arg.shift, shift))
             }
+        }
+        if (arg is KBvSignExtensionExpr &&
+            shift is KBitVecValue &&
+            shift.bigIntValue() == arg.extensionSize.toBigInteger()
+        ) {
+            return mkBvConcatExpr(arg.value, mkBv(0, arg.extensionSize.toUInt())).uncheckedCast()
+        }
+        if (arg is KBvZeroExtensionExpr &&
+            shift is KBitVecValue &&
+            shift.bigIntValue() == arg.extensionSize.toBigInteger()
+        ) {
+            return mkBvConcatExpr(arg.value, mkBv(0, arg.extensionSize.toUInt())).uncheckedCast()
         }
         return super.mkBvShiftLeftExpr(arg, shift)
     }
