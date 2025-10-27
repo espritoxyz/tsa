@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -15,7 +16,7 @@ repositories {
 
 dependencies {
     // Align versions of all Kotlin components
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.1.20"))
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.1.0"))
 
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))

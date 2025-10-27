@@ -1952,7 +1952,7 @@ class TvmDictOperationInterpreter(
             allSetEntries.isInput || scope.calcOnState { inputDictionaryStorage.memory.keys.contains(dictCellRef) }
         if (isInput) {
             if (removeKey) {
-                error("not supported yet")
+                error("min-max with removeKey=true not supported yet")
             }
             val dictConcreteRef =
                 dictCellRef as? UConcreteHeapRef
