@@ -1,5 +1,13 @@
 # TSA Changelog
 
+## v0.4.26-dev - v0.4.27-dev
+
+- New handlers for checkers: `on_out_message` and `on_compute_phase_exit`
+- New format for communication scheme
+- Support some sending modes: `SendRemainingBalance`, `SendRemainingValue`, `SendFwdFeesSeparately`
+- CLI option `--covered-instructions-list`
+- Optimizations and fixes in TSA core
+
 ## v0.4.25-dev - v0.4.26-dev
 
 - CLI option `--continue-on-contract-exception`
