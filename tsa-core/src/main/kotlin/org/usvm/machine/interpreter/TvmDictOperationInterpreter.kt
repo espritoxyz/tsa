@@ -1828,9 +1828,6 @@ class TvmDictOperationInterpreter(
                 ?: return
         }
         if (isInput) {
-            if (getOldValue) {
-                TODO("unsupported getting old value in input dicts `delete` operation")
-            }
             val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
             val dictOriginalConcrete =
                 dictCellRef as? UConcreteHeapRef
@@ -1860,9 +1857,43 @@ class TvmDictOperationInterpreter(
 
                 inputDictionaryStorage =
                     inputDictionaryStorage.set(resultDict, newInputDict, dictHasKey.updatedRootInfo)
-                addOnStack(resultDict, TvmCellType)
-                addOnStack(mkIte(exists, trueValue, falseValue), TvmIntegerType)
-                newStmt(inst.nextStmt())
+            }
+            val oldValue = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
+            val unwrappedValue =
+                unwrapDictValue(scope, oldValue, valueType)
+                    ?: return
+            if (!getOldValue) {
+                scope.calcOnStateCtx {
+                    addOnStack(resultDict, TvmCellType)
+                    addOnStack(mkIte(exists, trueValue, falseValue), TvmIntegerType)
+                    newStmt(inst.nextStmt())
+                }
+            } else {
+                scope.doWithConditions<Unit>(
+                    listOf(
+                        TvmStepScopeManager.ActionOnCondition<Unit>(
+                            {
+                                addOnStack(resultDict, TvmCellType)
+                                addValueOnStack(unwrappedValue, valueType)
+                                addOnStack(ctx.trueValue, TvmIntegerType)
+                                newStmt(inst.nextStmt())
+                            },
+                            false,
+                            exists,
+                            Unit,
+                        ),
+                        TvmStepScopeManager.ActionOnCondition<Unit>(
+                            {
+                                addOnStack(resultDict, TvmCellType)
+                                addOnStack(ctx.falseValue, TvmIntegerType)
+                                newStmt(inst.nextStmt())
+                            },
+                            false,
+                            ctx.mkNot(exists),
+                            Unit,
+                        ),
+                    ),
+                ) { _: Unit -> }
             }
             return
         }
