@@ -1861,7 +1861,7 @@ class TvmDictOperationInterpreter(
                 inputDictionaryStorage =
                     inputDictionaryStorage.set(resultDict, newInputDict, dictHasKey.updatedRootInfo)
                 addOnStack(resultDict, TvmCellType)
-                addOnStack(exists, TvmIntegerType)
+                addOnStack(mkIte(exists, trueValue, falseValue), TvmIntegerType)
                 newStmt(inst.nextStmt())
             }
             return
