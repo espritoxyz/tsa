@@ -43,15 +43,8 @@ data class NextPrevQueryConstraint(
         ctx: TvmContext,
         symbol: KExtended,
     ): UBoolExpr {
-        val pivotCmp =
-            when {
-                !mightBeEqualToPivot && isNext -> Cmp(CmpKind.LT)
-                !mightBeEqualToPivot && !isNext -> Cmp(CmpKind.GT)
-                mightBeEqualToPivot && isNext -> Cmp(CmpKind.LE)
-                else -> Cmp(CmpKind.GE)
-            }.copy(isSigned = isSigned).createCmp(ctx)
+        val pivotCmp = Cmp(isNext, !mightBeEqualToPivot, isSigned).createCmp(ctx)
         val answerCmp = (if (isNext) Cmp(CmpKind.LT) else Cmp(CmpKind.GT)).createCmp(ctx)
-
         return with(ctx) {
             (pivotCmp(pivot, symbol) and answerCmp(symbol, answer)).not()
         }

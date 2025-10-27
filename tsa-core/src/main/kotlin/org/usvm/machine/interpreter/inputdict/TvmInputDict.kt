@@ -140,8 +140,8 @@ data class InputDict(
     fun getCurrentlyDiscoveredKeys(
         ctx: TvmContext,
         rootInformation: InputDictRootInformation,
-    ): List<GuardedKeySymbol> =
-        modifications.foldOnSymbols(ctx, rootInformation.symbols.map { GuardedKeySymbol(it, ctx.trueExpr) })
+    ): List<GuardedKeyType> =
+        modifications.foldOnSymbols(ctx, rootInformation.symbols.map { GuardedKeyType(it, ctx.trueExpr) })
 
     fun doDictHasKey(
         ctx: TvmContext,

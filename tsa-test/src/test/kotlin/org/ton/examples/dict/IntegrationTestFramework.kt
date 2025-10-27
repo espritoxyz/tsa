@@ -10,12 +10,24 @@ import org.usvm.logger
 import org.usvm.machine.toMethodId
 import java.io.File
 
+/**
+ * By convention for this kind of tests, we will assume that error codes of 3** represent an assumption
+ * (and we expect to find them in some test), 4** represent an assertion (and we expect to
+ * NOT find them in any test) and 5** represent a possible successful execution
+ * (and we expect to find them in some test)
+ */
+
 fun defaultTest(file: File) {
     logger.info("Executing test ${file.name}")
     val content = file.readText()
-    val assumes = Regex("3\\d\\d").findAll(content).map { it.groupValues[0].toInt() }.toList()
-    val asserts = Regex("4\\d\\d").findAll(content).map { it.groupValues[0].toInt() }.toList()
-    val success = Regex("5\\d\\d").findAll(content).map { it.groupValues[0].toInt() }.toList()
+    val throwRegex = Regex("""\b(?:throw|throw_unless|throw_if)\(\s*(?<code>\d{3})""")
+    val foundCodes = throwRegex.findAll(content).map { it.groups["code"]!!.value.toInt() }.toList()
+    val assumes = foundCodes.filter { it in 300..399 }
+    val asserts = foundCodes.filter { it in 400..499 }
+    val success = foundCodes.filter { it in 500..599 }
+    logger.info("Assumption error codes: $assumes")
+    logger.info("Assertion error codes: $asserts")
+    logger.info("Successful execution error codes: $success")
     val tests = funcCompileAndAnalyzeSpecificMethod(file.toPath(), methodId = 1.toMethodId())
     val exitCodes = tests.map { it.executionCode() }
     logger.info("Found exit codes: $exitCodes")
@@ -35,6 +47,12 @@ fun defaultTest(file: File) {
     logger.info("Ending the execution of generated tests for ${file.name}")
 }
 
+/**
+ * For the semantics of the integration test, see [defaultTest].
+ *
+ * Beware --- if the resulted directory is empty, the list returned by this function will be empty
+ * and Gradle will not see the required tests and report an error.
+ */
 fun runTestsInDirectory(resourceDirectory: String): List<DynamicTest> {
     val basePath = extractResource(resourceDirectory)
 

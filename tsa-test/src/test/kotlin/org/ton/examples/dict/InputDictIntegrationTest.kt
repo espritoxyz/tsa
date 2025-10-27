@@ -8,6 +8,7 @@ import org.ton.test.utils.extractResource
 class InputDictIntegrationTest {
     private val allTests = "/dict/input-dict"
     private val setDeleteTests = "/dict/input-dict/set-delete"
+    private val queryTests = "/dict/input-dict/queries"
     private val minMaxDelete = "/dict/input-dict/min-max-delete"
 
     @TestFactory
@@ -15,12 +16,17 @@ class InputDictIntegrationTest {
 
     @Disabled
     @TestFactory
+    fun `query tests`(): List<DynamicTest> = runTestsInDirectory(queryTests)
+
+    @Disabled
+    @TestFactory
     fun `set-delete tests`(): List<DynamicTest> = runTestsInDirectory(setDeleteTests)
 
-//    @Disabled
+    @Disabled
     @TestFactory
     fun `min-max-delete tests`(): List<DynamicTest> = runTestsInDirectory(minMaxDelete)
 
+    @Disabled
     @TestFactory
     fun runSingleTest() =
         DynamicTest.dynamicTest("runSingleTest") {

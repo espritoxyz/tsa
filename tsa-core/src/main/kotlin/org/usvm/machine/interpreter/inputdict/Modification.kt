@@ -35,28 +35,27 @@ fun List<Modification>.createKeyCondition(
 
 fun List<Modification>.foldOnSymbols(
     ctx: TvmContext,
-    base: List<GuardedKeySymbol>,
-): List<GuardedKeySymbol> =
+    base: List<GuardedKeyType>,
+): List<GuardedKeyType> =
     with(ctx) {
         val (head, tail) = splitHeadTail() ?: return base
         val tailSymbols = tail.getExplicitlyStoredKeys(ctx)
         return when (head) {
             is Modification.Store ->
                 tailSymbols.map { (keySymbol, cond) ->
-                    GuardedKeySymbol(
+                    GuardedKeyType(
                         keySymbol,
                         cond or (keySymbol.expr eq head.key.expr),
                     )
                 } +
-                    GuardedKeySymbol(head.key, trueExpr)
+                    GuardedKeyType(head.key, trueExpr)
 
             is Modification.Remove ->
                 tailSymbols.map { (symbol, condition) ->
-                    GuardedKeySymbol(symbol, condition and (symbol.expr neq head.key.expr))
+                    GuardedKeyType(symbol, condition and (symbol.expr neq head.key.expr))
                 }
         }
     }
 
 /** @return keys that were explicitly added to the dictionary */
-fun List<Modification>.getExplicitlyStoredKeys(ctx: TvmContext): List<GuardedKeySymbol> =
-    foldOnSymbols(ctx, emptyList())
+fun List<Modification>.getExplicitlyStoredKeys(ctx: TvmContext): List<GuardedKeyType> = foldOnSymbols(ctx, emptyList())

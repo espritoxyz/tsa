@@ -1682,6 +1682,7 @@ class TvmDictOperationInterpreter(
         val dicts = flattenReferenceIte(dictCellRef, extractAllocated = true)
         val actions = dicts.map { (cond, dict) -> TvmStepScopeManager.ActionOnCondition({}, false, cond, dict) }
         if (dicts.size == 1) {
+            // avoid forking in this case
             doDictGetImpl(
                 scope,
                 this@with,
@@ -1828,7 +1829,7 @@ class TvmDictOperationInterpreter(
         }
         if (isInput) {
             if (getOldValue) {
-                error("unsupported getting old value in input dicts `delete` operation")
+                TODO("unsupported getting old value in input dicts `delete` operation")
             }
             val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
             val dictOriginalConcrete =
@@ -1972,7 +1973,7 @@ class TvmDictOperationInterpreter(
         if (isInput) {
             val dictOriginalConcrete =
                 dictCellRef as? UConcreteHeapRef
-                    ?: error("ite refs are not supported yet")
+                    ?: TODO("ite refs are not supported yet")
             val (inputDict, rootInputDictInfo) =
                 scope.calcOnState {
                     readInputDictionary(dictOriginalConcrete, keySort, keyKind)
@@ -2194,7 +2195,7 @@ class TvmDictOperationInterpreter(
         if (isInput) {
             val dictConcreteRef =
                 dictCellRef as? UConcreteHeapRef
-                    ?: error("unsupported")
+                    ?: TODO("not concrete refs are not supported yet")
             val (inputDict, rootInputDictInfo) =
                 scope.calcOnState {
                     readInputDictionary(dictConcreteRef, keySort, keyKind)
@@ -2245,9 +2246,6 @@ class TvmDictOperationInterpreter(
             return
         }
 
-        if (dictCellRef is UConcreteHeapRef) {
-            println("here!")
-        }
         val storedKeys =
             scope.calcOnStateCtx {
                 allSetEntries.entries.map { entry ->

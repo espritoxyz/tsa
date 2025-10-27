@@ -45,10 +45,10 @@ data class KeyType(
     val expr: K,
     val kind: DictKeyKind,
 ) {
-    fun toExtendedKey(ctx: TvmContext) = ctx.extendDictKey(expr, kind)
+    fun toExtendedKey(ctx: TvmContext): KExtended = ctx.extendDictKey(expr, kind)
 }
 
-data class GuardedKeySymbol(
+data class GuardedKeyType(
     val symbol: KeyType,
     val guard: UBoolExpr,
 )
