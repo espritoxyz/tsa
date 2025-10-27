@@ -188,7 +188,6 @@ private fun writeCoveredInstructions(
     writeCoveredInstructions(analysisOptions, insts)
 }
 
-
 private fun writeCoveredInstructions(
     analysisOptions: AnalysisOptions,
     insts: List<TvmInst>,
@@ -299,14 +298,15 @@ private fun performAnalysisInterContract(
             )
         }
 
-    val result = analyzeInterContract(
-        contracts,
-        startContractId = startContractId,
-        methodId = methodId,
-        options = options,
-        inputInfo = inputInfo,
-        concreteContractData = concreteContractData,
-    )
+    val result =
+        analyzeInterContract(
+            contracts,
+            startContractId = startContractId,
+            methodId = methodId,
+            options = options,
+            inputInfo = inputInfo,
+            concreteContractData = concreteContractData,
+        )
 
     writeCoveredInstructions(analysisOptions, result)
 
@@ -495,7 +495,6 @@ class CheckerAnalysis :
         name = "custom-checker",
         help = "Options for using custom checkers",
     ) {
-
     private val fiftOptions by FiftOptions()
     private val tactOptions by TactOptions()
 
