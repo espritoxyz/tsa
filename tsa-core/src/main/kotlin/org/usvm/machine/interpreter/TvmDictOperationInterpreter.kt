@@ -1831,10 +1831,13 @@ class TvmDictOperationInterpreter(
                 error("unsupported getting old value in input dicts `delete` operation")
             }
             val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
-            val dictConcreteRef =
+            val dictOriginalConcrete =
                 dictCellRef as? UConcreteHeapRef
                     ?: error("unsupported")
-            val (baseInputDit, rootInfo) = scope.calcOnState { readInputDictionary(dictConcreteRef, keySort, keyKind) }
+            val (baseInputDit, rootInfo) =
+                scope.calcOnState {
+                    readInputDictionary(dictOriginalConcrete, keySort, keyKind)
+                }
             val (c1, exists) =
                 scope.calcOnState {
                     Pair(
@@ -1852,8 +1855,15 @@ class TvmDictOperationInterpreter(
                     rootInputDictId = baseInputDit.rootInputDictId,
                 )
             scope.calcOnStateCtx {
-                val dictKeyLength = memory.readField(dictConcreteRef, dictKeyLengthField, sizeSort)
+                val dictKeyLength = memory.readField(dictOriginalConcrete, dictKeyLengthField, sizeSort)
                 memory.writeField(resultDict, dictKeyLengthField, sizeSort, dictKeyLength, guard = trueExpr)
+                val dictValueRegionId = TvmDictValueRegionId(dictId, keySort)
+                val dictValueRegion = memory.dictValueRegion(dictValueRegionId)
+                val updatedValues =
+                    dictValueRegion
+                        .copyRefValues(dictOriginalConcrete, resultDict)
+                memory.setRegion(dictValueRegionId, updatedValues)
+
                 inputDictionaryStorage =
                     inputDictionaryStorage.set(resultDict, newInputDict, dictHasKey.updatedRootInfo)
                 addOnStack(resultDict, TvmCellType)
