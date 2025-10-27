@@ -27,6 +27,7 @@ import com.github.ajalt.clikt.parameters.types.path
 import io.ksmt.utils.uncheckedCast
 import org.ton.boc.BagOfCells
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmRealInst
 import org.ton.sarif.toSarifReport
 import org.ton.test.gen.dsl.render.TsRenderer
@@ -158,27 +159,51 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
 
     val coveredInstructionsListPath by option("--covered-instructions-list")
         .path()
-        .help("TODO")
+        .help("File to write covered TVM instructions (in hash+offset format).")
 }
 
 private fun writeCoveredInstructions(
     analysisOptions: AnalysisOptions,
     result: TvmContractSymbolicTestResult,
 ) {
+    val insts =
+        result.flatMap { tests ->
+            tests.flatMap {
+                it.coveredInstructions
+            }
+        }
+
+    writeCoveredInstructions(analysisOptions, insts)
+}
+
+private fun writeCoveredInstructions(
+    analysisOptions: AnalysisOptions,
+    tests: TvmSymbolicTestSuite,
+) {
+    val insts =
+        tests.flatMap {
+            it.coveredInstructions
+        }
+
+    writeCoveredInstructions(analysisOptions, insts)
+}
+
+
+private fun writeCoveredInstructions(
+    analysisOptions: AnalysisOptions,
+    insts: List<TvmInst>,
+) {
     val path =
         analysisOptions.coveredInstructionsListPath
             ?: return
 
     val lines =
-        result.flatMap { tests ->
-            tests.flatMap {
-                it.coveredInstructions.mapNotNull { inst ->
-                    (inst as? TvmRealInst)?.physicalLocation?.let { loc ->
-                        "${loc.cellHashHex} ${loc.offset}"
-                    }
-                }
+        insts.mapNotNull { inst ->
+            (inst as? TvmRealInst)?.physicalLocation?.let { loc ->
+                "${loc.cellHashHex} ${loc.offset}"
             }
         }
+
     val text = lines.toSet().joinToString("\n")
     path.writeText(text)
 }
@@ -274,7 +299,7 @@ private fun performAnalysisInterContract(
             )
         }
 
-    return analyzeInterContract(
+    val result = analyzeInterContract(
         contracts,
         startContractId = startContractId,
         methodId = methodId,
@@ -282,6 +307,10 @@ private fun performAnalysisInterContract(
         inputInfo = inputInfo,
         concreteContractData = concreteContractData,
     )
+
+    writeCoveredInstructions(analysisOptions, result)
+
+    return result
 }
 
 class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test generation for FunC projects") {
@@ -466,6 +495,7 @@ class CheckerAnalysis :
         name = "custom-checker",
         help = "Options for using custom checkers",
     ) {
+
     private val fiftOptions by FiftOptions()
     private val tactOptions by TactOptions()
 
