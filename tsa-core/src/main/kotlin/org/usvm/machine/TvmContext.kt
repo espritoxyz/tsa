@@ -43,6 +43,7 @@ import org.usvm.UComponents
 import org.usvm.UConcreteHeapRef
 import org.usvm.UContext
 import org.usvm.UExpr
+import org.usvm.UIteExpr
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellOverflowError
@@ -289,6 +290,13 @@ class TvmContext(
             )
         }
 
+        if (value is KBvConcatExpr && low.toUInt() >= value.arg1.sort.sizeBits) {
+            val sub =
+                value.arg1.sort.sizeBits
+                    .toInt()
+            return mkBvExtractExpr(high = high - sub, low = low - sub, value.arg0)
+        }
+
         return super.mkBvExtractExpr(high, low, value)
     }
 
@@ -390,6 +398,38 @@ class TvmContext(
         trueBranch: KExpr<T>,
         falseBranch: KExpr<T>,
     ): KExpr<T> = tvmSimplifyIte(condition, trueBranch, falseBranch)
+
+    override fun <T : KSort> mkEq(
+        lhs: KExpr<T>,
+        rhs: KExpr<T>,
+        order: Boolean,
+    ): KExpr<KBoolSort> {
+        if (rhs is UIteExpr &&
+            rhs.trueBranch != rhs.falseBranch &&
+            rhs.trueBranch is KInterpretedValue &&
+            rhs.falseBranch is KInterpretedValue
+        ) {
+            if (rhs.trueBranch == lhs) {
+                return rhs.condition
+            }
+            if (rhs.falseBranch == lhs) {
+                return rhs.condition.not()
+            }
+        }
+        if (lhs is UIteExpr &&
+            lhs.trueBranch != lhs.falseBranch &&
+            lhs.trueBranch is KInterpretedValue &&
+            lhs.falseBranch is KInterpretedValue
+        ) {
+            if (lhs.trueBranch == rhs) {
+                return lhs.condition
+            }
+            if (lhs.falseBranch == rhs) {
+                return lhs.condition.not()
+            }
+        }
+        return super.mkEq(lhs, rhs, order)
+    }
 
     companion object {
         const val MAX_DATA_LENGTH: Int = 1023

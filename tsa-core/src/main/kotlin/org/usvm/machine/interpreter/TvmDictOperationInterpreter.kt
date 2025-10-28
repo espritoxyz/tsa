@@ -139,6 +139,7 @@ import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.collection.set.primitive.USetEntryLValue
 import org.usvm.collection.set.primitive.setEntries
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmCellDataSort
@@ -2030,6 +2031,23 @@ class TvmDictOperationInterpreter(
         dict: UHeapRef,
         dictId: DictId,
     ): Unit? {
+        val entries =
+            scope.calcOnStateCtx {
+                val keySort = mkBvSort(dictId.keyLength.toUInt())
+                memory.setEntries(dict, dictId, keySort, DictKeyInfo).entries
+            }
+        val definitelyNotEmpty =
+            entries.any { entry ->
+                val contains =
+                    scope.calcOnStateCtx {
+                        dictContainsKey(dict, dictId, entry.setElement)
+                    }
+                contains.isTrue
+            }
+        if (definitelyNotEmpty) {
+            return Unit
+        }
+
         val constraint =
             scope.calcOnStateCtx {
                 val symbolicKey = makeSymbolicPrimitive(mkBvSort(dictId.keyLength.toUInt()))
