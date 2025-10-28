@@ -290,6 +290,13 @@ class TvmContext(
             )
         }
 
+        if (value is KBvConcatExpr && low.toUInt() >= value.arg1.sort.sizeBits) {
+            val sub =
+                value.arg1.sort.sizeBits
+                    .toInt()
+            return mkBvExtractExpr(high = high - sub, low = low - sub, value.arg0)
+        }
+
         return super.mkBvExtractExpr(high, low, value)
     }
 
