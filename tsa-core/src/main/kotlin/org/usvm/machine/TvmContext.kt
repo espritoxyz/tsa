@@ -3,8 +3,10 @@ package org.usvm.machine
 import io.ksmt.KAst
 import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KBvAddExpr
 import io.ksmt.expr.KBvConcatExpr
 import io.ksmt.expr.KBvLogicalShiftRightExpr
+import io.ksmt.expr.KBvNegationExpr
 import io.ksmt.expr.KBvShiftLeftExpr
 import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
@@ -44,6 +46,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.UIteExpr
+import org.usvm.isTrue
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellOverflowError
@@ -59,12 +62,14 @@ import org.usvm.machine.state.TvmTypeCheckError
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
 import org.usvm.machine.state.setFailure
+import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.memory.stack.BadSizeContext
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
+import org.usvm.util.log2
 import java.math.BigInteger
 
 // TODO: There is no size sort in TVM because of absence of arrays, but we need to represent cell data as boolean arrays
@@ -431,6 +436,16 @@ class TvmContext(
         return super.mkEq(lhs, rhs, order)
     }
 
+    override fun <T : KBvSort> mkBvSubExpr(arg0: KExpr<T>, arg1: KExpr<T>): KExpr<T> {
+        if (arg0 is KBvAddExpr && arg0.arg1 == arg1) {
+            return arg0.arg0
+        }
+        if (arg0 is KBvAddExpr && arg0.arg0 == arg1) {
+            return arg0.arg1
+        }
+        return super.mkBvSubExpr(arg0, arg1)
+    }
+
     companion object {
         const val MAX_DATA_LENGTH: Int = 1023
         const val MAX_REFS_NUMBER: Int = 4
@@ -475,7 +490,9 @@ class TvmContext(
         const val MIN_MESSAGE_CURRENCY: Long = 100_000_000
 
         // Maximum incoming message value/balance in nanotons
-        val MAX_MESSAGE_CURRENCY: BigInteger = BigInteger.TEN.pow(20)
+        val MAX_MESSAGE_CURRENCY: BigInteger = BigInteger.TEN.pow(19)
+
+        const val BITS_FOR_BALANCE = 64u
 
         val RECEIVE_INTERNAL_ID: MethodId = 0.toMethodId()
         val RECEIVE_EXTERNAL_ID: MethodId = (-1).toMethodId()
@@ -494,6 +511,12 @@ class TvmContext(
         val stdMsgAddrSize = ADDRESS_TAG_LENGTH + 1 + STD_WORKCHAIN_BITS + ADDRESS_BITS
 
         fun KContext.tctx(): TvmContext = this as TvmContext
+    }
+
+    init {
+        check(unsignedIntegerFitsBits(MAX_MESSAGE_CURRENCY.toBv257(), BITS_FOR_BALANCE).isTrue) {
+            "BITS_FOR_BALANCE is too small"
+        }
     }
 
     class TvmInt257Sort(

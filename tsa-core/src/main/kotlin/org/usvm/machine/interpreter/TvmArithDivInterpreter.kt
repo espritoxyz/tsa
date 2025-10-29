@@ -1159,26 +1159,21 @@ data class DivResult<S : UBvSort>(
     val noOverflow: UBoolExpr,
 )
 
-// shorter version, but unfortunately overflows in a test: mkBvSignedDivExpr(mkBvSubExpr(x, makeMod(x, y)), y)
 fun <S : UBvSort> TvmContext.makeDiv(
     x: UExpr<S>,
     y: UExpr<S>,
 ): DivResult<S> {
-    val zero = zeroValue.signExtendToSort(x.sort)
-    val minusOne = minusOneValue.signExtendToSort(x.sort)
-
-    val isNegative = mkBvSignedLessExpr(x, zero) xor mkBvSignedLessExpr(y, zero)
-    val computedDiv = mkBvSignedDivExpr(x, y)
-    val computedMod = mkBvSignedModExpr(x, y)
-    val needToCorrect = isNegative and (computedMod neq zero)
     val noOverflow = mkBvDivNoOverflowExpr(x, y) // only one case: MIN_VALUE / MINUS_ONE
 
-    val result =
-        mkIte(
-            needToCorrect,
-            trueBranch = { mkBvAddExpr(computedDiv, minusOne) },
-            falseBranch = { computedDiv },
-        )
+    val extendedSort = mkBvSort(x.sort.sizeBits + 1u)
+    val xExtended = x.signExtendToSort(extendedSort)
+    val yExtended = y.signExtendToSort(extendedSort)
+
+    val resultExtended =
+        mkBvSignedDivExpr(mkBvSubExpr(xExtended, makeMod(xExtended, yExtended)), yExtended)
+
+    val result = resultExtended.extractToSort(x.sort)
+
     return DivResult(result, noOverflow)
 }
 
