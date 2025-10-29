@@ -24,7 +24,7 @@ import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.mkSizeExpr
 
 sealed class ReceiverInput(
-    protected val receiverContractId: ContractId,
+    private val receiverContractId: ContractId,
     private val concreteGeneralData: TvmConcreteGeneralData,
     state: TvmState,
 ) : TvmInput {
@@ -39,19 +39,13 @@ sealed class ReceiverInput(
     val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_lt:uint64
     val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32
 
-    val contractAddressCell: UConcreteHeapRef by lazy {
+    private val contractAddressCell: UConcreteHeapRef by lazy {
         state.getContractInfoParamOf(ADDRESS_PARAMETER_IDX, receiverContractId).cellValue as? UConcreteHeapRef
             ?: error("Cannot extract contract address")
     }
 
     val contractAddressSlice: UConcreteHeapRef by lazy {
         state.allocSliceFromCell(contractAddressCell)
-    }
-
-    val srcAddressCell: UConcreteHeapRef? by lazy {
-        srcAddressSlice?.let {
-            state.memory.readField(it, sliceCellField, state.ctx.addressSort) as UConcreteHeapRef
-        }
     }
 
     val addressSlices: List<UConcreteHeapRef> by lazy {
