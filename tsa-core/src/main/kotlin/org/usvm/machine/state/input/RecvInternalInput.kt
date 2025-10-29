@@ -33,9 +33,10 @@ class RecvInternalInput(
     concreteGeneralData: TvmConcreteGeneralData,
     receiverContractId: ContractId,
 ) : ReceiverInput(receiverContractId, concreteGeneralData, state) {
-    override val msgValue = with(state.ctx) {
-        state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE)).zeroExtendToSort(int257sort)
-    }
+    override val msgValue =
+        with(state.ctx) {
+            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE)).zeroExtendToSort(int257sort)
+        }
 
     override val srcAddressSlice =
         if (concreteGeneralData.initialSenderBits == null) {

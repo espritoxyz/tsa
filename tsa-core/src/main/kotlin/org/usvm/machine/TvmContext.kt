@@ -6,7 +6,6 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvAddExpr
 import io.ksmt.expr.KBvConcatExpr
 import io.ksmt.expr.KBvLogicalShiftRightExpr
-import io.ksmt.expr.KBvNegationExpr
 import io.ksmt.expr.KBvShiftLeftExpr
 import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
@@ -69,7 +68,6 @@ import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.memory.stack.BadSizeContext
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
-import org.usvm.util.log2
 import java.math.BigInteger
 
 // TODO: There is no size sort in TVM because of absence of arrays, but we need to represent cell data as boolean arrays
@@ -436,7 +434,10 @@ class TvmContext(
         return super.mkEq(lhs, rhs, order)
     }
 
-    override fun <T : KBvSort> mkBvSubExpr(arg0: KExpr<T>, arg1: KExpr<T>): KExpr<T> {
+    override fun <T : KBvSort> mkBvSubExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<T> {
         if (arg0 is KBvAddExpr && arg0.arg1 == arg1) {
             return arg0.arg0
         }
