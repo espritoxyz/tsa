@@ -1,0 +1,27 @@
+#include "../../../imports/stdlib.fc";
+
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    (int key1, _, int found1) = init_dict.udict_get_min?(64);
+    throw_unless(300, found1);
+    (_, _, int found2) = init_dict.udict_get_next?(64, key1);
+    throw_unless(301, ~ found2);
+    throw_unless(302, key1 != 5);
+
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell set_dict = udict_set(init_dict, 64, 5, empty_slice);
+
+    (int key_a, _, int found_a) = set_dict.udict_get_min?(64);
+    throw_unless(400, found_a);
+    (int key_b, _, int found_b) = set_dict.udict_get_next?(64, key_a);
+    throw_unless(401, found_b);
+    (_, _, int found_c) = set_dict.udict_get_next?(64, key_b);
+    throw_unless(403, ~ found_c);
+    throw(500);
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

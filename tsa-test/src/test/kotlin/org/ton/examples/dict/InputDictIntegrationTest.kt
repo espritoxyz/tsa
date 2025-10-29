@@ -10,6 +10,7 @@ class InputDictIntegrationTest {
     private val setDeleteTests = "/dict/input-dict/set-delete"
     private val queryTests = "/dict/input-dict/queries"
     private val minMaxDelete = "/dict/input-dict/min-max-delete"
+    private val complex = "/dict/input-dict/complex"
 
     @TestFactory
     fun `all dictionary tests`(): List<DynamicTest> = runTestsInDirectory(allTests)
@@ -26,7 +27,11 @@ class InputDictIntegrationTest {
     @TestFactory
     fun `min-max-delete tests`(): List<DynamicTest> = runTestsInDirectory(minMaxDelete)
 
-    //    @Disabled
+//    @Disabled
+    @TestFactory
+    fun `complex tests`(): List<DynamicTest> = runTestsInDirectory(complex)
+
+    @Disabled
     @TestFactory
     fun runSingleTest() =
         DynamicTest.dynamicTest("runSingleTest") {
