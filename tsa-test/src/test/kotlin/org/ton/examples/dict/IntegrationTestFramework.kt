@@ -17,8 +17,11 @@ import java.io.File
  * (and we expect to find them in some test)
  */
 
-fun defaultTest(file: File) {
-    logger.info("Executing test ${file.name}")
+fun runTestsInFileDefault(
+    file: File,
+    testName: String,
+) {
+    logger.info("Executing test \"$testName\"")
     val content = file.readText()
     val throwRegex = Regex("""\b(?:throw|throw_unless|throw_if)\(\s*(?<code>\d{3})""")
     val foundCodes = throwRegex.findAll(content).map { it.groups["code"]!!.value.toInt() }.toList()
@@ -28,7 +31,7 @@ fun defaultTest(file: File) {
     logger.info("Assumption error codes: $assumes")
     logger.info("Assertion error codes: $asserts")
     logger.info("Successful execution error codes: $success")
-    val tests = funcCompileAndAnalyzeSpecificMethod(file.toPath(), methodId = 1.toMethodId())
+    val tests = funcCompileAndAnalyzeSpecificMethod(file.toPath(), methodId = 0.toMethodId())
     val exitCodes = tests.map { it.executionCode() }
     logger.info("Found exit codes: $exitCodes")
     for (exitCode in assumes + success) {
@@ -48,7 +51,7 @@ fun defaultTest(file: File) {
 }
 
 /**
- * For the semantics of the integration test, see [defaultTest].
+ * For the semantics of the integration test, see [runTestsInFileDefault].
  *
  * Beware --- if the resulted directory is empty, the list returned by this function will be empty
  * and Gradle will not see the required tests and report an error.
@@ -65,6 +68,6 @@ fun runTestsInDirectory(resourceDirectory: String): List<DynamicTest> {
     return files
         .map { file ->
             val name = file.toRelativeString(basePath.toFile())
-            DynamicTest.dynamicTest(name) { defaultTest(file) }
+            DynamicTest.dynamicTest(name) { runTestsInFileDefault(file, name) }
         }
 }

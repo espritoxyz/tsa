@@ -564,9 +564,10 @@ class TvmTestStateResolver(
                         null
                     }
                 }
+        val resultEntriesNoRepeat = resultEntries.toSet().toMap()
         return TvmTestDictCellValue(
             keyLength,
-            resultEntries.toMap(),
+            resultEntriesNoRepeat,
         ).also { resolvedCache[modelRef.address] = it }
     }
 

@@ -26,11 +26,13 @@ class InputDictIntegrationTest {
     @TestFactory
     fun `min-max-delete tests`(): List<DynamicTest> = runTestsInDirectory(minMaxDelete)
 
-    @Disabled
+    //    @Disabled
     @TestFactory
     fun runSingleTest() =
         DynamicTest.dynamicTest("runSingleTest") {
-            val test = "/dict/input-dict/set-delete/delete-does-not-override-other-keys.fc"
-            defaultTest(extractResource(test).toFile())
+            val baseFolder = "/dict/input-dict/"
+            val testName = "queries/get-max-returns-max-reordered.fc"
+            val test = baseFolder + testName
+            runTestsInFileDefault(extractResource(test).toFile(), testName)
         }
 }

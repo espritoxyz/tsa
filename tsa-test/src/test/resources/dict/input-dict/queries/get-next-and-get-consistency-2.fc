@@ -1,9 +1,5 @@
 #include "../../../imports/stdlib.fc";
 
-() main() {
-    return ();
-}
-
 () test(slice in_msg) impure method_id (1) {
     cell init_dict = in_msg~load_dict();
     (slice some_value, int found1) = init_dict.udict_get?(64, 1);
@@ -13,4 +9,9 @@
     throw_if(401, ~ some_key == 0);
     throw_if(402, ~ slice_hash(some_value) != ~ slice_hash(another_value));
     throw(500); ;; successfull execution
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
 }

@@ -1,9 +1,5 @@
 #include "../../../imports/stdlib.fc";
 
-() main() {
-    return ();
-}
-
 () test(slice in_msg) impure method_id (1) {
     cell init_dict = in_msg~load_dict();
     (_, int found) = init_dict.udict_get?(64, 37);
@@ -14,4 +10,9 @@
     (_, int found2) = set_dict.udict_get?(64, 37);
     throw_unless(401, ~ found2);
     throw(500); ;; successfull execution
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
 }

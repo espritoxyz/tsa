@@ -1,9 +1,5 @@
 #include "../../../imports/stdlib.fc";
 
-() main() {
-    return ();
-}
-
 () test(slice in_msg, int lower_bound) impure method_id (1) {
     cell init_dict = in_msg~load_dict();
     (int some_key, _, int found1) = init_dict.udict_get_next?(64, lower_bound);
@@ -12,4 +8,10 @@
     throw_if(400, ~ found2);
     throw_if(401, max_key < some_key);
     throw(500);
+}
+
+() main(slice in_msg) {
+    int lower_bound = in_msg~load_int(64);
+    test(in_msg, lower_bound);
+    return ();
 }

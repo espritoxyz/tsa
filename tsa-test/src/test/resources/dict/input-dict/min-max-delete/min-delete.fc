@@ -1,8 +1,5 @@
 #include "../../../imports/stdlib.fc";
 
-() main() {
-    return ();
-}
 
 () test(slice in_msg) impure method_id (1) {
     cell init_dict = in_msg~load_dict();
@@ -16,4 +13,9 @@
     (_, _, int found3) = dict'.udict_get_prev?(64, second);
     throw_unless(402, ~ found3); ;; deleted the minimum
     throw(500);
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
 }

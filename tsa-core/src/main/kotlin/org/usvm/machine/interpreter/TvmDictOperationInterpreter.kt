@@ -1513,6 +1513,9 @@ class TvmDictOperationInterpreter(
             if (getOldValue) {
                 error("unsupported getting old value in input dicts `set` operation")
             }
+            if (mode != DictSetMode.SET) {
+                error("unsupported mode")
+            }
             val dictOriginalConcrete =
                 dictCellRef as? UConcreteHeapRef
                     ?: error("unsupported")
@@ -1856,7 +1859,8 @@ class TvmDictOperationInterpreter(
                 copyInputDict(dictOriginalConcrete, resultDict, dictId, keySort)
 
                 inputDictionaryStorage =
-                    inputDictionaryStorage.set(resultDict, newInputDict, dictHasKey.updatedRootInfo)
+                    inputDictionaryStorage
+                        .set(resultDict, newInputDict, dictHasKey.updatedRootInfo)
             }
             val oldValue = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
             val unwrappedValue =
@@ -2378,6 +2382,7 @@ class TvmDictOperationInterpreter(
                 val symbol = makeFreshKeyConstant(dictKeySort, dictKeyKind)
                 InputDictRootInformation(symbols = persistentSetOf(symbol))
             }
+        inputDictionaryStorage = inputDictionaryStorage.set(dictConcreteRef, inputDict, rootInputDictInfo)
         return Pair(inputDict, rootInputDictInfo)
     }
 

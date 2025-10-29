@@ -1,9 +1,5 @@
 #include "../../../imports/stdlib.fc";
 
-() main() {
-    return ();
-}
-
 () test(slice in_msg) impure method_id (1) {
     cell init_dict = in_msg~load_dict();
     (int i1, _, int found1) = init_dict.udict_get_prev?(64, 1);
@@ -12,4 +8,9 @@
     throw_if(400, ~ found2);
     throw_if(401, found1 & found2 & i1 != i2);
     throw(500);
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
 }
