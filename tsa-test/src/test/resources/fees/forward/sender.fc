@@ -1,0 +1,164 @@
+#include "../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+
+    cell simpleMsgBody = begin_cell()
+        .store_uint(0, 6) ;; some bits
+        .end_cell();
+
+    int op = msg_body~load_uint(32);
+    if (op == 100) {
+        ;; send a simple message without state init and with inplace message body
+        slice MsgBody = begin_cell()
+        .store_uint(0, 10) ;; flag for checker
+        .end_cell()
+        .begin_parse();
+
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_slice(MsgBody)
+        .end_cell();    
+
+        send_raw_message(msg, 0); ;; the fwd_fee will be just the lump_price = 400000 nanoTons
+
+        return();
+    } else if (op == 300) {
+        ;; send a message with state init as a reference and with inplace message body
+        slice MsgBody = begin_cell()
+        .store_uint(1, 10) ;; flag for checker
+        .end_cell()
+        .begin_parse();
+
+        cell code = begin_cell()
+            .store_uint(1, 2)
+            .end_cell();
+        cell data = begin_cell()
+            .store_uint(0, 2)
+            .end_cell();
+        ;; forming state init structure
+        cell stateInit = begin_cell()
+            .store_uint(1, 3)
+            .store_ref(code)
+            .store_uint(1, 1)
+            .store_ref(data)
+            .store_uint(0, 1)
+            .end_cell();
+
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(1, 1) ;; there is a stateinit
+        .store_uint(1, 1) ;; we store it as a reference
+        .store_ref(stateInit)
+        .store_uint(0, 1) ;; we store message body inplace
+        .store_slice(MsgBody)
+        .end_cell();
+        
+        send_raw_message(msg, 0); ;; the fwd_fee will be 523600 nanoTons
+
+        return();
+    } else if (op == 400) {
+        ;; send a message without state init and with body as a reference in which we store two identical refs and some bits.
+        cell msgBody = begin_cell()
+            .store_uint(2, 10) ;; flag for checker
+            .store_ref(simpleMsgBody)
+            .store_ref(simpleMsgBody)
+            .end_cell();
+
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_ref(msgBody)
+        .end_cell();    
+
+        send_raw_message(msg, 0); ;; the fwd_fee will be 486400 nanoTons
+
+        return();
+    } else if (op == 500) {
+        ;; send a message with state init and body as references in which we store identical refs and some bits.
+        ;; dedupllication data should unique for both state init and message body
+        cell msgBody = begin_cell()
+            .store_uint(3, 10) ;; flag for checker
+            .store_ref(simpleMsgBody)
+            .store_ref(simpleMsgBody)
+            .end_cell();
+
+        cell code = begin_cell()
+            .store_uint(1, 4)
+            .store_ref(simpleMsgBody) 
+            .end_cell();
+        cell data = begin_cell()
+            .store_uint(0, 2)
+            .end_cell();
+        ;; forming state init structure
+        cell stateInit = begin_cell()
+            .store_uint(1, 3)
+            .store_ref(code)
+            .store_uint(1, 1)
+            .store_ref(data)
+            .store_uint(0, 1)
+            .end_cell();
+
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(1, 1) ;; there is a stateinit
+        .store_uint(1, 1) ;; we store it as a reference
+        .store_ref(stateInit)
+        .store_uint(1, 1) ;; we store message as a reference
+        .store_ref(msgBody)
+        .end_cell();
+        
+        send_raw_message(msg, 0); ;; the fwd_fee will be 610800 nanoTons
+
+        return();
+    } else if (op == 600) {
+        cell cellB = begin_cell()
+            .store_uint(0, 6)
+            .end_cell();
+        cell cellD = begin_cell()
+            .store_uint(1, 6)
+            .end_cell();
+        cell cellA = begin_cell()
+            .store_uint(2, 6)
+            .store_ref(cellB)
+            .end_cell();
+        cell cellC = begin_cell()
+            .store_uint(3, 6)
+            .store_ref(cellA)
+            .store_ref(cellD)
+            .end_cell();
+        cell msgBody = begin_cell()
+            .store_uint(4, 10) ;; flag for checker
+            .store_ref(cellC)
+            .store_ref(cellA)
+            .store_ref(cellD)
+            .end_cell();
+
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(1, 1) ;; there is a stateinit
+        .store_uint(1, 1) ;; we store it as a reference
+        .store_ref(stateInit)
+        .store_uint(1, 1) ;; we store message as a reference
+        .store_ref(msgBody)
+        .end_cell();
+        
+        send_raw_message(msg, 0); ;; the fwd_fee will be 613600 nanoTons
+
+        return();
+    }
+}
+    

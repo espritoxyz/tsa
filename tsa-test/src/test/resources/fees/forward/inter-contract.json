@@ -1,0 +1,31 @@
+[
+  {
+    "id": 1,
+    "handlers": [
+      {
+        "op": "00000064",
+        "destinations": [2]
+      },
+      {
+        "op": "0000012с",
+        "destinations": [2]
+      },
+      {
+        "op": "00000190",
+        "destinations": [2]
+      },
+      {
+        "op": "000001f4",
+        "destinations": [2]
+      },
+      {
+        "op": "00000258",
+        "destinations": [2]
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "handlers": []
+  }
+]
