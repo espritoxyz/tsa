@@ -141,7 +141,7 @@ class StateHistoryGraph : UMachineObserver<TvmState> {
 
     override fun onMachineStopped() {
         logger.debug {
-            print()
+            "\n" + print()
         }
     }
 }
