@@ -13,8 +13,8 @@ internal object TsaSarifSchema {
     internal object TsaSarifTool {
         private val DRIVER =
             ToolComponent(
-                name = "TSA", // TODO what name?
-                organization = "Explyt", // TODO what organization?
+                name = "TSA",
+                organization = "Esprito",
             )
 
         internal val TOOL = Tool(driver = DRIVER)

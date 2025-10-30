@@ -10,6 +10,17 @@
 
     {{ footer_custom }}
 
+    {% if site.footer.links %}
+    <div class="footer-links">
+        {% for link in site.footer.links %}
+        <a href="{{ link.url | relative_url }}" class="footer-link">
+            {{ link.label }}
+        </a>
+        {% unless forloop.last %} • {% endunless %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {% if site.last_edit_timestamp or site.gh_edit_link %}
     <div class="d-flex mt-2">
         {% if site.last_edit_timestamp and site.last_edit_time_format and page.last_modified_date %}

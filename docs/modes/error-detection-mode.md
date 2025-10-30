@@ -654,7 +654,7 @@ produces a SARIF report.
             "tool": {
                 "driver": {
                     "name": "TSA",
-                    "organization": "Explyt"
+                    "organization": "Esprito"
                 }
             }
         }
@@ -859,7 +859,7 @@ identifies the error in the raw SARIF report:
             "tool": {
                 "driver": {
                     "name": "TSA",
-                    "organization": "Explyt"
+                    "organization": "Esprito"
                 }
             }
         }

@@ -6,6 +6,15 @@ domain: tonan.tech       # if you want to force HTTPS, specify the domain withou
 url: https://tonan.tech  # the base hostname and protocol for your site, e.g. http://example.com
 baseurl: /tsa     # place folder name if the site is served in a subfolder
 
+footer:
+  links:
+    - label: "Terms"
+      url: "/terms/"
+    - label: "Privacy Policy"
+      url: "/privacy/"
+    - label: "Disclaimer"
+      url: "/disclaimer/"
+
 markdown: kramdown
 
 plugins:

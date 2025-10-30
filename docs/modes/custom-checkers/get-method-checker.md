@@ -128,7 +128,7 @@ The result of the checker execution is a SARIF report. Here is an example of the
             "tool": {
                 "driver": {
                     "name": "TSA",
-                    "organization": "Explyt"
+                    "organization": "Esprito"
                 }
             }
         }

@@ -337,7 +337,7 @@ The result of the checker execution is a SARIF report that contains the followin
             "tool": {
                 "driver": {
                     "name": "TSA",
-                    "organization": "Explyt"
+                    "organization": "Esprito"
                 }
             }
         }
