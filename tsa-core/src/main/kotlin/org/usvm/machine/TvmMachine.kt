@@ -12,6 +12,8 @@ import org.usvm.UMachineOptions
 import org.usvm.machine.interpreter.TvmInterpreter
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.statistics.StateHistoryGraph
+import org.usvm.machine.statistics.getTvmDebugProfileObserver
 import org.usvm.ps.createPathSelector
 import org.usvm.statistics.ApplicationGraph
 import org.usvm.statistics.CompositeUMachineObserver
@@ -159,6 +161,10 @@ class TvmMachine(
             val code = contractsCode.single()
             val profiler = getTvmDebugProfileObserver(code)
             observers.add(profiler)
+        }
+
+        if (logger.isDebugEnabled) {
+            observers.add(StateHistoryGraph())
         }
 
         run(

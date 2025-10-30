@@ -1,4 +1,4 @@
-package org.usvm.machine
+package org.usvm.machine.statistics
 
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
@@ -14,6 +14,7 @@ import org.ton.bytecode.TvmInstLocation
 import org.ton.bytecode.TvmLambda
 import org.ton.bytecode.TvmMainMethod
 import org.ton.bytecode.TvmMethod
+import org.usvm.machine.getRootLocation
 import org.usvm.machine.state.TvmState
 import org.usvm.statistics.UDebugProfileObserver
 
