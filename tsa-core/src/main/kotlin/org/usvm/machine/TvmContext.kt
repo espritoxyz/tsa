@@ -494,6 +494,7 @@ class TvmContext(
         val MAX_MESSAGE_CURRENCY: BigInteger = BigInteger.TEN.pow(19)
 
         const val BITS_FOR_BALANCE = 64u
+        const val BITS_FOR_UNIX_TIME = 32u
 
         val RECEIVE_INTERNAL_ID: MethodId = 0.toMethodId()
         val RECEIVE_EXTERNAL_ID: MethodId = (-1).toMethodId()
@@ -517,6 +518,9 @@ class TvmContext(
     init {
         check(unsignedIntegerFitsBits(MAX_MESSAGE_CURRENCY.toBv257(), BITS_FOR_BALANCE).isTrue) {
             "BITS_FOR_BALANCE is too small"
+        }
+        check(unsignedIntegerFitsBits(UNIX_TIME_MAX.toBv257(), BITS_FOR_UNIX_TIME).isTrue) {
+            "BITS_FOR_UNIX_TIME is too small"
         }
     }
 
