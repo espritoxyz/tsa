@@ -59,15 +59,4 @@ class ForwardFeesTest {
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 228 },
         )
     }
-
-    private fun createIntercontractOptions(communicationScheme: Map<ContractId, TvmContractHandlers>): TvmOptions =
-        TvmOptions(
-            intercontractOptions =
-                IntercontractOptions(
-                    communicationScheme = communicationScheme,
-                ),
-            turnOnTLBParsingChecks = false,
-            enableOutMessageAnalysis = true,
-            stopOnFirstError = false,
-        )
 }
