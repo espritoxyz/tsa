@@ -41,6 +41,7 @@ import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.getInboundMessageValue
 import org.usvm.machine.state.getSliceRemainingRefsCount
+import org.usvm.machine.state.makeCellToSliceTransaction
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.MessageMode
@@ -754,31 +755,32 @@ class TvmTransactionInterpreter(
     private fun parseAndPreprocessMessageAction(
         scope: TvmStepScopeManager,
         slice: UHeapRef,
-    ): MessageActionParseResult? =
-        with(ctx) {
-            val (_, sendMsgMode) =
-                sliceLoadIntTransaction(scope, slice, 8, false)
-                    ?: return null
-            val msg =
-                scope.slicePreloadNextRef(slice)
-                    ?: return null
-            val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
-
-            val ptr = ParsingState(msgSlice)
-            val (msgFull, msgValue, destination) =
-                parseCommonMsgInfoRelaxed(scope, ptr)
-                    ?: return null
-            parseStateInit(scope, ptr)
+    ): MessageActionParseResult? {
+        val (_, sendMsgMode) =
+            sliceLoadIntTransaction(scope, slice, 8, false)
                 ?: return null
-            val bodySlice =
-                parseBody(scope, ptr)
-                    ?: return null
+        val msg =
+            scope.slicePreloadNextRef(slice)
+                ?: return null
 
-            MessageActionParseResult(
-                MessageAsStackArguments(msgValue, msgFull, bodySlice, destination),
-                sendMsgMode,
-            )
-        }
+        val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
+        makeCellToSliceTransaction(scope, msg, msgSlice) // for further TL-B readings
+
+        val ptr = ParsingState(msgSlice)
+        val (msgFull, msgValue, destination) =
+            parseCommonMsgInfoRelaxed(scope, ptr)
+                ?: return null
+        parseStateInit(scope, ptr)
+            ?: return null
+        val bodySlice =
+            parseBody(scope, ptr)
+                ?: return null
+
+        return MessageActionParseResult(
+            MessageAsStackArguments(msgValue, msgFull, bodySlice, destination),
+            sendMsgMode,
+        )
+    }
 
     private data class CommonMessageInfo(
         val msgFull: UHeapRef,
@@ -818,6 +820,9 @@ class TvmTransactionInterpreter(
                     scope.getCellContractInfoParam(ADDRESS_PARAMETER_IDX)
                         ?: return null
                 val addrSlice = scope.calcOnState { allocSliceFromCell(addrCell) }
+                scope.calcOnState {
+                    dataCellInfoStorage.mapper.addAddressSlice(addrSlice)
+                }
                 builderStoreSliceTransaction(scope, msgFull, addrSlice)
                     ?: return null
 

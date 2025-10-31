@@ -9,6 +9,7 @@ import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.types.TvmSliceType
+import org.usvm.machine.types.makeCellToSlice
 
 fun builderStoreIntTransaction(
     scope: TvmStepScopeManager,
@@ -30,29 +31,44 @@ fun builderStoreSliceTransaction(
     slice: UHeapRef,
 ): Unit? = builderStoreSliceTlb(scope, builder, builder, slice)
 
+fun makeCellToSliceTransaction(
+    scope: TvmStepScopeManager,
+    cell: UHeapRef,
+    slice: UConcreteHeapRef,
+) {
+    val originalStateId = scope.calcOnState { id }
+
+    scope.doNotKillScopeOnDoWithConditions = true
+
+    scope.makeCellToSlice(cell, slice) {
+        validateSliceLoadState(originalStateId)
+    }
+
+    scope.doNotKillScopeOnDoWithConditions = false
+}
+
 fun sliceLoadIntTransaction(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     sizeBits: Int,
     isSigned: Boolean = false,
-): Pair<UHeapRef, UExpr<TvmInt257Sort>>? =
-    scope.doWithCtx {
-        var result: UExpr<TvmInt257Sort>? = null
-        val originalStateId = scope.calcOnState { id }
-        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
+): Pair<UHeapRef, UExpr<TvmInt257Sort>>? {
+    var result: UExpr<TvmInt257Sort>? = null
+    val originalStateId = scope.calcOnState { id }
+    val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
 
-        scope.doNotKillScopeOnDoWithConditions = true
+    scope.doNotKillScopeOnDoWithConditions = true
 
-        sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned) { value ->
-            validateSliceLoadState(originalStateId)
+    sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned) { value ->
+        validateSliceLoadState(originalStateId)
 
-            result = value
-        }
-
-        scope.doNotKillScopeOnDoWithConditions = false
-
-        result?.let { updatedSliceAddress to it }
+        result = value
     }
+
+    scope.doNotKillScopeOnDoWithConditions = false
+
+    return result?.let { updatedSliceAddress to it }
+}
 
 fun sliceLoadAddrTransaction(
     scope: TvmStepScopeManager,
