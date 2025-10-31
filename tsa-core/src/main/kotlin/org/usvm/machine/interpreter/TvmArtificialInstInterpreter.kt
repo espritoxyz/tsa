@@ -179,28 +179,27 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun TvmState.doCallOnComputeExitIfNecessary(stmt: TsaArtificialOnComputePhaseExitInst): Unit? =
-        with(ctx) {
-            if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
-                return null
-            }
-            val correspondingSymbol = computeFeeUsed
-            computeFeeUsed = correspondingSymbol
-            val caleeContract = currentContract
-            val pushArgsOnStack: TvmState.() -> Unit = {
-                with(ctx) {
-                    stack.addInt(correspondingSymbol)
-                    stack.addInt(caleeContract.toBv257())
-                }
-            }
-            val nextInst = TsaArtificialActionPhaseInst(stmt.computePhaseResult, stmt.location)
-            return callCheckerMethodIfExists(
-                ON_COMPUTE_PHASE_EXIT_METHOD_ID.toBigInteger(),
-                nextInst,
-                contractsCode,
-                pushArgsOnStack,
-            )
+    private fun TvmState.doCallOnComputeExitIfNecessary(stmt: TsaArtificialOnComputePhaseExitInst): Unit? {
+        if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
+            return null
         }
+        val correspondingSymbol = computeFeeUsed
+        computeFeeUsed = correspondingSymbol
+        val caleeContract = currentContract
+        val pushArgsOnStack: TvmState.() -> Unit = {
+            with(ctx) {
+                stack.addInt(correspondingSymbol)
+                stack.addInt(caleeContract.toBv257())
+            }
+        }
+        val nextInst = TsaArtificialActionPhaseInst(stmt.computePhaseResult, stmt.location)
+        return callCheckerMethodIfExists(
+            ON_COMPUTE_PHASE_EXIT_METHOD_ID.toBigInteger(),
+            nextInst,
+            contractsCode,
+            pushArgsOnStack,
+        )
+    }
 
     private fun visitOnComputeExitPhase(
         scope: TvmStepScopeManager,
@@ -211,8 +210,9 @@ class TvmArtificialInstInterpreter(
             // `computeFeeUsed` as the state instructions are executed (possibly with some helper
             // structures). When this happends, this comment and the line below must be deleted
             computeFeeUsed = makeSymbolicPrimitive(ctx.int257sort)
-            val shouldNotCall = scope.ctx.tvmOptions.stopOnFirstError && isExceptional
-            if (!shouldNotCall) {
+            val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
+            val shouldNotCallExitHandler = scope.ctx.tvmOptions.stopOnFirstError && isExceptional || isTsaChecker
+            if (!shouldNotCallExitHandler) {
                 val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
                 if (!wasCalled) {
                     newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
@@ -227,6 +227,8 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialActionPhaseInst,
     ) {
+        val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
+
         val commitedState =
             scope.calcOnState {
                 lastCommitedStateOfContracts[currentContract]
@@ -239,7 +241,7 @@ class TvmArtificialInstInterpreter(
         }
 
         val analysisOfGetMethod = scope.calcOnState { analysisOfGetMethod }
-        if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis) {
+        if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis && !isTsaChecker) {
             scope.doWithState {
                 phase = ACTION_PHASE
             }
@@ -282,7 +284,7 @@ class TvmArtificialInstInterpreter(
         addBounceMessageIfNeeded(scope, stmt.computePhaseResult, stmt)
     }
 
-    fun addBounceMessageIfNeeded(
+    private fun addBounceMessageIfNeeded(
         scope: TvmStepScopeManager,
         result: TvmMethodResult,
         stmt: TsaArtificialBouncePhaseInst,
@@ -597,12 +599,14 @@ class TvmArtificialInstInterpreter(
         result: TvmMethodResult,
     ) {
         scope.doWithState {
+            val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
+
             /**
              * if we do not enforce stopping on first error, we should not stop here and instead inspect the
              * contract stack and continue the execution of continuations found there
              */
             val shouldTerminateOfFailure =
-                (ctx.tvmOptions.stopOnFirstError && result is TvmFailure) ||
+                (result is TvmFailure && (ctx.tvmOptions.stopOnFirstError || isTsaChecker)) ||
                     result is TvmAbstractSoftFailure
             if (shouldTerminateOfFailure || contractStack.isEmpty()) {
                 phase = TERMINATED

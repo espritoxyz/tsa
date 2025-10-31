@@ -25,7 +25,6 @@ import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestInput
 import kotlin.io.path.readText
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
@@ -56,6 +55,7 @@ class CheckersTest {
 
     private object OnComputePhaseExitTestData {
         const val CHECKER = "/checkers/on-compute-phase-exit-test/checker.fc"
+        const val CHECKER_FAIL = "/checkers/on-compute-phase-exit-test/checker_fail.fc"
         const val SENDER = "/checkers/on-compute-phase-exit-test/sender.fc"
         const val RECEIVER_NO_THROW = "/checkers/on-compute-phase-exit-test/receiver-nothrow.fc"
         const val RECEIVER_THROW = "/checkers/on-compute-phase-exit-test/receiver-throw.fc"
@@ -229,7 +229,6 @@ class CheckersTest {
         )
     }
 
-    @Ignore("Behavior in on_out_message is invalid")
     @Test
     fun `fail in on_out_message is global`() {
         val checkerContract = extractCheckerContractFromResource(OnOutMessageTestData.CHECKER_FAIL)
@@ -300,6 +299,27 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 400 } },
+        )
+    }
+
+    @Test
+    fun `fail in compute_phase_exit is global`() {
+        val checkerContract = extractCheckerContractFromResource(OnComputePhaseExitTestData.CHECKER_FAIL)
+        val senderContract = extractFuncContractFromResource(OnComputePhaseExitTestData.SENDER)
+        val receiverContract = extractFuncContractFromResource(OnComputePhaseExitTestData.RECEIVER_NO_THROW)
+        val communicationScheme = extractCommunicationSchemeFromResource(OnComputePhaseExitTestData.SCHEME)
+        val options = createIntercontractOptions(communicationScheme)
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract, receiverContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        propertiesFound(
+            tests,
+            listOf { test -> test.result.exitCode() == 300 },
         )
     }
 
