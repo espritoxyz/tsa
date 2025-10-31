@@ -6,8 +6,16 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmMethodFailure
 import kotlin.test.Test
+import kotlin.test.Ignore
+import org.ton.test.utils.extractCheckerContractFromResource
+import org.ton.test.utils.extractCommunicationSchemeFromResource
+import org.ton.test.utils.extractFuncContractFromResource
+import org.usvm.machine.TvmOptions
+import org.usvm.machine.IntercontractOptions
+import org.usvm.machine.state.ContractId
+import org.ton.TvmContractHandlers
 
-class CheckersTest {
+class ForwardFeesTest {
     private val checker = "/fees/forward/checker.fc"
     private val sender = "/fees/forward/sender.fc"
     private val receiver = "/fees/forward/receiver.fc"
@@ -20,7 +28,14 @@ class CheckersTest {
         val analyzedSender = extractFuncContractFromResource(sender)
         val analyzedReceiver = extractFuncContractFromResource(receiver)
         val communicationScheme = extractCommunicationSchemeFromResource(scheme)
-        val options = createIntercontractOptions(scheme)
+
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
 
         val tests =
             analyzeInterContract(
@@ -44,4 +59,15 @@ class CheckersTest {
             listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 228 },
         )
     }
+
+    private fun createIntercontractOptions(communicationScheme: Map<ContractId, TvmContractHandlers>): TvmOptions =
+        TvmOptions(
+            intercontractOptions =
+                IntercontractOptions(
+                    communicationScheme = communicationScheme,
+                ),
+            turnOnTLBParsingChecks = false,
+            enableOutMessageAnalysis = true,
+            stopOnFirstError = false,
+        )
 }
