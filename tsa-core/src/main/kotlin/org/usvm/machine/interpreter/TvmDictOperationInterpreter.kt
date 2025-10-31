@@ -1511,20 +1511,23 @@ class TvmDictOperationInterpreter(
                 }
         if (isInput) {
             if (getOldValue) {
-                error("unsupported getting old value in input dicts `set` operation")
-            }
-            if (mode != DictSetMode.SET) {
-                error("unsupported mode")
+                TODO("unsupported getting old value in input dicts `set` operation")
             }
             val dictOriginalConcrete =
                 dictCellRef as? UConcreteHeapRef
-                    ?: error("unsupported")
-            val (baseInputDit, _) = scope.calcOnState { readInputDictionary(dictOriginalConcrete, keySort, keyKind) }
-            val appliedModification = Modification.Store(KeyType(key, keyKind))
+                    ?: TODO("ites are not supported yet")
+            val (baseInputDict, rootInformation) =
+                scope.calcOnState {
+                    readInputDictionary(dictOriginalConcrete, keySort, keyKind)
+                }
+            val conditionToStore =
+                createStoreCondition(scope, mode, keySort, keyKind, baseInputDict, key, rootInformation)
+                    ?: return
+            val appliedModification = Modification.Store(KeyType(key, keyKind), conditionToStore)
             val newInputDict =
                 InputDict(
-                    modifications = baseInputDit.modifications.add(0, appliedModification),
-                    rootInputDictId = baseInputDit.rootInputDictId,
+                    modifications = baseInputDict.modifications.add(0, appliedModification),
+                    rootInputDictId = baseInputDict.rootInputDictId,
                 )
             scope.calcOnStateCtx {
                 val dictKeyLength = memory.readField(dictOriginalConcrete, dictKeyLengthField, sizeSort)
@@ -1535,11 +1538,15 @@ class TvmDictOperationInterpreter(
                 val updatedValues =
                     dictValueRegion
                         .copyRefValues(dictOriginalConcrete, resultDict)
-                        .writeRefValue(resultDict, key, value.asExpr(ctx.addressSort), guard = ctx.trueExpr)
+                        .writeRefValue(resultDict, key, value.asExpr(ctx.addressSort), guard = conditionToStore)
                 memory.setRegion(dictValueRegionId, updatedValues)
 
                 inputDictionaryStorage = inputDictionaryStorage.set(resultDict, newInputDict)
                 addOnStack(resultDict, TvmCellType)
+                if (mode != DictSetMode.SET) {
+                    val status = ctx.mkIte(conditionToStore, ctx.trueValue, ctx.falseValue)
+                    addOnStack(status, TvmIntegerType)
+                }
                 newStmt(inst.nextStmt())
             }
             return
@@ -1615,6 +1622,41 @@ class TvmDictOperationInterpreter(
             newStmt(inst.nextStmt())
         }
     }
+
+    /**
+     * @return null if scope is dead
+     */
+    private fun createStoreCondition(
+        scope: TvmStepScopeManager,
+        mode: DictSetMode,
+        keySort: KBvSort,
+        keyKind: DictKeyKind,
+        baseInputDict: InputDict,
+        key: UExpr<UBvSort>,
+        rootInformation: InputDictRootInformation,
+    ): UBoolExpr? =
+        with(ctx) {
+            if (mode == DictSetMode.SET) {
+                trueExpr
+            } else {
+                val keyExists = scope.calcOnState { makeSymbolicPrimitive(boolSort) }
+                val freshKeyConst = scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) }
+                val hasKeyResult =
+                    baseInputDict.doDictHasKey(
+                        this,
+                        KeyType(key, keyKind),
+                        rootInformation,
+                        freshKeyConst,
+                        keyExists,
+                    )
+                scope.assert(ctx.mkAnd(hasKeyResult.constraints)) ?: return null
+                if (mode == DictSetMode.REPLACE) {
+                    keyExists
+                } else {
+                    keyExists.not()
+                }
+            }
+        }
 
     private fun TvmState.dictSetResultStack(
         initialDictRef: UHeapRef?,

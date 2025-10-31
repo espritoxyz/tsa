@@ -17,6 +17,7 @@ sealed interface Modification {
 
     data class Store(
         val key: KeyType,
+        val guard: UBoolExpr,
     ) : Modification
 }
 

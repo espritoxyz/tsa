@@ -34,14 +34,14 @@ fun runTestsInFileDefault(
     val tests = funcCompileAndAnalyzeSpecificMethod(file.toPath(), methodId = 0.toMethodId())
     val exitCodes = tests.map { it.executionCode() }
     logger.info("Found exit codes: $exitCodes")
-    for (exitCode in assumes + success) {
-        if (exitCode !in exitCodes) {
-            error("Did not find exit code $exitCode")
-        }
-    }
     for (assert in asserts) {
         if (assert in exitCodes) {
             error("Found exit code $assert")
+        }
+    }
+    for (exitCode in assumes + success) {
+        if (exitCode !in exitCodes) {
+            error("Did not find exit code $exitCode")
         }
     }
     logger.info("Finished symbolic execution of test ${file.name}")
