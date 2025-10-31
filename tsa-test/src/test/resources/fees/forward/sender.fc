@@ -25,7 +25,7 @@
         send_raw_message(msg, 0); ;; the fwd_fee will be just the lump_price = 400000 nanoTons
 
         return();
-    } else if (op == 300) {
+    } elseif (op == 300) {
         ;; send a message with state init as a reference and with inplace message body
         slice MsgBody = begin_cell()
         .store_uint(1, 10) ;; flag for checker
@@ -62,7 +62,7 @@
         send_raw_message(msg, 0); ;; the fwd_fee will be 523600 nanoTons
 
         return();
-    } else if (op == 400) {
+    } elseif (op == 400) {
         ;; send a message without state init and with body as a reference in which we store two identical refs and some bits.
         cell msgBody = begin_cell()
             .store_uint(2, 10) ;; flag for checker
@@ -81,7 +81,7 @@
         send_raw_message(msg, 0); ;; the fwd_fee will be 486400 nanoTons
 
         return();
-    } else if (op == 500) {
+    } elseif (op == 500) {
         ;; send a message with state init and body as references in which we store identical refs and some bits.
         ;; dedupllication data should unique for both state init and message body
         cell msgBody = begin_cell()
@@ -121,7 +121,7 @@
         send_raw_message(msg, 0); ;; the fwd_fee will be 610800 nanoTons
 
         return();
-    } else if (op == 600) {
+    } elseif (op == 600) {
         cell cellB = begin_cell()
             .store_uint(0, 6)
             .end_cell();
@@ -158,4 +158,3 @@
         return();
     }
 }
-    

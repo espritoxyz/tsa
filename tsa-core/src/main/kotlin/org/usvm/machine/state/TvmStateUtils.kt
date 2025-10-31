@@ -639,8 +639,8 @@ fun TvmState.callCheckerMethodIfExists(
             contractsCode,
             this,
             checkerContractId,
-            null,
-            allowInputStackValues = true,
+            newMsgValue = null,
+            allowInputStackValues = false,
         )
 
     isExceptional = false

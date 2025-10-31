@@ -28,7 +28,7 @@ class SendModesTest {
     private val ignoreErrorsContract = "/intercontract/modes/send_ignore_error_flag.fc"
     private val ignoreErrorsChecker = "/intercontract/modes/ignore_error.fc"
     private val ignoreErrorTestScheme = "/intercontract/modes/ignore_error_test_scheme.json"
-    private val recipientBouncePath = "/args/receive_bounce_msg.fc"
+    private val recipientBouncePath = "/bounce/receive_bounce_msg.fc"
     private val sendRemainingValueNotFromCheckerCommunicationScheme =
         "/intercontract/modes/send-remaining-value-with-2nd-scheme.json"
     private val valueChecker = "/intercontract/modes/value_checker.fc"

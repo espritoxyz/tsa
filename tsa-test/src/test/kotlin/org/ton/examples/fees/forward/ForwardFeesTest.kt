@@ -1,4 +1,4 @@
-package org.ton.examples.checkers
+package org.ton.examples.fees.forward
 
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.extractCheckerContractFromResource
