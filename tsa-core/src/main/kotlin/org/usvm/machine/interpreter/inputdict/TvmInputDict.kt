@@ -324,6 +324,12 @@ data class InputDict(
                     acc or (next.guard and (next.symbol.toExtendedKey(ctx) eq result))
                 }
             }
-        return resultInKeys
+        val someConstraintHeld =
+            with(ctx) {
+                storedElements.fold(inputTCs) { acc, next ->
+                    acc or next.guard
+                }
+            }
+        return ctx.mkAnd(resultInKeys, someConstraintHeld)
     }
 }

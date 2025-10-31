@@ -13,7 +13,8 @@ class InputDictIntegrationTest {
     private val complex = "/dict/input-dict/complex"
 
     @TestFactory
-    fun `all dictionary tests`(): List<DynamicTest> = runTestsInDirectory(allTests)
+    fun `all dictionary tests`(): List<DynamicTest> =
+        runTestsInDirectory(allTests, System.getenv("INPUTDICT_TESTS") ?: ".*")
 
     @Disabled
     @TestFactory

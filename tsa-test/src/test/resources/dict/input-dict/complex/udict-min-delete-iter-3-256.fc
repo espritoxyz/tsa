@@ -3,13 +3,13 @@
 
 () test(slice in_msg) impure method_id (1) {
     cell init_dict = in_msg~load_dict();
-    (cell d0, int k0, _, int f0) = init_dict.udict_delete_get_min(256);
+    (int k0, _, int f0) = init_dict~udict::delete_get_min(256);
     throw_unless(300, f0);
-
-    (cell d1, int k1, _, int f1) = d0.udict_delete_get_min(256);
-    throw_unless(301, f1);
+    (int k1, _, _) = init_dict~udict::delete_get_min(256);
+    (int k2, _, _) = init_dict~udict::delete_get_min(256);
 
     throw_unless(400, k0 < k1);
+    throw_unless(401, k1 < k2);
     throw(500);
 }
 

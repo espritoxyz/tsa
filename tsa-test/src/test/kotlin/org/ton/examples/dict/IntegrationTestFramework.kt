@@ -56,7 +56,11 @@ fun runTestsInFileDefault(
  * Beware --- if the resulted directory is empty, the list returned by this function will be empty
  * and Gradle will not see the required tests and report an error.
  */
-fun runTestsInDirectory(resourceDirectory: String): List<DynamicTest> {
+fun runTestsInDirectory(
+    resourceDirectory: String,
+    pattern: String = ".*",
+): List<DynamicTest> {
+    logger.info("Executing tests in $resourceDirectory that match pattern:\n    $pattern")
     val basePath = extractResource(resourceDirectory)
 
     val files =
@@ -65,6 +69,12 @@ fun runTestsInDirectory(resourceDirectory: String): List<DynamicTest> {
             .walk()
             .filter { it.isFile && it.name.endsWith(".fc") && !it.name.contains("util") }
             .toList()
+            .filter { file ->
+                file.toRelativeString(basePath.toFile()).matches(pattern.toRegex())
+            }
+    if (files.isEmpty()) {
+        throw IllegalArgumentException("No test files found")
+    }
     return files
         .map { file ->
             val name = file.toRelativeString(basePath.toFile())
