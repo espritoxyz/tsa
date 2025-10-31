@@ -51,7 +51,7 @@
         throw_if(228, fwd_fee != 407204);
     } elseif (flag == 4) {
         throw_if(228, fwd_fee != 409070);
-    } 
+    }
 } 
 
 () main() impure {
