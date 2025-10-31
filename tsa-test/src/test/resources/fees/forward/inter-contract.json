@@ -1,0 +1,31 @@
+[
+  {
+    "id": 1,
+    "inOpcodeToDestination": {
+        "00000064": {
+            "type": "linear",
+            "destinations": [2]
+        },
+        "0000012с": {
+            "type": "linear",
+            "destinations": [2]
+        },
+        "00000190": {
+            "type": "linear",
+            "destinations": [2]
+        },
+        "000001f4": {
+            "type": "linear",
+            "destinations": [2]
+        },
+        "00000258": {
+            "type": "linear",
+            "destinations": [2]
+        }
+    }
+  },
+  {
+    "id": 2,
+    "inOpcodeToDestination": {}
+  }
+]
