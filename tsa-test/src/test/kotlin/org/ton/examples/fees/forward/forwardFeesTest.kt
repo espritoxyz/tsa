@@ -23,7 +23,7 @@ class ForwardFeesTest {
 
     @Ignore("Proper calculation is not supported yet")
     @Test
-    fun ForwardFeesTest() {
+    fun forwardFeesTest() {
         val checkerContract = extractCheckerContractFromResource(checker)
         val analyzedSender = extractFuncContractFromResource(sender)
         val analyzedReceiver = extractFuncContractFromResource(receiver)
