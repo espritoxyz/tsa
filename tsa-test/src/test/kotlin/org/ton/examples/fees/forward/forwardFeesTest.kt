@@ -1,19 +1,17 @@
 package org.ton.examples.checkers
 
 import org.ton.test.utils.checkInvariants
-import org.ton.test.utils.propertiesFound
-import org.usvm.machine.TvmContext
-import org.usvm.machine.analyzeInterContract
-import org.usvm.test.resolver.TvmMethodFailure
-import kotlin.test.Test
-import kotlin.test.Ignore
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
 import org.ton.test.utils.extractFuncContractFromResource
-import org.usvm.machine.TvmOptions
+import org.ton.test.utils.propertiesFound
 import org.usvm.machine.IntercontractOptions
-import org.usvm.machine.state.ContractId
-import org.ton.TvmContractHandlers
+import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmOptions
+import org.usvm.machine.analyzeInterContract
+import org.usvm.test.resolver.TvmMethodFailure
+import kotlin.test.Ignore
+import kotlin.test.Test
 
 class ForwardFeesTest {
     private val checker = "/fees/forward/checker.fc"
