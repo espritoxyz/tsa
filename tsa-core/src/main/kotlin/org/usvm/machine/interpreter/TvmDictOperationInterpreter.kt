@@ -1863,6 +1863,8 @@ class TvmDictOperationInterpreter(
                         .set(resultDict, newInputDict, dictHasKey.updatedRootInfo)
             }
             val oldValue = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
+            assertDictValueDoesNotOverflow(scope, dictId, oldValue)
+                ?: return
             val unwrappedValue =
                 unwrapDictValue(scope, oldValue, valueType)
                     ?: return
@@ -1876,25 +1878,25 @@ class TvmDictOperationInterpreter(
                 scope.doWithConditions<Unit>(
                     listOf(
                         TvmStepScopeManager.ActionOnCondition<Unit>(
-                            {
+                            action = {
                                 addOnStack(resultDict, TvmCellType)
                                 addValueOnStack(unwrappedValue, valueType)
                                 addOnStack(ctx.trueValue, TvmIntegerType)
                                 newStmt(inst.nextStmt())
                             },
-                            false,
-                            exists,
-                            Unit,
+                            caseIsExceptional = false,
+                            condition = exists,
+                            paramForDoForAllBlock = Unit,
                         ),
                         TvmStepScopeManager.ActionOnCondition<Unit>(
-                            {
+                            action = {
                                 addOnStack(resultDict, TvmCellType)
                                 addOnStack(ctx.falseValue, TvmIntegerType)
                                 newStmt(inst.nextStmt())
                             },
-                            false,
-                            ctx.mkNot(exists),
-                            Unit,
+                            caseIsExceptional = false,
+                            condition = ctx.mkNot(exists),
+                            paramForDoForAllBlock = Unit,
                         ),
                     ),
                 ) { _: Unit -> }

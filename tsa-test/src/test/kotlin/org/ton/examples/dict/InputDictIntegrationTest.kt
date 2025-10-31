@@ -34,10 +34,15 @@ class InputDictIntegrationTest {
     @Disabled
     @TestFactory
     fun runSingleTest() =
-        DynamicTest.dynamicTest("runSingleTest") {
-            val baseFolder = "/dict/input-dict/"
-            val testName = "queries/get-max-returns-max-reordered.fc"
-            val test = baseFolder + testName
-            runTestsInFileDefault(extractResource(test).toFile(), testName)
-        }
+        List(
+            10,
+            { number ->
+                DynamicTest.dynamicTest("runSingleTest $number") {
+                    val baseFolder = "/dict/input-dict/"
+                    val testName = "complex/filter-256.fc"
+                    val test = baseFolder + testName
+                    runTestsInFileDefault(extractResource(test).toFile(), testName)
+                }
+            },
+        )
 }

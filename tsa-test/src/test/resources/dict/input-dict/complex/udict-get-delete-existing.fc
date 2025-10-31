@@ -10,6 +10,7 @@
     throw_unless(302, found2);
     (_, _, int found3) = init_dict.udict_get_next?(64, key2);
     throw_unless(303, ~ found3);
+
     (cell d1, int key, slice value, int f1) = init_dict.udict_delete_get_min(64);
     throw_unless(400, f1);
     throw_unless(401, value.preload_int(64) == 17);

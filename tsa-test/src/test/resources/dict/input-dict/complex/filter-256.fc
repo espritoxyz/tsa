@@ -1,0 +1,24 @@
+#include "../../../imports/stdlib.fc";
+
+() filter(slice external_ids) impure {
+    cell external_votings = external_ids~load_dict();
+
+    int bound = now() - 60 * 60 * 24 * 7;
+    while (~ external_ids.slice_data_empty?()) {
+        int voting_id = external_ids~load_uint(256);
+        (cell external_votings', slice voting, int voting_found?) = external_votings.udict_delete_get?(256, voting_id);
+        if (voting_found?) {
+            int last_update = voting~load_uint(32);
+            if (bound > last_update) {
+                external_votings = external_votings';
+            }
+        }
+    }
+    return ();
+}
+
+
+() main(slice in_msg) {
+    filter(in_msg);
+    return ();
+}

@@ -146,29 +146,29 @@ data class InputDict(
     fun doDictHasKey(
         ctx: TvmContext,
         key: KeyType,
-        inputDict: InputDictRootInformation,
+        rootInfo: InputDictRootInformation,
         freshConstantForInput: KeyType,
         freshConstantForExistenceOfKey: UBoolExpr,
     ): DictGetResult {
         val exists = freshConstantForExistenceOfKey
-        val symbolConstraint = inputDict.createSymbolConstraints(ctx, freshConstantForInput.toExtendedKey(ctx))
+        val symbolConstraint = rootInfo.createSymbolConstraints(ctx, freshConstantForInput.toExtendedKey(ctx))
+        val rootInfoWithNewSymbol = rootInfo.copy(symbols = rootInfo.symbols.add(freshConstantForInput))
         val resultIsSomeKey =
             freshInputSymbolOrStoredKey(
                 ctx,
                 freshConstantForInput.toExtendedKey(ctx),
                 key.toExtendedKey(ctx),
             )
-        val newSymbols = inputDict.symbols.add(freshConstantForInput)
         val resultIsSomeKeyCs = with(ctx) { exists implies resultIsSomeKey }
         val (universalInstancesCs, newLazyConstraints) =
-            inputDict.addLazyUniversalConstraint(
+            rootInfoWithNewSymbol.addLazyUniversalConstraint(
                 ctx,
                 NotEqualConstraint(key.toExtendedKey(ctx), ctx.mkNot(exists), modifications),
             )
         val updatedRootDictInfo =
             InputDictRootInformation(
                 newLazyConstraints,
-                newSymbols,
+                rootInfoWithNewSymbol.symbols,
             )
         val fullCs = symbolConstraint.add(resultIsSomeKeyCs).addAll(universalInstancesCs)
         return DictGetResult(fullCs, updatedRootDictInfo)
