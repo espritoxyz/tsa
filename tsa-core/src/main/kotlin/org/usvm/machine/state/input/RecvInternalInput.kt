@@ -126,9 +126,10 @@ class RecvInternalInput(
     val ihrFee = state.ctx.zeroValue // ihr_fee:Grams
 
     // fwd_fee:Grams
-    val fwdFee = with(state.ctx) {
-        state.makeSymbolicPrimitive(mkBvSort(TvmContext.BIT_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
-    }
+    val fwdFee =
+        with(state.ctx) {
+            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BIT_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
+        }
 
     data class Flags(
         val intMsgInfo: UExpr<TvmInt257Sort>,
