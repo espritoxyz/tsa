@@ -154,8 +154,8 @@ class TvmArtificialInstInterpreter(
             with(ctx) {
                 stack.addCell(head.message.fullMsgCell)
                 stack.addSlice(head.message.msgBodySlice)
-                stack.addInt(currentContractToPush.toBv257()) // sender
                 stack.addInt((head.receiver ?: -1).toBv257()) // receiver
+                stack.addInt(currentContractToPush.toBv257()) // sender
             }
         }
 
@@ -613,8 +613,6 @@ class TvmArtificialInstInterpreter(
                 methodResult = result
                 return@doWithState
             }
-
-            this.receivedMessage = receivedMessage
 
             // update global c4 and c7
             if (result is TvmMethodResult.TvmSuccess) {
