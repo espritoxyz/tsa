@@ -1,0 +1,26 @@
+#include "../../../imports/stdlib.fc";
+#include "../util.fc";
+
+() test(slice in_msg, int index) impure method_id (1) {
+
+    cell conrete_dict = new_dict().udict_set(64, 10, begin_cell().store_int(13, 64).end_cell().begin_parse());
+
+    cell symbolic_dict = in_msg~load_dict();
+    (slice result, int found) = symbolic_dict.udict_get?(64, 10);
+    throw_unless(300, found);
+    throw_unless(301, result.preload_int(64) == 17);
+
+    cell ite_dict = my_mk_ite(conrete_dict, symbolic_dict, index);
+    (slice result_slice, _) = ite_dict.udict_get?(64, 10);
+    int result = result_slice.preload_int(64);
+    throw_if(500, result == 13);
+    throw_if(501, result == 17);
+    throw(400);
+}
+
+
+() main(slice in_msg) {
+    int index = in_msg~load_int(64);
+    test(in_msg, index);
+    return ();
+}

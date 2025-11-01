@@ -1,0 +1,33 @@
+#include "../util.fc";
+#include "../../../imports/stdlib.fc";
+
+() test(slice in_msg) impure method_id (1) {
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell init_dict = in_msg~load_dict();
+    (slice init_value, int found) = init_dict.udict_get?(64, 13);
+    throw_unless(300, found);
+    throw_unless(301, init_value.preload_int(64) == 100);
+
+    (_, int found1) = init_dict.udict_get?(64, 17);
+    throw_unless(300, ~ found1);
+
+    (cell override_dict, int override_status) = init_dict.udict_add?(64, 13, wrap_in_cell(4));
+    (slice override_value, int found_override) = override_dict.udict_get?(64, 13);
+    throw_unless(400, ~ override_status);
+    throw_unless(401, found_override);
+    throw_unless(402, override_value.preload_int(64) == 100);
+
+    (cell add_dict, int found_add_0) = init_dict.udict_add?(64, 17, wrap_in_cell(4));
+    (slice override_value, int found_add) = add_dict.udict_get?(64, 17);
+    throw_unless(403, found_add_0);
+    throw_unless(404, found_add);
+    throw_unless(405, override_value.preload_int(64) == 4);
+
+    throw(500);
+}
+
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

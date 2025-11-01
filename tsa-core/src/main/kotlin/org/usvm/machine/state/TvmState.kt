@@ -26,6 +26,7 @@ import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
+import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
@@ -92,6 +93,7 @@ class TvmState(
     var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
     var currentPhaseBeginTime: Int = 0,
     val debugInfo: TvmStateDebugInfo = TvmStateDebugInfo(),
+    var inputDictionaryStorage: InputDictionaryStorage = InputDictionaryStorage(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -148,7 +150,7 @@ class TvmState(
         get() {
             var node: PathNode<*>? = pathNode
             while (node?.statementOrNull() !is TvmRealInst?) {
-                node = node?.parent
+                node = node.parent
             }
             return (node?.statementOrNull() as? TvmRealInst)
         }
@@ -204,6 +206,7 @@ class TvmState(
             eventsLog = eventsLog,
             currentPhaseBeginTime = currentPhaseBeginTime,
             debugInfo = debugInfo.clone(),
+            inputDictionaryStorage = inputDictionaryStorage,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

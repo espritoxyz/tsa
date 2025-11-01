@@ -1,0 +1,234 @@
+#include "../imports/stdlib.fc";
+
+() main() {
+    return (); ;; is not included in the test suite
+}
+
+;; within this file, the following conventions are true:
+;; - error codes 3** correspond to assertions on the symbolic values (preconditions)
+;;   we expected to find these error codes at least in some valid execution of the test
+;; - error codes 4** correspond to postcondition assertions;
+;;   we expected to NOT find these error codes in all valid executions of the tests
+;; - error codes 5** correspond to successfull execution
+;;   we expect to find at least one execution that ends with code 500 if the code was specified
+
+;; TL; DR:
+;; throw_unless(3**, cond) means "assume cond"
+;; throw_unless(4**, cond) means "assert cond"
+
+;; TODO add tests with (-1) pivot to check for signed stuff
+() check_same_result_when_same_input_get_next(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    (int i1, _, int found1) = init_dict.udict_get_next?(64, 1);
+    throw_unless(300, found1);
+    (int i2, _, int found2) = init_dict.udict_get_next?(64, 1);
+    throw_unless(400, found2);
+    throw_if(401, i1 != i2);
+    throw(500);
+}
+
+() check_same_result_when_same_input_get_prev(slice in_msg) impure method_id (2) {
+    cell init_dict = in_msg~load_dict();
+    (int i1, _, int found1) = init_dict.udict_get_prev?(64, 1);
+    throw_if(300, ~ found1);
+    (int i2, _, int found2) = init_dict.udict_get_prev?(64, 1);
+    throw_if(400, ~ found2);
+    throw_if(401, found1 & found2 & i1 != i2);
+    throw(500);
+}
+
+() check_next_prev_is_id(slice in_msg) impure method_id (3) {
+    cell init_dict = in_msg~load_dict();
+    (int initial, _, int found1) = init_dict.udict_get_next?(64, 1);
+    throw_if(301, ~ found1);
+    (int next, _, int found2) = init_dict.udict_get_next?(64, initial);
+    throw_if(302, ~ found2);
+    (int nextprev, _, int found3) = init_dict.udict_get_prev?(64, next);
+    throw_if(303, ~ found3);
+    throw_if(400, nextprev != initial);
+    throw(500);
+}
+
+() check_get_max_returns_the_largest_key(slice in_msg, int lower_bound) impure method_id (4) {
+    cell init_dict = in_msg~load_dict();
+    (int some_key, _, int found1) = init_dict.udict_get_next?(64, lower_bound);
+    throw_if(300, ~ found1);
+    (int max_key, _, int found2) = init_dict.udict_get_max?(64);
+    throw_if(400, ~ found2); ;; unreachable, as it is not empty
+    throw_if(401, max_key < some_key);
+    throw(500); ;; successfull execution
+}
+
+() check_get_max_returns_the_largest_key_reordered(slice in_msg, int lower_bound) impure method_id (5) {
+    cell init_dict = in_msg~load_dict();
+    (int max_key, _, int found1) = init_dict.idict_get_max?(64);
+    throw_if(300, ~ found1);
+    (int some_key, _, int found2) = init_dict.idict_get_next?(64, lower_bound);
+    throw_if(301, ~ found2);
+    throw_if(400, max_key < some_key);
+    throw(500); ;; successfull execution
+}
+
+() check_get_next_and_get_consistency(slice in_msg) impure method_id (6) {
+    cell init_dict = in_msg~load_dict();
+    (int some_key, slice some_value, int found1) = init_dict.udict_get_next?(64, 1);
+    throw_if(300, ~ found1);
+    (slice another_value, int found2) = init_dict.udict_get?(64, some_key);
+    throw_if(400, ~ found2);
+    throw_if(401, slice_hash(some_value) != slice_hash(another_value));
+    throw(500); ;; successfull execution
+}
+
+() check_get_next_and_get_consistency_2(slice in_msg) impure method_id (7) {
+    cell init_dict = in_msg~load_dict();
+    (slice some_value, int found1) = init_dict.udict_get?(64, 1);
+    throw_if(300, ~ found1);
+    (int some_key, slice another_value, int found2) = init_dict.udict_get_next?(64, 0);
+    throw_if(400, ~ found2);
+    throw_if(401, ~ some_key == 0);
+    throw_if(402, ~ slice_hash(some_value) != ~ slice_hash(another_value));
+    throw(500); ;; successfull execution
+}
+
+() check_same_result_when_same_input_get_next_notfound(slice in_msg) impure method_id (8) {
+    cell init_dict = in_msg~load_dict();
+    (_, _, int found0) = init_dict.udict_get_prev?(64, 1);
+    throw_if(300, ~ found0); ;; assert not empty
+    (_, _, int found1) = init_dict.udict_get_next?(64, 2);
+    throw_if(301, found1);
+    (_, _, int found2) = init_dict.udict_get_next?(64, 2);
+    throw_if(400, found2);
+    throw(500);
+}
+
+() check_get_is_id(slice in_msg) impure method_id (9) {
+    cell init_dict = in_msg~load_dict();
+    (slice value1, int found1) = init_dict.udict_get?(64, 2);
+    throw_if(300, ~ found1);
+    (slice value2, int found2) = init_dict.udict_get?(64, 2);
+    throw_if(400, ~ found2);
+    throw_if(401, slice_hash(value1) != slice_hash(value2));
+    throw(500);
+}
+
+() check_get_max_returns_none_implies_empty(slice in_msg, int lower_bound) impure method_id (10) {
+    cell init_dict = in_msg~load_dict();
+    (_, _, int found1) = init_dict.udict_get_max?(64);
+    throw_if(300, found1); ;; throw if not empty
+    (_, _, int found2) = init_dict.udict_get_next?(64, lower_bound);
+    throw_if(400, found2);
+    throw(500); ;; successfull execution
+}
+
+() check_dict_set_works(slice in_msg) impure method_id (11) {
+    cell init_dict = in_msg~load_dict();
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell set_dict = udict_set(init_dict, 64, 37, empty_slice);
+    (_, int found) = set_dict.udict_get?(64, 37);
+    throw_if(400, ~ found);
+    throw(500); ;; successfull execution
+}
+
+() check_dict_set_overrides_value(slice in_msg) impure method_id (12) {
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell init_dict = in_msg~load_dict();
+    (_, int found) = init_dict.udict_get?(64, 37);
+    throw_unless(300, ~ found); ;; assert does not exist
+
+    cell set_dict = udict_set(init_dict, 64, 37, empty_slice);
+    (_, int found1) = set_dict.udict_get?(64, 37);
+    throw_if(400, ~ found1);
+    throw(500); ;; successfull execution
+}
+
+() check_dict_delete_works(slice in_msg) impure method_id (13) {
+    cell init_dict = in_msg~load_dict();
+    (cell rem_dict, _) = udict_delete?(init_dict, 64, 37);
+    (_, int found) = rem_dict.udict_get?(64, 37);
+    throw_if(400, found);
+    throw(500); ;; successfull execution
+}
+
+() check_dict_delete_overrides_value(slice in_msg) impure method_id (14) {
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell init_dict = in_msg~load_dict();
+    (_, int found) = init_dict.udict_get?(64, 37);
+    throw_unless(300, ~ found); ;; assert exists
+
+    cell set_dict = udict_set(init_dict, 64, 37, empty_slice);
+    (_, int found1) = set_dict.udict_get?(64, 37);
+    throw_if(400, ~ found1);
+    throw(500); ;; successfull execution
+}
+
+;; assumes index is 0 or 1
+(cell) my_mk_ite(cell d1, cell d2, int index) impure method_id (100) {
+    cell ite_dict = new_dict()
+        .udict_set(64, 0, begin_cell().store_dict(d1).end_cell().begin_parse())
+        .udict_set(64, 1, begin_cell().store_dict(d2).end_cell().begin_parse());
+    throw_unless(300, (index == 0) | (index == 1));
+    (slice result, int found) = udict_get?(ite_dict, 64, index);
+    throw_if(402, ~ found);
+    return result.preload_dict();
+}
+
+() check_dict_ite_works(slice in_msg, int index) impure method_id (15) {
+    cell conrete_dict = new_dict().udict_set(64, 10, begin_cell().store_int(13, 64).end_cell().begin_parse());
+
+    cell symbolic_dict = in_msg~load_dict();
+    (slice result, int found) = symbolic_dict.udict_get?(64, 10);
+    throw_unless(300, found);
+    throw_unless(301, result.preload_int(64) == 17);
+
+    cell ite_dict = my_mk_ite(conrete_dict, symbolic_dict, index);
+    (slice result_slice, _) = ite_dict.udict_get?(64, 10);
+    int result = result_slice.preload_int(64);
+    throw_if(500, result == 13);
+    throw_if(501, result == 17);
+    throw(400);
+}
+
+(slice) wrap_in_cell(int x) impure method_id (101) {
+    return begin_cell().store_int(x, 64).end_cell().begin_parse();
+}
+
+() check_dict_set_works_on_values(slice in_msg) impure method_id (16) {
+    cell init_dict = in_msg~load_dict();
+    slice five = wrap_in_cell(5);
+    cell set_dict = udict_set(init_dict, 64, 37, five);
+    (slice got_value, int found) = set_dict.udict_get?(64, 37);
+    throw_if(400, ~ found);
+    int value_extracted = got_value.preload_int(64);
+    throw_if(401, value_extracted != 5);
+    throw(500); ;; successfull execution
+}
+
+
+() check_dict_set_does_not_affect_side_values(slice in_msg) impure method_id (17) {
+    cell init_dict = in_msg~load_dict();
+    (slice got_value, int found) = init_dict.udict_get?(64, 3);
+    throw_unless(300, found);
+    throw_unless(301, got_value.preload_int(64) == 3);
+    slice five = wrap_in_cell(5);
+    cell set_dict = init_dict
+        .udict_set(64, 37, five);
+    (slice got_value, int found_set) = set_dict.udict_get?(64, 3);
+    throw_unless(400, found_set);
+    int value_extracted = got_value.preload_int(64);
+    throw_unless(401, value_extracted == 3);
+    throw(500); ;; successfull execution
+}
+
+() check_dict_remove_does_not_affect_side_values(slice in_msg) impure method_id (18) {
+    cell init_dict = in_msg~load_dict();
+    (slice got_value, int found) = init_dict.udict_get?(64, 3);
+    throw_unless(300, found);
+    throw_unless(301, got_value.preload_int(64) == 3);
+    (cell dict_del, _) = init_dict
+        .udict_delete?(64, 37);
+    (slice got_value, int found_set) = dict_del.udict_get?(64, 3);
+    throw_unless(400, found_set);
+    int value_extracted = got_value.preload_int(64);
+    throw_unless(401, value_extracted == 3);
+    throw(500); ;; successfull execution
+}
