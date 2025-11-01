@@ -810,6 +810,7 @@ class TvmTransactionInterpreter(
                     sliceLoadIntTransaction(scope, ptr.slice, 4)?.unwrap(ptr)
                         ?: return@with null
 
+                // TODO: store flags separately
                 builderStoreIntTransaction(scope, msgFull, flags, mkSizeExpr(4))
                     ?: return@with null
 
@@ -850,6 +851,7 @@ class TvmTransactionInterpreter(
                     sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
                         ?: return@with null
 
+                // TODO: change this logic
                 val extraCurrenciesEmptyConstraint = extraCurrenciesBit eq zeroValue
                 val isExtraCurrenciesEmpty =
                     scope.checkCondition(extraCurrenciesEmptyConstraint)
@@ -858,12 +860,17 @@ class TvmTransactionInterpreter(
                     sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
                         ?: return@with null
                 }
+//                builderStoreIntTransaction(scope, msgFull, zeroValue, oneSizeExpr)
 
-                // ihr_fee:Grams fwd_fee:Grams
+                // ihr_fee:Grams - ignore given value and write zero?
                 sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
                     ?: return@with null
+//                builderStoreIntTransaction(scope, msgFull, zeroValue, fourSizeExpr)
+
+                // fwd_fee:Grams - ignore given value
                 sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
                     ?: return@with null
+//                val fwdFee =
 
                 // created_lt:uint64 created_at:uint32
                 sliceLoadIntTransaction(scope, ptr.slice, 64)?.unwrap(ptr)
