@@ -774,6 +774,10 @@ class TvmTransactionInterpreter(
             parseMessageInfo(scope, ptr, resolver)
                 ?: return null
 
+        scope.doWithState {
+            forwardFees = forwardFees.add(fwdFeeInfo)
+        }
+
         val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
 
         return MessageActionParseResult(

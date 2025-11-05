@@ -45,24 +45,24 @@
 
     int flag = msg_body~load_uint(10);
     if (flag == 0) {
-        throw_if(228, fwd_fee != 266669);
+        throw_if(201, fwd_fee != 266669);
     } elseif (flag == 1) {
-        throw_if(228, fwd_fee != 349070);
+        throw_if(202, fwd_fee != 349070);
     } elseif (flag == 2) {
-        throw_if(228, fwd_fee != 324270);
+        throw_if(203, fwd_fee != 324270);
     } elseif (flag == 3) {
-        throw_if(228, fwd_fee != 407204);
+        throw_if(204, fwd_fee != 407204);
     } elseif (flag == 4) {
-        throw_if(228, fwd_fee != 409070);
+        throw_if(205, fwd_fee != 409070);
     }
 } 
 
 () main() impure {
     tsa_send_internal_message(1, 0);
-    ;; tsa_send_internal_message(1, 1);
-    ;; tsa_send_internal_message(1, 2);
-    ;; tsa_send_internal_message(1, 3);
-    ;; tsa_send_internal_message(1, 4);
+    tsa_send_internal_message(1, 1);
+    tsa_send_internal_message(1, 2);
+    tsa_send_internal_message(1, 3);
+    tsa_send_internal_message(1, 4);
 
     throw(10000); ;; success
 }

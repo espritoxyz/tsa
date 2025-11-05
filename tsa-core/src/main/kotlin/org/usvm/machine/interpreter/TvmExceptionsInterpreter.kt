@@ -214,7 +214,9 @@ class TvmExceptionsInterpreter(
             val exceptionCode = scope.calcOnState { exceptionCodeExtractor.code(this) }
             val param =
                 if (takeParameterFromStack) {
-                    scope.calcOnState { takeLastIntOrThrowTypeError() } // what to do on null&
+                    scope.calcOnState {
+                        takeLastIntOrThrowTypeError()
+                    } ?: return@with null
                 } else {
                     null
                 }

@@ -31,6 +31,7 @@ import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
+import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.types.TvmDataCellInfoStorage
@@ -51,12 +52,10 @@ class TvmState(
     ctx: TvmContext,
     ownership: MutabilityOwnership,
     override val entrypoint: TvmDisasmCodeBlock,
-//    val registers: TvmRegisters, // TODO do we really need keep the registers this way?
     val emptyRefValue: TvmRefEmptyValue,
     val analysisOfGetMethod: Boolean,
     private var symbolicRefs: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
     var gasUsageHistory: PersistentList<UExpr<UBv32Sort>>,
-    // TODO codepage
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
     pathConstraints: UPathConstraints<TvmType>,
     memory: UMemory<TvmType, TvmCodeBlock>,
@@ -84,6 +83,7 @@ class TvmState(
     // post-process fields
     var refToHash: PersistentMap<UConcreteHeapAddress, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
     var refToDepth: PersistentMap<UConcreteHeapAddress, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
+    var forwardFees: PersistentSet<FwdFeeInfo> = persistentSetOf(),
     var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
     var currentInput: TvmInput? = null,
@@ -204,6 +204,7 @@ class TvmState(
             eventsLog = eventsLog,
             currentPhaseBeginTime = currentPhaseBeginTime,
             debugInfo = debugInfo.clone(),
+            forwardFees = forwardFees,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

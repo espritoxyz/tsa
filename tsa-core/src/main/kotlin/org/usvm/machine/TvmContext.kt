@@ -447,6 +447,16 @@ class TvmContext(
         return super.mkBvSubExpr(arg0, arg1)
     }
 
+    override fun <T : KBvSort> mkBvZeroExtensionExpr(
+        extensionSize: Int,
+        value: KExpr<T>,
+    ): KExpr<KBvSort> {
+        if (value is KBvZeroExtensionExpr) {
+            return mkBvZeroExtensionExpr(extensionSize + value.extensionSize, value.value)
+        }
+        return super.mkBvZeroExtensionExpr(extensionSize, value)
+    }
+
     companion object {
         const val MAX_DATA_LENGTH: Int = 1023
         const val MAX_REFS_NUMBER: Int = 4
