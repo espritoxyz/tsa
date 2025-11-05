@@ -128,7 +128,9 @@ class RecvInternalInput(
     // fwd_fee:Grams
     val fwdFee =
         with(state.ctx) {
-            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BIT_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
+            // TODO: figure out this modification leads to concrete execution failure in jetton-wallet-with-config-insts
+//            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
+            state.makeSymbolicPrimitive(int257sort)
         }
 
     data class Flags(

@@ -13,19 +13,6 @@ int load_balance() inline method_id(-42) {
     set_data(new_data);
 }
 
-{-
-  addr_std$10 anycast:(Maybe Anycast)
-   workchain_id:int8 address:bits256  = MsgAddressInt;
--}
-slice calc_address(cell state_init) inline {
-    return begin_cell().store_uint(4, 3) ;; 0x100 : $10 + anycast (Maybe = 0)
-        .store_int(0, 8)
-        .store_uint(
-            cell_hash(state_init), 256)
-        .end_cell()
-        .begin_parse();
-}
-
 builder store_msgbody_prefix_ref(builder b, cell ref) inline {
     return b.store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1).store_ref(ref);
 }
