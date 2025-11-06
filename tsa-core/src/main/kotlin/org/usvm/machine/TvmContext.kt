@@ -447,6 +447,16 @@ class TvmContext(
         return super.mkBvSubExpr(arg0, arg1)
     }
 
+    override fun <T : KBvSort> mkBvZeroExtensionExpr(
+        extensionSize: Int,
+        value: KExpr<T>,
+    ): KExpr<KBvSort> {
+        if (value is KBvZeroExtensionExpr) {
+            return mkBvZeroExtensionExpr(extensionSize + value.extensionSize, value.value)
+        }
+        return super.mkBvZeroExtensionExpr(extensionSize, value)
+    }
+
     companion object {
         const val MAX_DATA_LENGTH: Int = 1023
         const val MAX_REFS_NUMBER: Int = 4
@@ -493,8 +503,11 @@ class TvmContext(
         // Maximum incoming message value/balance in nanotons
         val MAX_MESSAGE_CURRENCY: BigInteger = BigInteger.TEN.pow(19)
 
+        const val MAX_FWD_FEE = 1166940800
+
         const val BITS_FOR_BALANCE = 64u
         const val BITS_FOR_UNIX_TIME = 32u
+        const val BITS_FOR_FWD_FEE = 31u
 
         val RECEIVE_INTERNAL_ID: MethodId = 0.toMethodId()
         val RECEIVE_EXTERNAL_ID: MethodId = (-1).toMethodId()
@@ -521,6 +534,9 @@ class TvmContext(
         }
         check(unsignedIntegerFitsBits(UNIX_TIME_MAX.toBv257(), BITS_FOR_UNIX_TIME).isTrue) {
             "BITS_FOR_UNIX_TIME is too small"
+        }
+        check(unsignedIntegerFitsBits(MAX_FWD_FEE.toBv257(), BITS_FOR_FWD_FEE).isTrue) {
+            "BIT_FOR_FWD_FEE is too small"
         }
     }
 

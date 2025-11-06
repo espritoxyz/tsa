@@ -31,6 +31,7 @@ sealed class ReceiverInput(
     abstract val msgValue: UExpr<TvmInt257Sort>
     abstract val msgBodySliceMaybeBounced: UHeapRef
     abstract val srcAddressSlice: UConcreteHeapRef? // null for external messages
+    abstract val fwdFee: UExpr<TvmInt257Sort>? // null for external messages
 
     abstract fun constructFullMessage(state: TvmState): UConcreteHeapRef
 
@@ -95,7 +96,14 @@ sealed class ReceiverInput(
                         trueExpr
                     }
 
-                // TODO any other constraints?
+                val fwdFeeConstraint =
+                    if (fwdFee != null) {
+                        val high = mkBvSignedLessOrEqualExpr(fwdFee!!, TvmContext.MAX_FWD_FEE.toBv257())
+                        val low = mkBvSignedGreaterOrEqualExpr(fwdFee!!, zeroValue)
+                        low and high
+                    } else {
+                        trueExpr
+                    }
 
                 mkAnd(
                     msgValueConstraint,
@@ -103,6 +111,7 @@ sealed class ReceiverInput(
                     createdAtConstraint,
                     balanceConstraints,
                     opcodeConstraint,
+                    fwdFeeConstraint,
                 )
             }
 

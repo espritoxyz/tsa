@@ -20,7 +20,7 @@
         .store_coins(1000000000)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
         .store_slice(MsgBody)
-        .end_cell();    
+        .end_cell();
 
         send_raw_message(msg, 0); ;; the fwd_fee will be just the lump_price = 400000 nanoTons
 

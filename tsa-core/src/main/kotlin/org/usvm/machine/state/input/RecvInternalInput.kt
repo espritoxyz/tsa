@@ -124,7 +124,12 @@ class RecvInternalInput(
 
     val ihrDisabled = state.ctx.trueExpr // ihr_disabled:Bool
     val ihrFee = state.ctx.zeroValue // ihr_fee:Grams
-    val fwdFee = state.makeSymbolicPrimitive(state.ctx.int257sort) // fwd_fee:Grams
+
+    // fwd_fee:Grams
+    override val fwdFee =
+        with(state.ctx) {
+            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
+        }
 
     data class Flags(
         val intMsgInfo: UExpr<TvmInt257Sort>,

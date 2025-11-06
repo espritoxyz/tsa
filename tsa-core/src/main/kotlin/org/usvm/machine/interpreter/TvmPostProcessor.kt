@@ -10,6 +10,8 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmSignatureCheck
+import org.usvm.machine.state.messages.FwdFeeInfo
+import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestCellValue
 import org.usvm.test.resolver.TvmTestDataCellValue
@@ -41,10 +43,16 @@ class TvmPostProcessor(
                 val hashConstraint =
                     generateHashConstraint(scope, resolver)
                         ?: return@assertConstraints null
+
                 val depthConstraint =
                     generateDepthConstraint(scope, resolver)
                         ?: return@assertConstraints null
-                mkAnd(hashConstraint, depthConstraint)
+
+                val fwdFeeConstraint =
+                    generateFwdFeeConstraints(scope, resolver)
+                        ?: return@assertConstraints null
+
+                hashConstraint and depthConstraint and fwdFeeConstraint
             } ?: return null
 
             // must be asserted separately since it relies on correct hash values
@@ -64,6 +72,22 @@ class TvmPostProcessor(
 
         return scope.assert(constraints)
     }
+
+    private fun generateFwdFeeConstraints(
+        scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val forwardFees = scope.calcOnState { forwardFees }
+
+            forwardFees.fold(trueExpr as UBoolExpr) { acc, fwdFeeInfo ->
+                val curConstraint =
+                    fixateValueAndFwdFee(scope, fwdFeeInfo, resolver)
+                        ?: return@with null
+
+                acc and curConstraint
+            }
+        }
 
     private fun generateSignatureConstraints(
         scope: TvmStepScopeManager,
@@ -198,6 +222,46 @@ class TvmPostProcessor(
             val concreteDepth = calculateConcreteDepth(value)
             val depthCond = depth eq concreteDepth
             return fixateValueCond and depthCond
+        }
+
+    private fun fixateValueAndFwdFee(
+        scope: TvmStepScopeManager,
+        fwdFeeInfo: FwdFeeInfo,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val stateInitValue =
+                fwdFeeInfo.stateInitRef?.let {
+                    resolver.resolveRef(it) as? TvmTestCellValue
+                        ?: error("Unexpected state init value")
+                }
+            val msgBodyValue =
+                fwdFeeInfo.msgBodyRef?.let {
+                    resolver.resolveRef(it) as? TvmTestCellValue
+                        ?: error("Unexpected msg body value")
+                }
+
+            val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+            val fixateStateInitCond =
+                if (fwdFeeInfo.stateInitRef != null) {
+                    fixator.fixateConcreteValue(scope, fwdFeeInfo.stateInitRef)
+                        ?: return@with null
+                } else {
+                    trueExpr
+                }
+
+            val fixateMsgBodyCond =
+                if (fwdFeeInfo.msgBodyRef != null) {
+                    fixator.fixateConcreteValue(scope, fwdFeeInfo.msgBodyRef)
+                        ?: return@with null
+                } else {
+                    trueExpr
+                }
+
+            val concreteFwdFee = calculateConcreteForwardFee(stateInitValue, msgBodyValue)
+            val fwdFeeCond = fwdFeeInfo.symbolicFwdFee eq concreteFwdFee.toBv257()
+
+            return fixateStateInitCond and fixateMsgBodyCond and fwdFeeCond
         }
 
     private fun calculateConcreteDepth(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =

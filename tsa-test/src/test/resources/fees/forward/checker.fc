@@ -32,26 +32,26 @@
 
     ;; load written forward fee
     slice cs = msg_full.begin_parse();
-    cs~skip_bits(4); ;; message headers 
+    cs~skip_bits(4); ;; message headers
     cs~load_msg_addr(); ;; src address
     cs~load_msg_addr(); ;; dest address
     cs~load_grams(); ;; value
+    cs~skip_bits(1); ;; skip extracurrency collection
     cs~load_grams(); ;; ihr fee
     int fwd_fee = cs~load_grams();
-    cs.end_parse();
 
     int flag = msg_body~load_uint(10);
     if (flag == 0) {
-        throw_if(228, fwd_fee != 400000);
+        throw_if(201, fwd_fee != 266669);
     } elseif (flag == 1) {
-        throw_if(228, fwd_fee != 523600);
+        throw_if(202, fwd_fee != 349070);
     } elseif (flag == 2) {
-        throw_if(228, fwd_fee != 486400);
+        throw_if(203, fwd_fee != 324270);
     } elseif (flag == 3) {
-        throw_if(228, fwd_fee != 610800);
+        throw_if(204, fwd_fee != 407204);
     } elseif (flag == 4) {
-        throw_if(228, fwd_fee != 613600);
-    } 
+        throw_if(205, fwd_fee != 409070);
+    }
 } 
 
 () main() impure {
