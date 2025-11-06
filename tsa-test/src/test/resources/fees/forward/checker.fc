@@ -35,10 +35,7 @@
     cs~skip_bits(4); ;; message headers
     cs~load_msg_addr(); ;; src address
     cs~load_msg_addr(); ;; dest address
-    int value = cs~load_grams(); ;; value
-
-    throw_if(1000, value == 10);
-
+    cs~load_grams(); ;; value
     cs~skip_bits(1); ;; skip extracurrency collection
     cs~load_grams(); ;; ihr fee
     int fwd_fee = cs~load_grams();
