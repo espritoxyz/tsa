@@ -23,6 +23,9 @@ class RecvExternalInput(
 ) : ReceiverInput(receiverContractId, concreteGeneralData, state) {
     private val ctx = state.ctx
 
+    override val fwdFee: UExpr<TvmContext.TvmInt257Sort>?
+        get() = null
+
     override val msgValue: UExpr<TvmContext.TvmInt257Sort>
         get() = ctx.zeroValue
 

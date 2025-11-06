@@ -126,11 +126,9 @@ class RecvInternalInput(
     val ihrFee = state.ctx.zeroValue // ihr_fee:Grams
 
     // fwd_fee:Grams
-    val fwdFee =
+    override val fwdFee =
         with(state.ctx) {
-            // TODO: figure out this modification leads to concrete execution failure in jetton-wallet-with-config-insts
-//            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
-            state.makeSymbolicPrimitive(int257sort)
+            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
         }
 
     data class Flags(

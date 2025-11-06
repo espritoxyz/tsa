@@ -259,7 +259,7 @@ class TvmConfigInterpreter(
         val workingSort = mkBvSort(int257sort.sizeBits + 17u)
         val fwdFeeExtended = fwdFee.zeroExtendToSort(workingSort)
         val mul = mkBvShiftLeftExpr(mkBv(1, workingSort), mkBv(16, workingSort)) // 2^16
-        val div = mkBv(FIRST_FRAC, workingSort)
+        val div = mkBvSubExpr(mul, mkBv(FIRST_FRAC, workingSort))
 
         val resultExtended = makeDiv(mkBvMulExpr(fwdFeeExtended, mul), div)
         // workingSort should be enough for overflow not to happen
