@@ -641,7 +641,7 @@ class TvmTransactionInterpreter(
             val handler =
                 if (resolver.eval(hasOpcode).isTrue) {
                     scope.assert(hasOpcode)
-                        ?: error("Unexpected solver result")
+                        ?: return null to null
 
                     val inOpcode =
                         sliceLoadIntTransaction(scope, msgBodySlice, OP_BITS.toInt())?.second
@@ -654,7 +654,7 @@ class TvmTransactionInterpreter(
 
                     if (concreteHandler != null) {
                         scope.assert(inOpcode eq concreteOp)
-                            ?: error("Unexpected solver result")
+                            ?: return null to null
 
                         concreteHandler
                     } else {
@@ -692,14 +692,14 @@ class TvmTransactionInterpreter(
                 when {
                     resolver.eval(isReserveAction).isTrue -> {
                         scope.assert(isReserveAction)
-                            ?: error("Unexpected solver result")
+                            ?: return null
 
                         visitReserveAction()
                     }
 
                     resolver.eval(isSendMsgAction).isTrue -> {
                         scope.assert(isSendMsgAction)
-                            ?: error("Unexpected solver result")
+                            ?: return null
 
                         val msg =
                             parseAndPreprocessMessageAction(scope, actionBody, resolver)

@@ -5,8 +5,10 @@ import org.ton.TlbCompositeLabel
 import org.ton.TvmContractHandlers
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
+import org.ton.boc.BagOfCells
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
+import org.ton.cell.Cell
 import org.ton.communicationSchemeFromJson
 import org.ton.tlb.readFromJson
 import org.usvm.machine.BocAnalyzer
@@ -445,12 +447,23 @@ internal fun extractFuncContractFromResource(contractResourcePath: String): TsaC
     return checkerContract
 }
 
+internal fun extractBocContractFromResource(contractResourcePath: String): TsaContractCode {
+    val contractPath = extractResource(contractResourcePath)
+    val checkerContract = BocAnalyzer.loadContractFromBoc(contractPath)
+    return checkerContract
+}
+
 internal fun extractCommunicationSchemeFromResource(
     communicationSchemeResourcePath: String,
 ): Map<ContractId, TvmContractHandlers> {
     val communicationSchemePath = extractResource(communicationSchemeResourcePath)
     val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
     return communicationScheme
+}
+
+internal fun extractConcreteDataFromResource(dataResourcePath: String): Cell {
+    val path = extractResource(dataResourcePath)
+    return BagOfCells(path.toFile().readBytes()).roots.single()
 }
 
 fun TvmSymbolicTest.exitCode(): Int? =
