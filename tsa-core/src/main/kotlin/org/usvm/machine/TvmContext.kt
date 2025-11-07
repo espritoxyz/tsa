@@ -232,6 +232,11 @@ class TvmContext(
         return super.mkBvSignedLessOrEqualExpr(arg0, arg1)
     }
 
+    override fun <T : KBvSort> mkBvSignedGreaterOrEqualExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<KBoolSort> = mkBvSignedLessOrEqualExpr(arg1, arg0)
+
     override fun <T : KBvSort> mkBvExtractExpr(
         high: Int,
         low: Int,
@@ -419,6 +424,7 @@ class TvmContext(
                 return rhs.condition.not()
             }
         }
+
         if (lhs is UIteExpr &&
             lhs.trueBranch != lhs.falseBranch &&
             lhs.trueBranch is KInterpretedValue &&
@@ -431,6 +437,53 @@ class TvmContext(
                 return lhs.condition.not()
             }
         }
+
+        if (rhs is KInterpretedValue && lhs !is KInterpretedValue) {
+            return mkEq(rhs, lhs)
+        }
+
+        if (lhs is KBitVecValue && rhs is KBvConcatExpr && rhs.arg1 is KBitVecValue) {
+            val border =
+                rhs.arg1.sort.sizeBits
+                    .toInt()
+            val tail = mkBvExtractExpr<KBvSort>(high = border - 1, low = 0, lhs.uncheckedCast())
+            check(tail is KBitVecValue) {
+                "Unexpected tail: $tail"
+            }
+            if (tail == rhs.arg1) {
+                val head =
+                    mkBvExtractExpr<KBvSort>(
+                        high = (lhs.sort as KBvSort).sizeBits.toInt() - 1,
+                        low = border,
+                        lhs.uncheckedCast(),
+                    )
+                return mkEq(head, rhs.arg0)
+            } else {
+                return falseExpr
+            }
+        }
+
+        if (lhs is KBitVecValue && rhs is KBvConcatExpr && rhs.arg0 is KBitVecValue) {
+            val border =
+                rhs.arg1.sort.sizeBits
+                    .toInt()
+            val head =
+                mkBvExtractExpr<KBvSort>(
+                    high = (lhs.sort as KBvSort).sizeBits.toInt() - 1,
+                    low = border,
+                    lhs.uncheckedCast(),
+                )
+            check(head is KBitVecValue) {
+                "Unexpected head: $head"
+            }
+            if (head == rhs.arg0) {
+                val tail = mkBvExtractExpr<KBvSort>(high = border - 1, low = 0, lhs.uncheckedCast())
+                return mkEq(rhs.arg1, tail)
+            } else {
+                return falseExpr
+            }
+        }
+
         return super.mkEq(lhs, rhs, order)
     }
 

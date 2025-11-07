@@ -17,6 +17,7 @@ import org.usvm.isAllocated
 import org.usvm.isStatic
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
@@ -326,6 +327,30 @@ class TvmReferenceToLabelMapper private constructor(
     }
 
     fun sliceIsAddress(slice: UConcreteHeapRef): Boolean = slice.address in addressSlices
+
+    fun addLabel(
+        scope: TvmStepScopeManager,
+        cellRef: UConcreteHeapRef,
+        label: TlbCompositeLabel,
+    ): Unit? {
+        val cellInfo = TvmParameterInfo.DataCellInfo(label)
+        inputAddressToLabels =
+            inputAddressToLabels.put(cellRef.address, LabelInfo(mapOf(cellInfo to ctx.trueExpr)))
+
+        val constraint =
+            scope.calcOnState {
+                generateProactiveStructuralConstraints(this, cellRef)
+            }
+
+        scope.assert(constraint)
+            ?: return null
+
+        scope.calcOnState {
+            generateLabelInfoForChildren(this, cellRef)
+        }
+
+        return Unit
+    }
 
     companion object {
         fun build(

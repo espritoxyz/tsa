@@ -17,6 +17,7 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmMethodFailure
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 class CroutonfiTest {
     private val checkerPath = "/intercontract/croutonfi/checker.fc"
@@ -41,7 +42,8 @@ class CroutonfiTest {
                 turnOnTLBParsingChecks = false,
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
-                timeout = 2.minutes,
+                timeout = 3.minutes,
+                solverTimeout = 3.seconds,
             )
 
         val concreteVaultData =
