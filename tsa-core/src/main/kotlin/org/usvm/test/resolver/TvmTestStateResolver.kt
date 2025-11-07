@@ -47,9 +47,9 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.allocatedDictContainsKey
 import org.usvm.machine.state.calcConsumedGas
 import org.usvm.machine.state.calcPhaseConsumedGas
-import org.usvm.machine.state.dictContainsKey
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.ensureSymbolicBuilderInitialized
@@ -530,7 +530,7 @@ class TvmTestStateResolver(
             }
             for (entry in keySetEntries) {
                 val key = entry.setElement
-                val keyContains = state.dictContainsKey(dict, dictId, key)
+                val keyContains = state.allocatedDictContainsKey(dict, dictId, key)
                 if (evaluateInModel(keyContains).isTrue) {
                     val evaluatedKey = evaluateInModel(key)
                     if (!keySet.add(evaluatedKey)) {
