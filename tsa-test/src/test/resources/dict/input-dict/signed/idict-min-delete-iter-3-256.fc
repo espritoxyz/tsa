@@ -1,0 +1,19 @@
+#include "../../../imports/stdlib.fc";
+
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    (int k0, _, int f0) = init_dict~idict::delete_get_min(256);
+    throw_unless(300, f0);
+    (int k1, _, _) = init_dict~idict::delete_get_min(256);
+    (int k2, _, _) = init_dict~idict::delete_get_min(256);
+
+    throw_unless(400, k0 < k1);
+    throw_unless(401, k1 < k2);
+    throw(500);
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

@@ -1,0 +1,20 @@
+#include "../../../imports/stdlib.fc";
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    (slice got_value, int found) = init_dict.udict_get?(64, 3);
+    throw_unless(300, found);
+    throw_unless(301, got_value.preload_int(64) == 3);
+    (cell dict_del, _) = init_dict
+        .udict_delete?(64, 37);
+    (slice got_value, int found_set) = dict_del.udict_get?(64, 3);
+    throw_unless(400, found_set);
+    int value_extracted = got_value.preload_int(64);
+    throw_unless(401, value_extracted == 3);
+    throw(500); ;; successfull execution
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

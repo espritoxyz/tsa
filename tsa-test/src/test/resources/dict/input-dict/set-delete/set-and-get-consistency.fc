@@ -1,0 +1,16 @@
+#include "../../../imports/stdlib.fc";
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    slice empty_slice = begin_cell().end_cell().begin_parse();
+    cell set_dict = init_dict.udict_set(64, 37, empty_slice);
+    (_, int found) = set_dict.udict_get?(64, 37);
+    throw_unless(400, found);
+    throw(500); ;; successfull execution
+}
+
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

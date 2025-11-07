@@ -1,0 +1,15 @@
+#include "../../imports/stdlib.fc";
+
+(slice) wrap_in_cell(int x) impure method_id (101) {
+    return begin_cell().store_int(x, 64).end_cell().begin_parse();
+}
+
+(cell) my_mk_ite(cell d1, cell d2, int index) impure method_id (100) {
+    cell ite_dict = new_dict()
+        .udict_set(64, 0, begin_cell().store_dict(d1).end_cell().begin_parse())
+        .udict_set(64, 1, begin_cell().store_dict(d2).end_cell().begin_parse());
+    throw_unless(300, (index == 0) | (index == 1));
+    (slice result, int found) = udict_get?(ite_dict, 64, index);
+    throw_if(402, ~ found);
+    return result.preload_dict();
+}

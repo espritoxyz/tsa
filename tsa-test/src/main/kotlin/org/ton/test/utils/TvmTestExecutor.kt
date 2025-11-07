@@ -30,6 +30,7 @@ object TvmTestExecutor {
                 testFileName = generatedTestsPath,
                 testsExecutionTimeout = TEST_EXECUTION_TIMEOUT,
             )
+        logger.info { "Executing tests project=$project testFileName=$generatedTestsPath" }
         val allTests = testResults.flatMap { it.assertionResults }
         val failedTests = allTests.filter { it.status == TestStatus.FAILED }
 

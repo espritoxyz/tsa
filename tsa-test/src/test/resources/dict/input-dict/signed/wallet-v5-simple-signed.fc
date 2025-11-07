@@ -1,0 +1,44 @@
+#include "../../../imports/stdlib.fc";
+
+const int size::bool = 1;
+const int size::seqno = 32;
+const int size::wallet_id = 32;
+const int size::public_key = 256;
+const int size::valid_until = 32;
+const int size::message_flags = 4;
+const int size::signature = 512;
+const int size::message_operation_prefix = 32;
+const int size::address_hash_size = 256;
+const int size::query_id = 64;
+
+
+() test(slice in_msg) impure {
+    while (true) {
+        int kind = in_msg~load_uint(1);
+        int address_hash = in_msg~load_int(256);
+        cell extensions = get_data().begin_parse().preload_dict();
+        if (kind) {
+            (extensions, int is_success) = extensions.idict_add_builder?(size::address_hash_size, address_hash, begin_cell().store_int(-1, 1));
+            throw_unless(601, is_success);
+        } else {
+            (extensions, int is_success) = extensions.idict_delete?(size::address_hash_size, address_hash);
+            throw_unless(602, is_success);
+        }
+
+        set_data(begin_cell()
+            .store_dict(extensions)
+            .end_cell());
+
+        ifnot (in_msg.slice_refs()) {
+            return ();
+        }
+        in_msg = in_msg.preload_ref().begin_parse();
+    }
+    return ();
+}
+
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}
