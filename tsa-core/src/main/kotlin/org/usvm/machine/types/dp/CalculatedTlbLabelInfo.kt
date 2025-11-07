@@ -7,6 +7,7 @@ import org.ton.TlbCoinsLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
 import org.ton.TvmParameterInfo
+import org.ton.compositeLabelOfUnknown
 import org.ton.defaultTlbMaybeRefLabel
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
@@ -67,6 +68,9 @@ class CalculatedTlbLabelInfo(
         }
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate childLabel for depth $maxDepth"
+        }
+        if (parentLabel == compositeLabelOfUnknown) {
+            return mapOf(TvmParameterInfo.DataCellInfo(compositeLabelOfUnknown) to ctx.trueExpr)
         }
         val childStructure =
             labelChildren[maxDepth][parentLabel]?.children?.get(childIdx)

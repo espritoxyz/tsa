@@ -267,7 +267,9 @@ class TvmStepScopeManager(
          * Executes [block] on a state.
          */
         inline fun <R> calcOnState(block: TvmState.() -> R): R {
-            check(canProcessFurtherOnCurrentStep) { "Using of an invalid scope" }
+            check(canProcessFurtherOnCurrentStep) {
+                "Using of an invalid scope"
+            }
             return originalState.block()
         }
 

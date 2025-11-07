@@ -3,7 +3,10 @@ package org.usvm.machine.interpreter
 import org.ton.bytecode.TsaArtificialCheckerReturn
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmInst
+import org.ton.compositeLabelOfUnknown
+import org.usvm.UConcreteHeapRef
 import org.usvm.api.makeSymbolicPrimitive
+import org.usvm.api.readField
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
@@ -21,6 +24,7 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
@@ -209,47 +213,61 @@ class TsaCheckerFunctionsInterpreter(
         stmt: TvmInst,
         nextMethodId: Int,
         nextContractId: Int,
-    ) {
+    ): Unit? {
         val receiverInput =
-            scope.calcOnState {
-                if (stackOperations is NewReceiverInput) {
-                    additionalInputs
-                        .getOrElse(stackOperations.inputId) {
-                            when (stackOperations.type) {
-                                ReceiverType.Internal ->
-                                    RecvInternalInput(
-                                        this,
-                                        TvmConcreteGeneralData(),
-                                        nextContractId,
-                                    )
+            if (stackOperations is NewReceiverInput) {
+                val additionalInputs = scope.calcOnState { additionalInputs }
+                additionalInputs
+                    .getOrElse(stackOperations.inputId) {
+                        when (stackOperations.type) {
+                            ReceiverType.Internal ->
+                                RecvInternalInput(
+                                    scope.calcOnState { this },
+                                    TvmConcreteGeneralData(),
+                                    nextContractId,
+                                )
 
-                                ReceiverType.External ->
-                                    RecvExternalInput(
-                                        this,
-                                        TvmConcreteGeneralData(),
-                                        nextContractId,
-                                    )
-                            }
-                        }.also {
-                            additionalInputs = additionalInputs.put(stackOperations.inputId, it)
+                            ReceiverType.External ->
+                                RecvExternalInput(
+                                    scope.calcOnState { this },
+                                    TvmConcreteGeneralData(),
+                                    nextContractId,
+                                )
+                        }
+                    }.also {
+                        scope.doWithState {
+                            this.additionalInputs = additionalInputs.put(stackOperations.inputId, it)
+                        }
 
-                            when (stackOperations.type) {
-                                ReceiverType.Internal -> {
-                                    check(it is RecvInternalInput) {
-                                        "Expected input with id ${stackOperations.inputId} to be internal input. Found: $it"
-                                    }
+                        val dataCellInfoStorage = scope.calcOnState { dataCellInfoStorage }
+
+                        val msgBodyCell =
+                            scope.calcOnStateCtx {
+                                memory.readField(it.msgBodySliceNonBounced, TvmContext.sliceCellField, addressSort)
+                            } as UConcreteHeapRef
+
+                        dataCellInfoStorage.mapper.addLabel(
+                            scope,
+                            msgBodyCell,
+                            compositeLabelOfUnknown,
+                        ) ?: return null
+
+                        when (stackOperations.type) {
+                            ReceiverType.Internal -> {
+                                check(it is RecvInternalInput) {
+                                    "Expected input with id ${stackOperations.inputId} to be internal input. Found: $it"
                                 }
+                            }
 
-                                ReceiverType.External -> {
-                                    check(it is RecvExternalInput) {
-                                        "Expected input with id ${stackOperations.inputId} to be external input. Found: $it"
-                                    }
+                            ReceiverType.External -> {
+                                check(it is RecvExternalInput) {
+                                    "Expected input with id ${stackOperations.inputId} to be external input. Found: $it"
                                 }
                             }
                         }
-                } else {
-                    null
-                }
+                    }
+            } else {
+                null
             }
 
         val oldStack = scope.calcOnState { stack }
@@ -327,6 +345,8 @@ class TsaCheckerFunctionsInterpreter(
                 )
             }
         }
+
+        return Unit
     }
 
     class CheckerMemorySavelist(
