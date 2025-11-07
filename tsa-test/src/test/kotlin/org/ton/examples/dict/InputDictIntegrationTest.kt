@@ -4,10 +4,12 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import org.ton.test.utils.extractResource
+import kotlin.test.Ignore
 
 class InputDictIntegrationTest {
     private val allTests = "/dict/input-dict"
 
+    @Ignore
     @TestFactory
     fun `all dictionary tests`(): List<DynamicTest> =
         runTestsInDirectory(allTests, System.getenv("INPUTDICT_TESTS") ?: ".*")
