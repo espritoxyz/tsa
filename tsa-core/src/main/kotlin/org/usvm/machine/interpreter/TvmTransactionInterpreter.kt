@@ -561,6 +561,7 @@ class TvmTransactionInterpreter(
 
                 scope.doWithConditions(actions) { param ->
                     assertCorrectAddresses(this, param.messagesForQueue)
+                        ?: return@doWithConditions
                     restActions(param)
                 }
             }
