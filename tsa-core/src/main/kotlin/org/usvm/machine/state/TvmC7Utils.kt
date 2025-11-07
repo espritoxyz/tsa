@@ -142,7 +142,7 @@ fun TvmState.configContainsParam(idx: UExpr<TvmInt257Sort>): UBoolExpr =
     with(ctx) {
         val configDict = getConfig()
 
-        dictContainsKey(
+        allocatedDictContainsKey(
             configDict,
             DictId(CONFIG_KEY_LENGTH),
             idx.extractToSort(mkBvSort(CONFIG_KEY_LENGTH.toUInt())),

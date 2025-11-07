@@ -1503,7 +1503,7 @@ fun TvmState.readSliceFull(slice: UHeapRef): SliceReadData {
     val dataPos = readSliceDataPos(slice)
     val refPos = readSliceRefPos(slice)
     val cell = readSliceCell(slice)
-    val cellData = runCatching { fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(this, cell) }.getOrNull()
+    val cellData = fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(this, cell)
     val cellDataLength = fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
     return SliceReadData(
         dataPos,

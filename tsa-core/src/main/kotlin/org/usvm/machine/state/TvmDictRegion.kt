@@ -207,7 +207,7 @@ fun TvmState.dictGetValue(
         }
     }
 
-fun TvmState.dictContainsKey(
+fun TvmState.allocatedDictContainsKey(
     dictRef: UHeapRef,
     dictId: DictId,
     key: UExpr<UBvSort>,
