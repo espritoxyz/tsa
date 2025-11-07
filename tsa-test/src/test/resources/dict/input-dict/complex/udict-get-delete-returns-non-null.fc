@@ -1,0 +1,23 @@
+#include "../../../imports/stdlib.fc";
+
+;; is a temporary test while we assert that the dict is not empty
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+
+    (int k0, _, int n0) = init_dict.udict_get_nexteq?(64, 0);
+    throw_unless(300, n0);
+    (_, int f0) = init_dict~udict_delete_get?(64, k0);
+    throw_unless(400, f0);
+
+    (int k1, _, int n1) = init_dict.udict_get_nexteq?(64, 0);
+    throw_unless(401, n1); ;; exists the next element, as we are non-zero
+    (_, int f1) = init_dict~udict_delete_get?(64, k1);
+    throw_unless(402, f1);
+    throw(500);
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

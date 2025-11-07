@@ -108,6 +108,23 @@ fun funcCompileAndAnalyzeAllMethods(
         tvmOptions,
     )
 
+fun funcCompileAndAnalyzeSpecificMethod(
+    funcSourcesPath: Path,
+    methodId: MethodId,
+    concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),
+    concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
+    inputInfo: TvmInputInfo = TvmInputInfo(emptyMap()),
+    tvmOptions: TvmOptions = TvmOptions(),
+): TvmSymbolicTestSuite =
+    funcAnalyzer.analyzeSpecificMethod(
+        funcSourcesPath,
+        methodId,
+        concreteGeneralData,
+        concreteContractData,
+        inputInfo,
+        tvmOptions,
+    )
+
 fun compileAndAnalyzeFift(
     fiftPath: Path,
     concreteGeneralData: TvmConcreteGeneralData = TvmConcreteGeneralData(),

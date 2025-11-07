@@ -1,0 +1,17 @@
+#include "../../../imports/stdlib.fc";
+
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    (slice value1, int found1) = init_dict.idict_get?(64, 2);
+    throw_if(300, ~ found1);
+    (slice value2, int found2) = init_dict.idict_get?(64, 2);
+    throw_if(400, ~ found2);
+    throw_if(401, slice_hash(value1) != slice_hash(value2));
+    throw(500);
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}
