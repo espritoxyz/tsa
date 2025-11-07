@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1,
+    "inOpcodeToDestination": {
+      "25938561": {
+        "type": "out_opcodes",
+        "outOpcodeToDestination": {
+          "278f5089": [2]
+        }
+      }
+    }
+  },
+  {
+    "id": 2,
+    "inOpcodeToDestination": {
+      "278f5089": {
+        "type": "out_opcodes",
+        "outOpcodeToDestination": {
+          "d4374956": [3]
+        }
+      }
+    }
+  }
+]
