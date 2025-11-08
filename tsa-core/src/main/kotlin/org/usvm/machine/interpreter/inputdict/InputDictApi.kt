@@ -31,6 +31,31 @@ fun doInputDictHasKey(
     DictHasKeyResult(keyExists)
 }
 
+fun assertInputDictIsEmpty(
+    scope: TvmStepScopeManager,
+    inputDict: InputDict,
+    condition: UBoolExpr,
+): Unit? {
+    val ctx = scope.ctx
+    val rootInputDictionary =
+        scope.calcOnState { inputDictionaryStorage.getRootInfoByIdOrThrow(inputDict.rootInputDictId) }
+    val (cs, quantifiers) =
+        rootInputDictionary.addLazyUniversalConstraint(
+            ctx,
+            EmptyDictConstraint(condition, inputDict.modifications),
+        )
+    scope.assert(ctx.mkAnd(cs))
+        ?: return null
+    scope.calcOnState {
+        inputDictionaryStorage =
+            inputDictionaryStorage.updateRootInputDictionary(
+                inputDict.rootInputDictId,
+                InputDictRootInformation(quantifiers, rootInputDictionary.symbols),
+            )
+    }
+    return Unit
+}
+
 data class DictMinMaxResult(
     val expr: KeyType,
 )
