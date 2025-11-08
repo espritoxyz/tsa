@@ -24,6 +24,16 @@ sealed interface LazyUniversalQuantifierConstraint {
     ): UBoolExpr
 }
 
+data class EmptyDictConstraint(
+    val condition: UBoolExpr,
+    override val modifications: PersistentList<Modification>,
+) : LazyUniversalQuantifierConstraint {
+    override fun createConstraint(
+        ctx: TvmContext,
+        symbol: KExtended,
+    ): UBoolExpr = ctx.mkImplies(condition, ctx.falseExpr)
+}
+
 /**
  * @param condition a condition of whether this constraint should be applied at all
  * (useful for avoiding forking)

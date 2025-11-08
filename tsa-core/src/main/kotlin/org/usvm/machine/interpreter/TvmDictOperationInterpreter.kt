@@ -158,6 +158,7 @@ import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.interpreter.inputdict.InputDictRootInformation
 import org.usvm.machine.interpreter.inputdict.KeyType
 import org.usvm.machine.interpreter.inputdict.Modification
+import org.usvm.machine.interpreter.inputdict.assertInputDictIsEmpty
 import org.usvm.machine.interpreter.inputdict.doInputDictHasKey
 import org.usvm.machine.interpreter.inputdict.doInputDictMinMax
 import org.usvm.machine.interpreter.inputdict.doInputDictNextPrev
@@ -1953,6 +1954,11 @@ class TvmDictOperationInterpreter(
                 ?: return
         val appliedModification = Modification.Remove(KeyType(key, keyKind))
         val newInputDict = initInputDict.withModification(appliedModification)
+        scope.calcOnStateCtx {
+            copyInputDictMemoryRepresentation(dictOriginalConcreteRef, resultDictRef, dictId, keySort)
+            inputDictionaryStorage = inputDictionaryStorage.createDictEntry(resultDictRef, newInputDict)
+        }
+
         // assert not empty
         val someKeyExistsAfterDeletion =
             doInputDictHasKey(
@@ -1961,50 +1967,76 @@ class TvmDictOperationInterpreter(
                 scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) },
             )?.exists
                 ?: return
-        scope.assert(someKeyExistsAfterDeletion)
-            ?: return
-        scope.calcOnStateCtx {
-            copyInputDictMemoryRepresentation(dictOriginalConcreteRef, resultDictRef, dictId, keySort)
-            inputDictionaryStorage = inputDictionaryStorage.createDictEntry(resultDictRef, newInputDict)
-        }
-        val oldValue = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
-        assertDictValueDoesNotOverflow(scope, dictId, oldValue)
-            ?: return
-        val unwrappedValue =
-            unwrapDictValue(scope, oldValue, valueType)
-                ?: return
-        if (!getOldValue) {
-            scope.calcOnStateCtx {
-                addOnStack(resultDictRef, TvmCellType)
-                addOnStack(mkIte(queryKeyExists, trueValue, falseValue), TvmIntegerType)
-                newStmt(inst.nextStmt())
-            }
-        } else {
-            scope.doWithConditions(
-                listOf(
-                    TvmStepScopeManager.ActionOnCondition(
-                        action = {
-                            addOnStack(resultDictRef, TvmCellType)
-                            addValueOnStack(unwrappedValue, valueType)
-                            addOnStack(ctx.trueValue, TvmIntegerType)
-                            newStmt(inst.nextStmt())
-                        },
-                        caseIsExceptional = false,
-                        condition = queryKeyExists,
-                        paramForDoForAllBlock = Unit,
-                    ),
-                    TvmStepScopeManager.ActionOnCondition(
-                        action = {
-                            addOnStack(resultDictRef, TvmCellType)
-                            addOnStack(ctx.falseValue, TvmIntegerType)
-                            newStmt(inst.nextStmt())
-                        },
-                        caseIsExceptional = false,
-                        condition = ctx.mkNot(queryKeyExists),
-                        paramForDoForAllBlock = Unit,
-                    ),
+        assertInputDictIsEmpty(
+            scope,
+            newInputDict,
+            ctx.mkNot(someKeyExistsAfterDeletion),
+        ) ?: return
+
+        // TODO: once the ite operations on the dictionary are fully supported,
+        // replace this with ITE reference
+        val actions =
+            listOf(
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {},
+                    caseIsExceptional = false,
+                    condition = someKeyExistsAfterDeletion,
+                    paramForDoForAllBlock = resultDictRef,
                 ),
-            ) { _: Unit -> }
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {},
+                    caseIsExceptional = false,
+                    condition = ctx.mkNot(someKeyExistsAfterDeletion),
+                    paramForDoForAllBlock = ctx.nullValue,
+                ),
+            )
+        scope.doWithConditions(actions) { resultDictRef ->
+            fun TvmState.addResultDictOnStack() {
+                if (resultDictRef == ctx.nullValue) {
+                    addOnStack(resultDictRef, TvmNullType)
+                } else {
+                    addOnStack(resultDictRef, TvmCellType)
+                }
+            }
+            if (!getOldValue) {
+                this.calcOnStateCtx {
+                    addResultDictOnStack()
+                    addOnStack(mkIte(queryKeyExists, trueValue, falseValue), TvmIntegerType)
+                    newStmt(inst.nextStmt())
+                }
+            } else {
+                val oldValue = this.calcOnState { dictGetValue(dictCellRef, dictId, key) }
+                assertDictValueDoesNotOverflow(this, dictId, oldValue)
+                    ?: return@doWithConditions
+                val unwrappedValue =
+                    unwrapDictValue(this, oldValue, valueType)
+                        ?: return@doWithConditions
+                this.doWithConditions(
+                    listOf(
+                        TvmStepScopeManager.ActionOnCondition(
+                            action = {
+                                addResultDictOnStack()
+                                addValueOnStack(unwrappedValue, valueType)
+                                addOnStack(ctx.trueValue, TvmIntegerType)
+                                newStmt(inst.nextStmt())
+                            },
+                            caseIsExceptional = false,
+                            condition = queryKeyExists,
+                            paramForDoForAllBlock = Unit,
+                        ),
+                        TvmStepScopeManager.ActionOnCondition(
+                            action = {
+                                addResultDictOnStack()
+                                addOnStack(ctx.falseValue, TvmIntegerType)
+                                newStmt(inst.nextStmt())
+                            },
+                            caseIsExceptional = false,
+                            condition = ctx.mkNot(queryKeyExists),
+                            paramForDoForAllBlock = Unit,
+                        ),
+                    ),
+                ) { _: Unit -> }
+            }
         }
         return
     }
