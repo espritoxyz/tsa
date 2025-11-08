@@ -1,0 +1,14 @@
+#include "../../../imports/stdlib.fc";
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    throw_unless(300, ~ null?(init_dict));
+    (cell del_dict, int deleted) = udict_delete?(init_dict, 64, 37);
+    throw_unless(301, deleted);
+    throw_if(500, null?(del_dict));
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}
