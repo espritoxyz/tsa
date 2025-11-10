@@ -10,6 +10,7 @@ import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.propertiesFound
+import org.usvm.machine.ExploreExitCodesStopStrategy
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TactSourcesDescription
 import org.usvm.machine.TvmConcreteContractData
@@ -242,6 +243,7 @@ class CheckersTest {
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
+                additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(300)),
             )
 
         propertiesFound(
@@ -315,6 +317,7 @@ class CheckersTest {
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
+                additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(300)),
             )
 
         propertiesFound(
