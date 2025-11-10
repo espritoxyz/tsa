@@ -9,6 +9,7 @@ import org.ton.test.utils.extractCommunicationSchemeFromResource
 import org.ton.test.utils.extractConcreteDataFromResource
 import org.ton.test.utils.getAddressBits
 import org.ton.test.utils.propertiesFound
+import org.usvm.machine.ExploreExitCodesStopStrategy
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
@@ -67,6 +68,7 @@ class CroutonfiTest {
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
+                additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(1000)),
             )
 
         propertiesFound(
