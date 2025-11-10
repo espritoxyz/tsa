@@ -57,6 +57,7 @@ import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ContractSender
 import org.usvm.machine.state.messages.MessageAsStackArguments
+import org.usvm.machine.state.messages.MessageSource
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
@@ -429,6 +430,7 @@ class TvmArtificialInstInterpreter(
                 fullMsgCell = msgCell,
                 msgBodySlice = bodySlice,
                 destAddrSlice = dstAddressSlice,
+                source = MessageSource.Bounced,
             )
         }
     }

@@ -47,6 +47,7 @@ import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.MessageMode
+import org.usvm.machine.state.messages.MessageSource
 import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.sliceLoadAddrTransaction
 import org.usvm.machine.state.sliceLoadGramsTransaction
@@ -59,10 +60,10 @@ import org.usvm.test.resolver.TvmTestStateResolver
 
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
 private typealias Transformation =
-    TvmTransactionInterpreter.MessageHandlingState.Ok.() -> TvmTransactionInterpreter.MessageHandlingState
+        TvmTransactionInterpreter.MessageHandlingState.Ok.() -> TvmTransactionInterpreter.MessageHandlingState
 
 private typealias MutableTransformation =
-    TvmTransactionInterpreter.MessageHandlingState.OkBuilder.() -> TvmTransactionInterpreter.MessageHandlingState
+        TvmTransactionInterpreter.MessageHandlingState.OkBuilder.() -> TvmTransactionInterpreter.MessageHandlingState
 
 const val MSG_FWD_FEE_UPPER_BOUND = 100
 
@@ -321,7 +322,7 @@ class TvmTransactionInterpreter(
                 CondTransform(
                     {
                         sendRemainingBalance.not() and sendRemainingValue and
-                            (remainingInboundMessageValue bvUge computeFees)
+                                (remainingInboundMessageValue bvUge computeFees)
                     },
                     asOnCopy {
                         messageValue = remainingInboundMessageValue bvSub computeFees
@@ -332,7 +333,7 @@ class TvmTransactionInterpreter(
                 CondTransform(
                     {
                         sendRemainingBalance.not() and sendRemainingValue and
-                            (remainingInboundMessageValue bvUge computeFees).not()
+                                (remainingInboundMessageValue bvUge computeFees).not()
                     },
                     asOnCopy {
                         MessageHandlingState.insufficientFundsError(currentContractId)
@@ -516,7 +517,7 @@ class TvmTransactionInterpreter(
             is LinearDestinations -> {
                 check(handler.destinations.size == messages.size) {
                     "The number of actual messages is not equal to the number of destinations in the scheme: " +
-                        "${messages.size} ${handler.destinations.size}"
+                            "${messages.size} ${handler.destinations.size}"
                 }
 
                 val messagesForQueue =
@@ -578,11 +579,11 @@ class TvmTransactionInterpreter(
                     val destinationContractAddress =
                         scope.calcOnState {
                             (
-                                getContractInfoParamOf(
-                                    ADDRESS_PARAMETER_IDX,
-                                    destinationContract,
-                                ).cellValue as? UConcreteHeapRef
-                            )?.let { allocSliceFromCell(it) }
+                                    getContractInfoParamOf(
+                                        ADDRESS_PARAMETER_IDX,
+                                        destinationContract,
+                                    ).cellValue as? UConcreteHeapRef
+                                    )?.let { allocSliceFromCell(it) }
                                 ?: error("Cannot extract contract address")
                         }
 
@@ -782,7 +783,13 @@ class TvmTransactionInterpreter(
         val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
 
         return MessageActionParseResult(
-            MessageAsStackArguments(msgValue, msgFull, bodySlice, destination),
+            MessageAsStackArguments(
+                msgValue,
+                msgFull,
+                bodySlice,
+                destination,
+                source = MessageSource.SentWithMode(sendMsgMode),
+            ),
             sendMsgMode,
         )
     }

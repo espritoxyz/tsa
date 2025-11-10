@@ -13,6 +13,7 @@ import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmStructuralExit
+import java.math.BigInteger
 
 data object TvmTestResolver {
     fun resolve(
@@ -189,6 +190,7 @@ data class TvmTestOutMessage(
     val value: TvmTestIntegerValue,
     val fullMessage: TvmTestCellValue,
     val bodySlice: TvmTestSliceValue,
+    val mode: BigInteger,
 )
 
 sealed interface TvmMethodSymbolicResult {

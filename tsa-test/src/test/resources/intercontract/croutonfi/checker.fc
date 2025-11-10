@@ -31,12 +31,17 @@ global int initial_value;
     slice dest = cs~load_msg_addr();
     int value = cs~load_grams();
 
-    throw_if(1000, equal_slice_bits(dest, initial_sender) & (value > initial_value));
+    if (equal_slice_bits(dest, initial_sender)) {
+        tsa_fetch_value(initial_value, -1);
+        tsa_fetch_value(value, -2);
+
+        throw_if(1000, equal_slice_bits(dest, initial_sender) & (value > initial_value));
+    }
 }
 
 () main() impure {
     ;; just some address
-    initial_sender = "UQBVMbW8Rc67EN7vrSGgY5p3bBsPWd_tXjv6t3Wcg3UflO8G"a;
+    initial_sender = "UQALzO3OsJXu5WH5PvDCTxmlGW1rthvmVxQK-Hrt94UHroqu"a;
 
     tsa_send_internal_message(1, 0);
 }

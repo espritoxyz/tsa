@@ -28,7 +28,7 @@ class CroutonfiTest {
     private val poolCodePath = "/intercontract/croutonfi/pool_code.boc"
     private val poolDataPath = "/intercontract/croutonfi/pool_data.boc"
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+//    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun findTonDrain() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)
@@ -50,14 +50,14 @@ class CroutonfiTest {
         val concreteVaultData =
             TvmConcreteContractData(
                 addressBits = getAddressBits("0:1d5fdacd17489f917240a3b097839bfbf3205b3fd3b52f850beccf442345cc92"),
-                initialBalance = 2148977707770L.toBigInteger(),
+                initialBalance = 11319590000.toBigInteger(),
                 contractC4 = extractConcreteDataFromResource(vaultDataPath),
             )
 
         val concretePoolData =
             TvmConcreteContractData(
                 addressBits = getAddressBits("0:7b3abba2d73fdd28e3681ee825be2d9b314a660f87f0d19e02da07b00f614fd0"),
-                initialBalance = 32106961941L.toBigInteger(),
+                initialBalance = 32757070000L.toBigInteger(),
                 contractC4 = extractConcreteDataFromResource(poolDataPath),
             )
 

@@ -498,6 +498,9 @@ class TsaCheckerFunctionsInterpreter(
                 "Value with id $valueId is already present: $fetchedValues[$valueId]"
             }
             fetchedValues = fetchedValues.put(valueId, entry)
+            if (valueId == -2) {
+                println("here")
+            }
             newStmt(stmt.nextStmt())
         }
     }
