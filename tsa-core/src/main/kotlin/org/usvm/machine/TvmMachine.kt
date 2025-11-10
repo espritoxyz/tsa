@@ -19,7 +19,6 @@ import org.usvm.statistics.ApplicationGraph
 import org.usvm.statistics.CompositeUMachineObserver
 import org.usvm.statistics.StepsStatistics
 import org.usvm.statistics.TimeStatistics
-import org.usvm.statistics.UMachineObserver
 import org.usvm.statistics.collectors.AllStatesCollector
 import org.usvm.stopstrategies.GroupedStopStrategy
 import org.usvm.stopstrategies.StepLimitStopStrategy
@@ -69,9 +68,8 @@ class TvmMachine(
         coverageStatistics: TvmCoverageStatistics, // TODO: adapt for several contracts
         methodId: BigInteger,
         inputInfo: TvmInputInfo = TvmInputInfo(),
-        additionalStopStrategy: StopStrategy = StopStrategy { false },
-        additionalObserver: UMachineObserver<TvmState>? = null,
         manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
+        additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
     ): List<TvmState> {
         val interpreter =
             TvmInterpreter(
@@ -152,11 +150,12 @@ class TvmMachine(
                     TODO(
                         "Unsupported strategy ${options.stateCollectionStrategy}",
                     )
+
                 StateCollectionStrategy.ALL -> AllStatesCollector<TvmState>()
             }
 
-        val observers = mutableListOf(statesCollector, stepsStatistics, coverageStatistics, timeStatistics)
-        additionalObserver?.let { observers.add(it) }
+        val observers =
+            mutableListOf(statesCollector, stepsStatistics, coverageStatistics, timeStatistics, additionalStopStrategy)
 
         if (logger.isDebugEnabled && contractsCode.size == 1) {
             val code = contractsCode.single()

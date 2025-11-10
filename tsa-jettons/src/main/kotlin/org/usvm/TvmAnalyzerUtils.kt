@@ -3,12 +3,11 @@ package org.usvm
 import org.ton.bytecode.TsaContractCode
 import org.usvm.checkers.TvmChecker
 import org.usvm.machine.BocAnalyzer
+import org.usvm.machine.TvmAdditionalStopStrategy
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmState
-import org.usvm.statistics.UMachineObserver
-import org.usvm.stopstrategies.StopStrategy
 import java.nio.file.Path
 import kotlin.io.path.createTempFile
 import kotlin.io.path.deleteIfExists
@@ -26,9 +25,7 @@ fun getContractFromBytes(bytes: ByteArray): TsaContractCode {
 
 const val FIFT_STDLIB_PATH = "/fiftstdlib"
 
-class FirstFailureTerminator :
-    StopStrategy,
-    UMachineObserver<TvmState> {
+class FirstFailureTerminator : TvmAdditionalStopStrategy {
     private var shouldStop: Boolean = false
 
     override fun shouldStop(): Boolean = shouldStop

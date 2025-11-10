@@ -4,11 +4,11 @@ import org.ton.TvmInputInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
 import org.usvm.FirstFailureTerminator
+import org.usvm.machine.NoAdditionalStopStrategy
 import org.usvm.machine.TvmManualStateProcessor
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.state.TvmState
-import org.usvm.stopstrategies.StopStrategy
 import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSymbolicTest
 
@@ -24,21 +24,20 @@ fun runAnalysisAndExtractFailingExecutions(
             override fun postProcessBeforePartialConcretization(state: TvmState): List<TvmState> =
                 manualStatePostProcess(state)
         }
-    val additionalStopStrategy = FirstFailureTerminator()
+
+    val additionalStopStrategy =
+        if (stopWhenFoundOneConflictingExecution) {
+            FirstFailureTerminator()
+        } else {
+            NoAdditionalStopStrategy
+        }
+
     val analysisResult =
         analyzeInterContract(
             contracts,
             startContractId = 0,
             methodId = MethodId.ZERO,
-            additionalStopStrategy =
-                if (stopWhenFoundOneConflictingExecution) {
-                    additionalStopStrategy
-                } else {
-                    StopStrategy {
-                        false
-                    }
-                },
-            additionalObserver = if (stopWhenFoundOneConflictingExecution) additionalStopStrategy else null,
+            additionalStopStrategy = additionalStopStrategy,
             options =
                 TvmOptions(
                     turnOnTLBParsingChecks = false,

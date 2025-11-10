@@ -10,8 +10,6 @@ import org.ton.bytecode.setTSACheckerFunctions
 import org.usvm.machine.FuncAnalyzer.Companion.FIFT_EXECUTABLE
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
-import org.usvm.statistics.UMachineObserver
-import org.usvm.stopstrategies.StopStrategy
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmMethodCoverage
 import org.usvm.test.resolver.TvmSymbolicTestSuite
@@ -494,11 +492,10 @@ fun analyzeInterContract(
     startContractId: ContractId,
     methodId: MethodId,
     inputInfo: TvmInputInfo = TvmInputInfo(),
-    additionalStopStrategy: StopStrategy = StopStrategy { false },
-    additionalObserver: UMachineObserver<TvmState>? = null,
     options: TvmOptions = TvmOptions(),
     manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
     concreteContractData: List<TvmConcreteContractData> = contracts.map { TvmConcreteContractData() },
+    additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
     val startContractCode = contracts[startContractId]
@@ -518,7 +515,6 @@ fun analyzeInterContract(
                 methodId,
                 inputInfo = inputInfo,
                 additionalStopStrategy = additionalStopStrategy,
-                additionalObserver = additionalObserver,
                 manualStateProcessor = manualStateProcessor,
             )
         }
