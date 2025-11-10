@@ -23,6 +23,7 @@ import org.usvm.machine.TvmComponents
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmManualStateProcessor
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
@@ -49,6 +50,7 @@ class CalculatedTlbLabelInfoTest {
             listOf(someCode),
             dummyComponents.typeSystem,
             TvmInputInfo(),
+            TvmManualStateProcessor(),
         )
     private val dummyState =
         dummyInterpreter.getInitialState(

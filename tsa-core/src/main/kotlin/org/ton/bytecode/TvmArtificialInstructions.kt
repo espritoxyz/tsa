@@ -137,3 +137,9 @@ data class TsaArtificialCheckerReturn(
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_checker_return"
 }
+
+data class TsaArtificialPostprocessInst(
+    override val location: TvmInstLocation,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "postprocess"
+}

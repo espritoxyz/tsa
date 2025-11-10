@@ -79,6 +79,7 @@ class TvmMachine(
                 contractsCode,
                 typeSystem = components.typeSystem,
                 inputInfo = inputInfo,
+                manualStateProcessor,
             )
         logger.debug("{}.analyze({})", this, contractsCode)
         val initialState =
@@ -175,15 +176,7 @@ class TvmMachine(
             stopStrategy = integrativeStopStrategy,
         )
 
-        var states =
-            statesCollector.collectedStates.flatMap {
-                manualStateProcessor
-                    .postProcessBeforePartialConcretization(
-                        it,
-                    )
-            }
-        states = interpreter.postProcessStates(states)
-        return states.flatMap { manualStateProcessor.postProcessAfterPartialConcretization(it) }
+        return statesCollector.collectedStates
     }
 
     private fun isStateTerminated(state: TvmState): Boolean = state.isTerminated

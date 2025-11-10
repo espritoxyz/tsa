@@ -12,6 +12,7 @@ import org.usvm.machine.TvmComponents
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmManualStateProcessor
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.interpreter.TvmInterpreter
 import java.io.File
@@ -51,6 +52,7 @@ fun main() {
                             listOf(code),
                             dummyComponents.typeSystem,
                             TvmInputInfo(),
+                            TvmManualStateProcessor(),
                         )
                     val dummyState =
                         dummyInterpreter.getInitialState(

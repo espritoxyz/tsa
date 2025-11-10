@@ -248,6 +248,7 @@ enum class TvmPhase {
     ACTION_PHASE,
     BOUNCE_PHASE,
     EXIT_PHASE,
+    POSTPROCESS_PHASE,
     TERMINATED,
 }
 
