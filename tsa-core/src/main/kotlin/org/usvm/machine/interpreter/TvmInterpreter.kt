@@ -13,6 +13,7 @@ import org.ton.TvmParameterInfo.CellInfo
 import org.ton.TvmParameterInfo.SliceInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaArtificialExecuteContInst
+import org.ton.bytecode.TsaArtificialPostprocessInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmAppActionsInst
 import org.ton.bytecode.TvmAppAddrInst
@@ -221,6 +222,7 @@ import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.Companion.sliceRefPosField
 import org.usvm.machine.TvmContext.TvmInt257Sort
+import org.usvm.machine.TvmManualStateProcessor
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.extractMethodIdOrNull
@@ -235,6 +237,7 @@ import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.C7Register
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmInitialStateData
+import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackCellValue
@@ -327,6 +330,7 @@ class TvmInterpreter(
     private val contractsCode: List<TsaContractCode>,
     val typeSystem: TvmTypeSystem,
     private val inputInfo: TvmInputInfo,
+    private val manualStateProcessor: TvmManualStateProcessor,
     var forkBlackList: UForkBlackList<TvmState, TvmInst> = UForkBlackList.createDefault(),
 ) : UInterpreter<TvmState>() {
     companion object {
@@ -612,15 +616,29 @@ class TvmInterpreter(
             TvmRefEmptyValue(emptyCell, emptySlice, emptyBuilder)
         }
 
-    fun postProcessStates(states: Collection<TvmState>): List<TvmState> {
-        return states.filter { state ->
-            val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = true)
+    fun postProcessStates(state: TvmState): List<TvmState> {
+        state.phase = TERMINATED
 
-            postProcessor.postProcessState(scope)
-                ?: return@filter false
+        val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 
-            val structuralConstraintsHolder = state.structuralConstraintsHolder
-            structuralConstraintsHolder.applyTo(scope) != null
+        val filtered =
+            states.filter { state ->
+                val scope =
+                    TvmStepScopeManager(
+                        state,
+                        UForkBlackList.createDefault(),
+                        allowFailuresOnCurrentStep = true,
+                    )
+
+                postProcessor.postProcessState(scope)
+                    ?: return@filter false
+
+                val structuralConstraintsHolder = state.structuralConstraintsHolder
+                structuralConstraintsHolder.applyTo(scope) != null
+            }
+
+        return filtered.flatMap {
+            manualStateProcessor.postProcessAfterPartialConcretization(it)
         }
     }
 
@@ -632,6 +650,13 @@ class TvmInterpreter(
         val initialGasUsage = state.gasUsageHistory
 
         val allowFailures = state.allowFailures && !ctx.tvmOptions.excludeExecutionsWithFailures
+
+        if (stmt is TsaArtificialPostprocessInst) {
+            val newStates = postProcessStates(state)
+            val originalStateAlive = state in newStates
+            return StepResult(newStates.asSequence().filter { it != state }, originalStateAlive)
+        }
+
         var scope = TvmStepScopeManager(state, forkBlackList, allowFailures)
 
         tryCatchIf(

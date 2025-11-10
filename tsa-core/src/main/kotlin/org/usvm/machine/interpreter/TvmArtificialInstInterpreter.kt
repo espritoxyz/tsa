@@ -12,6 +12,7 @@ import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TsaArtificialLoopEntranceInst
 import org.ton.bytecode.TsaArtificialOnComputePhaseExitInst
 import org.ton.bytecode.TsaArtificialOnOutMessageHandlerCallInst
+import org.ton.bytecode.TsaArtificialPostprocessInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
 import org.usvm.api.makeSymbolicPrimitive
@@ -31,7 +32,7 @@ import org.usvm.machine.state.TvmPhase
 import org.usvm.machine.state.TvmPhase.ACTION_PHASE
 import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmPhase.EXIT_PHASE
-import org.usvm.machine.state.TvmPhase.TERMINATED
+import org.usvm.machine.state.TvmPhase.POSTPROCESS_PHASE
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addCell
@@ -82,6 +83,7 @@ class TvmArtificialInstInterpreter(
         check(stmt is TsaArtificialInst) {
             "Unexpected artificial instruction: $stmt"
         }
+
         when (stmt) {
             is TsaArtificialLoopEntranceInst -> {
                 scope.consumeDefaultGas(stmt)
@@ -138,6 +140,10 @@ class TvmArtificialInstInterpreter(
                 scope.consumeDefaultGas(stmt)
 
                 checkerFunctionsInterpreter.checkerReturn(scope, stmt)
+            }
+
+            is TsaArtificialPostprocessInst -> {
+                error("TsaArtificialPostprocessInst should have been processed earlier")
             }
         }
     }
@@ -455,25 +461,27 @@ class TvmArtificialInstInterpreter(
                     }.singleOrNull() ?: -1
             val isReturnFromHandler = contractStack.isNotEmpty() && contractStack.last().contractId != checkerContractId
             if (isReturnFromHandler) {
-                processContractStackReturn(scope, stmt.result)
+                processContractStackReturn(scope, stmt)
             } else if (tvmOptions.intercontractOptions.isIntercontractEnabled && !messageQueue.isEmpty()) {
                 currentPhaseBeginTime = pseudologicalTime
-                processIntercontractExit(scope, stmt.result)
+                processIntercontractExit(scope, stmt)
             } else {
                 // currentPhaseBegin will be lifted from contract stack
-                processContractStackReturn(scope, stmt.result)
+                processContractStackReturn(scope, stmt)
             }
         }
     }
 
     private fun processIntercontractExit(
         scope: TvmStepScopeManager,
-        result: TvmMethodResult,
+        stmt: TsaArtificialExitInst,
     ) {
         scope.doWithState {
             require(!messageQueue.isEmpty()) {
                 "Unexpected empty message queue during processing inter-contract exit"
             }
+
+            val result = stmt.result
 
             val commitedState = lastCommitedStateOfContracts[currentContract]
             val shouldTerminateBecauseOfFail = commitedState == null && ctx.tvmOptions.stopOnFirstError
@@ -485,8 +493,9 @@ class TvmArtificialInstInterpreter(
                 failureInActionPhase ||
                 softFailureInActionPhase
             ) {
-                phase = TERMINATED
+                phase = POSTPROCESS_PHASE
                 methodResult = result
+                newStmt(TsaArtificialPostprocessInst(stmt.location.increment()))
                 return@doWithState
             }
             val isChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
@@ -596,9 +605,10 @@ class TvmArtificialInstInterpreter(
 
     private fun processContractStackReturn(
         scope: TvmStepScopeManager,
-        result: TvmMethodResult,
+        stmt: TsaArtificialExitInst,
     ) {
         scope.doWithState {
+            val result = stmt.result
             val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
 
             /**
@@ -609,8 +619,9 @@ class TvmArtificialInstInterpreter(
                 (result is TvmFailure && (ctx.tvmOptions.stopOnFirstError || isTsaChecker)) ||
                     result is TvmAbstractSoftFailure
             if (shouldTerminateOfFailure || contractStack.isEmpty()) {
-                phase = TERMINATED
+                phase = POSTPROCESS_PHASE
                 methodResult = result
+                newStmt(TsaArtificialPostprocessInst(stmt.location.increment()))
                 return@doWithState
             }
 
