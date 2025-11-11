@@ -6,6 +6,7 @@ import org.usvm.machine.TvmContext
 
 sealed interface LazyUniversalQuantifierConstraint {
     /**
+     * These are modifications that were applied to the initial input dict at the moment of adding the constraint.
      * Used to preserve the invariants of the input dicts.
      * In short - it is used to construct the conditions a key in the root input dictionary R
      * would have in some other input dictionary P which was constructed by applying modifications
@@ -20,18 +21,18 @@ sealed interface LazyUniversalQuantifierConstraint {
      */
     fun createConstraint(
         ctx: TvmContext,
-        symbol: KExtended,
+        symbol: ExtendedDictKey,
     ): UBoolExpr
 }
 
 data class EmptyDictConstraint(
-    val condition: UBoolExpr,
+    val guard: UBoolExpr,
     override val modifications: PersistentList<Modification>,
 ) : LazyUniversalQuantifierConstraint {
     override fun createConstraint(
         ctx: TvmContext,
-        symbol: KExtended,
-    ): UBoolExpr = ctx.mkImplies(condition, ctx.falseExpr)
+        symbol: ExtendedDictKey,
+    ): UBoolExpr = ctx.mkImplies(guard, ctx.falseExpr)
 }
 
 /**
@@ -39,19 +40,19 @@ data class EmptyDictConstraint(
  * (useful for avoiding forking)
  */
 data class NotEqualConstraint(
-    val value: KExtended,
+    val value: ExtendedDictKey,
     val condition: UBoolExpr,
     override val modifications: PersistentList<Modification>,
 ) : LazyUniversalQuantifierConstraint {
     override fun createConstraint(
         ctx: TvmContext,
-        symbol: KExtended,
+        symbol: ExtendedDictKey,
     ): UBoolExpr = with(ctx) { condition implies (symbol neq value) }
 }
 
 data class NextPrevQueryConstraint(
-    val pivot: KExtended,
-    val answer: KExtended,
+    val pivot: ExtendedDictKey,
+    val answer: ExtendedDictKey,
     override val modifications: PersistentList<Modification>,
     val mightBeEqualToPivot: Boolean,
     val isNext: Boolean,
@@ -59,7 +60,7 @@ data class NextPrevQueryConstraint(
 ) : LazyUniversalQuantifierConstraint {
     override fun createConstraint(
         ctx: TvmContext,
-        symbol: KExtended,
+        symbol: ExtendedDictKey,
     ): UBoolExpr {
         val pivotCmp = Cmp(isNext, !mightBeEqualToPivot, isSigned).createCmp(ctx)
         val answerCmp = (if (isNext) Cmp(CmpKind.LT) else Cmp(CmpKind.GT)).createCmp(ctx)
@@ -70,7 +71,7 @@ data class NextPrevQueryConstraint(
 }
 
 data class UpperLowerBoundConstraint(
-    val bound: KExtended,
+    val bound: ExtendedDictKey,
     val isMax: Boolean,
     val isStrictBound: Boolean,
     val isSigned: Boolean,
@@ -78,7 +79,7 @@ data class UpperLowerBoundConstraint(
 ) : LazyUniversalQuantifierConstraint {
     override fun createConstraint(
         ctx: TvmContext,
-        symbol: KExtended,
+        symbol: ExtendedDictKey,
     ): UBoolExpr {
         val cmp = Cmp(isMax, isStrictBound, isSigned)
         return cmp.createCmp(ctx)(symbol, bound)
@@ -91,7 +92,7 @@ data class EqualToOneOf(
 ) : LazyUniversalQuantifierConstraint {
     override fun createConstraint(
         ctx: TvmContext,
-        symbol: KExtended,
+        symbol: ExtendedDictKey,
     ): UBoolExpr =
         with(ctx) {
             mkOr(values.map { it.guard and (it.symbol.toExtendedKey(ctx) eq symbol) })

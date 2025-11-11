@@ -98,7 +98,7 @@ fun doInputDictMinMax(
 fun doInputDictNextPrev(
     scope: TvmStepScopeManager,
     inputDict: InputDict,
-    keyExtended: KExtended,
+    keyExtended: ExtendedDictKey,
     dictKeySort: UBvSort,
     dictKeyKind: DictKeyKind,
     isNext: Boolean,
@@ -125,5 +125,14 @@ fun doInputDictNextPrev(
         dictNextApplied.map {
             TvmStepScopeManager.ActionOnCondition({}, false, ctx.mkAnd(it.constraintSet), it)
         }
-    scope.doWithConditions(actions, doWithResult)
+    scope.doWithConditions(actions) {
+        calcOnState {
+            inputDictionaryStorage =
+                inputDictionaryStorage.updateRootInputDictionary(
+                    inputDict.rootInputDictId,
+                    it.newInputDictRootInformation,
+                )
+        }
+        doWithResult(it)
+    }
 }

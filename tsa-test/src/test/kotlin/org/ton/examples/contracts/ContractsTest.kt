@@ -88,7 +88,7 @@ class ContractsTest {
         analyzeFuncContract(walletV4Path, methodsNumber = 7, enableTestGeneration = true)
     }
 
-//    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testWalletV5() {
         analyzeFuncContract(walletV5Path, methodsNumber = 7, enableTestGeneration = true)
@@ -137,7 +137,7 @@ class ContractsTest {
         analyzeFuncContract(bridgePath, methodsNumber = 8, enableTestGeneration = true)
     }
 
-//    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun bridgeVotesCollector() {
         analyzeFuncContract(bridgeVotesCollectorPath, methodsNumber = 5, enableTestGeneration = true)
