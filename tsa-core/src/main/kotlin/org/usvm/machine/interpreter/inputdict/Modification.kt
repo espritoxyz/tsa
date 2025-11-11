@@ -21,16 +21,19 @@ sealed interface Modification {
     ) : Modification
 }
 
-/** @return the condition that would be of a corresponding key in `getKeys` */
-fun List<Modification>.createKeyCondition(
+/**
+ * @param rootDictionaryKey is a symbol from the root dictionary
+ * @return the condition that would be of a corresponding key in `getKeys`
+ */
+fun List<Modification>.isInputDictKeyContainedInModifiedDict(
     ctx: TvmContext,
-    t: KExtended,
+    rootDictionaryKey: ExtendedDictKey,
 ): UBoolExpr {
     val (head, tail) = splitHeadTail() ?: return ctx.trueExpr
-    val prevCond = tail.createKeyCondition(ctx, t)
+    val prevCond = tail.isInputDictKeyContainedInModifiedDict(ctx, rootDictionaryKey)
     return when (head) {
-        is Modification.Store -> with(ctx) { prevCond or (t eq head.key.toExtendedKey(ctx)) }
-        is Modification.Remove -> with(ctx) { prevCond and (t neq head.key.toExtendedKey(ctx)) }
+        is Modification.Store -> with(ctx) { prevCond or (rootDictionaryKey eq head.key.toExtendedKey(ctx)) }
+        is Modification.Remove -> with(ctx) { prevCond and (rootDictionaryKey neq head.key.toExtendedKey(ctx)) }
     }
 }
 

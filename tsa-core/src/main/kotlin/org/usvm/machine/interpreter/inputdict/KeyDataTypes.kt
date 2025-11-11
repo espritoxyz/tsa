@@ -13,10 +13,10 @@ import org.usvm.machine.state.TvmState
 /**
  * Comparisons on the keys must be done in its extended form (see comments in
  * the source of [TvmDictOperationInterpreter.doDictNextPrev]).
- * Thus, whenever we build constraints, we pass [KExtended] instances
+ * Thus, whenever we build constraints, we pass [ExtendedDictKey] instances
  * to create comparison expressions.
  */
-typealias KExtended = UExpr<TvmCellDataSort>
+typealias ExtendedDictKey = UExpr<TvmCellDataSort>
 
 enum class DictKeyKind {
     SIGNED_INT,
@@ -40,7 +40,7 @@ data class KeyType(
     val expr: UExpr<UBvSort>,
     val kind: DictKeyKind,
 ) {
-    fun toExtendedKey(ctx: TvmContext): KExtended = ctx.extendDictKey(expr, kind)
+    fun toExtendedKey(ctx: TvmContext): ExtendedDictKey = ctx.extendDictKey(expr, kind)
 }
 
 data class GuardedKeyType(

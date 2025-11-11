@@ -16,33 +16,11 @@ import org.usvm.UHeapRef
  * To correctly handle the change of the root information unit, a layer of indirection was introduced:
  * each root information unit has an id (local to the [org.usvm.machine.state.TvmState]) that is used
  * by [InputDict]s to reference it.
- * Such an architecture allows us to implement the procedure as shown in [set].
  */
 class InputDictionaryStorage(
     val memory: PersistentMap<UConcreteHeapRef, InputDict> = persistentMapOf(),
     val rootInformation: PersistentMap<Int, InputDictRootInformation> = persistentMapOf(),
 ) {
-    /**
-     * DEPRECATED
-     *
-     * In the better scenario, you should independently create new input dictionary entries and update the root data.
-     * Use [createDictEntry] and [updateRootInputDictionary] instead
-     * @param newInputDictRootInformation is null iff you don't want to update the root dictionary
-     */
-    fun set(
-        dictConcreteRef: UConcreteHeapRef,
-        inputDict: InputDict,
-        newInputDictRootInformation: InputDictRootInformation? = null,
-    ): InputDictionaryStorage =
-        InputDictionaryStorage(
-            memory.put(dictConcreteRef, inputDict),
-            if (newInputDictRootInformation != null) {
-                rootInformation.put(inputDict.rootInputDictId, newInputDictRootInformation)
-            } else {
-                rootInformation
-            },
-        )
-
     fun hasInputDictEntryAtRef(ref: UHeapRef?) = memory.containsKey(ref)
 
     fun getRootInfoByIdOrThrow(id: Int) =

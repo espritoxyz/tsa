@@ -58,7 +58,7 @@ data class InputDictRootInformation(
         val constraintsBuilder = ConstraintBuilder(ctx)
         // ensuring (1) for already discovered symbols
         for (symbol in symbols) {
-            val cs = constraint.modifications.createKeyCondition(ctx, symbol.toExtendedKey(ctx))
+            val cs = constraint.modifications.isInputDictKeyContainedInModifiedDict(ctx, symbol.toExtendedKey(ctx))
             constraintsBuilder.addCs { cs implies constraint.createConstraint(this, symbol.toExtendedKey(ctx)) }
         }
         // ensuring (2)
@@ -72,12 +72,12 @@ data class InputDictRootInformation(
 
     fun createSymbolConstraints(
         ctx: TvmContext,
-        t: KExtended,
+        t: ExtendedDictKey,
     ): PersistentList<UBoolExpr> =
         with(ctx) {
             val constraints =
                 lazyUniversalQuantifierConstraints.map { lazyConstraint ->
-                    val cs = lazyConstraint.modifications.createKeyCondition(ctx, t)
+                    val cs = lazyConstraint.modifications.isInputDictKeyContainedInModifiedDict(ctx, t)
                     cs and lazyConstraint.createConstraint(this, t)
                 }
             constraints.toPersistentList()
@@ -122,7 +122,7 @@ sealed interface DictMaxResult {
  * [InputDictRootInformation], with the only difference being the key calculation.
  * To get the keys of the dictionary, one would take the keys of the root dictionary
  * and create a condition expression that would represent whether this element belongs to `this`
- * (see [getCurrentlyDiscoveredKeys] and [createKeyCondition] implementations).
+ * (see [getCurrentlyDiscoveredKeys] and [isInputDictKeyContainedInModifiedDict] implementations).
  *
  * The root information is referenced via [rootInputDictId]; for explanations, see
  * [InputDictionaryStorage] docs.
@@ -230,7 +230,7 @@ data class InputDict(
      */
     fun doDictNextImpl(
         ctx: TvmContext,
-        pivot: KExtended,
+        pivot: ExtendedDictKey,
         inputDict: InputDictRootInformation,
         freshConstantForInput: KeyType,
         freshConstantForResult: KeyType,
@@ -274,7 +274,7 @@ data class InputDict(
         mightBeEqualToPivot: Boolean,
         isNext: Boolean,
         isSigned: Boolean,
-        pivot: KExtended,
+        pivot: ExtendedDictKey,
     ): DictNextResult.Exists {
         val newSymbolConstraints = inputDict.createSymbolConstraints(ctx, freshConstantForInput.toExtendedKey(ctx))
         val resultIsSomeKey =
@@ -317,11 +317,11 @@ data class InputDict(
      */
     private fun freshInputSymbolOrStoredKey(
         ctx: TvmContext,
-        freshConstantForInput: KExtended,
-        result: KExtended,
+        freshConstantForInput: ExtendedDictKey,
+        result: ExtendedDictKey,
     ): UBoolExpr {
-        val inputT: KExtended = freshConstantForInput
-        val inputTCs = modifications.createKeyCondition(ctx, inputT)
+        val inputT: ExtendedDictKey = freshConstantForInput
+        val inputTCs = modifications.isInputDictKeyContainedInModifiedDict(ctx, inputT)
         val storedElements = modifications.getExplicitlyStoredKeys(ctx)
 
         val resultInKeys =
