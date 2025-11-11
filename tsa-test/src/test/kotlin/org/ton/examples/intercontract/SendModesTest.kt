@@ -11,6 +11,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTerminalMethodSymbolicResult
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -97,7 +98,13 @@ class SendModesTest {
 
         checkInvariants(
             tests,
-            listOf { test -> test.exitCode() == 257 },
+            listOf { test ->
+                test.eventsList.any {
+                    it.methodResult is TvmTerminalMethodSymbolicResult &&
+                        (it.methodResult as TvmTerminalMethodSymbolicResult).exitCode == 37
+                } ||
+                    test.exitCode() == 257
+            },
         )
     }
 

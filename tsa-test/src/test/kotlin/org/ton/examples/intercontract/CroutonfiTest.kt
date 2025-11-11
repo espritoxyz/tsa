@@ -1,8 +1,5 @@
 package org.ton.examples.intercontract
 
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
-import org.ton.RUN_HARD_TESTS_REGEX
-import org.ton.RUN_HARD_TESTS_VAR
 import org.ton.test.utils.extractBocContractFromResource
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource

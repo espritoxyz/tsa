@@ -58,7 +58,6 @@ import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.lastStmt
-import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.MessageSource
 import org.usvm.machine.state.messages.ReceivedMessage
@@ -271,8 +270,9 @@ class TvmTestStateResolver(
     }
 
     private fun resolveOutMessage(message: MessageAsStackArguments): TvmTestOutMessage {
-        val mode = (message.source as? MessageSource.SentWithMode)?.mode
-            ?: error("Unexpected message source: ${message.source}")
+        val mode =
+            (message.source as? MessageSource.SentWithMode)?.mode
+                ?: error("Unexpected message source: ${message.source}")
 
         return TvmTestOutMessage(
             value = resolveInt257(message.msgValue),

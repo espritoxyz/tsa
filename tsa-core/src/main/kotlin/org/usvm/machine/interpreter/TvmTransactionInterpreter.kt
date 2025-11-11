@@ -60,10 +60,10 @@ import org.usvm.test.resolver.TvmTestStateResolver
 
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
 private typealias Transformation =
-        TvmTransactionInterpreter.MessageHandlingState.Ok.() -> TvmTransactionInterpreter.MessageHandlingState
+    TvmTransactionInterpreter.MessageHandlingState.Ok.() -> TvmTransactionInterpreter.MessageHandlingState
 
 private typealias MutableTransformation =
-        TvmTransactionInterpreter.MessageHandlingState.OkBuilder.() -> TvmTransactionInterpreter.MessageHandlingState
+    TvmTransactionInterpreter.MessageHandlingState.OkBuilder.() -> TvmTransactionInterpreter.MessageHandlingState
 
 const val MSG_FWD_FEE_UPPER_BOUND = 100
 
@@ -252,50 +252,7 @@ class TvmTransactionInterpreter(
 
     /**
      *
-     * The message handling is based on the flow in `Transaction::try_action_send_msg` defined in
-     * `crypto/block/transaction.cpp` file relative to the root of the TON monorepo, tag `v2025.7`.
-     *
-     * The code that it represents:
-     * ```
-     * val msgFees = calculateMessageFees()
-     * var initialMessageValue = message.getValue()
-     *
-     * val req = initialMessageValue // req = this.messageValue
-     * payFeesSeparately = payFeesSeparately && !sendRemainingBalance
-     *
-     * if (sendRemainingBalance) {
-     *     remainingInboundMsgValue = 0
-     *     req = currentBalance
-     * } else if (payAllValue) {
-     *     remainingInboundMsgValue = 0
-     *     if (remainingInboundMsgValue >= computeFees)
-     *         req = messageValue - computeFees
-     *     else
-     *         return Err(37)
-     * } else {
-     *     // do nothing
-     * }
-     *
-     * if (!payFeesSeparately) {
-     *     if (req < msgFees) {
-     *         return Err(37)
-     *     } else {
-     *        reqBrutto = req // reqBrutto is value subtracted from balance
-     *        req = req - msgFees
-     *     }
-     * } else {
-     *     reqBrutto = req + msgFees
-     * }
-     *
-     * if (balance >= reqBrutto) {
-     *     balance -= reqBrutto
-     *     // send message
-     * } else {
-     *     return Err(37)
-     * }
-     *
-     * ```
-     *
+     * See [ContractState.processFeesOfMessage] for the code-like documentation of what is happening here
      * @return list of transformations that are applied to the initial state during the message handling
      *
      */
@@ -322,10 +279,10 @@ class TvmTransactionInterpreter(
                 CondTransform(
                     {
                         sendRemainingBalance.not() and sendRemainingValue and
-                                (remainingInboundMessageValue bvUge computeFees)
+                            ((messageValue bvAdd remainingInboundMessageValue) bvUge computeFees)
                     },
                     asOnCopy {
-                        messageValue = remainingInboundMessageValue bvSub computeFees
+                        messageValue = messageValue bvAdd remainingInboundMessageValue bvSub computeFees
                         remainingInboundMessageValue = zeroValue
                         build()
                     },
@@ -333,7 +290,7 @@ class TvmTransactionInterpreter(
                 CondTransform(
                     {
                         sendRemainingBalance.not() and sendRemainingValue and
-                                (remainingInboundMessageValue bvUge computeFees).not()
+                            ((messageValue bvAdd remainingInboundMessageValue) bvUge computeFees).not()
                     },
                     asOnCopy {
                         MessageHandlingState.insufficientFundsError(currentContractId)
@@ -517,7 +474,7 @@ class TvmTransactionInterpreter(
             is LinearDestinations -> {
                 check(handler.destinations.size == messages.size) {
                     "The number of actual messages is not equal to the number of destinations in the scheme: " +
-                            "${messages.size} ${handler.destinations.size}"
+                        "${messages.size} ${handler.destinations.size}"
                 }
 
                 val messagesForQueue =
@@ -579,11 +536,11 @@ class TvmTransactionInterpreter(
                     val destinationContractAddress =
                         scope.calcOnState {
                             (
-                                    getContractInfoParamOf(
-                                        ADDRESS_PARAMETER_IDX,
-                                        destinationContract,
-                                    ).cellValue as? UConcreteHeapRef
-                                    )?.let { allocSliceFromCell(it) }
+                                getContractInfoParamOf(
+                                    ADDRESS_PARAMETER_IDX,
+                                    destinationContract,
+                                ).cellValue as? UConcreteHeapRef
+                            )?.let { allocSliceFromCell(it) }
                                 ?: error("Cannot extract contract address")
                         }
 
@@ -819,7 +776,7 @@ class TvmTransactionInterpreter(
                 ?: return@with null
 
             // int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
-            for (i in 0..3) {
+            repeat(4) {
                 val curFlag =
                     sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
                         ?: return@with null

@@ -34,6 +34,9 @@ data class MessageAsStackArguments(
 )
 
 sealed interface MessageSource {
-    data class SentWithMode(val mode: UExpr<TvmContext.TvmInt257Sort>) : MessageSource
+    data class SentWithMode(
+        val mode: UExpr<TvmContext.TvmInt257Sort>,
+    ) : MessageSource
+
     data object Bounced : MessageSource
 }
