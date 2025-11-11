@@ -10,8 +10,8 @@ This is the **Reference** section of TSA documentation. Here you can find out mo
 
 ## [Inter-contract analysis](inter-contract.md)
 
-TODO
+Aspects of analyzing several interacting contracts.
 
 ## [Strategies for stopping analysis](stopping.md)
 
-TODO
+Description of strategies for stopping analysis when the analyzed contracts are too big to be analyzed fully.
