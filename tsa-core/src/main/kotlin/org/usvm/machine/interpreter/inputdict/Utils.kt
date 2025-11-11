@@ -33,7 +33,7 @@ data class Cmp(
         isSigned,
     )
 
-    fun createCmp(ctx: TvmContext): (KExtended, KExtended) -> UBoolExpr =
+    fun createCmp(ctx: TvmContext): (ExtendedDictKey, ExtendedDictKey) -> UBoolExpr =
         when (kind) {
             CmpKind.LE ->
                 if (isSigned) {

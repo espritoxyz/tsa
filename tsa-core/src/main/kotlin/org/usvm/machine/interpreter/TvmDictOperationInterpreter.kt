@@ -143,7 +143,6 @@ import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.api.writeField
-import org.usvm.collection.set.primitive.UPrimitiveSetEntries
 import org.usvm.collection.set.primitive.USetEntryLValue
 import org.usvm.collection.set.primitive.setEntries
 import org.usvm.isTrue
@@ -156,6 +155,7 @@ import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.interpreter.inputdict.DictKeyKind
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.interpreter.inputdict.InputDictRootInformation
+import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
 import org.usvm.machine.interpreter.inputdict.KeyType
 import org.usvm.machine.interpreter.inputdict.Modification
 import org.usvm.machine.interpreter.inputdict.assertInputDictIsEmpty
@@ -213,7 +213,6 @@ import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.mkSizeExpr
-import org.usvm.regions.SetRegion
 import org.usvm.sizeSort
 import org.usvm.utils.flattenReferenceIte
 
@@ -1508,11 +1507,7 @@ class TvmDictOperationInterpreter(
         val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
 
         val keySort = ctx.mkBvSort(keyLength.toUInt())
-        val allSetEntries =
-            scope.calcOnStateCtx {
-                dictCellRef?.let { memory.setEntries(it, dictId, keySort, DictKeyInfo) }
-            }
-        val isInput = checkDictIsInput(scope, dictCellRef, allSetEntries)
+        val isInput = checkDictIsInput(scope, dictCellRef, dictId, keySort)
         if (isInput) {
             doSetInstOnInputDict(
                 scope = scope,
@@ -1680,7 +1675,8 @@ class TvmDictOperationInterpreter(
                     inputDictionaryStorage =
                         inputDictionaryStorage.updateRootInputDictionary(baseInputDict.rootInputDictId, rootInformation)
                 }
-                val keyExists = doInputDictHasKey(scope, baseInputDict, KeyType(key, keyKind))?.exists ?: return null
+                val keyExists =
+                    doInputDictHasKey(scope, baseInputDict, KeyType(key, keyKind))?.exists ?: return null
                 val updatedRootInfo =
                     scope.calcOnState { inputDictionaryStorage.getRootInfoByIdOrThrow(baseInputDict.rootInputDictId) }
                 scope.calcOnState {
@@ -1785,11 +1781,7 @@ class TvmDictOperationInterpreter(
             ?: return
 
         val keySort = scope.ctx.mkBvSort(keyLength.toUInt())
-        val allSetEntries =
-            scope.calcOnStateCtx {
-                memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
-            }
-        val isInput = checkDictIsInput(scope, dictCellRef, allSetEntries)
+        val isInput = checkDictIsInput(scope, dictCellRef, dictId, keySort)
         val dictContainsKey =
             if (isInput) {
                 val inputDict = scope.calcOnState { readInputDictionary(dictCellRef, keySort, keyKind) }
@@ -1863,9 +1855,8 @@ class TvmDictOperationInterpreter(
             ?: return
 
         val keySort = ctx.mkBvSort(keyLength.toUInt())
-        val allSetEntries = scope.calcOnStateCtx { memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo) }
         val isInput =
-            checkDictIsInput(scope, dictCellRef, allSetEntries)
+            checkDictIsInput(scope, dictCellRef, dictId, keySort)
         if (isInput) {
             handleDeleteInstOnInputDict(
                 scope = scope,
@@ -2044,10 +2035,18 @@ class TvmDictOperationInterpreter(
     private fun checkDictIsInput(
         scope: TvmStepScopeManager,
         dictCellRef: UHeapRef?,
-        allSetEntries: UPrimitiveSetEntries<DictId, UBvSort, SetRegion<UExpr<UBvSort>>>?,
-    ): Boolean =
-        (allSetEntries != null && allSetEntries.isInput) ||
+        dictId: DictId,
+        keySort: UBvSort,
+    ): Boolean {
+        val allSetEntries =
+            dictCellRef?.let {
+                scope.calcOnStateCtx {
+                    memory.setEntries(it, dictId, keySort, DictKeyInfo)
+                }
+            }
+        return (allSetEntries != null && allSetEntries.isInput) ||
             scope.calcOnState { inputDictionaryStorage.hasInputDictEntryAtRef(dictCellRef) }
+    }
 
     private fun TvmState.copyInputDictMemoryRepresentation(
         dictOriginalConcrete: UConcreteHeapRef,
@@ -2102,7 +2101,7 @@ class TvmDictOperationInterpreter(
             scope.calcOnStateCtx {
                 memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
             }
-        val isInput = checkDictIsInput(scope, dictCellRef, allSetEntries)
+        val isInput = checkDictIsInput(scope, dictCellRef, dictId, keySort)
         if (isInput) {
             handleInputDictMinMaxInst(
                 scope = scope,
@@ -2247,7 +2246,7 @@ class TvmDictOperationInterpreter(
                 )
             scope.calcOnState {
                 inputDictionaryStorage =
-                    inputDictionaryStorage.set(resultDict, newInputDict)
+                    inputDictionaryStorage.createDictEntry(resultDict, newInputDict)
                 addOnStack(resultDict, TvmCellType)
 
                 addValueOnStack(unwrappedValue, valueType)
@@ -2333,7 +2332,7 @@ class TvmDictOperationInterpreter(
             scope.calcOnStateCtx {
                 memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
             }
-        val isInput = checkDictIsInput(scope, dictCellRef, allSetEntries)
+        val isInput = checkDictIsInput(scope, dictCellRef, dictId, keySort)
         if (isInput) {
             doNextPrevInstOnInputDict(
                 dictCellRef = dictCellRef,
@@ -2467,10 +2466,6 @@ class TvmDictOperationInterpreter(
             mode == DictNextPrevMode.NEXT,
             allowEq,
         ) { updated ->
-            calcOnState {
-                inputDictionaryStorage =
-                    inputDictionaryStorage.set(dictConcreteRef, inputDict, updated.newInputDictRootInformation)
-            }
             val resultSymbol = updated.answer
             if (resultSymbol != null) {
                 val value = this.calcOnState { dictGetValue(dictCellRef, dictId, resultSymbol.expr) }
@@ -2512,7 +2507,11 @@ class TvmDictOperationInterpreter(
                 val symbol = makeFreshKeyConstant(dictKeySort, dictKeyKind)
                 InputDictRootInformation(symbols = persistentSetOf(symbol))
             }
-        inputDictionaryStorage = inputDictionaryStorage.set(dictConcreteRef, inputDict, rootInputDictInfo)
+        inputDictionaryStorage =
+            InputDictionaryStorage(
+                inputDictionaryStorage.memory.put(dictConcreteRef, inputDict),
+                inputDictionaryStorage.rootInformation.put(inputDict.rootInputDictId, rootInputDictInfo),
+            )
         return inputDict
     }
 
