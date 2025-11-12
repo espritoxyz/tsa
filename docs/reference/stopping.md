@@ -14,7 +14,7 @@ In this case, you can use one of the strategies to stop the analysis.
 
 Stop the analysis after the given amount of time. Set with `--timeout` CLI option.
 
-## Iteration limit
+## Iteration limit and maximum recursion depth
 
 TODO
 
