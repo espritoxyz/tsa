@@ -5,7 +5,7 @@ parent: Reference
 nav_order: 3
 ---
 
-# Strategies for stopping analysis
+# Strategies for Stopping Analysis
 
 The analyzed contracts often have too many possible execution paths to be fully analyzed.
 In this case, you can use one of the strategies to stop the analysis.
@@ -14,10 +14,14 @@ In this case, you can use one of the strategies to stop the analysis.
 
 Stop the analysis after the given amount of time. Set with `--timeout` CLI option.
 
-## Iteration limit and maximum recursion depth
+By default, analysis has no timeout.
+
+## Iteration Limit and Maximum Recursion Depth
 
 TODO
 
-## Exploring specific exit codes
+**By default, the iteration limit and maximum recursion depth are set.** To get concrete values, use `--help` CLI option.
+
+## Exploring Specific Exit Codes
 
 TODO
