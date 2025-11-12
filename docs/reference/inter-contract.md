@@ -37,7 +37,7 @@ Linear destination description:
   - destinations: Array<Int>
 ```
 
-`destinations` must be an array that has the same size as the expected number of sent messages. The contents of the array are id's of destinations contracts.
+`destinations` must be an array that has the same size as the expected number of sent messages. The contents of the array are ids of destinations contracts.
 
 ```
 Destination description based on out opcodes:
@@ -49,8 +49,8 @@ Destination description based on out opcodes:
 `outOpcodeToDestination` is a map where keys are hex strings of length 8 that represent opcodes of the outgoing messages.
 If an outgoing message has length less than 32 bits or its opcode isn't specified in `outOpcodeToDestination`, then its destination is described with `other` field.
 
-TODO
-
+The arrays in values of `outOpcodeToDestination` or in `other` field mean that all given contract ids are considered potential receivers.
+Usually the receiver is one concrete contract, in this case the array size must be one.
 
 ### Example: scheme for jetton-wallet
 
