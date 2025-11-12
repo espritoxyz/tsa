@@ -2,7 +2,7 @@
 layout: default
 title: Inter-contract analysis
 parent: Reference
-nav_order: 1
+nav_order: 2
 ---
 
 # Inter-contract analysis
