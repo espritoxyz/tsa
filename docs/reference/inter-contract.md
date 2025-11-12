@@ -31,11 +31,19 @@ either had length less then 32 bits or started with opcode that wasn't specified
 
 Message destinations can be described in two formats: `linear` and `out_opcodes`. The chosen format is specified with `type` field.
 
-Linear destination description:
 ```
-Linear DestinationDescription:
+Linear destination description:
   - type: String = "linear"
   - destinations: Array<Int>
+```
+
+`destinations` must be an array that has the same size as the expected number of sent messages. The contents of the array are id's of destinations contracts.
+
+```
+Destination description based on out opcodes:
+  - type: String = "out_opcodes"
+  - outOpcodeToDestination: Map<String, Array<Int>>
+  - [optional] other: Array<Int>
 ```
 
 TODO
