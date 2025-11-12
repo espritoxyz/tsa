@@ -164,25 +164,34 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
     val maxRecursionDepth by option("--max-recursion-depth")
         .int()
         .default(DEFAULT_MAX_RECURSION_DEPTH)
-        .help("TODO")
+        .help {
+            "Skip executions where some method occurs in a call stack more times then the given limit. " +
+                "Default: $DEFAULT_MAX_RECURSION_DEPTH."
+        }
 
     val noRecursionDepthLimit by option("--no-recursion-depth-limit")
         .flag()
-        .help("TODO")
+        .help("If set, ignore --max-recursion-depth.")
 
     val iterationLimit by option("--iteration-limit")
         .int()
         .default(DEFAULT_LOOP_ITERATIONS_LIMIT)
-        .help("TODO")
+        .help {
+            "Skip executions where the number of iterations in a loop exceeds the given limit. " +
+                "Default: $DEFAULT_LOOP_ITERATIONS_LIMIT."
+        }
 
     val noIterationLimit by option("--no-iteration-limit")
         .flag()
-        .help("TODO")
+        .help("If set, ignore --iteration-limit.")
 
     val stopWhenExitCodesFound by option("--stop-when-exit-codes-found")
         .int()
         .multiple()
-        .help("TODO")
+        .help {
+            "Stop the analysis right after executions with all required exit codes are found. " +
+                "This option can be used several times for different exit codes"
+        }
 
     val coveredInstructionsListPath by option("--covered-instructions-list")
         .path()
