@@ -34,14 +34,18 @@ import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.gen.generateTests
 import org.ton.tlb.readFromJson
 import org.usvm.machine.BocAnalyzer
+import org.usvm.machine.ExploreExitCodesStopStrategy
 import org.usvm.machine.FiftAnalyzer
 import org.usvm.machine.FuncAnalyzer
 import org.usvm.machine.IntercontractOptions
+import org.usvm.machine.NoAdditionalStopStrategy
 import org.usvm.machine.TactAnalyzer
 import org.usvm.machine.TactSourcesDescription
 import org.usvm.machine.TvmAnalyzer
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmMachine.Companion.DEFAULT_LOOP_ITERATIONS_LIMIT
+import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_RECURSION_DEPTH
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
@@ -157,6 +161,29 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
                 "If an exception occurred in checker contract, stop anyway.",
         )
 
+    val maxRecursionDepth by option("--max-recursion-depth")
+        .int()
+        .default(DEFAULT_MAX_RECURSION_DEPTH)
+        .help("TODO")
+
+    val noRecursionDepthLimit by option("--no-recursion-depth-limit")
+        .flag()
+        .help("TODO")
+
+    val iterationLimit by option("--iteration-limit")
+        .int()
+        .default(DEFAULT_LOOP_ITERATIONS_LIMIT)
+        .help("TODO")
+
+    val noIterationLimit by option("--no-iteration-limit")
+        .flag()
+        .help("TODO")
+
+    val stopWhenExitCodesFound by option("--stop-when-exit-codes-found")
+        .int()
+        .multiple()
+        .help("TODO")
+
     val coveredInstructionsListPath by option("--covered-instructions-list")
         .path()
         .help("File to write covered TVM instructions (in hash+offset format).")
@@ -207,6 +234,37 @@ private fun writeCoveredInstructions(
     path.writeText(text)
 }
 
+private fun createTvmOptions(
+    analysisOptions: AnalysisOptions,
+    interContractSchemePath: Path?,
+    turnOnTLBParsingChecks: Boolean,
+    useReceiverInput: Boolean,
+): TvmOptions {
+    val options =
+        TvmOptions(
+            quietMode = true,
+            turnOnTLBParsingChecks = turnOnTLBParsingChecks,
+            analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
+            timeout = analysisOptions.timeout?.seconds ?: INFINITE,
+            stopOnFirstError = !analysisOptions.continueOnContractException,
+            useReceiverInputs = useReceiverInput,
+            maxRecursionDepth = if (analysisOptions.noRecursionDepthLimit) null else analysisOptions.maxRecursionDepth,
+            loopIterationLimit = if (analysisOptions.noIterationLimit) null else analysisOptions.iterationLimit,
+        )
+
+    if (interContractSchemePath != null) {
+        return options.copy(
+            intercontractOptions =
+                IntercontractOptions(
+                    communicationScheme = interContractSchemePath.extractIntercontractScheme(),
+                ),
+            enableOutMessageAnalysis = true,
+        )
+    }
+
+    return options
+}
+
 private fun <SourcesDescription> performAnalysis(
     analyzer: TvmAnalyzer<SourcesDescription>,
     sources: SourcesDescription,
@@ -216,13 +274,13 @@ private fun <SourcesDescription> performAnalysis(
     analysisOptions: AnalysisOptions,
 ): TvmContractSymbolicTestResult {
     val options =
-        TvmOptions(
-            quietMode = true,
+        createTvmOptions(
+            analysisOptions,
+            interContractSchemePath = null,
             turnOnTLBParsingChecks = !tlbOptions.doNotPerformTlbChecks,
-            analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
-            timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-            stopOnFirstError = !analysisOptions.continueOnContractException,
+            useReceiverInput = true,
         )
+
     val inputInfo = TlbCLIOptions.extractInputInfo(tlbOptions.tlbJsonPath)
     val methodIds: List<BigInteger>? =
         when (target) {
@@ -233,6 +291,13 @@ private fun <SourcesDescription> performAnalysis(
 
     val concreteData = TvmConcreteContractData(contractC4 = contractData?.hexToCell())
 
+    val additionalStopStrategy =
+        if (analysisOptions.stopWhenExitCodesFound.isNotEmpty()) {
+            ExploreExitCodesStopStrategy(analysisOptions.stopWhenExitCodesFound.toSet())
+        } else {
+            NoAdditionalStopStrategy
+        }
+
     val result =
         if (methodIds == null) {
             analyzer.analyzeAllMethods(
@@ -240,6 +305,7 @@ private fun <SourcesDescription> performAnalysis(
                 concreteContractData = concreteData,
                 inputInfo = inputInfo,
                 tvmOptions = options,
+                additionalStopStrategy = additionalStopStrategy,
             )
         } else {
             val testSets =
@@ -250,6 +316,7 @@ private fun <SourcesDescription> performAnalysis(
                         concreteContractData = concreteData,
                         inputInfo = inputInfo[methodId] ?: TvmInputInfo(),
                         tvmOptions = options,
+                        additionalStopStrategy = additionalStopStrategy,
                     )
                 }
 
@@ -270,32 +337,21 @@ private fun performAnalysisInterContract(
     inputInfo: TvmInputInfo,
     analysisOptions: AnalysisOptions,
     turnOnTLBParsingChecks: Boolean,
-    useRecvInternalInput: Boolean,
+    useReceiverInput: Boolean,
 ): TvmSymbolicTestSuite {
     val options =
-        if (interContractSchemePath != null) {
-            TvmOptions(
-                turnOnTLBParsingChecks = turnOnTLBParsingChecks,
-                quietMode = true,
-                analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
-                timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-                useReceiverInputs = useRecvInternalInput,
-                stopOnFirstError = !analysisOptions.continueOnContractException,
-                intercontractOptions =
-                    IntercontractOptions(
-                        communicationScheme = interContractSchemePath.extractIntercontractScheme(),
-                    ),
-                enableOutMessageAnalysis = true,
-            )
+        createTvmOptions(
+            analysisOptions,
+            interContractSchemePath,
+            turnOnTLBParsingChecks,
+            useReceiverInput,
+        )
+
+    val additionalStopStrategy =
+        if (analysisOptions.stopWhenExitCodesFound.isNotEmpty()) {
+            ExploreExitCodesStopStrategy(analysisOptions.stopWhenExitCodesFound.toSet())
         } else {
-            TvmOptions(
-                turnOnTLBParsingChecks = turnOnTLBParsingChecks,
-                quietMode = true,
-                analyzeBouncedMessaged = analysisOptions.analyzeBouncedMessages,
-                timeout = analysisOptions.timeout?.seconds ?: INFINITE,
-                useReceiverInputs = useRecvInternalInput,
-                stopOnFirstError = !analysisOptions.continueOnContractException,
-            )
+            NoAdditionalStopStrategy
         }
 
     val result =
@@ -306,6 +362,7 @@ private fun performAnalysisInterContract(
             options = options,
             inputInfo = inputInfo,
             concreteContractData = concreteContractData,
+            additionalStopStrategy = additionalStopStrategy,
         )
 
     writeCoveredInstructions(analysisOptions, result)
@@ -617,7 +674,7 @@ class CheckerAnalysis :
                 inputInfo = inputInfo,
                 analysisOptions = analysisOptions,
                 turnOnTLBParsingChecks = false,
-                useRecvInternalInput = false,
+                useReceiverInput = false,
             )
 
         val sarifReport =
@@ -707,7 +764,7 @@ class InterContractAnalysis :
                 inputInfo = TvmInputInfo(), // TODO: support TL-B
                 analysisOptions = analysisOptions,
                 turnOnTLBParsingChecks = false,
-                useRecvInternalInput = true,
+                useReceiverInput = true,
             )
 
         val sarifReport =

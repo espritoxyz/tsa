@@ -39,6 +39,7 @@ sealed interface TvmAnalyzer<SourcesDescription> {
         inputInfo: Map<BigInteger, TvmInputInfo> = emptyMap(),
         tvmOptions: TvmOptions = TvmOptions(quietMode = true, timeout = 10.minutes),
         takeEmptyTests: Boolean = false,
+        additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
     ): TvmContractSymbolicTestResult {
         val contract = convertToTvmContractCode(sources)
         return analyzeAllMethods(
@@ -49,6 +50,7 @@ sealed interface TvmAnalyzer<SourcesDescription> {
             concreteContractData,
             inputInfo,
             tvmOptions,
+            additionalStopStrategy = additionalStopStrategy,
         )
     }
 
@@ -59,6 +61,7 @@ sealed interface TvmAnalyzer<SourcesDescription> {
         concreteContractData: TvmConcreteContractData = TvmConcreteContractData(),
         inputInfo: TvmInputInfo = TvmInputInfo(),
         tvmOptions: TvmOptions = TvmOptions(quietMode = true, timeout = 10.minutes),
+        additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
     ): TvmSymbolicTestSuite {
         val contract = convertToTvmContractCode(sources)
         return analyzeSpecificMethod(
@@ -68,6 +71,7 @@ sealed interface TvmAnalyzer<SourcesDescription> {
             concreteContractData,
             inputInfo,
             tvmOptions,
+            additionalStopStrategy = additionalStopStrategy,
         )
     }
 
@@ -532,6 +536,7 @@ fun analyzeAllMethods(
     inputInfo: Map<BigInteger, TvmInputInfo> = emptyMap(),
     tvmOptions: TvmOptions = TvmOptions(),
     takeEmptyTests: Boolean = false,
+    additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
 ): TvmContractSymbolicTestResult {
     if (contract.methods.isEmpty()) {
         throw NoSelectedMethodsToAnalyze()
@@ -550,6 +555,7 @@ fun analyzeAllMethods(
                 concreteContractData,
                 inputInfo[method.id] ?: TvmInputInfo(),
                 tvmOptions,
+                additionalStopStrategy = additionalStopStrategy,
             )
         }
 
@@ -564,6 +570,7 @@ fun analyzeSpecificMethod(
     inputInfo: TvmInputInfo = TvmInputInfo(),
     tvmOptions: TvmOptions = TvmOptions(),
     manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
+    additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = tvmOptions)
     val (states, coverage) =
@@ -581,6 +588,7 @@ fun analyzeSpecificMethod(
                     methodId,
                     inputInfo,
                     manualStateProcessor,
+                    additionalStopStrategy,
                 )
             }
         }
