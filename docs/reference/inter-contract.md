@@ -46,6 +46,9 @@ Destination description based on out opcodes:
   - [optional] other: Array<Int>
 ```
 
+`outOpcodeToDestination` is a map where keys are hex strings of length 8 that represent opcodes of the outgoing messages.
+If an outgoing message has length less than 32 bits or its opcode isn't specified in `outOpcodeToDestination`, then its destination is described with `other` field.
+
 TODO
 
 
