@@ -2,7 +2,7 @@
 layout: default
 title: Stopping
 parent: Reference
-nav_order: 2
+nav_order: 3
 ---
 
 # Strategies for stopping analysis
