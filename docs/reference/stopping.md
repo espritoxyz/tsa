@@ -25,5 +25,6 @@ By default, analysis has no timeout.
 
 ## Exploring Specific Exit Codes
 
-If the goal of the analysis is to find some execution with specific exit code, you can use `--stop-when-exit-codes-found` CLI option 
-(usage: `--stop-when-exit-codes-found <exit-code-1> <exit-code-2> ...`). Stop the analysis right after executions with all required exit codes are found.
+If the goal of the analysis is to find some execution with specific exit code, you can use `--stop-when-exit-codes-found` CLI option. 
+This option can be used several times for different exit codes. 
+Stop the analysis right after executions with all required exit codes are found.
