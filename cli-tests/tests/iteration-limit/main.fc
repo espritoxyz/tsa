@@ -1,0 +1,13 @@
+#include "../../stdlib.fc";
+
+() recv_internal(int msg_value, cell in_msg, slice in_msg_body) impure {
+    int count = 0;
+    int flags = 0;
+    do {
+        if (in_msg_body~load_uint(1)) {
+            flags = flags + 1;
+        }
+        count = count + 1;
+    } until (count >= 5);
+    throw(300);
+}
