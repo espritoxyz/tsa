@@ -64,7 +64,7 @@ sealed interface TvmTestInput {
         data class MessageFromOtherContract(
             val sender: ContractSender,
             val receiver: ContractId,
-            val message: TvmTestOutMessage,
+            val message: TvmTestMessage,
         ) : ReceivedTestMessage
     }
 }

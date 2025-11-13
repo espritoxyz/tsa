@@ -269,14 +269,14 @@ class TvmTestStateResolver(
         return resolveResultStackImpl(methodResult)
     }
 
-    private fun resolveOutMessage(message: MessageAsStackArguments): TvmTestOutMessage {
+    private fun resolveOutMessage(message: MessageAsStackArguments): TvmTestMessage {
         val mode =
             when (message.source) {
                 is MessageSource.SentWithMode -> message.source.mode
                 is MessageSource.Bounced -> null
             }
 
-        return TvmTestOutMessage(
+        return TvmTestMessage(
             value = resolveInt257(message.msgValue),
             fullMessage = resolveCell(message.fullMsgCell),
             bodySlice = resolveSlice(message.msgBodySlice),
@@ -302,7 +302,7 @@ class TvmTestStateResolver(
                 )
         }
 
-    fun resolveOutMessages(): List<Pair<ContractId, TvmTestOutMessage>> =
+    fun resolveOutMessages(): List<Pair<ContractId, TvmTestMessage>> =
         state.unprocessedMessages.map { (contractId, message) -> contractId to resolveOutMessage(message.content) }
 
     fun resolveAdditionalInputs(): Map<Int, TvmTestInput> =
