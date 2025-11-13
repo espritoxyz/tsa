@@ -13,7 +13,6 @@ import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmRealInst
 import org.ton.targets.TvmTarget
 import org.usvm.PathNode
-import org.usvm.StateId
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
 import org.usvm.UCallStack
@@ -219,13 +218,6 @@ class TvmState(
             newState.stack = stack.clone()
             newState.initialInput = initialInput
             newState.isExceptional = isExceptional
-            val lastId = debugInfo.stateIdHistory.lastOrNull()
-            debugInfo.stateIdHistory =
-                if (lastId == null || lastId != id) {
-                    debugInfo.stateIdHistory.add(id)
-                } else {
-                    debugInfo.stateIdHistory
-                }
         }
     }
 
@@ -294,23 +286,11 @@ class TvmStateDebugInfo(
     var numberOfDataEqualityConstraintsFromTlb: Int = 0,
     var dataConstraints: PersistentSet<UBoolExpr> = persistentSetOf(),
     var extractedTlbGrams: PersistentSet<UExpr<TvmContext.TvmInt257Sort>> = persistentSetOf(),
-    var stateIdHistory: PersistentList<StateId> = persistentListOf(),
 ) {
     fun clone() =
         TvmStateDebugInfo(
             numberOfDataEqualityConstraintsFromTlb,
             dataConstraints,
             extractedTlbGrams,
-            stateIdHistory,
         )
-
-    fun updateHistory(nextStateId: StateId) {
-        val lastId = stateIdHistory.lastOrNull()
-        stateIdHistory =
-            if (lastId == null || lastId != nextStateId) {
-                stateIdHistory.add(nextStateId)
-            } else {
-                stateIdHistory
-            }
-    }
 }

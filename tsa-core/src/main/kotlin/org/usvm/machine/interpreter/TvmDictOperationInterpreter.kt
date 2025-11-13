@@ -163,7 +163,7 @@ import org.usvm.machine.interpreter.inputdict.doInputDictHasKey
 import org.usvm.machine.interpreter.inputdict.doInputDictMinMax
 import org.usvm.machine.interpreter.inputdict.doInputDictNextPrev
 import org.usvm.machine.interpreter.inputdict.extendDictKey
-import org.usvm.machine.interpreter.inputdict.makeFreshKeyConstant
+import org.usvm.machine.interpreter.inputdict.makeFreshKeySymbol
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.DictKeyInfo
 import org.usvm.machine.state.TvmDictValueRegionId
@@ -1988,7 +1988,7 @@ class TvmDictOperationInterpreter(
             doInputDictHasKey(
                 scope,
                 newInputDict,
-                scope.calcOnState { makeFreshKeyConstant(keySort, keyKind) },
+                scope.calcOnState { makeFreshKeySymbol(keySort, keyKind) },
             )?.exists
                 ?: return
         assertInputDictIsEmpty(
@@ -2584,7 +2584,7 @@ class TvmDictOperationInterpreter(
         val rootInputDictInfo =
             inputDictionaryStorage.rootInformation[inputDict.rootInputDictId] ?: run {
                 // we must ensure that the dictionary is not empty
-                val symbol = makeFreshKeyConstant(dictKeySort, dictKeyKind)
+                val symbol = makeFreshKeySymbol(dictKeySort, dictKeyKind)
                 InputDictRootInformation(symbols = persistentSetOf(symbol))
             }
         inputDictionaryStorage =
