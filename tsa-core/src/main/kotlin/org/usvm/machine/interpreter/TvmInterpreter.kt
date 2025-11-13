@@ -2621,7 +2621,7 @@ class TvmInterpreter(
                 ?: error("Unknown method with id $methodId")
         val methodRecursionDepth = scope.calcOnState { getMethodRecursionDepth(nextMethod.id) }
 
-        if (methodRecursionDepth >= ctx.tvmOptions.maxRecursionDepth) {
+        if (ctx.tvmOptions.maxRecursionDepth != null && methodRecursionDepth >= ctx.tvmOptions.maxRecursionDepth) {
             logger.warn { "Maximum recursion depth of method $methodId is reached, dropping the state" }
             scope.killCurrentState()
                 ?: return null
