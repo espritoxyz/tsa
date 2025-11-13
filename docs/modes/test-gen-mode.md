@@ -23,7 +23,7 @@ Additionally, the test contract wrapper is generated.
 {% highlight bash %}
 java -jar tsa-cli.jar test-gen \
   -p path/to/project \
-  --func contracts/contract.func \
+  --contract FunC contracts/contract.func \
   --fift-std path/to/fiftstdlib
 {% endhighlight %}
 
