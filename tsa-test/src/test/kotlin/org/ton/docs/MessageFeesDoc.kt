@@ -1,4 +1,4 @@
-package org.usvm.machine.interpreter
+package org.ton.docs
 
 // this file serves to be a documentation of the way message fees are calculated
 

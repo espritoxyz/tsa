@@ -252,7 +252,8 @@ class TvmTransactionInterpreter(
 
     /**
      *
-     * See [ContractState.processFeesOfMessage] for the code-like documentation of what is happening here
+     * See `org.ton.docs.ContractState.processFeesOfMessage` in the test module for the code-like
+     * documentation of what is happening here.
      * @return list of transformations that are applied to the initial state during the message handling
      *
      */
