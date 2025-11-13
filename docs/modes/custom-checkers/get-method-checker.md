@@ -70,7 +70,6 @@ To execute the checker, open your terminal and run the following command:
 java -jar tsa-cli.jar custom-checker \
 --checker tsa-safety-properties-examples/src/test/resources/examples/step1/sort_checker.fc \
 --contract func tsa-safety-properties-examples/src/test/resources/examples/step1/sort.fc \
---func-std tsa-safety-properties-examples/src/test/resources/imports/stdlib.fc \
 --fift-std tsa-safety-properties-examples/src/test/resources/fiftstdlib
 {% endhighlight %}
 
