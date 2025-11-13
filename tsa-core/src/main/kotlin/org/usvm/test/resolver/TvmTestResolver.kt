@@ -186,11 +186,14 @@ data class TvmContractState(
     val balance: TvmTestIntegerValue,
 )
 
+/**
+ * @param mode is `null` if the message was bounced (and thus, no mode was attached to it)
+ */
 data class TvmTestOutMessage(
     val value: TvmTestIntegerValue,
     val fullMessage: TvmTestCellValue,
     val bodySlice: TvmTestSliceValue,
-    val mode: BigInteger,
+    val mode: BigInteger?,
 )
 
 sealed interface TvmMethodSymbolicResult {

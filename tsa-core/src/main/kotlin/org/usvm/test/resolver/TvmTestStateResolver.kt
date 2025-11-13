@@ -271,14 +271,16 @@ class TvmTestStateResolver(
 
     private fun resolveOutMessage(message: MessageAsStackArguments): TvmTestOutMessage {
         val mode =
-            (message.source as? MessageSource.SentWithMode)?.mode
-                ?: error("Unexpected message source: ${message.source}")
+            when (message.source) {
+                is MessageSource.SentWithMode -> message.source.mode
+                is MessageSource.Bounced -> null
+            }
 
         return TvmTestOutMessage(
             value = resolveInt257(message.msgValue),
             fullMessage = resolveCell(message.fullMsgCell),
             bodySlice = resolveSlice(message.msgBodySlice),
-            mode = resolveInt257(mode).value,
+            mode = mode?.let { resolveInt257(it).value },
         )
     }
 
