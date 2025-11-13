@@ -19,11 +19,9 @@ import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
 import org.usvm.machine.state.readCellRef
-import org.usvm.machine.types.TvmType
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.mkSizeSubExpr
-import org.usvm.model.UModelBase
 import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestDataCellValue
@@ -186,10 +184,10 @@ class TvmValueFixator(
             val dictId = DictId(value.keyLength)
             val keySort = mkBvSort(value.keyLength.toUInt())
 
-            val isInput = scope.calcOnState { inputDictionaryStorage.hasInputDictEntryAtRef(ref) }
+            val isInput = scope.calcOnState { inputDictionaryStorage.hasInputDictEntryAtRef(modelRef) }
             if (!isInput) {
                 val newConditions =
-                    fixateAllocatedDictEntries(scope, model, modelRef, dictId, keySort, ref, value)
+                    fixateAllocatedDictEntries(scope, modelRef, dictId, keySort, ref, value)
                         ?: return@with null
                 result = result and mkAnd(newConditions)
             } else {
@@ -201,7 +199,7 @@ class TvmValueFixator(
                         inputDict
                     }
                 val asserts =
-                    fixateInputDictEntries(scope, inputDict, ref, dictId, model, value)
+                    fixateInputDictEntries(scope, inputDict, ref, dictId, value)
                         ?: return@with null
                 result = result and mkAnd(asserts)
             }
@@ -214,9 +212,9 @@ class TvmValueFixator(
         inputDict: InputDict,
         ref: UHeapRef,
         dictId: DictId,
-        model: UModelBase<TvmType>,
         value: TvmTestDictCellValue,
     ): List<UBoolExpr>? {
+        val model = resolver.model
         val beforeFixRootInfo =
             scope.calcOnState { inputDictionaryStorage.getRootInfoByIdOrThrow(inputDict.rootInputDictId) }
         val keyEntries = inputDict.getCurrentlyDiscoveredKeys(ctx, beforeFixRootInfo)
@@ -261,13 +259,13 @@ class TvmValueFixator(
 
     private fun TvmContext.fixateAllocatedDictEntries(
         scope: TvmStepScopeManager,
-        model: UModelBase<TvmType>,
         modelRef: UConcreteHeapRef,
         dictId: DictId,
         keySort: KBvSort,
         ref: UHeapRef,
         value: TvmTestDictCellValue,
     ): List<UBoolExpr>? {
+        val model = resolver.model
         val asserts = mutableListOf<UBoolExpr>()
         val entries =
             scope.calcOnState {

@@ -19,7 +19,7 @@ fun doInputDictHasKey(
 ) = with(scope.ctx) {
     val ctx = scope.ctx
     val keyExists = scope.calcOnState { makeSymbolicPrimitive(boolSort) }
-    val freshKeyConst = scope.calcOnState { makeFreshKeyConstant(key.expr.sort, key.kind) }
+    val freshKeyConst = scope.calcOnState { makeFreshKeySymbol(key.expr.sort, key.kind) }
     val rootInputDictionary =
         scope.calcOnState { inputDictionaryStorage.getRootInfoByIdOrThrow(inputDict.rootInputDictId) }
     val result = inputDict.doDictHasKeyImpl(ctx, key, rootInputDictionary, freshKeyConst, keyExists)
@@ -68,8 +68,8 @@ fun doInputDictMinMax(
     dictKeyKind: DictKeyKind,
 ): DictMinMaxResult? {
     val ctx = scope.ctx
-    val keyResultSymbol = scope.calcOnState { makeFreshKeyConstant(dictKeySort, dictKeyKind) }
-    val freshConstantForInput = scope.calcOnState { makeFreshKeyConstant(dictKeySort, dictKeyKind) }
+    val keyResultSymbol = scope.calcOnState { makeFreshKeySymbol(dictKeySort, dictKeyKind) }
+    val freshConstantForInput = scope.calcOnState { makeFreshKeySymbol(dictKeySort, dictKeyKind) }
     val rootInformation =
         scope.calcOnState { inputDictionaryStorage.rootInformation[inputDict.rootInputDictId] }
             ?: error("no registry for the root id ${inputDict.rootInputDictId}")
@@ -106,8 +106,8 @@ fun doInputDictNextPrev(
     doWithResult: TvmStepScopeManager.(DictNextResult) -> Unit,
 ) {
     val ctx = scope.ctx
-    val resultSymbol = scope.calcOnState { makeFreshKeyConstant(dictKeySort, dictKeyKind) }
-    val freshConstantForInput = scope.calcOnState { makeFreshKeyConstant(dictKeySort, dictKeyKind) }
+    val resultSymbol = scope.calcOnState { makeFreshKeySymbol(dictKeySort, dictKeyKind) }
+    val freshConstantForInput = scope.calcOnState { makeFreshKeySymbol(dictKeySort, dictKeyKind) }
     val rootInputDictInfo =
         scope.calcOnState { inputDictionaryStorage.getRootInfoByIdOrThrow(inputDict.rootInputDictId) }
     val dictNextApplied =
