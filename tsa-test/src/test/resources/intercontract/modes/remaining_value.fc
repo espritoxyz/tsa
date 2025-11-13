@@ -18,6 +18,8 @@
 }
 
 () main() impure {
+    slice ds = get_data().begin_parse();
+    int sent_coins = ds~load_coins();
 
     int balance_bfr_msg = tsa_call_1_0(1, 1650);
 
@@ -25,5 +27,6 @@
 
     int balance_aft_msg = tsa_call_1_0(1, 1650);
 
-    throw_if(257, balance_bfr_msg == balance_aft_msg); ;; The contact should have the same balance
+    throw_if(257, balance_aft_msg == balance_bfr_msg - sent_coins);
+    throw(258);  ;; shouldn't be reachable
 }

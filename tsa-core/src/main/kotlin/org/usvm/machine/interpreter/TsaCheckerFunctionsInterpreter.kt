@@ -7,6 +7,7 @@ import org.ton.compositeLabelOfUnknown
 import org.usvm.UConcreteHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
+import org.usvm.isStatic
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
@@ -33,6 +34,7 @@ import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
+import org.usvm.machine.state.makeCellToSliceNoFork
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
@@ -246,11 +248,15 @@ class TsaCheckerFunctionsInterpreter(
                                 memory.readField(it.msgBodySliceNonBounced, TvmContext.sliceCellField, addressSort)
                             } as UConcreteHeapRef
 
-                        dataCellInfoStorage.mapper.addLabel(
-                            scope,
-                            msgBodyCell,
-                            compositeLabelOfUnknown,
-                        ) ?: return null
+                        if (msgBodyCell.isStatic) {
+                            dataCellInfoStorage.mapper.addLabel(
+                                scope,
+                                msgBodyCell,
+                                compositeLabelOfUnknown,
+                            ) ?: return null
+
+                            makeCellToSliceNoFork(scope, msgBodyCell, it.msgBodySliceNonBounced)
+                        }
 
                         when (stackOperations.type) {
                             ReceiverType.Internal -> {

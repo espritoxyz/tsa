@@ -31,7 +31,7 @@ fun builderStoreSliceTransaction(
     slice: UHeapRef,
 ): Unit? = builderStoreSliceTlb(scope, builder, builder, slice)
 
-fun makeCellToSliceTransaction(
+fun makeCellToSliceNoFork(
     scope: TvmStepScopeManager,
     cell: UHeapRef,
     slice: UConcreteHeapRef,

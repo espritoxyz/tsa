@@ -35,7 +35,7 @@ global int initial_value;
         tsa_fetch_value(initial_value, -1);
         tsa_fetch_value(value, -2);
 
-        throw_if(1000, equal_slice_bits(dest, initial_sender) & (value > initial_value));
+        throw_if(1000, value > initial_value);
     }
 }
 

@@ -42,7 +42,7 @@ import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.getInboundMessageValue
 import org.usvm.machine.state.getSliceRemainingRefsCount
-import org.usvm.machine.state.makeCellToSliceTransaction
+import org.usvm.machine.state.makeCellToSliceNoFork
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.MessageAsStackArguments
@@ -727,7 +727,7 @@ class TvmTransactionInterpreter(
                 ?: return null
 
         val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
-        makeCellToSliceTransaction(scope, msg, msgSlice) // for further TL-B readings
+        makeCellToSliceNoFork(scope, msg, msgSlice) // for further TL-B readings
 
         val ptr = ParsingState(msgSlice)
         val (msgFull, msgValue, destination, fwdFeeInfo, bodyCell) =

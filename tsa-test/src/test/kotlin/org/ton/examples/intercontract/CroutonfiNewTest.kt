@@ -1,20 +1,18 @@
 package org.ton.examples.intercontract
 
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
-import org.ton.RUN_HARD_TESTS_REGEX
-import org.ton.RUN_HARD_TESTS_VAR
+import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractBocContractFromResource
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
 import org.ton.test.utils.extractConcreteDataFromResource
 import org.ton.test.utils.getAddressBits
-import org.ton.test.utils.propertiesFound
+import org.usvm.machine.ExploreExitCodesStopStrategy
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
-import org.usvm.test.resolver.TvmMethodFailure
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -27,7 +25,7 @@ class CroutonfiNewTest {
     private val poolCodePath = "/intercontract/croutonfi-new/pool_code.boc"
     private val poolDataPath = "/intercontract/croutonfi-new/pool_data.boc"
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    //    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun findTonDrain() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)
@@ -44,6 +42,7 @@ class CroutonfiNewTest {
                 stopOnFirstError = false,
                 timeout = 3.minutes,
                 solverTimeout = 3.seconds,
+                performAdditionalChecksWhileResolving = true,
             )
 
         val concreteVaultData =
@@ -67,12 +66,15 @@ class CroutonfiNewTest {
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
+                additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(1000)),
             )
 
-        propertiesFound(
+        assert(tests.isNotEmpty())
+
+        checkInvariants(
             tests,
             listOf { test ->
-                (test.result as? TvmMethodFailure)?.exitCode == 1000
+                test.exitCode() != 1000
             },
         )
     }
