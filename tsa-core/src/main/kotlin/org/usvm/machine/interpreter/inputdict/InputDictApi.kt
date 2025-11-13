@@ -15,7 +15,7 @@ data class DictHasKeyResult(
 fun doInputDictHasKey(
     scope: TvmStepScopeManager,
     inputDict: InputDict,
-    key: KeyType,
+    key: TypedDictKey,
 ) = with(scope.ctx) {
     val ctx = scope.ctx
     val keyExists = scope.calcOnState { makeSymbolicPrimitive(boolSort) }
@@ -34,7 +34,7 @@ fun doInputDictHasKey(
 fun assertInputDictIsEmpty(
     scope: TvmStepScopeManager,
     inputDict: InputDict,
-    condition: UBoolExpr,
+    guard: UBoolExpr,
 ): Unit? {
     val ctx = scope.ctx
     val rootInputDictionary =
@@ -42,7 +42,7 @@ fun assertInputDictIsEmpty(
     val (cs, quantifiers) =
         rootInputDictionary.addLazyUniversalConstraint(
             ctx,
-            EmptyDictConstraint(condition, inputDict.modifications),
+            EmptyDictConstraint(guard, inputDict.modifications),
         )
     scope.assert(ctx.mkAnd(cs))
         ?: return null
@@ -57,7 +57,7 @@ fun assertInputDictIsEmpty(
 }
 
 data class DictMinMaxResult(
-    val expr: KeyType,
+    val expr: TypedDictKey,
 )
 
 fun doInputDictMinMax(

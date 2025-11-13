@@ -505,16 +505,13 @@ class TvmTestStateResolver(
             tvmCellValue.also { resolvedCache[modelRef.address] = tvmCellValue }
         }
 
-    private fun resolveDictCell(
-        modelRef: UConcreteHeapRef,
-        dict: UHeapRef,
-    ): TvmTestDictCellValue =
+    private fun resolveDictCell(modelRef: UConcreteHeapRef): TvmTestDictCellValue =
         with(ctx) {
             if (modelRef.address == NULL_ADDRESS) {
                 error("Unexpected dict ref: $modelRef")
             }
 
-            val keyLength = resolveInt(memory.readField(dict, dictKeyLengthField, sizeSort))
+            val keyLength = resolveInt(memory.readField(modelRef, dictKeyLengthField, sizeSort))
             val dictId = DictId(keyLength)
             val keySort = mkBvSort(keyLength.toUInt())
             val keySetEntries = dictKeyEntries(model, memory, modelRef, dictId, keySort)
@@ -522,15 +519,13 @@ class TvmTestStateResolver(
             val keySet = mutableSetOf<UExpr<UBvSort>>()
             val resultEntries = mutableMapOf<TvmTestIntegerValue, TvmTestSliceValue>()
 
-            if (dict is UConcreteHeapRef) {
-                val inputDict = state.inputDictionaryStorage.memory[dict]
-                if (inputDict != null) {
-                    return handleInputDict(inputDict, dict, dictId, keyLength, modelRef)
-                }
+            val inputDict = state.inputDictionaryStorage.memory[modelRef]
+            if (inputDict != null) {
+                return handleInputDict(inputDict, modelRef, dictId, keyLength, modelRef)
             }
             for (entry in keySetEntries) {
                 val key = entry.setElement
-                val keyContains = state.allocatedDictContainsKey(dict, dictId, key)
+                val keyContains = state.allocatedDictContainsKey(modelRef, dictId, key)
                 if (evaluateInModel(keyContains).isTrue) {
                     val evaluatedKey = evaluateInModel(key)
                     if (!keySet.add(evaluatedKey)) {
@@ -539,7 +534,7 @@ class TvmTestStateResolver(
 
                     val resolvedKey = TvmTestIntegerValue(extractInt257(evaluatedKey))
 
-                    val value = state.dictGetValue(dict, dictId, evaluatedKey)
+                    val value = state.dictGetValue(modelRef, dictId, evaluatedKey)
                     val resolvedValue = resolveSlice(value)
 
                     resultEntries[resolvedKey] = resolvedValue
@@ -633,7 +628,7 @@ class TvmTestStateResolver(
             }
 
             if (type is TvmDictCellType) {
-                return resolveDictCell(modelRef, cell)
+                return resolveDictCell(modelRef)
             }
 
             resolveDataCell(modelRef, cell)

@@ -12,11 +12,11 @@ import kotlin.collections.plus
  */
 sealed interface Modification {
     data class Remove(
-        val key: KeyType,
+        val key: TypedDictKey,
     ) : Modification
 
     data class Store(
-        val key: KeyType,
+        val key: TypedDictKey,
         val guard: UBoolExpr,
     ) : Modification
 }
@@ -39,27 +39,28 @@ fun List<Modification>.isInputDictKeyContainedInModifiedDict(
 
 fun List<Modification>.foldOnSymbols(
     ctx: TvmContext,
-    base: List<GuardedKeyType>,
-): List<GuardedKeyType> =
+    base: List<GuardedTypedDictKey>,
+): List<GuardedTypedDictKey> =
     with(ctx) {
         val (head, tail) = splitHeadTail() ?: return base
         val tailSymbols = tail.getExplicitlyStoredKeys(ctx)
         return when (head) {
             is Modification.Store ->
                 tailSymbols.map { (keySymbol, cond) ->
-                    GuardedKeyType(
+                    GuardedTypedDictKey(
                         keySymbol,
                         cond or (keySymbol.expr eq head.key.expr),
                     )
                 } +
-                    GuardedKeyType(head.key, trueExpr)
+                    GuardedTypedDictKey(head.key, trueExpr)
 
             is Modification.Remove ->
                 tailSymbols.map { (symbol, condition) ->
-                    GuardedKeyType(symbol, condition and (symbol.expr neq head.key.expr))
+                    GuardedTypedDictKey(symbol, condition and (symbol.expr neq head.key.expr))
                 }
         }
     }
 
 /** @return keys that were explicitly added to the dictionary */
-fun List<Modification>.getExplicitlyStoredKeys(ctx: TvmContext): List<GuardedKeyType> = foldOnSymbols(ctx, emptyList())
+fun List<Modification>.getExplicitlyStoredKeys(ctx: TvmContext): List<GuardedTypedDictKey> =
+    foldOnSymbols(ctx, emptyList())

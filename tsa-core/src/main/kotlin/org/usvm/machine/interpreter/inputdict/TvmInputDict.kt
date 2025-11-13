@@ -43,7 +43,7 @@ import org.usvm.machine.TvmContext
 data class InputDictRootInformation(
     private val lazyUniversalQuantifierConstraints: PersistentList<LazyUniversalQuantifierConstraint> =
         persistentListOf(),
-    val symbols: PersistentSet<KeyType> = persistentHashSetOf(),
+    val symbols: PersistentSet<TypedDictKey> = persistentHashSetOf(),
 ) {
     /**
      * we will ensure that:
@@ -85,13 +85,13 @@ data class InputDictRootInformation(
 }
 
 sealed interface DictNextResult {
-    val answer: KeyType?
+    val answer: TypedDictKey?
         get() = null
     val constraintSet: PersistentList<UBoolExpr>
     val newInputDictRootInformation: InputDictRootInformation
 
     data class Exists(
-        override val answer: KeyType,
+        override val answer: TypedDictKey,
         override val constraintSet: PersistentList<UBoolExpr>,
         override val newInputDictRootInformation: InputDictRootInformation,
     ) : DictNextResult
@@ -143,17 +143,17 @@ data class InputDict(
     internal fun getCurrentlyDiscoveredKeys(
         ctx: TvmContext,
         rootInformation: InputDictRootInformation,
-    ): List<GuardedKeyType> =
-        modifications.foldOnSymbols(ctx, rootInformation.symbols.map { GuardedKeyType(it, ctx.trueExpr) })
+    ): List<GuardedTypedDictKey> =
+        modifications.foldOnSymbols(ctx, rootInformation.symbols.map { GuardedTypedDictKey(it, ctx.trueExpr) })
 
     /**
      * most probably, you want to use [doInputDictHasKey] instead as a less error-prone version
      */
     fun doDictHasKeyImpl(
         ctx: TvmContext,
-        key: KeyType,
+        key: TypedDictKey,
         rootInfo: InputDictRootInformation,
-        freshConstantForInput: KeyType,
+        freshConstantForInput: TypedDictKey,
         freshConstantForExistenceOfKey: UBoolExpr,
     ): DictGetResult {
         val exists = freshConstantForExistenceOfKey
@@ -191,8 +191,8 @@ data class InputDict(
         ctx: TvmContext,
         rootInformation: InputDictRootInformation,
         isMax: Boolean,
-        freshConstantForInput: KeyType,
-        freshConstantForResult: KeyType,
+        freshConstantForInput: TypedDictKey,
+        freshConstantForResult: TypedDictKey,
         isSigned: Boolean,
     ): DictMaxResult.Exists {
         val symbolConstraint = rootInformation.createSymbolConstraints(ctx, freshConstantForInput.toExtendedKey(ctx))
@@ -232,8 +232,8 @@ data class InputDict(
         ctx: TvmContext,
         pivot: ExtendedDictKey,
         inputDict: InputDictRootInformation,
-        freshConstantForInput: KeyType,
-        freshConstantForResult: KeyType,
+        freshConstantForInput: TypedDictKey,
+        freshConstantForResult: TypedDictKey,
         isNext: Boolean,
         mightBeEqualToPivot: Boolean,
         isSigned: Boolean,
@@ -268,8 +268,8 @@ data class InputDict(
 
     private fun createExistsBranch(
         ctx: TvmContext,
-        freshConstantForInput: KeyType,
-        freshConstantForResult: KeyType,
+        freshConstantForInput: TypedDictKey,
+        freshConstantForResult: TypedDictKey,
         inputDict: InputDictRootInformation,
         mightBeEqualToPivot: Boolean,
         isNext: Boolean,

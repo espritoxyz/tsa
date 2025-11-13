@@ -17,7 +17,7 @@ sealed interface LazyUniversalQuantifierConstraint {
     val modifications: PersistentList<Modification>
 
     /**
-     * @param symbol is of KExtended sort as all the comparisons must be done on the extended key type
+     * @param symbol is of [ExtendedDictKey] sort as all the comparisons must be done on the extended key type
      */
     fun createConstraint(
         ctx: TvmContext,
@@ -36,18 +36,18 @@ data class EmptyDictConstraint(
 }
 
 /**
- * @param condition a condition of whether this constraint should be applied at all
+ * @param guard a condition of whether this constraint should be applied at all
  * (useful for avoiding forking)
  */
 data class NotEqualConstraint(
     val value: ExtendedDictKey,
-    val condition: UBoolExpr,
+    val guard: UBoolExpr,
     override val modifications: PersistentList<Modification>,
 ) : LazyUniversalQuantifierConstraint {
     override fun createConstraint(
         ctx: TvmContext,
         symbol: ExtendedDictKey,
-    ): UBoolExpr = with(ctx) { condition implies (symbol neq value) }
+    ): UBoolExpr = with(ctx) { guard implies (symbol neq value) }
 }
 
 data class NextPrevQueryConstraint(
@@ -87,7 +87,7 @@ data class UpperLowerBoundConstraint(
 }
 
 data class EqualToOneOf(
-    val values: List<GuardedKeyType>,
+    val values: List<GuardedTypedDictKey>,
     override val modifications: PersistentList<Modification>,
 ) : LazyUniversalQuantifierConstraint {
     override fun createConstraint(

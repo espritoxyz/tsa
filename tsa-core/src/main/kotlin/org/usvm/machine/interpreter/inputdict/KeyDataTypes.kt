@@ -36,19 +36,19 @@ fun TvmContext.extendDictKey(
         -> value.zeroExtendToSort(cellDataSort)
     }
 
-data class KeyType(
+data class TypedDictKey(
     val expr: UExpr<UBvSort>,
     val kind: DictKeyKind,
 ) {
     fun toExtendedKey(ctx: TvmContext): ExtendedDictKey = ctx.extendDictKey(expr, kind)
 }
 
-data class GuardedKeyType(
-    val symbol: KeyType,
+data class GuardedTypedDictKey(
+    val symbol: TypedDictKey,
     val guard: UBoolExpr,
 )
 
 fun TvmState.makeFreshKeyConstant(
     keySort: KBvSort,
     keyKind: DictKeyKind,
-): KeyType = KeyType(makeSymbolicPrimitive(keySort), keyKind)
+): TypedDictKey = TypedDictKey(makeSymbolicPrimitive(keySort), keyKind)
