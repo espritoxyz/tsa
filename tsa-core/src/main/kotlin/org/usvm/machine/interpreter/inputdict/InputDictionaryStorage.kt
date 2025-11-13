@@ -31,7 +31,7 @@ class InputDictionaryStorage(
         ref: UConcreteHeapRef,
         inputDict: InputDict,
     ): InputDictionaryStorage {
-        assert(ref !in memory) { "InputDict object is deeply immutable and must be written only once" }
+        require(ref !in memory) { "InputDict object is deeply immutable and must be written only once" }
         return InputDictionaryStorage(memory = memory.put(ref, inputDict), rootInformation = rootInformation)
     }
 

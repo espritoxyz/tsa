@@ -48,7 +48,7 @@ data class GuardedTypedDictKey(
     val guard: UBoolExpr,
 )
 
-fun TvmState.makeFreshKeyConstant(
+fun TvmState.makeFreshKeySymbol(
     keySort: KBvSort,
     keyKind: DictKeyKind,
 ): TypedDictKey = TypedDictKey(makeSymbolicPrimitive(keySort), keyKind)
