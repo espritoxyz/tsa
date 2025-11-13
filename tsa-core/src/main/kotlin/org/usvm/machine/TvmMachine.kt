@@ -48,6 +48,7 @@ class TvmMachine(
         methodId: BigInteger,
         inputInfo: TvmInputInfo = TvmInputInfo(),
         manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
+        additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
     ): List<TvmState> =
         analyze(
             listOf(contractCode),
@@ -58,6 +59,7 @@ class TvmMachine(
             methodId,
             inputInfo,
             manualStateProcessor = manualStateProcessor,
+            additionalStopStrategy = additionalStopStrategy,
         )
 
     fun analyze(
