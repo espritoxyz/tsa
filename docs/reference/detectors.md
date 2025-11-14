@@ -90,3 +90,11 @@ These errors occur when dictionary operations are performed on ordinary data cel
 Errors:
 - `dict-operation-on-data-cell`
 - `data-cell-operation-on-dict`
+
+### Send modes errors
+
+Bad combinations of message send modes.
+
+Errors:
+
+- `double-send-remaining-value`: `SendRemainingValue` mode is used twice in one transaction.
