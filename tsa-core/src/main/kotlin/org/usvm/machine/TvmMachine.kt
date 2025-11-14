@@ -34,7 +34,7 @@ class TvmMachine(
         defaultOptions.copy(
             timeout = tvmOptions.timeout,
             solverTimeout = tvmOptions.solverTimeout,
-            loopIterationLimit = tvmOptions.loopIterationLimit,
+            loopIterationLimit = tvmOptions.loopIterationLimit?.let { it - 1 },
         )
 
     private val components = TvmComponents(tvmOptions)
