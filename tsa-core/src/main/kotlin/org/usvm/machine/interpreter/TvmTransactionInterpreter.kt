@@ -29,6 +29,7 @@ import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCommitedState
+import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
@@ -65,8 +66,6 @@ private typealias Transformation =
 private typealias MutableTransformation =
     TvmTransactionInterpreter.MessageHandlingState.OkBuilder.() -> TvmTransactionInterpreter.MessageHandlingState
 
-const val MSG_FWD_FEE_UPPER_BOUND = 100
-
 class TvmTransactionInterpreter(
     val ctx: TvmContext,
 ) {
@@ -87,6 +86,7 @@ class TvmTransactionInterpreter(
                         null
                     }
                 }
+
         val messagesForQueue: List<Pair<ContractId, MessageActionParseResult>>
             get() = orderedMessages.mapNotNull { (contractId, outMessage) -> contractId?.let { it to outMessage } }
 
@@ -136,14 +136,29 @@ class TvmTransactionInterpreter(
                     remainingInboundMessageValue,
                     sentMessages,
                 )
+
+            val alreadyHasSendRemainingValue: UBoolExpr get() =
+                with(ctx) {
+                    sentMessages.fold(falseExpr as UBoolExpr) { acc, cur ->
+                        acc or cur.outMessage.sendMessageMode.hasBitSet(MessageMode.SEND_REMAINING_VALUE_BIT)
+                    }
+                }
         }
 
-        data class Failure(
+        sealed interface Failure : MessageHandlingState
+
+        data class RealFailure(
             val exit: TvmMethodResult.TvmErrorExit,
-        ) : MessageHandlingState
+        ) : Failure
+
+        data class SoftFailure(
+            val exit: TvmMethodResult.TvmSoftFailureExit,
+        ) : Failure
 
         companion object {
-            fun insufficientFundsError(contractId: ContractId) = Failure(InsufficientFunds(contractId))
+            fun insufficientFundsError(contractId: ContractId) = RealFailure(InsufficientFunds(contractId))
+
+            fun doubleSendRemainingValue(contractId: ContractId) = SoftFailure(TvmDoubleSendRemainingValue(contractId))
         }
     }
 
@@ -190,30 +205,17 @@ class TvmTransactionInterpreter(
         val compatibleRestActions: TvmStepScopeManager.(MessageHandlingState) -> Unit = {
             val arg =
                 when (it) {
-                    is MessageHandlingState.Failure ->
-                        ActionHandlingResult.Failure(
-                            InsufficientFunds(calcOnState { currentContract }),
-                        )
+                    is MessageHandlingState.RealFailure ->
+                        ActionHandlingResult.RealFailure(it.exit)
+
+                    is MessageHandlingState.SoftFailure ->
+                        ActionHandlingResult.SoftFailure(it.exit)
 
                     is MessageHandlingState.Ok -> ActionHandlingResult.Success(it.remainingBalance, it.sentMessages)
                 }
             this.restActions(arg)
         }
         scope.handleMessagesImpl(messages, messageHandlingState, compatibleRestActions)
-    }
-
-    /**
-     * TODO calculate properly instead of mocking
-     */
-    private fun TvmStepScopeManager.computeMessageForwardFees(
-        @Suppress("Unused") outMessage: MessageActionParseResult,
-    ): Int257Expr {
-        val fwdFees = calcOnState { makeSymbolicPrimitive(ctx.int257sort) }
-        with(ctx) {
-            assert((zeroValue bvUlt fwdFees) and (fwdFees bvUle MSG_FWD_FEE_UPPER_BOUND.toBv257()))
-                ?: error("unreachable")
-        }
-        return fwdFees
     }
 
     private fun TvmStepScopeManager.handleMessagesImpl(
@@ -238,7 +240,7 @@ class TvmTransactionInterpreter(
                 sendRemainingBalance = sendRemainingBalance,
                 sendFwdFeesSeparately = sendFwdFeesSeparately,
                 computeFees = zeroValue,
-                msgFwdFees = computeMessageForwardFees(head.outMessage),
+                msgFwdFees = head.outMessage.content.fwdFee,
                 initMsgValue = messageValue,
                 currentState = currentMessageHandlingState,
                 currentMessage = head,
@@ -267,85 +269,111 @@ class TvmTransactionInterpreter(
         currentContractId: ContractId,
     ): List<List<CondTransform>> {
         val payFeesSeparately = sendFwdFeesSeparately and sendRemainingBalance.not()
-        val firstTransform: List<CondTransform> =
+        val transform1: List<CondTransform> =
             listOf(
                 CondTransform(
-                    { sendRemainingBalance },
-                    asOnCopy {
-                        remainingInboundMessageValue = zeroValue
-                        messageValue = currentContractBalance
-                        build()
+                    predicate = {
+                        alreadyHasSendRemainingValue and sendRemainingValue
                     },
+                    transform =
+                        asOnCopy {
+                            MessageHandlingState.doubleSendRemainingValue(currentContractId)
+                        },
                 ),
                 CondTransform(
-                    {
+                    predicate = {
+                        (alreadyHasSendRemainingValue and sendRemainingValue).not()
+                    },
+                    transform = asOnCopy { build() },
+                ),
+            )
+        val transform2: List<CondTransform> =
+            listOf(
+                CondTransform(
+                    predicate = { sendRemainingBalance },
+                    transform =
+                        asOnCopy {
+                            remainingInboundMessageValue = zeroValue
+                            messageValue = currentContractBalance
+                            build()
+                        },
+                ),
+                CondTransform(
+                    predicate = {
                         sendRemainingBalance.not() and sendRemainingValue and
                             ((messageValue bvAdd remainingInboundMessageValue) bvUge computeFees)
                     },
-                    asOnCopy {
-                        messageValue = messageValue bvAdd remainingInboundMessageValue bvSub computeFees
-                        remainingInboundMessageValue = zeroValue
-                        build()
-                    },
+                    transform =
+                        asOnCopy {
+                            messageValue = messageValue bvAdd remainingInboundMessageValue bvSub computeFees
+                            remainingInboundMessageValue = zeroValue
+                            build()
+                        },
                 ),
                 CondTransform(
-                    {
+                    predicate = {
                         sendRemainingBalance.not() and sendRemainingValue and
                             ((messageValue bvAdd remainingInboundMessageValue) bvUge computeFees).not()
                     },
-                    asOnCopy {
-                        MessageHandlingState.insufficientFundsError(currentContractId)
-                    },
+                    transform =
+                        asOnCopy {
+                            MessageHandlingState.insufficientFundsError(currentContractId)
+                        },
                 ),
                 CondTransform(
-                    {
+                    predicate = {
                         sendRemainingBalance.not() and sendRemainingValue.not()
                     },
-                    asOnCopy { build() },
+                    transform = asOnCopy { build() },
                 ),
             )
-        val secondTransform: List<CondTransform> =
+        val transform3: List<CondTransform> =
             listOf(
                 CondTransform(
-                    { payFeesSeparately },
-                    asOnCopy {
-                        messageValueBrutto = messageValue bvAdd msgFwdFees
-                        build()
-                    },
+                    predicate = { payFeesSeparately },
+                    transform =
+                        asOnCopy {
+                            messageValueBrutto = messageValue bvAdd msgFwdFees
+                            build()
+                        },
                 ),
                 CondTransform(
-                    { payFeesSeparately.not() and (this.messageValue bvUge msgFwdFees) },
-                    asOnCopy {
-                        messageValueBrutto = messageValue
-                        messageValue = messageValue bvSub msgFwdFees
-                        build()
-                    },
+                    predicate = { payFeesSeparately.not() and (this.messageValue bvUge msgFwdFees) },
+                    transform =
+                        asOnCopy {
+                            messageValueBrutto = messageValue
+                            messageValue = messageValue bvSub msgFwdFees
+                            build()
+                        },
                 ),
                 CondTransform(
-                    { payFeesSeparately.not() and (this.messageValue bvUge msgFwdFees).not() },
-                    asOnCopy {
-                        MessageHandlingState.insufficientFundsError(currentContractId)
-                    },
+                    predicate = { payFeesSeparately.not() and (this.messageValue bvUge msgFwdFees).not() },
+                    transform =
+                        asOnCopy {
+                            MessageHandlingState.insufficientFundsError(currentContractId)
+                        },
                 ),
             )
-        val thirdTransform: List<CondTransform> =
+        val transform4: List<CondTransform> =
             listOf(
                 CondTransform(
-                    { remainingBalance bvUge messageValueBrutto },
-                    asOnCopy {
-                        currentContractBalance = currentContractBalance bvSub messageValueBrutto
-                        sentMessages = sentMessages.add(currentMessage.withSetMessageValue(messageValue))
-                        build()
-                    },
+                    predicate = { remainingBalance bvUge messageValueBrutto },
+                    transform =
+                        asOnCopy {
+                            currentContractBalance = currentContractBalance bvSub messageValueBrutto
+                            sentMessages = sentMessages.add(currentMessage.withSetMessageValue(messageValue))
+                            build()
+                        },
                 ),
                 CondTransform(
-                    { (remainingBalance bvUge messageValueBrutto).not() },
-                    asOnCopy {
-                        MessageHandlingState.insufficientFundsError(currentContractId)
-                    },
+                    predicate = { (remainingBalance bvUge messageValueBrutto).not() },
+                    transform =
+                        asOnCopy {
+                            MessageHandlingState.insufficientFundsError(currentContractId)
+                        },
                 ),
             )
-        val transformations = listOf(firstTransform, secondTransform, thirdTransform)
+        val transformations = listOf(transform1, transform2, transform3, transform4)
         return transformations
     }
 
@@ -365,11 +393,15 @@ class TvmTransactionInterpreter(
                 return
             }
         val actions =
-            head.map {
+            head.mapNotNull {
+                val predicate = currentState.applyPredicate(ctx, it.predicate)
+                if (predicate.isFalse) {
+                    return@mapNotNull null
+                }
                 TvmStepScopeManager.ActionOnCondition(
                     {},
                     false,
-                    currentState.applyPredicate(ctx, it.predicate),
+                    predicate,
                     currentState.applyTransform(it.transform),
                 )
             }
@@ -746,6 +778,7 @@ class TvmTransactionInterpreter(
                 msgFull,
                 bodySlice,
                 destination,
+                fwdFee = fwdFeeInfo.symbolicFwdFee,
                 source = MessageSource.SentWithMode(sendMsgMode),
             ),
             sendMsgMode,

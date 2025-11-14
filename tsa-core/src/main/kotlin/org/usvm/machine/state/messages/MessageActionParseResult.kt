@@ -30,6 +30,7 @@ data class MessageAsStackArguments(
     val fullMsgCell: UHeapRef,
     val msgBodySlice: UHeapRef,
     val destAddrSlice: UHeapRef,
+    val fwdFee: Int257Expr,
     val source: MessageSource, // for debugging
 )
 

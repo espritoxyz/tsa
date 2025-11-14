@@ -28,5 +28,5 @@
     int balance_aft_msg = tsa_call_1_0(1, 1650);
 
     throw_if(257, balance_aft_msg == balance_bfr_msg - sent_coins);
-    throw(258);  ;; shouldn't be reachable
+    throw(258);
 }

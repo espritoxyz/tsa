@@ -9,7 +9,11 @@ interface ActionHandlingResult {
         val messagesSent: List<TvmTransactionInterpreter.MessageWithMaybeReceiver>,
     ) : ActionHandlingResult
 
-    data class Failure(
+    data class RealFailure(
         val failure: TvmMethodResult.TvmErrorExit,
+    ) : ActionHandlingResult
+
+    data class SoftFailure(
+        val failure: TvmMethodResult.TvmSoftFailureExit,
     ) : ActionHandlingResult
 }
