@@ -212,7 +212,7 @@ fun TvmState.allocatedDictContainsKey(
     dictId: DictId,
     key: UExpr<UBvSort>,
 ): UBoolExpr {
-    val isInputDictionary = inputDictionaryStorage.hasInputDictEntryAtRef(dictRef)
+    val isInputDictionary = dictRef is UConcreteHeapRef && inputDictionaryStorage.hasInputDictEntryAtRef(dictRef)
     check(!isInputDictionary) {
         "dictContainsKey should only be used on non-input dictionaries"
     }

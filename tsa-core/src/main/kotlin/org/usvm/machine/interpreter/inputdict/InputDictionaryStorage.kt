@@ -3,7 +3,6 @@ package org.usvm.machine.interpreter.inputdict
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import org.usvm.UConcreteHeapRef
-import org.usvm.UHeapRef
 
 /**
  * The input dictionary reference structure is as follows:
@@ -21,7 +20,7 @@ class InputDictionaryStorage(
     val memory: PersistentMap<UConcreteHeapRef, InputDict> = persistentMapOf(),
     val rootInformation: PersistentMap<Int, InputDictRootInformation> = persistentMapOf(),
 ) {
-    fun hasInputDictEntryAtRef(ref: UHeapRef?) = memory.containsKey(ref)
+    fun hasInputDictEntryAtRef(ref: UConcreteHeapRef) = memory.containsKey(ref)
 
     fun getRootInfoByIdOrThrow(id: Int) =
         rootInformation[id]

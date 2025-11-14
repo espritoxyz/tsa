@@ -2071,7 +2071,12 @@ class TvmDictOperationInterpreter(
                 }
             }
         return (allSetEntries != null && allSetEntries.isInput) ||
-            scope.calcOnState { inputDictionaryStorage.hasInputDictEntryAtRef(dictCellRef) }
+            dictCellRef is UConcreteHeapRef &&
+            scope.calcOnState {
+                inputDictionaryStorage.hasInputDictEntryAtRef(
+                    dictCellRef,
+                )
+            }
     }
 
     private fun TvmState.copyInputDictMemoryRepresentation(
