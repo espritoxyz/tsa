@@ -42,7 +42,11 @@ class IntercontractTest {
 
         val schemeJson = extractResource(schemePath).readText()
         val scheme = communicationSchemeFromJson(schemeJson)
-        val options = TvmOptions(intercontractOptions = IntercontractOptions(scheme), enableOutMessageAnalysis = true)
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(scheme),
+                enableOutMessageAnalysis = true,
+            )
 
         val resultStates =
             analyzeFuncIntercontract(
