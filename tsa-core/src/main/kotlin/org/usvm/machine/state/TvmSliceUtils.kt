@@ -1488,9 +1488,12 @@ fun TvmState.readSliceDataPos(slice: UHeapRef) = fieldManagers.cellDataLengthFie
 
 fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellField, ctx.addressSort)
 
+fun TvmState.readSliceRefPos(slice: UHeapRef) = memory.readField(slice, sliceRefPosField, ctx.sizeSort)
+
 data class SliceReadData(
     val dataPos: UExpr<TvmSizeSort>,
-    val cellData: UExpr<TvmCellDataSort>,
+    val refPos: UExpr<TvmSizeSort>,
+    val cellData: UExpr<TvmCellDataSort>?,
     val fullLength: UExpr<TvmSizeSort>,
 )
 
@@ -1498,11 +1501,13 @@ data class SliceReadData(
 @Suppress("unused")
 fun TvmState.readSliceFull(slice: UHeapRef): SliceReadData {
     val dataPos = readSliceDataPos(slice)
+    val refPos = readSliceRefPos(slice)
     val cell = readSliceCell(slice)
     val cellData = fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(this, cell)
     val cellDataLength = fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
     return SliceReadData(
         dataPos,
+        refPos,
         cellData,
         cellDataLength,
     )

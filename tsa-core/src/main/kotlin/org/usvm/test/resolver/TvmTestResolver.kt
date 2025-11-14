@@ -45,7 +45,6 @@ data object TvmTestResolver {
             state.fieldManagers.cellDataFieldManager
                 .getCellsWithAssertedCellData()
                 .size
-
         return TvmSymbolicTest(
             methodId = methodId,
             config = config,
