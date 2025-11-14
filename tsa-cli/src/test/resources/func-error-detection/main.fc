@@ -1,0 +1,26 @@
+#include "imports/stdlib.fc";
+
+(builder) write(int loop_count) method_id {
+    builder b = begin_cell();
+
+    if (loop_count < 0) {
+        return b;
+    }
+
+    ;; Ensure loop count is in range [-2^31;2^31] for the repeat loop
+    loop_count = loop_count & 0x111111;
+    var i = 0;
+    repeat(loop_count) {
+        builder value = begin_cell().store_int(i, 32);
+
+        b = b.store_ref(value.end_cell());
+    }
+
+    return b;
+}
+
+() recv_internal(int msg_value, cell in_msg, slice in_msg_body) impure {
+    int loop_count = in_msg_body~load_int(32);
+    builder value = write(loop_count);
+    set_data(value.end_cell());
+}
