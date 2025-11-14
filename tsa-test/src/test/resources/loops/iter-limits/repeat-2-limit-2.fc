@@ -1,0 +1,17 @@
+#include "../../imports/stdlib.fc";
+
+() test(slice in_msg) impure method_id (1) {
+    int flags = 0;
+    int n = 2;
+    repeat (n) {
+       if (in_msg~load_uint(1)) {
+           flags += 1;
+       }
+    }
+    throw_if(300, flags == n);
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

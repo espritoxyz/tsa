@@ -219,19 +219,19 @@ class TvmLoopsInterpreter(
         val body =
             scope.calcOnState { extractBody() }
                 ?: return scope.doWithState(ctx.throwTypeCheckError)
+        val wrappedBody = TvmLoopEntranceContinuation(body, loopIdx++, parentLocation)
         val cond =
             scope.calcOnState { stack.takeLastContinuation() }
                 ?: return scope.doWithState(ctx.throwTypeCheckError)
-        val wrappedCond = TvmLoopEntranceContinuation(cond, loopIdx++, parentLocation)
 
         scope.doWithState {
             val after = scope.calcOnState { registerBreakpoint(extractAfter(), hasBreak) }
-            val whileCond = TvmWhileContinuation(wrappedCond, body, after, isCondition = true)
+            val whileCond = TvmWhileContinuation(cond, wrappedBody, after, isCondition = true)
             val registers = registersOfCurrentContract
             registers.c0 = C0Register(whileCond)
         }
 
-        scope.jumpToContinuation(wrappedCond)
+        scope.jumpToContinuation(cond)
     }
 
     private fun visitAgainInst(
