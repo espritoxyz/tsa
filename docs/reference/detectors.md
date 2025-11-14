@@ -36,7 +36,7 @@ In real smart contracts, this can happen when using the `repeat` instruction wit
 
 ## [De]serialization Errors
 
-## [8: Cell overflow](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes#8)
+### [8: Cell overflow](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes#8)
 
 This type of error is represented by TVM error code 8 and occurs during improper writes to a builder, 
 such as when the number of bits exceeds the 1023-bit limit or the number of references exceeds 4. 
@@ -45,7 +45,7 @@ Errors of this type can arise from any `store_bits`, `store_int`, `store_ref`, o
 Since outgoing message generation often follows a contract's business logic, this type of error can also occur in nearly any smart contract. 
 Unlike [cell underflow](#9-cell-underflow), reliability in this aspect depends more on the developer’s intention. However, such errors can still originate from incoming messages when parameters are forwarded into outgoing messages.
 
-## [9: Cell underflow](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes#5)
+### [9: Cell underflow](https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes#5)
 
 This type of error is represented by TVM error code 9 and occurs when reading more bits or references from a slice than it contains. 
 It can occur during any `load_bits`, `load_int`, `load_ref`, or similar operations.
@@ -90,3 +90,11 @@ These errors occur when dictionary operations are performed on ordinary data cel
 Errors:
 - `dict-operation-on-data-cell`
 - `data-cell-operation-on-dict`
+
+### Send modes errors
+
+Bad combinations of message send modes.
+
+Errors:
+
+- `double-send-remaining-value`: `SendRemainingValue` mode is used twice in one transaction.

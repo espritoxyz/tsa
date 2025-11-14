@@ -100,6 +100,12 @@ data object TvmDataCellOperationOnDict : TvmMethodResult.TvmSoftFailureExit {
     override val ruleId = "data-cell-operation-on-dict"
 }
 
+data class TvmDoubleSendRemainingValue(
+    val contractId: ContractId,
+) : TvmMethodResult.TvmSoftFailureExit {
+    override val ruleId = "double-send-remaining-value"
+}
+
 object TvmNormalExit : TvmSuccessfulExit {
     override val exitCode: Int
         get() = 0

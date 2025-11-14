@@ -616,7 +616,7 @@ class TvmInterpreter(
             TvmRefEmptyValue(emptyCell, emptySlice, emptyBuilder)
         }
 
-    fun postProcessStates(state: TvmState): List<TvmState> {
+    fun postProcessState(state: TvmState): List<TvmState> {
         state.phase = TERMINATED
 
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
@@ -652,7 +652,7 @@ class TvmInterpreter(
         val allowFailures = state.allowFailures && !ctx.tvmOptions.excludeExecutionsWithFailures
 
         if (stmt is TsaArtificialPostprocessInst) {
-            val newStates = postProcessStates(state)
+            val newStates = postProcessState(state)
             val originalStateAlive = state in newStates
             return StepResult(newStates.asSequence().filter { it != state }, originalStateAlive)
         }

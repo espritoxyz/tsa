@@ -13,6 +13,7 @@ import org.usvm.machine.state.TvmMethodResult.TvmFailure
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmStructuralExit
+import java.math.BigInteger
 
 data object TvmTestResolver {
     fun resolve(
@@ -157,7 +158,7 @@ data class TvmSymbolicTest(
     val gasUsage: Int,
     val additionalFlags: Set<String>,
     val intercontractPath: List<ContractId>,
-    val outMessages: List<Pair<ContractId, TvmTestOutMessage>>,
+    val outMessages: List<Pair<ContractId, TvmTestMessage>>,
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
     val eventsList: List<TvmMessageDrivenContractExecutionTestEntry>,
@@ -185,10 +186,14 @@ data class TvmContractState(
     val balance: TvmTestIntegerValue,
 )
 
-data class TvmTestOutMessage(
+/**
+ * @param mode is `null` if the message was bounced (and thus, no mode was attached to it)
+ */
+data class TvmTestMessage(
     val value: TvmTestIntegerValue,
     val fullMessage: TvmTestCellValue,
     val bodySlice: TvmTestSliceValue,
+    val mode: BigInteger?,
 )
 
 sealed interface TvmMethodSymbolicResult {

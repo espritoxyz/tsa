@@ -57,6 +57,7 @@ import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ContractSender
 import org.usvm.machine.state.messages.MessageAsStackArguments
+import org.usvm.machine.state.messages.MessageSource
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
@@ -429,6 +430,8 @@ class TvmArtificialInstInterpreter(
                 fullMsgCell = msgCell,
                 msgBodySlice = bodySlice,
                 destAddrSlice = dstAddressSlice,
+                source = MessageSource.Bounced,
+                fwdFee = ctx.zeroValue,
             )
         }
     }
@@ -563,7 +566,7 @@ class TvmArtificialInstInterpreter(
                         this.restActions(actionsHandlingResult.messagesSent)
                     }
 
-                    is ActionHandlingResult.Failure -> {
+                    is ActionHandlingResult.RealFailure -> {
                         this.calcOnState {
                             val failure =
                                 TvmFailure(
@@ -573,7 +576,18 @@ class TvmArtificialInstInterpreter(
                                     stack,
                                     pathNode,
                                 )
-                            // do not exit, as we do not want to mark the state as exceptional
+                            newStmt(TsaArtificialExitInst(failure, lastStmt.location))
+                        }
+                    }
+
+                    is ActionHandlingResult.SoftFailure -> {
+                        this.calcOnState {
+                            val failure =
+                                TvmMethodResult.TvmSoftFailure(
+                                    actionsHandlingResult.failure,
+                                    phase,
+                                    stack,
+                                )
                             newStmt(TsaArtificialExitInst(failure, lastStmt.location))
                         }
                     }

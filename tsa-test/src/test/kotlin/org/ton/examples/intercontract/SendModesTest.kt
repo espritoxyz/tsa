@@ -1,5 +1,7 @@
 package org.ton.examples.intercontract
 
+import org.ton.cell.CellBuilder
+import org.ton.cell.buildCell
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
@@ -7,9 +9,12 @@ import org.ton.test.utils.extractCommunicationSchemeFromResource
 import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.IntercontractOptions
+import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.state.TvmDoubleSendRemainingValue
+import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmMethodFailure
 import kotlin.test.Ignore
 import kotlin.test.Test
@@ -81,21 +86,46 @@ class SendModesTest {
     }
 
     @Test
-    fun sendRemainingValueTest() {
+    fun `test sendRemainingValue with 0 sent nanotons`() {
+        sendRemainingValueTest(0)
+    }
+
+    @Test
+    fun `test sendRemainingValue with 10 sent nanoton`() {
+        sendRemainingValueTest(10)
+    }
+
+    private fun sendRemainingValueTest(sentGrams: Int) {
         val checkerContract = extractCheckerContractFromResource(remainingValueChecker)
         val analyzedContract = extractFuncContractFromResource(remainingValueContract)
+
+        val concreteC4 =
+            CellBuilder.createCell {
+                val prefix = 4
+                storeUInt(prefix, 4)
+                storeUInt(sentGrams, prefix * 15)
+            }
 
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
+                options = TvmOptions(stopOnFirstError = true, enableOutMessageAnalysis = true),
+                concreteContractData =
+                    List(2) {
+                        TvmConcreteContractData(contractC4 = concreteC4)
+                    },
             )
 
-        assertTrue { tests.isNotEmpty() }
-
         checkInvariants(
+            tests,
+            listOf { test ->
+                test.exitCode() == 257 || test.exitCode() == 37
+            },
+        )
+
+        propertiesFound(
             tests,
             listOf { test -> test.exitCode() == 257 },
         )
@@ -162,12 +192,18 @@ class SendModesTest {
         val checkerContract = extractCheckerContractFromResource(remainingValueChecker)
         val analyzedContract = extractFuncContractFromResource(remainingValueDoubleContract)
 
+        val concreteContractData =
+            TvmConcreteContractData(
+                contractC4 = buildCell { storeUInt(0, 4) },
+            )
+
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
+                options = TvmOptions(stopOnFirstError = true, enableOutMessageAnalysis = true),
+                concreteContractData = listOf(concreteContractData, concreteContractData),
             )
 
         assertTrue { tests.isNotEmpty() }
@@ -176,7 +212,8 @@ class SendModesTest {
             listOf { test ->
                 test.eventsList.any {
                     val methodResult = it.methodResult
-                    methodResult is TvmMethodFailure && methodResult.exitCode == 37
+                    methodResult is TvmExecutionWithSoftFailure &&
+                        methodResult.failure.exit is TvmDoubleSendRemainingValue
                 }
             },
         )

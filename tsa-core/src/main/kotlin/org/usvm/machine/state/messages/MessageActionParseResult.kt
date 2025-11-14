@@ -1,7 +1,9 @@
 package org.usvm.machine.state.messages
 
+import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.machine.Int257Expr
+import org.usvm.machine.TvmContext
 
 object MessageMode {
     const val SEND_REMAINING_BALANCE_BIT = 7
@@ -28,4 +30,14 @@ data class MessageAsStackArguments(
     val fullMsgCell: UHeapRef,
     val msgBodySlice: UHeapRef,
     val destAddrSlice: UHeapRef,
+    val fwdFee: Int257Expr,
+    val source: MessageSource, // for debugging
 )
+
+sealed interface MessageSource {
+    data class SentWithMode(
+        val mode: UExpr<TvmContext.TvmInt257Sort>,
+    ) : MessageSource
+
+    data object Bounced : MessageSource
+}
