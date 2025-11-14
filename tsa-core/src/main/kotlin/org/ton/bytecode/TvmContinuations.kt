@@ -187,8 +187,8 @@ data class TvmRepeatContinuation(
  * @property isCondition flag indicating which continuation is currently running
  */
 data class TvmWhileContinuation(
-    val condition: TvmLoopEntranceContinuation,
-    val body: TvmContinuation,
+    val condition: TvmContinuation,
+    val body: TvmLoopEntranceContinuation,
     val after: TvmContinuation,
     val isCondition: Boolean,
     override val savelist: TvmRegisterSavelist = TvmRegisterSavelist.EMPTY,
