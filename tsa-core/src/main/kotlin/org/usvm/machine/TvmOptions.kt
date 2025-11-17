@@ -40,6 +40,7 @@ data class TvmOptions(
      */
     val stopOnFirstError: Boolean = true,
     val useIntBlasting: Boolean = false,
+    val collectTlbMemoryStats: Boolean = false,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
