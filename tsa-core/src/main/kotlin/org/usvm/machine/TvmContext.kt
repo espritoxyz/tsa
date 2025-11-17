@@ -181,6 +181,8 @@ class TvmContext(
 
     fun Number.toBv257(): KBitVecValue<TvmInt257Sort> = mkBv(toBigInteger(), int257sort)
 
+    fun Number.toSizeSort(): KBitVecValue<TvmSizeSort> = mkBv(toBigInteger(), sizeSort)
+
     fun Number.toCellSort(): KBitVecValue<TvmCellDataSort> = mkBv(toBigInteger(), cellDataSort)
 
     fun <Sort : UBvSort> UExpr<Sort>.signedExtendToInteger(): UExpr<TvmInt257Sort> = signExtendToSort(int257sort)
