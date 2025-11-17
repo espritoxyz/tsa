@@ -1504,8 +1504,6 @@ class TvmDictOperationInterpreter(
         }
 
         val dictId = DictId(keyLength)
-        val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
-
         val keySort = ctx.mkBvSort(keyLength.toUInt())
         val isInput = checkDictIsInput(scope, dictCellRef, dictId, keySort)
         if (isInput) {
@@ -1517,9 +1515,7 @@ class TvmDictOperationInterpreter(
                 keyKind = keyKind,
                 mode = mode,
                 key = key,
-                resultDict = resultDict,
                 keyLength = keyLength,
-                dictId = dictId,
                 value = value,
                 inst = inst,
             )
@@ -1531,7 +1527,6 @@ class TvmDictOperationInterpreter(
             dictCellRef,
             key,
             keyLength,
-            resultDict,
             value,
             valueType,
             mode,
@@ -1545,13 +1540,13 @@ class TvmDictOperationInterpreter(
         dictCellRef: UHeapRef?,
         key: UExpr<UBvSort>,
         keyLength: Int,
-        resultDict: UConcreteHeapRef,
         value: KExpr<UAddressSort>,
         valueType: DictValueType,
         mode: DictSetMode,
         getOldValue: Boolean,
         inst: TvmDictInst,
     ) {
+        val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
         val dictContainsKey =
             dictCellRef?.let {
                 scope.calcOnState { allocatedDictContainsKey(dictCellRef, keyLength.asDictId(), key) }
@@ -1631,12 +1626,12 @@ class TvmDictOperationInterpreter(
         keyKind: DictKeyKind,
         mode: DictSetMode,
         key: UExpr<UBvSort>,
-        resultDict: UConcreteHeapRef,
         keyLength: Int,
-        dictId: DictId,
         value: KExpr<UAddressSort>,
         inst: TvmDictInst,
     ) {
+        val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
+        val dictId = keyLength.asDictId()
         if (getOldValue) {
             TODO("unsupported getting old value in input dicts `set` operation")
         }
@@ -1925,7 +1920,7 @@ class TvmDictOperationInterpreter(
         assertDictValueDoesNotOverflow(scope, dictId, value)
             ?: return
 
-        handleDictRemoveKey(
+        handleAllocatedDictRemoveKey(
             scope,
             dictCellRef,
             dictId,
@@ -1979,7 +1974,7 @@ class TvmDictOperationInterpreter(
         val appliedModification = Modification.Remove(TypedDictKey(key, keyKind))
         val newInputDict = initInputDict.withModification(appliedModification)
         scope.calcOnStateCtx {
-            copyInputDictMemoryRepresentation(dictOriginalConcreteRef, resultDictRef, dictId, keySort)
+            copyDictValuesMemoryRepresentation(dictOriginalConcreteRef, resultDictRef, dictId, keySort)
             inputDictionaryStorage = inputDictionaryStorage.createDictEntry(resultDictRef, newInputDict)
         }
 
@@ -2079,7 +2074,7 @@ class TvmDictOperationInterpreter(
             }
     }
 
-    private fun TvmState.copyInputDictMemoryRepresentation(
+    private fun TvmState.copyDictValuesMemoryRepresentation(
         dictOriginalConcrete: UConcreteHeapRef,
         resultDict: UConcreteHeapRef,
         dictId: DictId,
@@ -2224,7 +2219,7 @@ class TvmDictOperationInterpreter(
             return true
         }
 
-        handleDictRemoveKey(
+        handleAllocatedDictRemoveKey(
             scope,
             dictCellRef,
             keyLength.asDictId(),
@@ -2286,7 +2281,7 @@ class TvmDictOperationInterpreter(
         } else {
             val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
             scope.calcOnState {
-                copyInputDictMemoryRepresentation(
+                copyDictValuesMemoryRepresentation(
                     dictConcreteRef,
                     resultDict,
                     dictId,
@@ -2841,7 +2836,7 @@ class TvmDictOperationInterpreter(
         }
     }
 
-    private fun handleDictRemoveKey(
+    private fun handleAllocatedDictRemoveKey(
         scope: TvmStepScopeManager,
         dictCellRef: UHeapRef,
         dictId: DictId,
@@ -2889,32 +2884,11 @@ class TvmDictOperationInterpreter(
         ) { caseId ->
             when (caseId) {
                 1 -> {
-                    if (!resultSetEntries.isInput) {
-                        doWithState {
-                            originalDictContainsKeyEmptyResult()
-                        }
-                    } else {
-                        // todo: empty input dict
-                        val leftKey =
-                            calcOnStateCtx {
-                                makeSymbolicPrimitive(mkBvSort(dictId.keyLength.toUInt()))
-                            }
-
-                        val condition =
-                            calcOnStateCtx {
-                                (leftKey neq key) and allocatedDictContainsKey(dictCellRef, dictId, leftKey)
-                            }
-                        assert(condition)
-                            ?: return@doWithConditions
-
-                        // No need to [assertDictValueDoesNotOverflow] on value of leftKey:
-                        // at this point, this value didn't appear in path constraints
-                        // (if it did, we have already made this assertion).
-                        // Cells that are not in path constraints are resolved as empty cells.
-
-                        doWithState {
-                            originalDictContainsKeyNonEmptyResult(resultDict)
-                        }
+                    require(!resultSetEntries.isInput) {
+                        "this function is for allocated dicts only"
+                    }
+                    doWithState {
+                        originalDictContainsKeyEmptyResult()
                     }
                 }
 
