@@ -67,6 +67,10 @@ fun main() {
         () tsa_send_external_message(int contract_id, int input_id) impure method_id(8) {
             ;; do nothing
         }
+
+        int tsa_get_balance(int contract_id) impure method_id(9) {
+            return return_1();
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

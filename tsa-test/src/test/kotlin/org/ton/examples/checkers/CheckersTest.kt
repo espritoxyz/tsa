@@ -37,6 +37,7 @@ class CheckersTest {
     private val balancePath = "/args/balance.fc"
     private val balanceExternalPath = "/args/balance_external.fc"
     private val getC4CheckerPath = "/checkers/get_c4.fc"
+    private val getBalanceCheckerPath = "/checkers/get_balance.fc"
     private val emptyContractPath = "/empty_contract.fc"
     private val tactConfig = "/tact/tact.config.json"
     private val intBlastOptimizationChecker = "/checkers/int_optimization.fc"
@@ -165,6 +166,39 @@ class CheckersTest {
                     listOf(
                         TvmConcreteContractData(),
                         TvmConcreteContractData(contractC4 = Cell(BitString.of("00000100"))),
+                    ),
+            )
+
+        assertTrue { tests.isNotEmpty() }
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.result is TvmSuccessfulExecution },
+        )
+    }
+
+    @Test
+    fun testGetBalance() {
+        val path = extractResource(emptyContractPath)
+        val checkerPath = extractResource(getBalanceCheckerPath)
+
+        val checkerContract =
+            getFuncContract(
+                checkerPath,
+                FIFT_STDLIB_RESOURCE,
+                isTSAChecker = true,
+            )
+        val analyzedContract = getFuncContract(path, FIFT_STDLIB_RESOURCE)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(initialBalance = 1000.toBigInteger()),
                     ),
             )
 

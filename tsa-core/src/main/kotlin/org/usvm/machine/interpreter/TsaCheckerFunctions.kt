@@ -8,6 +8,7 @@ const val FETCH_VALUE_ID = 5
 const val SEND_INTERNAL_MESSAGE_ID = 6
 const val GET_C4_METHOD_ID = 7
 const val SEND_EXTERNAL_MESSAGE_ID = 8
+const val GET_BALANCE_ID = 9
 
 /**
  * Were calculated using python script:

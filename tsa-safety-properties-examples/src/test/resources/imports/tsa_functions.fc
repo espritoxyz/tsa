@@ -47,6 +47,10 @@ cell tsa_get_c4(int contract_id) impure method_id(7) {
     ;; do nothing
 }
 
+int tsa_get_balance(int contract_id) impure method_id(9) {
+    return return_1();
+}
+
 ;; making symbolic values API functions
 
 int tsa_mk_int(int bits, int signed) impure method_id(100) {

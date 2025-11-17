@@ -43,6 +43,7 @@ import org.usvm.machine.state.takeLastIntOrNull
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.toMethodId
 import org.usvm.machine.types.TvmCellType
+import org.usvm.machine.types.TvmIntegerType
 import org.usvm.utils.intValueOrNull
 
 class TsaCheckerFunctionsInterpreter(
@@ -148,6 +149,10 @@ class TsaCheckerFunctionsInterpreter(
 
             SEND_EXTERNAL_MESSAGE_ID -> {
                 performRecvExternalCall(scope, stmt)
+            }
+
+            GET_BALANCE_ID -> {
+                performGetBalance(scope, stmt)
             }
 
             else -> {
@@ -547,6 +552,22 @@ class TsaCheckerFunctionsInterpreter(
                     ?: error("Contract with id $contractId not found")
 
             addOnStack(c4.value.value, TvmCellType)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performGetBalance(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        scope.doWithState {
+            val contractId = getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_get_c4")
+
+            val result =
+                getBalanceOf(contractId)
+                    ?: error("Balance of contract $contractId not found.")
+
+            addOnStack(result, TvmIntegerType)
             newStmt(stmt.nextStmt())
         }
     }
