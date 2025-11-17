@@ -208,7 +208,7 @@ class TvmStepScopeManager(
         }
     }
 
-    class ActionOnCondition<T>(
+    class ActionOnCondition<out T>(
         val action: TvmState.() -> Unit,
         val caseIsExceptional: Boolean,
         val condition: UBoolExpr,

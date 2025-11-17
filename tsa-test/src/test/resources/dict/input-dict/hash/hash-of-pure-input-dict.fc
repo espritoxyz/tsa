@@ -1,0 +1,12 @@
+#include "../../../imports/stdlib.fc";
+
+() test(slice in_msg) impure method_id (1) {
+    cell d1 = in_msg~load_dict();
+    int expected_dict_hash = in_msg~load_uint(256);
+    throw_if(300, d1.cell_hash() == expected_dict_hash);
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

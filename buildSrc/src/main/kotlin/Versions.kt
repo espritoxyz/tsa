@@ -15,6 +15,7 @@ object Versions {
     const val tonKotlin = "0.3.1"
     const val kotlinterPluginVersion = "5.0.0"
     const val asyncProfiler = "4.1"
+    const val kotlinVersion = "2.1.0"
 }
 
 object Packages {
