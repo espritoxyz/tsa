@@ -293,19 +293,46 @@ class TvmCellDataMsgAddrRead(
     ): UExprPairReadResult<TvmSizeSort, UAddressSort>? =
         with(offset.tctx) {
             val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
-            val twoDataBits =
-                if (concreteOffset != null) {
-                    data.substring(concreteOffset, min(concreteOffset + 2, data.length))
-                } else {
+            if (concreteOffset == null) {
+                return@with null
+            }
+            val tlbPrefixOfMsgAddressInt =
+                data.substring(concreteOffset, min(concreteOffset + 2, data.length))
+            when (tlbPrefixOfMsgAddressInt) {
+                "00" -> {
+                    val value = state.allocSliceFromData(mkBv(0, sizeBits = 2u))
+                    state.dataCellInfoStorage.mapper.addAddressSlice(value)
+                    UExprPairReadResult(twoSizeExpr, value)
+                }
+
+                "10" -> {
+                    val noAnycast = data.getOrNull(concreteOffset + 2) == '0'
+                    if (!noAnycast) return@with null
+                    val tlbPrefixSize = 2
+                    val nothingCtorSize = 1
+                    val workchainIdSize = 8
+                    val addressBitsSize = 256
+                    val actualAddressSize = tlbPrefixSize + nothingCtorSize + workchainIdSize + addressBitsSize
+
+                    val addressStartIndex = concreteOffset + tlbPrefixSize + nothingCtorSize + workchainIdSize
+                    val addressEndIndex = addressStartIndex + addressBitsSize
+                    if (addressEndIndex > data.length) {
+                        null
+                    } else {
+                        val addressBits =
+                            data.substring(concreteOffset, addressEndIndex)
+                        val value =
+                            state.allocSliceFromData(
+                                mkBv(addressBits.toBigInteger(2), sizeBits = addressBits.length.toUInt()),
+                            )
+                        state.dataCellInfoStorage.mapper.addAddressSlice(value)
+                        UExprPairReadResult(actualAddressSize.toSizeSort(), value)
+                    }
+                }
+
+                else -> {
                     null
                 }
-            if (twoDataBits == "00") {
-                val value = state.allocSliceFromData(mkBv(0, sizeBits = 2u))
-                state.dataCellInfoStorage.mapper.addAddressSlice(value)
-
-                UExprPairReadResult(twoSizeExpr, value)
-            } else {
-                null
             }
         }
 
