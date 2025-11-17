@@ -248,6 +248,7 @@ private fun createTvmOptions(
     interContractSchemePath: Path?,
     turnOnTLBParsingChecks: Boolean,
     useReceiverInput: Boolean,
+    enableOutMessageAnalysis: Boolean,
 ): TvmOptions {
     val options =
         TvmOptions(
@@ -259,6 +260,7 @@ private fun createTvmOptions(
             useReceiverInputs = useReceiverInput,
             maxRecursionDepth = if (analysisOptions.noRecursionDepthLimit) null else analysisOptions.maxRecursionDepth,
             loopIterationLimit = if (analysisOptions.noIterationLimit) null else analysisOptions.iterationLimit,
+            enableOutMessageAnalysis = enableOutMessageAnalysis,
         )
 
     if (interContractSchemePath != null) {
@@ -281,6 +283,7 @@ private fun <SourcesDescription> performAnalysis(
     target: AnalysisTarget,
     tlbOptions: TlbCLIOptions,
     analysisOptions: AnalysisOptions,
+    enableOutMessageAnalysis: Boolean,
 ): TvmContractSymbolicTestResult {
     val options =
         createTvmOptions(
@@ -288,6 +291,7 @@ private fun <SourcesDescription> performAnalysis(
             interContractSchemePath = null,
             turnOnTLBParsingChecks = !tlbOptions.doNotPerformTlbChecks,
             useReceiverInput = true,
+            enableOutMessageAnalysis,
         )
 
     val inputInfo = TlbCLIOptions.extractInputInfo(tlbOptions.tlbJsonPath)
@@ -354,6 +358,7 @@ private fun performAnalysisInterContract(
             interContractSchemePath,
             turnOnTLBParsingChecks,
             useReceiverInput,
+            enableOutMessageAnalysis = true,
         )
 
     val additionalStopStrategy =
@@ -447,6 +452,7 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
                 target,
                 tlbOptions,
                 analysisOptions,
+                enableOutMessageAnalysis = false,
             )
 
         val testGenContractType =
@@ -908,6 +914,7 @@ sealed class ErrorsSarifDetector<SourcesDescription>(
                 target = target,
                 tlbOptions = tlbOptions,
                 analysisOptions,
+                enableOutMessageAnalysis = false,
             )
         val sarifReport =
             analysisResult.toSarifReport(

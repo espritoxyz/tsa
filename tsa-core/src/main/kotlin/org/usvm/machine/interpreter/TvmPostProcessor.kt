@@ -6,10 +6,13 @@ import org.ton.cell.Cell
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.api.readField
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmSignatureCheck
+import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.test.resolver.TvmTestBuilderValue
@@ -48,11 +51,16 @@ class TvmPostProcessor(
                     generateDepthConstraint(scope, resolver)
                         ?: return@assertConstraints null
 
+                hashConstraint and depthConstraint
+            } ?: return null
+
+            // better to assert after hashes
+            assertConstraints(scope) { resolver ->
                 val fwdFeeConstraint =
                     generateFwdFeeConstraints(scope, resolver)
                         ?: return@assertConstraints null
 
-                hashConstraint and depthConstraint and fwdFeeConstraint
+                fwdFeeConstraint
             } ?: return null
 
             // must be asserted separately since it relies on correct hash values
@@ -80,13 +88,40 @@ class TvmPostProcessor(
         with(ctx) {
             val forwardFees = scope.calcOnState { forwardFees }
 
-            forwardFees.fold(trueExpr as UBoolExpr) { acc, fwdFeeInfo ->
+            return forwardFees.fold(trueExpr as UBoolExpr) { acc, fwdFeeInfo ->
                 val curConstraint =
                     fixateValueAndFwdFee(scope, fwdFeeInfo, resolver)
                         ?: return@with null
 
                 acc and curConstraint
             }
+
+//            val inputs = scope.calcOnState {
+//                listOf(initialInput) + additionalInputs.values
+//            }
+
+//            val lowerBounds = inputs.fold(trueExpr as UBoolExpr) { acc, input ->
+//                if (input !is RecvInternalInput) {
+//                    return@fold acc
+//                }
+//
+//                val msgBodyCell = scope.calcOnState {
+//                    memory.readField(input.msgBodySliceMaybeBounced, sliceCellField, addressSort)
+//                }
+//
+//                val fwdFeeInfo = FwdFeeInfo(
+//                    symbolicFwdFee = input.fwdFee,
+//                    stateInitRef = null,
+//                    msgBodyRef = msgBodyCell,
+//                )
+//
+//                val cur = fixateValueAndFwdFee(scope, fwdFeeInfo, resolver, generateLowerBound = true)
+//                    ?: return@with null
+//
+//                acc and cur
+//            }
+//
+//            exact and lowerBounds
         }
 
     private fun generateSignatureConstraints(
@@ -228,6 +263,7 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         fwdFeeInfo: FwdFeeInfo,
         resolver: TvmTestStateResolver,
+        generateLowerBound: Boolean = false,
     ): UBoolExpr? =
         with(ctx) {
             val stateInitValue =
@@ -259,7 +295,11 @@ class TvmPostProcessor(
                 }
 
             val concreteFwdFee = calculateConcreteForwardFee(stateInitValue, msgBodyValue)
-            val fwdFeeCond = fwdFeeInfo.symbolicFwdFee eq concreteFwdFee.toBv257()
+            val fwdFeeCond = if (generateLowerBound) {
+                mkBvSignedGreaterOrEqualExpr(fwdFeeInfo.symbolicFwdFee, concreteFwdFee.toBv257())
+            } else {
+                fwdFeeInfo.symbolicFwdFee eq concreteFwdFee.toBv257()
+            }
 
             return fixateStateInitCond and fixateMsgBodyCond and fwdFeeCond
         }
