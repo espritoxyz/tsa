@@ -1,0 +1,10 @@
+#include "../imports/stdlib.fc";
+#include "../imports/tsa_functions.fc";
+
+() main() impure {
+    [int checker_balance, _] = get_balance();
+    tsa_assert(checker_balance == 1000000000);
+
+    int balance = tsa_get_balance(1);
+    throw_unless(1000, balance == 1000);
+}
