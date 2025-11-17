@@ -1,5 +1,20 @@
 # TSA Changelog
 
+## v0.4.27-dev - v0.4.28-dev
+
+* Strategy for stopping analysis right after executions with required exit codes are found in https://github.com/espritoxyz/tsa/pull/134
+* More CLI options in https://github.com/espritoxyz/tsa/pull/135:
+  - `--max-recursion-depth`
+  - `--no-recursion-depth-limit`
+  - `--iteration-limit`
+  - `--no-iteration-limit`
+  - `--stop-when-exit-codes-found`
+* Implemented precise calculation of `fwd_fee` in https://github.com/espritoxyz/tsa/pull/128
+* TSA core optimizations, improvements and fixes in https://github.com/espritoxyz/tsa/pull/121, https://github.com/espritoxyz/tsa/pull/122, https://github.com/espritoxyz/tsa/pull/125, https://github.com/espritoxyz/tsa/pull/133, https://github.com/espritoxyz/tsa/pull/127,  https://github.com/espritoxyz/tsa/pull/137
+
+
+**Full Changelog**: https://github.com/espritoxyz/tsa/compare/v0.4.27-dev...v0.4.28-dev
+
 ## v0.4.26-dev - v0.4.27-dev
 
 - New handlers for checkers: `on_out_message` and `on_compute_phase_exit`
