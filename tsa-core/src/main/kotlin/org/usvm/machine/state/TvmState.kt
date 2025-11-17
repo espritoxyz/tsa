@@ -56,7 +56,7 @@ class TvmState(
     val emptyRefValue: TvmRefEmptyValue,
     val analysisOfGetMethod: Boolean,
     private var symbolicRefs: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
-    var gasUsageHistory: PersistentList<UExpr<UBv32Sort>>,
+    var gasUsageHistory: PersistentList<Pair<ContractId, UExpr<UBv32Sort>>>,
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
     pathConstraints: UPathConstraints<TvmType>,
     memory: UMemory<TvmType, TvmCodeBlock>,
@@ -92,6 +92,8 @@ class TvmState(
     var receivedMessage: ReceivedMessage? = null,
     var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
     var currentPhaseBeginTime: Int = 0,
+    var currentPhaseEndTime: Int? = null,
+    var currentComputeFeeUsed: UExpr<TvmContext.TvmInt257Sort>? = null,
     val debugInfo: TvmStateDebugInfo = TvmStateDebugInfo(),
     var inputDictionaryStorage: InputDictionaryStorage = InputDictionaryStorage(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
@@ -109,7 +111,6 @@ class TvmState(
         get() = gasUsageHistory.size
     val currentEventId: EventId
         get() = currentPhaseBeginTime
-    var computeFeeUsed: UExpr<TvmContext.TvmInt257Sort> = ctx.zeroValue
 
     override var isExceptional: Boolean = false
 
@@ -208,6 +209,8 @@ class TvmState(
             debugInfo = debugInfo.clone(),
             inputDictionaryStorage = inputDictionaryStorage,
             forwardFees = forwardFees,
+            currentComputeFeeUsed = currentComputeFeeUsed,
+            currentPhaseEndTime = currentPhaseEndTime,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -261,7 +264,7 @@ data class TvmCommitedState(
 )
 
 /**
- * Represents a state of an event (for the definition see [TvmEventLogEntry]).
+ * Represents a state of an event (for the definition see [TvmMessageDrivenContractExecutionEntry]).
  * @param inst is the first instruction to be executed when we pop the `TvmContractPosition` from the stack
  * @param stackEntriesToTake number of entries to fetch from the upper contract
  * (from the point of [TvmState.contractStack]) when it exited
@@ -271,10 +274,11 @@ data class TvmEventInformation(
     val inst: TvmInst,
     val executionMemory: TvmContractExecutionMemory,
     val stackEntriesToTake: Int,
-    val eventId: EventId,
+    val phaseBeginTime: Int,
+    val phaseEndTime: Int?,
     val receivedMessage: ReceivedMessage?,
-    val computeFeeUsed: UExpr<TvmContext.TvmInt257Sort>,
     val isExceptional: Boolean,
+    val computeFee: UExpr<TvmContext.TvmInt257Sort>?,
 )
 
 data class TvmContractExecutionMemory(

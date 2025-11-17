@@ -121,6 +121,30 @@ class TvmTestStateResolver(
         }
     }
 
+    fun resolveEvents(): List<TvmMessageDrivenContractExecutionTestEntry> =
+        state.eventsLog.map { entry ->
+
+            if (ctx.tvmOptions.performAdditionalChecksWhileResolving) {
+                val expectedContract = entry.contractId
+                state.gasUsageHistory.subList(entry.executionBegin, entry.executionEnd).forEach {
+                    check(it.first == expectedContract) {
+                        "Instruction with wrong contract in event"
+                    }
+                }
+            }
+
+            TvmMessageDrivenContractExecutionTestEntry(
+                id = entry.id,
+                executionBegin = entry.executionBegin,
+                executionEnd = entry.executionEnd,
+                contractId = entry.contractId,
+                incomingMessage = resolveReceivedMessage(entry.incomingMessage),
+                methodResult = resolveResultStackImpl(entry.computePhaseResult),
+                gasUsageHistory = resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
+                computeFee = resolveInt257(entry.computeFee),
+            )
+        }
+
     private fun resolveRecvInternalInput(input: RecvInternalInput): TvmTestInput.RecvInternalInput =
         TvmTestInput.RecvInternalInput(
             srcAddress = resolveSlice(input.srcAddressSlice),

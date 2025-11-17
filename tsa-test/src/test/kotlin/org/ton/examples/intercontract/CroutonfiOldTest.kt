@@ -39,6 +39,7 @@ class CroutonfiOldTest {
         val options =
             TvmOptions(
                 useReceiverInputs = false,
+                performAdditionalChecksWhileResolving = true,
                 intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
                 turnOnTLBParsingChecks = false,
                 enableOutMessageAnalysis = true,

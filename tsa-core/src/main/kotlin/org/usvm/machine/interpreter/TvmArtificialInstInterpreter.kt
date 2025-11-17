@@ -190,8 +190,9 @@ class TvmArtificialInstInterpreter(
         if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
             return null
         }
-        val correspondingSymbol = computeFeeUsed
-        computeFeeUsed = correspondingSymbol
+        val correspondingSymbol =
+            currentComputeFeeUsed
+                ?: error("Current compute_fee should be non-null here")
         val caleeContract = currentContract
         val pushArgsOnStack: TvmState.() -> Unit = {
             with(ctx) {
@@ -213,13 +214,17 @@ class TvmArtificialInstInterpreter(
         stmt: TsaArtificialOnComputePhaseExitInst,
     ) {
         scope.doWithState {
-            // A temporary solution. The more suitable solution would calculate
-            // `computeFeeUsed` as the state instructions are executed (possibly with some helper
-            // structures). When this happends, this comment and the line below must be deleted
-            computeFeeUsed = makeSymbolicPrimitive(ctx.int257sort)
             val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
             val shouldNotCallExitHandler = scope.ctx.tvmOptions.stopOnFirstError && isExceptional || isTsaChecker
             if (!shouldNotCallExitHandler) {
+                // A temporary solution. The more suitable solution would calculate
+                // `computeFeeUsed` as the state instructions are executed (possibly with some helper
+                // structures). When this happends, this comment and the line below must be deleted
+                currentComputeFeeUsed = makeSymbolicPrimitive(ctx.int257sort)
+                currentPhaseEndTime = pseudologicalTime
+
+                registerEventIfNeeded(stmt.computePhaseResult)
+
                 val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
                 if (!wasCalled) {
                     newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
@@ -227,6 +232,31 @@ class TvmArtificialInstInterpreter(
             } else {
                 newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
             }
+        }
+    }
+
+    private fun TvmState.registerEventIfNeeded(result: TvmMethodResult) {
+        receivedMessage?.let { receivedMessage ->
+            val computeFee =
+                currentComputeFeeUsed
+                    ?: error("Compute fee should be non-null here")
+
+            val phaseEndTime =
+                currentPhaseEndTime
+                    ?: error("Phase end time should be non-null here")
+
+            eventsLog =
+                eventsLog.add(
+                    TvmMessageDrivenContractExecutionEntry(
+                        id = currentPhaseBeginTime,
+                        executionBegin = currentPhaseBeginTime,
+                        executionEnd = phaseEndTime,
+                        contractId = currentContract,
+                        incomingMessage = receivedMessage,
+                        computePhaseResult = result,
+                        computeFee = computeFee,
+                    ),
+                )
         }
     }
 
@@ -442,21 +472,6 @@ class TvmArtificialInstInterpreter(
     ) {
         scope.doWithStateCtx {
             phase = EXIT_PHASE
-            receivedMessage?.let { receivedMessage ->
-                val methodResult = stmt.result
-                eventsLog =
-                    eventsLog.add(
-                        TvmMessageDrivenContractExecutionEntry(
-                            id = currentPhaseBeginTime,
-                            executionBegin = currentPhaseBeginTime,
-                            executionEnd = pseudologicalTime,
-                            contractId = currentContract,
-                            incomingMessage = receivedMessage,
-                            computePhaseResult = methodResult,
-                            computeFee = computeFeeUsed,
-                        ),
-                    )
-            }
             val checkerContractId =
                 contractsCode
                     .mapIndexedNotNull { index, code ->
@@ -675,9 +690,11 @@ class TvmArtificialInstInterpreter(
         if (storedC7 != null && isReturnToChecker) {
             registersOfCurrentContract.c7 = storedC7
         }
-        currentPhaseBeginTime = previousEventState.contractId
+        currentPhaseBeginTime = previousEventState.phaseBeginTime
+        currentPhaseEndTime = previousEventState.phaseEndTime
         phase = COMPUTE_PHASE
-        computeFeeUsed = previousEventState.computeFeeUsed
         isExceptional = previousEventState.isExceptional
+        receivedMessage = previousEventState.receivedMessage
+        currentComputeFeeUsed = previousEventState.computeFee
     }
 }

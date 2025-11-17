@@ -263,7 +263,7 @@ fun TvmContext.bvMaxValueUnsignedExtended(sizeBits: UExpr<TvmInt257Sort>): UExpr
     mkBvSubExpr(mkBvShiftLeftExpr(oneValue, sizeBits), oneValue)
 
 fun TvmState.calcConsumedGas(): UExpr<TvmSizeSort> =
-    gasUsageHistory.fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value) }
+    gasUsageHistory.fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value.second) }
 
 /**
  * @property eventBegin is the beginning time of the event (see docs of [TvmMessageDrivenContractExecutionEntry])
@@ -277,7 +277,9 @@ fun TvmState.calcPhaseConsumedGas(
     eventBegin: Int,
     eventEnd: Int,
 ): UExpr<TvmSizeSort> =
-    gasUsageHistory.subList(eventBegin, eventEnd).fold(ctx.zeroSizeExpr) { acc, value -> ctx.mkSizeAddExpr(acc, value) }
+    gasUsageHistory.subList(eventBegin, eventEnd).fold(ctx.zeroSizeExpr) { acc, value ->
+        ctx.mkSizeAddExpr(acc, value.second)
+    }
 
 private data class RefInfo(
     val type: TvmType,
@@ -628,10 +630,11 @@ fun TvmState.callCheckerMethodIfExists(
                 returnStmt,
                 oldMemory,
                 0,
-                currentEventId,
-                receivedMessage,
-                computeFeeUsed,
-                isExceptional,
+                phaseBeginTime = currentPhaseBeginTime,
+                phaseEndTime = currentPhaseEndTime,
+                receivedMessage = receivedMessage,
+                computeFee = currentComputeFeeUsed,
+                isExceptional = isExceptional,
             ),
         )
     val executionMemory =
@@ -643,6 +646,10 @@ fun TvmState.callCheckerMethodIfExists(
             allowInputStackValues = false,
         )
 
+    currentPhaseBeginTime = pseudologicalTime
+    currentPhaseEndTime = null
+    receivedMessage = null
+    currentComputeFeeUsed = null
     isExceptional = false
     currentContract = checkerContractId
     registersOfCurrentContract = executionMemory.registers
