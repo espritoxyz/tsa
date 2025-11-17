@@ -77,6 +77,15 @@ class TlbStructureBuilder private constructor(
         return TlbStructureBuilder(labelBuilders.add(KnownTypePrefixBuilder(label, initializeTlbField)))
     }
 
-    fun addConstant(bitString: String): TlbStructureBuilder =
-        TlbStructureBuilder(labelBuilders.add(ConstantFieldBuilder(bitString)))
+    fun addConstant(bitString: String): TlbStructureBuilder {
+        when (val last = labelBuilders.lastOrNull()) {
+            is ConstantFieldBuilder -> {
+                val updatedLast = ConstantFieldBuilder(last.bitString + bitString)
+                return TlbStructureBuilder(labelBuilders.set(labelBuilders.lastIndex, updatedLast))
+            }
+
+            else -> TlbStructureBuilder(labelBuilders.add(ConstantFieldBuilder(bitString)))
+        }
+        return TlbStructureBuilder(labelBuilders.add(ConstantFieldBuilder(bitString)))
+    }
 }

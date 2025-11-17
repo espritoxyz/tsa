@@ -29,11 +29,13 @@ import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.TvmStepScopeManager.ActionOnCondition
 import org.usvm.machine.intValue
+import org.usvm.machine.state.MemoryAccessInformation
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.doWithCtx
+import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.types.memory.ConcreteSizeBlockField
@@ -209,6 +211,21 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                 )
             },
         doForAllBlock = { param ->
+            if (ctx.tvmOptions.collectTlbMemoryStats) {
+                calcOnState {
+                    val memoryAccessInformation =
+                        MemoryAccessInformation(
+                            lastStmt,
+                            pseudologicalTime,
+                            type,
+                        )
+                    if (param == null) {
+                        debugInfo.tlbMemoryMisses = debugInfo.tlbMemoryMisses.add(memoryAccessInformation)
+                    } else {
+                        debugInfo.tlbMemoryHits = debugInfo.tlbMemoryHits.add(memoryAccessInformation)
+                    }
+                }
+            }
             // we execute [restActions] only on states that haven't terminated yet
             restActions(param)
         },
@@ -442,7 +459,7 @@ private fun TvmState.addTlbConstantToBuilder(
     val oldTlbBuilder =
         dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
             ?: return
-    val newTlbBuilder = oldTlbBuilder.addConstant(ctx, constant)
+    val newTlbBuilder = oldTlbBuilder.addConstant(constant)
     dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, newTlbBuilder)
 }
 

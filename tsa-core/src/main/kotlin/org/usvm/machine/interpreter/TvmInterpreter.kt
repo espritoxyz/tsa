@@ -201,6 +201,7 @@ import org.ton.bytecode.TvmStackComplexXcpuInst
 import org.ton.bytecode.TvmStackComplexXcpuxcInst
 import org.ton.bytecode.TvmTupleInst
 import org.ton.bytecode.disassembleCell
+import org.ton.bytecode.formatInstruction
 import org.ton.compositeLabelOfUnknown
 import org.ton.targets.TvmTarget
 import org.usvm.StepResult
@@ -643,7 +644,9 @@ class TvmInterpreter(
     override fun step(state: TvmState): StepResult<TvmState> {
         val stmt = state.lastStmt
         logger.debug("Current contract: {}", state.currentContract)
-        logger.debug("State id: {}, Stmt mnemonic: {}, Step: {}", state.id, stmt.mnemonic, stmt)
+        logger.debug("State id: {}", state.id)
+        logger.debug("Executing: {}", formatInstruction(stmt, includeTvmCell = false))
+        logger.debug("Step: {}", stmt)
 
         val initialGasUsage = state.gasUsageHistory
 

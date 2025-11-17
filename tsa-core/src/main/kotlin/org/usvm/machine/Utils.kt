@@ -46,6 +46,8 @@ inline fun <T> tryCatchIf(
 
 inline fun <reified T> getResourcePath(path: String): Path = getResourcePath(T::class.java, path)
 
+fun getResourcePathEasy(path: String): Path = getResourcePath(object {}.javaClass, path)
+
 fun getResourcePath(
     cls: Class<*>,
     path: String,
