@@ -640,6 +640,7 @@ fun TvmState.callCheckerMethodIfExists(
                 receivedMessage = receivedMessage,
                 computeFee = currentComputeFeeUsed,
                 isExceptional = isExceptional,
+                phase = phase,
             ),
         )
     val executionMemory =
@@ -651,6 +652,7 @@ fun TvmState.callCheckerMethodIfExists(
             allowInputStackValues = false,
         )
 
+    phase = TvmComputePhase
     currentPhaseBeginTime = pseudologicalTime
     currentPhaseEndTime = null
     receivedMessage = null

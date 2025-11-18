@@ -510,7 +510,11 @@ class TvmArtificialInstInterpreter(
 
             if (stmt.actionPhaseResult != null) {
                 val lastEvent = eventsLog.last()
-                lastEvent.actionPhaseResult = stmt.actionPhaseResult
+                val newLastEvent =
+                    lastEvent.copy(
+                        actionPhaseResult = stmt.actionPhaseResult,
+                    )
+                eventsLog = eventsLog.removeAt(eventsLog.size - 1).add(newLastEvent)
             }
 
             val checkerContractId =
@@ -561,26 +565,28 @@ class TvmArtificialInstInterpreter(
         computePhaseResult: TvmResult.TvmTerminalResult,
         actionPhaseResult: TvmResult.TvmTerminalResult?,
         isTsaChecker: Boolean,
+        haveToTakeExit: Boolean = false,
     ): TvmResult.TvmTerminalResult? {
         if (ctx.tvmOptions.stopOnFirstError &&
             computePhaseResult.isExceptional() ||
             receivedMessage == null ||
             isTsaChecker ||
-            computePhaseResult is TvmAbstractSoftFailure ||
-            !ctx.tvmOptions.enableOutMessageAnalysis
+            computePhaseResult is TvmAbstractSoftFailure
         ) {
             check(actionPhaseResult == null) {
                 "Action phase should have been skipped"
             }
-            return computePhaseResult.takeIf { it.isExceptional() }
+            return computePhaseResult.takeIf { it.isExceptional() || haveToTakeExit }
         }
-        if (computePhaseResult.isExceptional() && actionPhaseResult == null) {
-            return null
+        if ((computePhaseResult.isExceptional() || !ctx.tvmOptions.enableOutMessageAnalysis) &&
+            actionPhaseResult == null
+        ) {
+            return if (haveToTakeExit) computePhaseResult else null
         }
         check(actionPhaseResult != null) {
             "Action phase should not have been skipped"
         }
-        return actionPhaseResult.takeIf { it.isExceptional() }
+        return actionPhaseResult.takeIf { it.isExceptional() || haveToTakeExit }
     }
 
     private fun TvmState.executeContractTriggeredByMessage(
@@ -706,10 +712,8 @@ class TvmArtificialInstInterpreter(
             if (failure != null || contractStack.isEmpty()) {
                 phase = TvmPostProcessPhase
                 result = failure ?: let {
-                    check(stmt.actionPhaseResult == null) {
-                        "No action phase was expected"
-                    }
-                    stmt.computePhaseResult
+                    chooseFailure(stmt.computePhaseResult, stmt.actionPhaseResult, isTsaChecker, haveToTakeExit = true)
+                        ?: error("Unexpected null")
                 }
                 newStmt(TsaArtificialPostprocessInst(stmt.location.increment()))
                 return@doWithState
@@ -758,5 +762,6 @@ class TvmArtificialInstInterpreter(
         isExceptional = previousEventState.isExceptional
         receivedMessage = previousEventState.receivedMessage
         currentComputeFeeUsed = previousEventState.computeFee
+        phase = previousEventState.phase
     }
 }

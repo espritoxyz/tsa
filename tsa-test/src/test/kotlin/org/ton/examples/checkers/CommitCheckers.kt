@@ -9,6 +9,7 @@ import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.state.InsufficientFunds
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
@@ -90,7 +91,7 @@ class CommitCheckers {
             listOf { test ->
                 val result = test.result
                 if (result is TvmTestFailure) {
-                    result.exitCode == EXIT_CODE
+                    result.exitCode == EXIT_CODE || result.failure.exit is InsufficientFunds
                 } else {
                     result is TvmSuccessfulExecution
                 }

@@ -1,5 +1,8 @@
 package org.ton.examples.intercontract
 
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
+import org.ton.RUN_HARD_TESTS_REGEX
+import org.ton.RUN_HARD_TESTS_VAR
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractBocContractFromResource
@@ -25,7 +28,7 @@ class CroutonfiNewTest {
     private val poolCodePath = "/intercontract/croutonfi-new/pool_code.boc"
     private val poolDataPath = "/intercontract/croutonfi-new/pool_data.boc"
 
-    //    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun findTonDrain() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)

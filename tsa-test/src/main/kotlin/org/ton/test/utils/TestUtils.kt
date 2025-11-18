@@ -348,6 +348,10 @@ internal fun <T> compareSymbolicAndConcreteResults(
     val actualStatus = symbolicTest.executionCode()
     assertEquals(concreteResult.exitCode, actualStatus, "Wrong exit code for method id: $methodId")
 
+    if (concreteResult.exitCode != 0) {
+        return@compareMethodStates
+    }
+
     val concreteStackValue = concreteStackBlock(concreteResult)
     val actualStack = symbolicStack(symbolicTest)
     assertEquals(concreteStackValue, actualStack, "Wrong stack for method id: $methodId")

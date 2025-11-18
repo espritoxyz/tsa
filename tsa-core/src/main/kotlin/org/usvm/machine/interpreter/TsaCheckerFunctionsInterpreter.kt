@@ -413,6 +413,7 @@ class TsaCheckerFunctionsInterpreter(
                     receivedMessage,
                     isExceptional,
                     computeFee = null,
+                    phase = phase,
                 ),
             )
         currentPhaseBeginTime = pseudologicalTime

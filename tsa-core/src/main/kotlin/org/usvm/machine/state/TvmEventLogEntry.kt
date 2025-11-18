@@ -42,6 +42,6 @@ data class TvmMessageDrivenContractExecutionEntry(
     val contractId: ContractId,
     val incomingMessage: ReceivedMessage,
     val computePhaseResult: TvmResult,
-    var actionPhaseResult: TvmResult?, // might be set after creation
+    val actionPhaseResult: TvmResult?,
     val computeFee: UExpr<TvmContext.TvmInt257Sort>,
 ) : TvmEventLogEntry
