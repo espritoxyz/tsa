@@ -574,6 +574,9 @@ class TvmArtificialInstInterpreter(
             }
             return computePhaseResult.takeIf { it.isExceptional() }
         }
+        if (computePhaseResult.isExceptional()) {
+            return null
+        }
         check(actionPhaseResult != null) {
             "Action phase should not have been skipped"
         }
