@@ -21,18 +21,18 @@ import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmActionPhase
+import org.usvm.machine.state.TvmBouncePhase
 import org.usvm.machine.state.TvmCommitedState
+import org.usvm.machine.state.TvmComputePhase
 import org.usvm.machine.state.TvmEventInformation
+import org.usvm.machine.state.TvmExitPhase
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmMessageDrivenContractExecutionEntry
-import org.usvm.machine.state.TvmMethodResult
-import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
-import org.usvm.machine.state.TvmMethodResult.TvmFailure
-import org.usvm.machine.state.TvmPhase
-import org.usvm.machine.state.TvmPhase.ACTION_PHASE
-import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
-import org.usvm.machine.state.TvmPhase.EXIT_PHASE
-import org.usvm.machine.state.TvmPhase.POSTPROCESS_PHASE
+import org.usvm.machine.state.TvmPostProcessPhase
+import org.usvm.machine.state.TvmResult
+import org.usvm.machine.state.TvmResult.TvmAbstractSoftFailure
+import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addCell
@@ -53,6 +53,7 @@ import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.constructMessageFromContent
+import org.usvm.machine.state.isExceptional
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ContractSender
@@ -181,7 +182,13 @@ class TvmArtificialInstInterpreter(
         scope.doWithState {
             val wasCalled = doCallOnOutMessageIfRequired(stmt) != null
             if (!wasCalled) {
-                newStmt(TsaArtificialBouncePhaseInst(stmt.computePhaseResult, lastStmt.location))
+                newStmt(
+                    TsaArtificialBouncePhaseInst(
+                        stmt.computePhaseResult,
+                        stmt.actionPhaseResult,
+                        lastStmt.location,
+                    ),
+                )
             }
         }
     }
@@ -235,7 +242,7 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun TvmState.registerEventIfNeeded(result: TvmMethodResult) {
+    private fun TvmState.registerEventIfNeeded(result: TvmResult) {
         receivedMessage?.let { receivedMessage ->
             val computeFee =
                 currentComputeFeeUsed
@@ -254,6 +261,7 @@ class TvmArtificialInstInterpreter(
                         contractId = currentContract,
                         incomingMessage = receivedMessage,
                         computePhaseResult = result,
+                        actionPhaseResult = null, // might be set later
                         computeFee = computeFee,
                     ),
                 )
@@ -277,13 +285,13 @@ class TvmArtificialInstInterpreter(
             isExceptional = false
         }
 
-        val analysisOfGetMethod = scope.calcOnState { analysisOfGetMethod }
-        if (!analysisOfGetMethod && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis && !isTsaChecker) {
+        val analyzingReceiver = scope.calcOnState { receivedMessage != null }
+        if (analyzingReceiver && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis && !isTsaChecker) {
             scope.doWithState {
-                phase = ACTION_PHASE
+                phase = TvmActionPhase(stmt.computePhaseResult)
             }
 
-            processNewMessages(scope, commitedState) { messages ->
+            processNewMessages(scope, commitedState, stmt.computePhaseResult) { result, messages ->
                 val sentMessages =
                     messages.map { (receiver, outMessage) ->
                         TsaArtificialOnOutMessageHandlerCallInst.SentMessage(outMessage.content, receiver)
@@ -292,7 +300,8 @@ class TvmArtificialInstInterpreter(
                     isExceptional = isExceptional || oldIsExceptional
                     newStmt(
                         TsaArtificialOnOutMessageHandlerCallInst(
-                            stmt.computePhaseResult,
+                            computePhaseResult = stmt.computePhaseResult,
+                            actionPhaseResult = result,
                             lastStmt.location,
                             sentMessages,
                         ),
@@ -304,7 +313,8 @@ class TvmArtificialInstInterpreter(
                 isExceptional = isExceptional || oldIsExceptional
                 newStmt(
                     TsaArtificialOnOutMessageHandlerCallInst(
-                        stmt.computePhaseResult,
+                        computePhaseResult = stmt.computePhaseResult,
+                        actionPhaseResult = null,
                         lastStmt.location,
                         sentMessages = emptyList(),
                     ),
@@ -317,13 +327,14 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialBouncePhaseInst,
     ) {
-        scope.calcOnState { phase = TvmPhase.BOUNCE_PHASE }
-        addBounceMessageIfNeeded(scope, stmt.computePhaseResult, stmt)
+        scope.calcOnState {
+            phase = TvmBouncePhase(stmt.computePhaseResult, stmt.actionPhaseResult)
+        }
+        addBounceMessageIfNeeded(scope, stmt)
     }
 
     private fun addBounceMessageIfNeeded(
         scope: TvmStepScopeManager,
-        result: TvmMethodResult,
         stmt: TsaArtificialBouncePhaseInst,
     ) {
         val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
@@ -331,7 +342,7 @@ class TvmArtificialInstInterpreter(
             // sending bounced messages is only considered when the message handling ended with an exception
             // if we stop on the first error, the potential bouncing won't be considered
             scope.doWithState {
-                newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                newStmt(TsaArtificialExitInst(stmt.computePhaseResult, stmt.actionPhaseResult, lastStmt.location))
             }
             return
         }
@@ -343,11 +354,17 @@ class TvmArtificialInstInterpreter(
 
         scope.calcOnState {
             with(ctx) {
-                if (result is TvmFailure) {
+                if (stmt.computePhaseResult is TvmFailure) {
                     val (sender, _, receivedMsgData) =
                         receivedMessage as? ReceivedMessage.MessageFromOtherContract
                             ?: run {
-                                newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                                newStmt(
+                                    TsaArtificialExitInst(
+                                        stmt.computePhaseResult,
+                                        stmt.actionPhaseResult,
+                                        lastStmt.location,
+                                    ),
+                                )
                                 return@calcOnState
                             }
                     // if is bounceable, bounce back to sender
@@ -375,15 +392,33 @@ class TvmArtificialInstInterpreter(
                                         message = bouncedMessage,
                                     ),
                                 )
-                            newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                            newStmt(
+                                TsaArtificialExitInst(
+                                    stmt.computePhaseResult,
+                                    stmt.actionPhaseResult,
+                                    lastStmt.location,
+                                ),
+                            )
                         },
                         blockOnFalseState = {
-                            newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                            newStmt(
+                                TsaArtificialExitInst(
+                                    stmt.computePhaseResult,
+                                    stmt.actionPhaseResult,
+                                    lastStmt.location,
+                                ),
+                            )
                         },
                     )
                 } else {
                     scope.doWithState {
-                        newStmt(TsaArtificialExitInst(stmt.computePhaseResult, lastStmt.location))
+                        newStmt(
+                            TsaArtificialExitInst(
+                                stmt.computePhaseResult,
+                                stmt.actionPhaseResult,
+                                lastStmt.location,
+                            ),
+                        )
                     }
                 }
             }
@@ -471,7 +506,13 @@ class TvmArtificialInstInterpreter(
         stmt: TsaArtificialExitInst,
     ) {
         scope.doWithStateCtx {
-            phase = EXIT_PHASE
+            phase = TvmExitPhase(stmt.computePhaseResult, stmt.actionPhaseResult)
+
+            if (stmt.actionPhaseResult != null) {
+                val lastEvent = eventsLog.last()
+                lastEvent.actionPhaseResult = stmt.actionPhaseResult
+            }
+
             val checkerContractId =
                 contractsCode
                     .mapIndexedNotNull { index, code ->
@@ -484,7 +525,6 @@ class TvmArtificialInstInterpreter(
                 currentPhaseBeginTime = pseudologicalTime
                 processIntercontractExit(scope, stmt)
             } else {
-                // currentPhaseBegin will be lifted from contract stack
                 processContractStackReturn(scope, stmt)
             }
         }
@@ -499,30 +539,43 @@ class TvmArtificialInstInterpreter(
                 "Unexpected empty message queue during processing inter-contract exit"
             }
 
-            val result = stmt.result
+            val isChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
 
-            val commitedState = lastCommitedStateOfContracts[currentContract]
-            val shouldTerminateBecauseOfFail = commitedState == null && ctx.tvmOptions.stopOnFirstError
-
-            val failureInActionPhase = result is TvmFailure && result.phase == ACTION_PHASE
-            val softFailureInActionPhase = result is TvmAbstractSoftFailure && result.phase == ACTION_PHASE
-            if (analysisOfGetMethod ||
-                shouldTerminateBecauseOfFail ||
-                failureInActionPhase ||
-                softFailureInActionPhase
-            ) {
-                phase = POSTPROCESS_PHASE
-                methodResult = result
+            val failure = chooseFailure(stmt.computePhaseResult, stmt.actionPhaseResult, isChecker)
+            if (failure != null) {
+                phase = TvmPostProcessPhase
+                result = failure
                 newStmt(TsaArtificialPostprocessInst(stmt.location.increment()))
                 return@doWithState
             }
-            val isChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
+
             contractEpilogue(isChecker)
 
             val (sender, receiver, message) = messageQueue.first()
             messageQueue = messageQueue.removeAt(0)
             executeContractTriggeredByMessage(receiver, message, sender)
         }
+    }
+
+    private fun TvmState.chooseFailure(
+        computePhaseResult: TvmResult.TvmTerminalResult,
+        actionPhaseResult: TvmResult.TvmTerminalResult?,
+        isTsaChecker: Boolean,
+    ): TvmResult.TvmTerminalResult? {
+        if (ctx.tvmOptions.stopOnFirstError ||
+            receivedMessage == null ||
+            isTsaChecker ||
+            computePhaseResult is TvmAbstractSoftFailure
+        ) {
+            check(actionPhaseResult == null) {
+                "Action phase should have been skipped"
+            }
+            return computePhaseResult.takeIf { it.isExceptional() }
+        }
+        check(actionPhaseResult != null) {
+            "Action phase should not have been skipped"
+        }
+        return actionPhaseResult.takeIf { it.isExceptional() }
     }
 
     private fun TvmState.executeContractTriggeredByMessage(
@@ -559,16 +612,19 @@ class TvmArtificialInstInterpreter(
         stack.addInt(message.msgValue)
         addOnStack(message.fullMsgCell, TvmCellType)
         addOnStack(message.msgBodySlice, TvmSliceType)
-        currentInput = null
         receivedMessage = ReceivedMessage.MessageFromOtherContract(sender, currentContract, message)
-        phase = COMPUTE_PHASE
+        phase = TvmComputePhase
         switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
     }
 
     private fun processNewMessages(
         scope: TvmStepScopeManager,
         commitedState: TvmCommitedState,
-        restActions: TvmStepScopeManager.(List<TvmTransactionInterpreter.MessageWithMaybeReceiver>) -> Unit,
+        computePhaseResult: TvmResult.TvmTerminalResult,
+        restActions: TvmStepScopeManager.(
+            TvmResult.TvmTerminalResult,
+            List<TvmTransactionInterpreter.MessageWithMaybeReceiver>,
+        ) -> Unit,
     ) {
         transactionInterpreter.parseActionsToDestinations(
             scope,
@@ -578,7 +634,10 @@ class TvmArtificialInstInterpreter(
                 when (actionsHandlingResult) {
                     is ActionHandlingResult.Success -> {
                         this.calcOnState { registerActionPhaseEffect(actionsHandlingResult) }
-                        this.restActions(actionsHandlingResult.messagesSent)
+                        this.restActions(
+                            TvmResult.TvmActionPhaseSuccess(computePhaseResult),
+                            actionsHandlingResult.messagesSent,
+                        )
                     }
 
                     is ActionHandlingResult.RealFailure -> {
@@ -588,22 +647,20 @@ class TvmArtificialInstInterpreter(
                                     actionsHandlingResult.failure,
                                     TvmFailureType.UnknownError,
                                     phase,
-                                    stack,
                                     pathNode,
                                 )
-                            newStmt(TsaArtificialExitInst(failure, lastStmt.location))
+                            newStmt(TsaArtificialExitInst(computePhaseResult, failure, lastStmt.location))
                         }
                     }
 
                     is ActionHandlingResult.SoftFailure -> {
                         this.calcOnState {
                             val failure =
-                                TvmMethodResult.TvmSoftFailure(
+                                TvmResult.TvmSoftFailure(
                                     actionsHandlingResult.failure,
                                     phase,
-                                    stack,
                                 )
-                            newStmt(TsaArtificialExitInst(failure, lastStmt.location))
+                            newStmt(TsaArtificialExitInst(computePhaseResult, failure, lastStmt.location))
                         }
                     }
                 }
@@ -637,31 +694,31 @@ class TvmArtificialInstInterpreter(
         stmt: TsaArtificialExitInst,
     ) {
         scope.doWithState {
-            val result = stmt.result
-            val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
+            val isTsaChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
 
-            /**
-             * if we do not enforce stopping on first error, we should not stop here and instead inspect the
-             * contract stack and continue the execution of continuations found there
-             */
-            val shouldTerminateOfFailure =
-                (result is TvmFailure && (ctx.tvmOptions.stopOnFirstError || isTsaChecker)) ||
-                    result is TvmAbstractSoftFailure
-            if (shouldTerminateOfFailure || contractStack.isEmpty()) {
-                phase = POSTPROCESS_PHASE
-                methodResult = result
+            val failure = chooseFailure(stmt.computePhaseResult, stmt.actionPhaseResult, isTsaChecker)
+
+            if (failure != null || contractStack.isEmpty()) {
+                phase = TvmPostProcessPhase
+                result = failure ?: let {
+                    check(stmt.actionPhaseResult == null) {
+                        "No action phase was expected"
+                    }
+                    stmt.computePhaseResult
+                }
                 newStmt(TsaArtificialPostprocessInst(stmt.location.increment()))
                 return@doWithState
             }
 
             // update global c4 and c7
-            if (result is TvmMethodResult.TvmSuccess) {
+            if (stmt.computePhaseResult is TvmResult.TvmComputePhaseSuccess &&
+                stmt.actionPhaseResult is TvmResult.TvmActionPhaseSuccess?
+            ) {
                 requireNotNull(lastCommitedStateOfContracts[currentContract]) {
                     "Did not find commited state of contract $currentContract"
                 }
             }
-            val isChecker = contractsCode[currentContract].isContractWithTSACheckerFunctions
-            contractEpilogue(isChecker)
+            contractEpilogue(isTsaChecker)
 
             val stackFromOtherContract = stack
 
@@ -692,7 +749,7 @@ class TvmArtificialInstInterpreter(
         }
         currentPhaseBeginTime = previousEventState.phaseBeginTime
         currentPhaseEndTime = previousEventState.phaseEndTime
-        phase = COMPUTE_PHASE
+        phase = TvmComputePhase
         isExceptional = previousEventState.isExceptional
         receivedMessage = previousEventState.receivedMessage
         currentComputeFeeUsed = previousEventState.computeFee

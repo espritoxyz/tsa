@@ -33,11 +33,12 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmSuccessfulActionPhase
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTerminalMethodSymbolicResult
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestNullValue
 import org.usvm.test.resolver.TvmTestTupleValue
@@ -254,6 +255,7 @@ internal fun TvmSymbolicTest.executionCode(): Int? =
     when (val casted = result) {
         is TvmTerminalMethodSymbolicResult -> casted.exitCode
         is TvmExecutionWithStructuralError, is TvmExecutionWithSoftFailure -> null // execution interrupted
+        is TvmSuccessfulActionPhase -> error("Unexpected result: $result")
     }
 
 internal fun compareSymbolicAndConcreteResults(
@@ -264,7 +266,10 @@ internal fun compareSymbolicAndConcreteResults(
     methodIds,
     symbolicResult,
     expectedState,
-    symbolicStack = { symbolicTest -> symbolicTest.result.stack },
+    symbolicStack = { symbolicTest ->
+        (symbolicTest.result as? TvmSuccessfulExecution)?.stack
+            ?: emptyList()
+    },
     concreteStackBlock = { fiftResult ->
         val result = mutableListOf<TvmTestValue>()
         parseFiftStack(fiftResult.stack, result, initialIndex = 0)
@@ -467,11 +472,12 @@ internal fun extractConcreteDataFromResource(dataResourcePath: String): Cell {
 }
 
 fun TvmSymbolicTest.exitCode(): Int? =
-    when (this.result) {
+    when (result) {
         is TvmExecutionWithSoftFailure -> null
         is TvmExecutionWithStructuralError -> null
-        is TvmMethodFailure -> (this.result as TvmMethodFailure).exitCode
+        is TvmTestFailure -> (result as TvmTestFailure).exitCode
         is TvmSuccessfulExecution -> 0
+        is TvmSuccessfulActionPhase -> error("Unexpected result: $result")
     }
 
 /**

@@ -6,7 +6,7 @@ import org.ton.test.utils.propertiesFound
 import org.usvm.machine.TlbOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Ignore
 import kotlin.test.Test
 
@@ -35,9 +35,9 @@ class HashEqualityTest {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 111 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 112 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 116 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 111 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 112 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 116 },
             ),
         )
     }

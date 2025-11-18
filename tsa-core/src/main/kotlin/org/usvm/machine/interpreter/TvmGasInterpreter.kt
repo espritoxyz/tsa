@@ -13,7 +13,7 @@ import org.usvm.machine.state.addInt
 import org.usvm.machine.state.calcConsumedGas
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.doWithStateCtx
-import org.usvm.machine.state.input.ReceiverInput
+import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.setFailure
@@ -31,7 +31,7 @@ class TvmGasInterpreter(
         when (stmt) {
             is TvmAppGasAcceptInst -> {
                 scope.doWithState {
-                    val receiverInput = currentInput as? ReceiverInput
+                    val receiverInput = (receivedMessage as? ReceivedMessage.InputMessage)?.input
                     if (receiverInput != null) {
                         acceptedInputs = acceptedInputs.add(receiverInput)
                     }

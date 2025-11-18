@@ -237,13 +237,13 @@ import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.C7Register
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmInitialStateData
-import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmTerminated
 import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
@@ -392,7 +392,6 @@ class TvmInterpreter(
                 currentContract = startContractId,
                 fieldManagers = fieldManagers,
                 intercontractPath = persistentListOf(startContractId),
-                analysisOfGetMethod = methodId != RECEIVE_INTERNAL_ID && methodId != RECEIVE_EXTERNAL_ID,
             )
 
         state.contractIdToC4Register =
@@ -414,7 +413,6 @@ class TvmInterpreter(
         if (useRecvInternalInput) {
             val input = RecvInternalInput(state, concreteGeneralData, startContractId)
             state.initialInput = input
-            state.currentInput = input
         } else if (useRecvExternalInput) {
             val input = RecvExternalInput(state, concreteGeneralData, startContractId)
             state.initialInput = input
@@ -617,7 +615,7 @@ class TvmInterpreter(
         }
 
     fun postProcessState(state: TvmState): List<TvmState> {
-        state.phase = TERMINATED
+        state.phase = TvmTerminated
 
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 

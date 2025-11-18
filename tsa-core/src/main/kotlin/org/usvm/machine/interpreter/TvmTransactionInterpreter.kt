@@ -30,7 +30,7 @@ import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
-import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreGramsTransaction
@@ -148,11 +148,11 @@ class TvmTransactionInterpreter(
         sealed interface Failure : MessageHandlingState
 
         data class RealFailure(
-            val exit: TvmMethodResult.TvmErrorExit,
+            val exit: TvmResult.TvmErrorExit,
         ) : Failure
 
         data class SoftFailure(
-            val exit: TvmMethodResult.TvmSoftFailureExit,
+            val exit: TvmResult.TvmSoftFailureExit,
         ) : Failure
 
         companion object {

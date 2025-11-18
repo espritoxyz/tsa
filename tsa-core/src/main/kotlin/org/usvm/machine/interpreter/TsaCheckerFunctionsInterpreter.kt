@@ -428,7 +428,6 @@ class TsaCheckerFunctionsInterpreter(
                 state.additionalInputs[stackOperations.inputId]
                     ?: error("Input with id ${stackOperations.inputId} not found")
             receivedMessage = ReceivedMessage.InputMessage(input)
-            currentInput = input
         } else {
             receivedMessage = null
         }

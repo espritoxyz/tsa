@@ -6,7 +6,7 @@ import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.TvmAdditionalStopStrategy
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.TvmFailureType
-import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmState
 import java.nio.file.Path
 import kotlin.io.path.createTempFile
@@ -37,8 +37,8 @@ class FirstFailureTerminator : TvmAdditionalStopStrategy {
         if (!stateReachable) {
             return
         }
-        val result = state.methodResult
-        if (result is TvmMethodResult.TvmFailure && result.type !in forbiddenTypes) {
+        val result = state.result
+        if (result is TvmResult.TvmFailure && result.type !in forbiddenTypes) {
             shouldStop = true
         }
     }

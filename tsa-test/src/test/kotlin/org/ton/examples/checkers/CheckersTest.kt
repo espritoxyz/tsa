@@ -6,6 +6,7 @@ import org.ton.cell.Cell
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
@@ -20,11 +21,11 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getTactContract
 import org.usvm.machine.state.ContractId
-import org.usvm.test.resolver.TvmMethodFailure
-import org.usvm.test.resolver.TvmMethodSymbolicResult
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput
+import org.usvm.test.resolver.TvmTestResult
 import kotlin.io.path.readText
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -125,14 +126,14 @@ class CheckersTest {
             tests,
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
             ),
         )
 
         checkInvariants(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
                 additionalCheck,
             ),
         )
@@ -230,12 +231,12 @@ class CheckersTest {
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 258 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 258 },
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode != 257 },
         )
     }
 
@@ -256,11 +257,11 @@ class CheckersTest {
 
         checkInvariants(
             tests,
-            listOf { test -> test.eventsList.all { it.methodResult.exitCode() !in listOf(300, 301) } },
+            listOf { test -> test.exitCode() !in listOf(300, 301) },
         )
         propertiesFound(
             tests,
-            listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 400 } },
+            listOf { test -> test.exitCode() == 400 },
         )
     }
 
@@ -311,11 +312,11 @@ class CheckersTest {
 
         propertiesFound(
             tests,
-            listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 300 } },
+            listOf { test -> test.exitCode() == 300 },
         )
         checkInvariants(
             tests,
-            listOf { test -> test.eventsList.all { it.methodResult.exitCode() !in listOf(400, 401) } },
+            listOf { test -> test.exitCode() !in listOf(400, 401) },
         )
     }
 
@@ -334,7 +335,7 @@ class CheckersTest {
             )
         propertiesFound(
             tests,
-            listOf { test -> test.eventsList.any { it.methodResult.exitCode() == 400 } },
+            listOf { test -> test.exitCode() == 400 },
         )
     }
 
@@ -360,10 +361,10 @@ class CheckersTest {
         )
     }
 
-    private fun TvmMethodSymbolicResult.exitCode(): Int =
+    private fun TvmTestResult.exitCode(): Int =
         when (this) {
             is TvmSuccessfulExecution -> exitCode
-            is TvmMethodFailure -> exitCode
+            is TvmTestFailure -> exitCode
             else -> error("Soft failure in a test")
         }
 
@@ -403,7 +404,7 @@ class CheckersTest {
         // There is at least one failed execution with exit code 257
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 257 },
         )
 
         // All executions are either failed executions with exit code 257, or successful
@@ -411,7 +412,7 @@ class CheckersTest {
             tests,
             listOf { test ->
                 val result = test.result
-                if (result is TvmMethodFailure) {
+                if (result is TvmTestFailure) {
                     result.exitCode == 257
                 } else {
                     result is TvmSuccessfulExecution

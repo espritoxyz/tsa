@@ -7,7 +7,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getResourcePath
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -41,7 +41,7 @@ class SortTest {
 
         val failure =
             result.tests.single {
-                (it.result as? TvmMethodFailure)?.failure?.exit?.exitCode == 256
+                (it.result as? TvmTestFailure)?.failure?.exit?.exitCode == 256
             }
         val firstValue = failure.fetchedValues[0] as TvmTestIntegerValue
         val secondValue = failure.fetchedValues[1] as TvmTestIntegerValue

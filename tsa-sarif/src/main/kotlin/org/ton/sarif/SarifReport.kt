@@ -11,15 +11,15 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.encodeToJsonElement
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmContractCode
-import org.usvm.machine.state.TvmMethodResult.TvmFailure
+import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmSymbolicTestSuite
+import org.usvm.test.resolver.TvmTestFailure
 
 fun TvmContractSymbolicTestResult.toSarifReport(
     methodsMapping: Map<MethodId, String>,
@@ -76,8 +76,8 @@ private fun List<TvmSymbolicTest>.toSarifResult(
 ) = mapNotNull {
     val (ruleId, message) =
         when (it.result) {
-            is TvmMethodFailure -> {
-                val methodFailure = it.result as TvmMethodFailure
+            is TvmTestFailure -> {
+                val methodFailure = it.result as TvmTestFailure
                 if (methodFailure.failure.exit is TvmUserDefinedFailure && excludeUserDefinedErrors) {
                     return@mapNotNull null
                 }

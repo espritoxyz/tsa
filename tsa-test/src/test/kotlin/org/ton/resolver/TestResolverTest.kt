@@ -6,10 +6,10 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.state.TvmIntegerOverflowError
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestDataCellValue
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import java.math.BigInteger
@@ -28,7 +28,7 @@ class TestResolverTest {
         val symbolicResult = compileAndAnalyzeAllMethods(divisionByIntZeroSource)
         val (_, test) =
             findMethodTest(symbolicResult) { test ->
-                (test.result as? TvmMethodFailure)?.let {
+                (test.result as? TvmTestFailure)?.let {
                     it.failure.exit is TvmIntegerOverflowError && it.lastStmt is TvmArithmDivInst
                 } == true
             }
@@ -47,7 +47,7 @@ class TestResolverTest {
         val symbolicResult = compileAndAnalyzeAllMethods(divisionByCellRefZeroSource)
         val (_, test) =
             findMethodTest(symbolicResult) { test ->
-                (test.result as? TvmMethodFailure)?.let {
+                (test.result as? TvmTestFailure)?.let {
                     it.failure.exit is TvmIntegerOverflowError && it.lastStmt is TvmArithmDivInst
                 } == true
             }
@@ -66,7 +66,7 @@ class TestResolverTest {
         val symbolicResult = compileAndAnalyzeAllMethods(divisionBySliceRefZeroSource)
         val (_, test) =
             findMethodTest(symbolicResult) { test ->
-                (test.result as? TvmMethodFailure)?.let {
+                (test.result as? TvmTestFailure)?.let {
                     it.failure.exit is TvmIntegerOverflowError && it.lastStmt is TvmArithmDivInst
                 } == true
             }
@@ -85,7 +85,7 @@ class TestResolverTest {
         val symbolicResult = compileAndAnalyzeAllMethods(divisionByBuilderRefZeroSource)
         val (_, test) =
             findMethodTest(symbolicResult) { test ->
-                (test.result as? TvmMethodFailure)?.let {
+                (test.result as? TvmTestFailure)?.let {
                     it.failure.exit is TvmIntegerOverflowError && it.lastStmt is TvmArithmDivInst
                 } == true
             }

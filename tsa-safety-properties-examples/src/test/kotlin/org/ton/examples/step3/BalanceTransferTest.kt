@@ -8,7 +8,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getResourcePath
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import kotlin.io.path.readText
@@ -46,8 +46,8 @@ class BalanceTransferTest {
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
             )
-        val failures = result.tests.filter { it.result is TvmMethodFailure }
-        val nonTransferredBalanceExecution = failures.single { (it.result as TvmMethodFailure).exitCode == 257 }
+        val failures = result.tests.filter { it.result is TvmTestFailure }
+        val nonTransferredBalanceExecution = failures.single { (it.result as TvmTestFailure).exitCode == 257 }
 
         val transferredValue = nonTransferredBalanceExecution.fetchedValues[-1] as TvmTestIntegerValue
 

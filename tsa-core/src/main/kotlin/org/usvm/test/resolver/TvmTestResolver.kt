@@ -8,8 +8,8 @@ import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.TvmMethodResult
-import org.usvm.machine.state.TvmMethodResult.TvmFailure
+import org.usvm.machine.state.TvmResult
+import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmStructuralExit
@@ -142,7 +142,7 @@ data class TvmSymbolicTest(
     val input: TvmTestInput,
     val additionalInputs: Map<Int, TvmTestInput>,
     val fetchedValues: Map<Int, TvmTestValue>,
-    val result: TvmMethodSymbolicResult,
+    val result: TvmTestResult,
     val lastStmt: TvmRealInst?, // null if the body is empty
     val gasUsage: Int,
     val additionalFlags: Set<String>,
@@ -185,34 +185,31 @@ data class TvmTestMessage(
     val mode: BigInteger?,
 )
 
-sealed interface TvmMethodSymbolicResult {
-    val stack: List<TvmTestValue>
-}
+sealed interface TvmTestResult
 
-sealed interface TvmTerminalMethodSymbolicResult : TvmMethodSymbolicResult {
+sealed interface TvmTerminalMethodSymbolicResult : TvmTestResult {
     val exitCode: Int
 }
 
-data class TvmMethodFailure(
+data class TvmTestFailure(
     val failure: TvmFailure,
     val lastStmt: TvmInst,
     override val exitCode: Int,
-    override val stack: List<TvmTestValue>,
 ) : TvmTerminalMethodSymbolicResult
 
 data class TvmSuccessfulExecution(
     override val exitCode: Int,
-    override val stack: List<TvmTestValue>,
+    val stack: List<TvmTestValue>,
 ) : TvmTerminalMethodSymbolicResult
+
+data object TvmSuccessfulActionPhase : TvmTestResult
 
 data class TvmExecutionWithStructuralError(
     val lastStmt: TvmInst,
-    override val stack: List<TvmTestValue>,
     val exit: TvmStructuralExit<TvmTestCellDataTypeRead, TlbResolvedBuiltinLabel>,
-) : TvmMethodSymbolicResult
+) : TvmTestResult
 
 data class TvmExecutionWithSoftFailure(
     val lastStmt: TvmInst,
-    override val stack: List<TvmTestValue>,
-    val failure: TvmMethodResult.TvmSoftFailure,
-) : TvmMethodSymbolicResult
+    val failure: TvmResult.TvmSoftFailure,
+) : TvmTestResult

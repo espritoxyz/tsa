@@ -9,10 +9,10 @@ import org.usvm.FIFT_STDLIB_PATH
 import org.usvm.machine.TvmContext.Companion.stdMsgAddrSize
 import org.usvm.machine.getFuncContract
 import org.usvm.resolveResourcePath
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestCellDataMsgAddrRead
 import org.usvm.test.resolver.TvmTestDataCellValue
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestSliceValue
 import java.nio.file.Path
 
@@ -55,7 +55,7 @@ data class BlacklistAddressChecker(
     fun getDescription(conflictingExecutions: List<TvmSymbolicTest>): ResultDescription {
         val blacklistedAddresses =
             conflictingExecutions.mapNotNullTo(mutableSetOf()) { test ->
-                check(test.result is TvmMethodFailure) {
+                check(test.result is TvmTestFailure) {
                     "Unexpected execution: $test"
                 }
                 val msgBody =

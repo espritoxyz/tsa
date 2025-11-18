@@ -161,7 +161,6 @@ data class KnownTypeTlbStackFrame(
                 loadData.type,
             ),
             state.phase,
-            state.stack,
         )
 
     private fun <ReadResult> TvmContext.createContinueLoadingOnNextFrame(

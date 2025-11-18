@@ -6,7 +6,7 @@ import org.ton.test.utils.compareSymbolicAndConcreteFromResource
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 
 class CellBuildTest {
@@ -26,8 +26,8 @@ class CellBuildTest {
         propertiesFound(
             result.testSuites.single(),
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 129 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 130 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 129 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 130 },
             ),
         )
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)

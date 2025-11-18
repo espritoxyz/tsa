@@ -56,7 +56,6 @@ data class ConstTlbStackFrame(
                             TvmStructuralError(
                                 TvmReadingSwitchWithUnexpectedType(type),
                                 phase,
-                                stack,
                             ),
                         ),
                         value = null,
@@ -118,7 +117,6 @@ data class ConstTlbStackFrame(
                             TvmStructuralError(
                                 TvmReadingOutOfSwitchBounds(type),
                                 phase,
-                                stack,
                             ),
                         ),
                         value = null,

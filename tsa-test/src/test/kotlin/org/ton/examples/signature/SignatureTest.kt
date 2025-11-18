@@ -6,7 +6,7 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.TvmContext
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -27,7 +27,7 @@ class SignatureTest {
         val signatureCheckPassed =
             result.testSuites
                 .single { it.methodId == TvmContext.RECEIVE_INTERNAL_ID }
-                .any { (it.result as? TvmMethodFailure)?.exitCode == passedSignatureCheckExitCode }
+                .any { (it.result as? TvmTestFailure)?.exitCode == passedSignatureCheckExitCode }
 
         assertTrue(signatureCheckPassed)
 
@@ -42,7 +42,7 @@ class SignatureTest {
         val signatureCheckPassed =
             result.testSuites
                 .single { it.methodId == TvmContext.RECEIVE_INTERNAL_ID }
-                .any { (it.result as? TvmMethodFailure)?.exitCode == passedSignatureCheckExitCode }
+                .any { (it.result as? TvmTestFailure)?.exitCode == passedSignatureCheckExitCode }
 
         assertFalse(signatureCheckPassed)
     }
@@ -59,8 +59,8 @@ class SignatureTest {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
             ),
         )
 

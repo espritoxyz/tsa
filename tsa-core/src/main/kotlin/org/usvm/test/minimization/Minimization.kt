@@ -4,10 +4,11 @@ import org.ton.bytecode.TvmInst
 import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
-import org.usvm.test.resolver.TvmMethodFailure
-import org.usvm.test.resolver.TvmMethodSymbolicResult
+import org.usvm.test.resolver.TvmSuccessfulActionPhase
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmTestFailure
+import org.usvm.test.resolver.TvmTestResult
 import java.util.IdentityHashMap
 
 /**
@@ -139,7 +140,8 @@ private fun executionToTestSuite(execution: TvmExecution): Int =
         is TvmSuccessfulExecution -> 0
         is TvmExecutionWithStructuralError -> 1
         is TvmExecutionWithSoftFailure -> 2
-        is TvmMethodFailure -> if (result.failure.exit is TvmUserDefinedFailure) 3 else 4
+        is TvmTestFailure -> if (result.failure.exit is TvmUserDefinedFailure) 3 else 4
+        is TvmSuccessfulActionPhase -> error("Unexpected result: $execution")
     }
 
 /**
@@ -177,19 +179,19 @@ private fun List<TvmExecution>.chooseOneExecution(): TvmExecution = first()
 
 /**
  * Extends the [instructionsWithoutExtra] with one extra instruction if the [result] is
- * [TvmMethodFailure] or [TvmExecutionWithStructuralError].
+ * [TvmTestFailure] or [TvmExecutionWithStructuralError].
  *
  * Also adds this exception to the [thrownExceptions] if it is not already there.
  *
  * @return the extended list of instructions or
- * initial list if [result] is not [TvmMethodFailure] or [TvmExecutionWithStructuralError].
+ * initial list if [result] is not [TvmTestFailure] or [TvmExecutionWithStructuralError].
  */
 private fun addExtraIfLastInstructionIsException(
     instructionsWithoutExtra: List<Int>,
-    result: TvmMethodSymbolicResult,
+    result: TvmTestResult,
     thrownExceptions: MutableMap<String, Int>,
 ): List<Int> =
-    if (result is TvmMethodFailure || result is TvmExecutionWithStructuralError) {
+    if (result is TvmTestFailure || result is TvmExecutionWithStructuralError) {
         val exceptionInfo = failedResultToInfo(result, instructionsWithoutExtra.last())
         thrownExceptions.putIfAbsent(exceptionInfo, (-thrownExceptions.size - 1))
         val exceptionId = thrownExceptions.getValue(exceptionInfo)
@@ -201,14 +203,15 @@ private fun addExtraIfLastInstructionIsException(
 private fun getExecutionPriority(): Int = 0
 
 private fun failedResultToInfo(
-    result: TvmMethodSymbolicResult,
+    result: TvmTestResult,
     lastInst: Int,
 ): String =
     when (result) {
-        is TvmMethodFailure -> "TvmError-${result.failure.exit.ruleName}-${result.failure.type}-$lastInst"
+        is TvmTestFailure -> "TvmError-${result.failure.exit.ruleName}-${result.failure.type}-$lastInst"
         is TvmExecutionWithStructuralError -> "StructuralError-${result.exit.ruleId}-$lastInst"
         is TvmExecutionWithSoftFailure -> "TvmSoftError-${result.failure.exit.ruleId}-$lastInst"
         is TvmSuccessfulExecution -> error("Failed execution result is expected")
+        is TvmSuccessfulActionPhase -> error("Unexpected result: $result")
     }
 
 private fun buildExecutions(tests: List<TvmSymbolicTest>): List<TvmExecution> {

@@ -9,8 +9,8 @@ import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 
 private const val EXIT_CODE = 256
@@ -46,7 +46,7 @@ class CommitCheckers {
             tests,
             listOf { test ->
                 val result = test.result
-                if (result is TvmMethodFailure) {
+                if (result is TvmTestFailure) {
                     result.exitCode == EXIT_CODE
                 } else {
                     result is TvmSuccessfulExecution
@@ -57,7 +57,7 @@ class CommitCheckers {
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == EXIT_CODE },
         )
     }
 
@@ -89,7 +89,7 @@ class CommitCheckers {
             tests,
             listOf { test ->
                 val result = test.result
-                if (result is TvmMethodFailure) {
+                if (result is TvmTestFailure) {
                     result.exitCode == EXIT_CODE
                 } else {
                     result is TvmSuccessfulExecution
@@ -100,7 +100,7 @@ class CommitCheckers {
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == EXIT_CODE },
         )
     }
 

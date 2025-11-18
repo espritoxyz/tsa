@@ -3,7 +3,10 @@ package org.ton.bytecode
 import kotlinx.serialization.Serializable
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
 import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.TvmActionPhase
+import org.usvm.machine.state.TvmBouncePhase
+import org.usvm.machine.state.TvmComputePhase
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.messages.MessageAsStackArguments
 
 sealed interface TsaArtificialInst : TvmArtificialInst
@@ -37,13 +40,16 @@ data class TsaArtificialImplicitRetInst(
 
 @Serializable
 data class TsaArtificialActionPhaseInst(
-    val computePhaseResult: TvmMethodResult,
+    val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_action_phase"
 
     init {
         checkLocationInitialized()
+        check(computePhaseResult.phase is TvmComputePhase) {
+            "Unexpected computePhaseResult in TsaArtificialActionPhaseInst: $computePhaseResult"
+        }
     }
 }
 
@@ -53,7 +59,8 @@ data class TsaArtificialActionPhaseInst(
  *  returning back to process the contract exit.
  */
 data class TsaArtificialOnOutMessageHandlerCallInst(
-    val computePhaseResult: TvmMethodResult,
+    val computePhaseResult: TvmResult.TvmTerminalResult,
+    val actionPhaseResult: TvmResult.TvmTerminalResult?,
     override val location: TvmInstLocation,
     val sentMessages: List<SentMessage>,
 ) : TsaArtificialInst {
@@ -61,6 +68,12 @@ data class TsaArtificialOnOutMessageHandlerCallInst(
 
     init {
         checkLocationInitialized()
+        check(computePhaseResult.phase is TvmComputePhase) {
+            "Unexpected computePhaseResult in TsaArtificialOnOutMessageHandlerCallInst: $computePhaseResult"
+        }
+        check(actionPhaseResult?.phase is TvmActionPhase?) {
+            "Unexpected actionPhaseResult in TsaArtificialOnOutMessageHandlerCallInst: $actionPhaseResult"
+        }
     }
 
     data class SentMessage(
@@ -70,7 +83,7 @@ data class TsaArtificialOnOutMessageHandlerCallInst(
 }
 
 data class TsaArtificialOnComputePhaseExitInst(
-    val computePhaseResult: TvmMethodResult,
+    val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "on_compute_phase_exit"
@@ -82,25 +95,39 @@ data class TsaArtificialOnComputePhaseExitInst(
 
 @Serializable
 data class TsaArtificialBouncePhaseInst(
-    val computePhaseResult: TvmMethodResult,
+    val computePhaseResult: TvmResult.TvmTerminalResult,
+    val actionPhaseResult: TvmResult.TvmTerminalResult?,
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_bounce_phase"
 
     init {
         checkLocationInitialized()
+        check(computePhaseResult.phase is TvmComputePhase) {
+            "Unexpected computePhaseResult in TsaArtificialBouncePhaseInst: $computePhaseResult"
+        }
+        check(actionPhaseResult?.phase is TvmActionPhase?) {
+            "Unexpected actionPhaseResult in TsaArtificialBouncePhaseInst: $actionPhaseResult"
+        }
     }
 }
 
 @Serializable
 data class TsaArtificialExitInst(
-    val result: TvmMethodResult,
+    val computePhaseResult: TvmResult.TvmTerminalResult,
+    val actionPhaseResult: TvmResult.TvmTerminalResult?,
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_exit"
 
     init {
         checkLocationInitialized()
+        check(computePhaseResult.phase is TvmComputePhase) {
+            "Unexpected computePhaseResult in TsaArtificialExitInst: $computePhaseResult"
+        }
+        check(actionPhaseResult?.phase is TvmActionPhase? || actionPhaseResult.phase is TvmBouncePhase) {
+            "Unexpected actionPhaseResult in TsaArtificialExitInst: $actionPhaseResult"
+        }
     }
 }
 

@@ -171,7 +171,7 @@ class TvmReferenceToLabelMapper private constructor(
     ) = with(state.ctx) {
         check(!state.isTerminated) {
             "initializeAddressChildren should be called only when the state is not terminated, but " +
-                "given state's result is ${state.methodResult}"
+                "given state's result is ${state.result}"
         }
 
         if (ref.address !in inputAddressToLabels || ref.address in grandchildrenOfRefInitialized) {

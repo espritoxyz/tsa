@@ -15,7 +15,7 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -75,7 +75,7 @@ class CroutonfiOldTest {
         propertiesFound(
             tests,
             listOf { test ->
-                (test.result as? TvmMethodFailure)?.exitCode == 1000
+                (test.result as? TvmTestFailure)?.exitCode == 1000
             },
         )
     }

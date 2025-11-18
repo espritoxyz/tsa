@@ -27,8 +27,6 @@ import org.usvm.isStaticHeapRef
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
 import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
-import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
-import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
@@ -54,7 +52,6 @@ class TvmState(
     ownership: MutabilityOwnership,
     override val entrypoint: TvmDisasmCodeBlock,
     val emptyRefValue: TvmRefEmptyValue,
-    val analysisOfGetMethod: Boolean,
     private var symbolicRefs: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
     var gasUsageHistory: PersistentList<Pair<ContractId, UExpr<UBv32Sort>>>,
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
@@ -63,8 +60,8 @@ class TvmState(
     models: List<UModelBase<TvmType>> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<TvmInst>> = PathNode.root(),
-    var phase: TvmPhase = COMPUTE_PHASE,
-    var methodResult: TvmMethodResult = TvmMethodResult.NoCall,
+    var phase: TvmPhase = TvmComputePhase,
+    var result: TvmResult = TvmResult.NoCall,
     targets: UTargetsSet<TvmTarget, TvmInst> = UTargetsSet.empty(),
     val typeSystem: TvmTypeSystem,
     var lastCommitedStateOfContracts: PersistentMap<ContractId, TvmCommitedState> = persistentMapOf(),
@@ -87,7 +84,6 @@ class TvmState(
     var forwardFees: PersistentSet<FwdFeeInfo> = persistentSetOf(),
     var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
-    var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
     var receivedMessage: ReceivedMessage? = null,
     var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
@@ -115,7 +111,7 @@ class TvmState(
     override var isExceptional: Boolean = false
 
     val isTerminated: Boolean
-        get() = phase == TERMINATED
+        get() = phase == TvmTerminated
 
     lateinit var dataCellInfoStorage: TvmDataCellInfoStorage
     lateinit var registersOfCurrentContract: TvmRegisters
@@ -179,7 +175,7 @@ class TvmState(
             models = models,
             pathNode = pathNode,
             forkPoints = forkPoints,
-            methodResult = methodResult,
+            result = result,
             targets = targets.clone(),
             typeSystem = typeSystem,
             lastCommitedStateOfContracts = lastCommitedStateOfContracts,
@@ -198,10 +194,8 @@ class TvmState(
             messageQueue = messageQueue,
             intercontractPath = intercontractPath,
             phase = phase,
-            analysisOfGetMethod = analysisOfGetMethod,
             unprocessedMessages = unprocessedMessages,
             additionalInputs = additionalInputs,
-            currentInput = currentInput,
             acceptedInputs = acceptedInputs,
             receivedMessage = receivedMessage,
             eventsLog = eventsLog,
@@ -227,7 +221,7 @@ class TvmState(
     override fun toString(): String =
         buildString {
             appendLine("Instruction: $lastStmt")
-            if (isExceptional) appendLine("Exception: $methodResult")
+            if (isExceptional) appendLine("Exception: $result")
         }
 
     fun generateSymbolicRef(referenceType: TvmRealReferenceType): UConcreteHeapRef =
@@ -247,15 +241,6 @@ class TvmState(
         memory.types.allocate(ref.address, referenceType)
         initializer(ref)
     }
-}
-
-enum class TvmPhase {
-    COMPUTE_PHASE,
-    ACTION_PHASE,
-    BOUNCE_PHASE,
-    EXIT_PHASE,
-    POSTPROCESS_PHASE,
-    TERMINATED,
 }
 
 data class TvmCommitedState(

@@ -8,8 +8,8 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput.RecvInternalInput
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -64,7 +64,7 @@ class Statements {
             listOf { test ->
                 val result = test.result
                 // The result must be a failure with exit code EXIT_CODE
-                if (result is TvmMethodFailure) {
+                if (result is TvmTestFailure) {
                     if (result.exitCode != EXIT_CODE) {
                         return@listOf false
                     }
@@ -88,7 +88,7 @@ class Statements {
         // There must exist at least one test that produced error code EXIT_CODE
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == EXIT_CODE },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == EXIT_CODE },
         )
     }
 

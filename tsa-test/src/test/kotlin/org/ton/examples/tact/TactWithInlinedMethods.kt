@@ -9,7 +9,7 @@ import org.usvm.machine.analyzeSpecificMethod
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.TvmIntegerOverflowError
 import org.usvm.machine.toMethodId
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -29,7 +29,7 @@ class TactWithInlinedMethods {
         val exceptions =
             results
                 .mapNotNull {
-                    (it as? TvmMethodFailure)?.failure?.exit
+                    (it as? TvmTestFailure)?.failure?.exit
                 }.filterIsInstance<TvmIntegerOverflowError>()
         assertTrue(exceptions.isNotEmpty(), "Division by zero was not found!")
     }

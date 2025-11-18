@@ -38,9 +38,6 @@ import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.maxUnsignedValue
-import org.usvm.machine.state.TvmPhase.ACTION_PHASE
-import org.usvm.machine.state.TvmPhase.BOUNCE_PHASE
-import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.toTvmCell
 import org.usvm.machine.types.TvmBuilderType
@@ -51,7 +48,6 @@ import org.usvm.machine.types.TvmFinalReferenceType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
-import org.usvm.machine.types.mkIte
 import org.usvm.memory.GuardedExpr
 import org.usvm.memory.foldHeapRef
 import org.usvm.mkSizeAddExpr
@@ -78,7 +74,7 @@ fun TvmState.c2IsDefault(): Boolean {
 }
 
 fun TvmContext.setFailure(
-    failure: TvmMethodResult.TvmErrorExit,
+    failure: TvmResult.TvmErrorExit,
     level: TvmFailureType = TvmFailureType.UnknownError,
     param: UExpr<TvmInt257Sort> = zeroValue,
     implicitThrow: Boolean = true,
@@ -97,21 +93,30 @@ fun TvmContext.setFailure(
 
         val c2 = state.registersOfCurrentContract.c2.value
         if (state.c2IsDefault()) {
-            state.setExit(TvmMethodResult.TvmFailure(failure, level, state.phase, state.stack, state.pathNode))
+            state.setExit(TvmResult.TvmFailure(failure, level, state.phase, state.pathNode))
         } else {
             state.newStmt(TsaArtificialJmpToContInst(c2, state.lastStmt.location))
         }
     }
 
-fun TvmState.setExit(methodResult: TvmMethodResult) {
-    if (methodResult.isExceptional()) {
+fun TvmState.setExit(result: TvmResult.TvmTerminalResult) {
+    if (result.isExceptional()) {
         isExceptional = true
     }
-    when (phase) {
-        COMPUTE_PHASE -> newStmt(TsaArtificialOnComputePhaseExitInst(methodResult, lastStmt.location))
-        ACTION_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
-        BOUNCE_PHASE -> newStmt(TsaArtificialExitInst(methodResult, lastStmt.location))
-        else -> error("Unexpected exit on phase: $phase")
+    when (val phase = phase) {
+        is TvmComputePhase -> {
+            newStmt(TsaArtificialOnComputePhaseExitInst(result, lastStmt.location))
+        }
+        is TvmActionPhase -> {
+            newStmt(TsaArtificialExitInst(phase.computePhaseResult, result, lastStmt.location))
+        }
+        is TvmBouncePhase -> {
+            // for now, substitute error from action phase
+            newStmt(TsaArtificialExitInst(phase.computePhaseResult, result, lastStmt.location))
+        }
+        else -> {
+            error("Unexpected exit on phase: $phase")
+        }
     }
 }
 
@@ -405,7 +410,7 @@ private fun TvmStepScopeManager.assertConcreteCellType(
     value: UHeapRef,
     newType: TvmType,
     badType: TvmFinalReferenceType,
-    exit: TvmMethodResult.TvmSoftFailureExit,
+    exit: TvmResult.TvmSoftFailureExit,
 ): Unit? {
     val refOldTypes = calcOnState { getRefLeaves(value) }
     val badCellTypeGuard =
@@ -422,7 +427,7 @@ private fun TvmStepScopeManager.assertConcreteCellType(
         ctx.mkNot(badCellTypeGuard),
         falseStateIsExceptional = true,
         blockOnFalseState = {
-            setExit(TvmMethodResult.TvmSoftFailure(exit, calcOnState { phase }, stack))
+            setExit(TvmResult.TvmSoftFailure(exit, calcOnState { phase }))
         },
     ) ?: return null
 

@@ -1,6 +1,6 @@
 package org.usvm.machine
 
-import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmState
 import org.usvm.statistics.UMachineObserver
 import org.usvm.stopstrategies.StopStrategy
@@ -26,8 +26,8 @@ data class ExploreExitCodesStopStrategy(
             return
         }
 
-        val result = state.methodResult
-        if (result is TvmMethodResult.TvmFailure) {
+        val result = state.result
+        if (result is TvmResult.TvmFailure) {
             foundExitCodes += result.exit.exitCode
         }
     }
