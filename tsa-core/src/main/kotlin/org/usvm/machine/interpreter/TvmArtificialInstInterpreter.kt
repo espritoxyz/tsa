@@ -562,10 +562,12 @@ class TvmArtificialInstInterpreter(
         actionPhaseResult: TvmResult.TvmTerminalResult?,
         isTsaChecker: Boolean,
     ): TvmResult.TvmTerminalResult? {
-        if (ctx.tvmOptions.stopOnFirstError ||
+        if (ctx.tvmOptions.stopOnFirstError &&
+            computePhaseResult.isExceptional() ||
             receivedMessage == null ||
             isTsaChecker ||
-            computePhaseResult is TvmAbstractSoftFailure
+            computePhaseResult is TvmAbstractSoftFailure ||
+            !ctx.tvmOptions.enableOutMessageAnalysis
         ) {
             check(actionPhaseResult == null) {
                 "Action phase should have been skipped"

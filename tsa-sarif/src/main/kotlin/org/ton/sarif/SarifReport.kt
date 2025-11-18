@@ -16,6 +16,7 @@ import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
+import org.usvm.test.resolver.TvmSuccessfulActionPhase
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmSymbolicTestSuite
@@ -97,6 +98,10 @@ private fun List<TvmSymbolicTest>.toSarifResult(
             is TvmSuccessfulExecution -> {
                 return@mapNotNull null
             }
+
+            is TvmSuccessfulActionPhase -> {
+                error("Unexpected result: ${it.result}")
+            }
         }
 
     val methodId = it.methodId
@@ -111,7 +116,6 @@ private fun List<TvmSymbolicTest>.toSarifResult(
                     "fetchedValues" to TvmContractCode.json.encodeToJsonElement(it)
                 },
                 "rootContractInitialC4" to TvmContractCode.json.encodeToJsonElement(it.rootInitialData),
-                "resultStack" to TvmContractCode.json.encodeToJsonElement(it.result.stack),
                 "additionalInputs" to TvmContractCode.json.encodeToJsonElement(it.additionalInputs),
             ).toMap(),
         )
