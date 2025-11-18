@@ -574,7 +574,7 @@ class TvmArtificialInstInterpreter(
             }
             return computePhaseResult.takeIf { it.isExceptional() }
         }
-        if (computePhaseResult.isExceptional()) {
+        if (computePhaseResult.isExceptional() && actionPhaseResult == null) {
             return null
         }
         check(actionPhaseResult != null) {
