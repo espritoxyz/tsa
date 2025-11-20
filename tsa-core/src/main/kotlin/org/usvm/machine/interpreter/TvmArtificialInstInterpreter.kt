@@ -222,8 +222,8 @@ class TvmArtificialInstInterpreter(
     ) {
         scope.doWithState {
             val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
-            val shouldNotCallExitHandler = scope.ctx.tvmOptions.stopOnFirstError && isExceptional || isTsaChecker
-            if (!shouldNotCallExitHandler) {
+
+            if (!isTsaChecker) {
                 // A temporary solution. The more suitable solution would calculate
                 // `computeFeeUsed` as the state instructions are executed (possibly with some helper
                 // structures). When this happends, this comment and the line below must be deleted
@@ -231,7 +231,10 @@ class TvmArtificialInstInterpreter(
                 currentPhaseEndTime = pseudologicalTime
 
                 registerEventIfNeeded(stmt.computePhaseResult)
+            }
 
+            val shouldNotCallExitHandler = scope.ctx.tvmOptions.stopOnFirstError && isExceptional || isTsaChecker
+            if (!shouldNotCallExitHandler) {
                 val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
                 if (!wasCalled) {
                     newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
