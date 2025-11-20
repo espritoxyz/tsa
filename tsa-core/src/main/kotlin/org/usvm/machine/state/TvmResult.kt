@@ -6,32 +6,40 @@ import org.ton.bytecode.TvmInst
 import org.usvm.PathNode
 import org.usvm.UBv32Sort
 import org.usvm.UExpr
-import org.usvm.machine.state.TvmMethodResult.TvmAbstractSoftFailure
-import org.usvm.machine.state.TvmMethodResult.TvmErrorExit
-import org.usvm.machine.state.TvmMethodResult.TvmSuccessfulExit
+import org.usvm.machine.state.TvmResult.TvmAbstractSoftFailure
+import org.usvm.machine.state.TvmResult.TvmErrorExit
+import org.usvm.machine.state.TvmResult.TvmSuccessfulExit
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmStructuralExit
 
 /**
  * Represents a result of a method invocation.
  */
-sealed interface TvmMethodResult {
-    val stack: TvmStack?
+sealed interface TvmResult {
+    sealed interface TvmTerminalResult : TvmResult {
+        val phase: TvmPhase
+    }
 
     /**
      * No call was performed.
      */
-    data object NoCall : TvmMethodResult {
-        override val stack: TvmStack? = null
-    }
+    data object NoCall : TvmResult
 
     /**
      * A method successfully returned.
      */
-    data class TvmSuccess(
+    data class TvmComputePhaseSuccess(
         val exit: TvmSuccessfulExit,
-        override val stack: TvmStack,
-    ) : TvmMethodResult
+        val stack: TvmStack,
+    ) : TvmTerminalResult {
+        override val phase: TvmPhase = TvmComputePhase
+    }
+
+    data class TvmActionPhaseSuccess(
+        val computePhaseResult: TvmTerminalResult,
+    ) : TvmTerminalResult {
+        override val phase: TvmPhase = TvmActionPhase(computePhaseResult)
+    }
 
     /**
      * A method exited with non-successful exit code.
@@ -39,10 +47,9 @@ sealed interface TvmMethodResult {
     data class TvmFailure(
         val exit: TvmErrorExit,
         val type: TvmFailureType,
-        val phase: TvmPhase,
-        override val stack: TvmStack,
+        override val phase: TvmPhase,
         val pathNodeAtFailurePoint: PathNode<TvmInst>,
-    ) : TvmMethodResult {
+    ) : TvmTerminalResult {
         override fun toString(): String =
             if (type == TvmFailureType.UnknownError) {
                 "TvmFailure(exit=$exit, phase=$phase)"
@@ -63,14 +70,13 @@ sealed interface TvmMethodResult {
         val ruleName: String
     }
 
-    sealed interface TvmAbstractSoftFailure : TvmMethodResult {
-        val phase: TvmPhase
+    sealed interface TvmAbstractSoftFailure : TvmTerminalResult {
+        override val phase: TvmPhase
     }
 
     data class TvmSoftFailure(
         val exit: TvmSoftFailureExit,
         override val phase: TvmPhase,
-        override val stack: TvmStack,
     ) : TvmAbstractSoftFailure
 
     sealed interface TvmSoftFailureExit {
@@ -81,28 +87,27 @@ sealed interface TvmMethodResult {
 data class TvmStructuralError(
     val exit: TvmStructuralExit<TvmCellDataTypeRead<*>, TlbBuiltinLabel>,
     override val phase: TvmPhase,
-    override val stack: TvmStack,
 ) : TvmAbstractSoftFailure
 
-data object TvmUsageOfAnycastAddress : TvmMethodResult.TvmSoftFailureExit {
+data object TvmUsageOfAnycastAddress : TvmResult.TvmSoftFailureExit {
     override val ruleId = "anycast-address-usage"
 }
 
-data object TvmUsageOfVarAddress : TvmMethodResult.TvmSoftFailureExit {
+data object TvmUsageOfVarAddress : TvmResult.TvmSoftFailureExit {
     override val ruleId = "var-address-usage"
 }
 
-data object TvmDictOperationOnDataCell : TvmMethodResult.TvmSoftFailureExit {
+data object TvmDictOperationOnDataCell : TvmResult.TvmSoftFailureExit {
     override val ruleId = "dict-operation-on-data-cell"
 }
 
-data object TvmDataCellOperationOnDict : TvmMethodResult.TvmSoftFailureExit {
+data object TvmDataCellOperationOnDict : TvmResult.TvmSoftFailureExit {
     override val ruleId = "data-cell-operation-on-dict"
 }
 
 data class TvmDoubleSendRemainingValue(
     val contractId: ContractId,
-) : TvmMethodResult.TvmSoftFailureExit {
+) : TvmResult.TvmSoftFailureExit {
     override val ruleId = "double-send-remaining-value"
 }
 
@@ -245,4 +250,4 @@ data class TvmUserDefinedFailure(
     override fun toString(): String = "TVM user defined error with exit code $exitCode"
 }
 
-fun TvmMethodResult.isExceptional(): Boolean = this is TvmMethodResult.TvmFailure || this is TvmAbstractSoftFailure
+fun TvmResult.isExceptional(): Boolean = this is TvmResult.TvmFailure || this is TvmAbstractSoftFailure

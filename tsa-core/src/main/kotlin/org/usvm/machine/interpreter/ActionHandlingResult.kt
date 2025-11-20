@@ -1,7 +1,7 @@
 package org.usvm.machine.interpreter
 
 import org.usvm.machine.Int257Expr
-import org.usvm.machine.state.TvmMethodResult
+import org.usvm.machine.state.TvmResult
 
 interface ActionHandlingResult {
     data class Success(
@@ -10,10 +10,10 @@ interface ActionHandlingResult {
     ) : ActionHandlingResult
 
     data class RealFailure(
-        val failure: TvmMethodResult.TvmErrorExit,
+        val failure: TvmResult.TvmErrorExit,
     ) : ActionHandlingResult
 
     data class SoftFailure(
-        val failure: TvmMethodResult.TvmSoftFailureExit,
+        val failure: TvmResult.TvmSoftFailureExit,
     ) : ActionHandlingResult
 }

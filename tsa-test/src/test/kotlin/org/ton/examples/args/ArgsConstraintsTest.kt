@@ -11,8 +11,8 @@ import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import org.usvm.test.resolver.TvmTestFailure
 import java.math.BigInteger
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -77,7 +77,7 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
             ),
         )
 
@@ -106,7 +106,7 @@ class ArgsConstraintsTest {
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
         )
 
         checkInvariants(
@@ -126,13 +126,13 @@ class ArgsConstraintsTest {
             tests,
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
             ),
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
@@ -165,7 +165,7 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
             ),
         )
 
@@ -183,7 +183,7 @@ class ArgsConstraintsTest {
 
         propertiesFound(
             result.testSuites.single(),
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
         )
 
         checkInvariants(
@@ -201,7 +201,7 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
             ),
         )
 
@@ -219,7 +219,7 @@ class ArgsConstraintsTest {
 
         propertiesFound(
             result.testSuites.single(),
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
         )
 
         checkInvariants(
@@ -238,15 +238,15 @@ class ArgsConstraintsTest {
         checkInvariants(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1001 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1002 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1002 },
             ),
         )
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1003 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 1003 },
         )
     }
 }

@@ -485,7 +485,7 @@ private fun runAnalysis(
     }
     val exceptionalStates = states.filter { state -> state.isExceptional }
     logger.debug("States: ${states.size}, exceptional: ${exceptionalStates.size}")
-    exceptionalStates.forEach { state -> logger.debug(state.methodResult.toString()) }
+    exceptionalStates.forEach { state -> logger.debug(state.result.toString()) }
     logger.debug("=====".repeat(20))
 
     return states to coverage

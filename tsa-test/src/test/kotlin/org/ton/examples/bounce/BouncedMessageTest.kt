@@ -4,6 +4,7 @@ import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
 import org.ton.test.utils.extractFuncContractFromResource
@@ -17,8 +18,8 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.ContractId
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -81,17 +82,17 @@ class BouncedMessageTest {
         propertiesFound(
             tests,
             listOf { test ->
-                val checkerExitCode = test.eventsList.single { it.id == 0 }.methodResult
-                val checkerExitCodeGood = (checkerExitCode as? TvmMethodFailure)?.exitCode == 258
+                val checkerExitCode = test.exitCode()
+                val checkerExitCodeGood = checkerExitCode == 258
                 val thereWereThreeFailedMethod =
-                    test.eventsList.count { it.methodResult is TvmMethodFailure } == 3
+                    test.eventsList.count { it.computePhaseResult is TvmTestFailure } == 2
                 checkerExitCodeGood && thereWereThreeFailedMethod
             },
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 257 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode != 257 },
         )
     }
 
@@ -123,7 +124,7 @@ class BouncedMessageTest {
             listOf { test ->
                 val receivedBounceOnSoftFailureExitCode = 258
                 val messageDidNotBounce =
-                    (test.result as? TvmMethodFailure)?.exitCode != receivedBounceOnSoftFailureExitCode
+                    (test.result as? TvmTestFailure)?.exitCode != receivedBounceOnSoftFailureExitCode
                 val softFailureOccurred = test.result is TvmExecutionWithSoftFailure
                 messageDidNotBounce && softFailureOccurred
             },
@@ -154,12 +155,12 @@ class BouncedMessageTest {
         propertiesFound(
             tests,
             // the target contract should change its persistent data
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 255 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 255 },
         )
         checkInvariants(
             tests,
             listOf { test ->
-                test.eventsList.mapNotNull { it.methodResult as? TvmMethodFailure }.all { failedResult ->
+                test.eventsList.mapNotNull { it.computePhaseResult as? TvmTestFailure }.all { failedResult ->
                     val formatViolationExitCodes = 257..265
                     failedResult.exitCode !in formatViolationExitCodes
                 }

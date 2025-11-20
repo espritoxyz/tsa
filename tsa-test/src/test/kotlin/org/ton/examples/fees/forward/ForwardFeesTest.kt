@@ -9,7 +9,7 @@ import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 
 class ForwardFeesTest {
@@ -44,13 +44,13 @@ class ForwardFeesTest {
         propertiesFound(
             tests,
             listOf { test ->
-                (test.result as? TvmMethodFailure)?.exitCode == 10000
+                (test.result as? TvmTestFailure)?.exitCode == 10000
             },
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode !in 201..205 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode !in 201..205 },
         )
     }
 }

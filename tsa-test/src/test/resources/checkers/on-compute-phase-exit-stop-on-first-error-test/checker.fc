@@ -1,8 +1,6 @@
 #include "../../imports/stdlib.fc";
 #include "../../imports/tsa_functions.fc";
 
-
-
 () on_compute_phase_exit(int compute_fee, int contract_id) impure method_id {
     throw(400);
 }

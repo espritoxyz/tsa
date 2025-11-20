@@ -29,12 +29,12 @@ import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.TvmUnexpectedEndOfReading
 import org.usvm.machine.types.TvmUnexpectedRefReading
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestCellDataCoinsRead
 import org.usvm.test.resolver.TvmTestCellDataIntegerRead
 import org.usvm.test.resolver.TvmTestCellDataMaybeConstructorBitRead
 import org.usvm.test.resolver.TvmTestDataCellValue
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput.RecvInternalInput
 import java.math.BigInteger
 import kotlin.test.Ignore
@@ -109,7 +109,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.any { it.result is TvmMethodFailure })
+        assertTrue(tests.any { it.result is TvmTestFailure })
 
         checkInvariants(
             tests,
@@ -135,7 +135,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.all { it.result !is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         propertiesFound(
             tests,
@@ -195,7 +195,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.any { it.result !is TvmMethodFailure })
+        assertTrue(tests.any { it.result !is TvmTestFailure })
         assertTrue(tests.any { it.result !is TvmExecutionWithStructuralError })
     }
 
@@ -215,7 +215,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
     }
 
     @Test
@@ -286,7 +286,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
     }
 
     @Test
@@ -305,7 +305,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.any { it.result is TvmMethodFailure })
+        assertTrue(tests.any { it.result is TvmTestFailure })
     }
 
     @Test
@@ -349,7 +349,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.all { it.result !is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         propertiesFound(
             tests,
@@ -377,7 +377,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         checkInvariants(
             tests,
@@ -403,7 +403,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result !is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         propertiesFound(
             tests,
@@ -438,7 +438,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         checkInvariants(
             tests,
@@ -464,7 +464,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.any { it.result is TvmMethodFailure })
+        assertTrue(tests.any { it.result is TvmTestFailure })
 
         checkInvariants(
             tests,
@@ -490,7 +490,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result !is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         propertiesFound(
             tests,
@@ -518,7 +518,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         propertiesFound(
             tests,
@@ -609,7 +609,7 @@ class InputParameterInfoTests {
             )
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         propertiesFound(
             tests,
@@ -651,7 +651,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         checkInvariants(
             tests,
@@ -687,7 +687,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure && it.result !is TvmExecutionWithStructuralError })
+        assertTrue(tests.all { it.result !is TvmTestFailure && it.result !is TvmExecutionWithStructuralError })
     }
 
     @Test
@@ -717,7 +717,7 @@ class InputParameterInfoTests {
 
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure && it.result !is TvmExecutionWithStructuralError })
+        assertTrue(tests.all { it.result !is TvmTestFailure && it.result !is TvmExecutionWithStructuralError })
 
         checkInvariants(
             tests,
@@ -768,7 +768,7 @@ class InputParameterInfoTests {
 
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure && it.result !is TvmExecutionWithStructuralError })
+        assertTrue(tests.all { it.result !is TvmTestFailure && it.result !is TvmExecutionWithStructuralError })
 
         checkInvariants(
             tests,
@@ -928,7 +928,7 @@ class InputParameterInfoTests {
             )
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
-        assertTrue(tests.all { it.result !is TvmMethodFailure && it.result !is TvmExecutionWithStructuralError })
+        assertTrue(tests.all { it.result !is TvmTestFailure && it.result !is TvmExecutionWithStructuralError })
     }
 
     @Ignore
@@ -994,7 +994,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.all { it.result !is TvmExecutionWithStructuralError })
-        assertTrue(tests.all { (it.result as? TvmMethodFailure)?.exitCode != 1001 })
+        assertTrue(tests.all { (it.result as? TvmTestFailure)?.exitCode != 1001 })
     }
 
     @Test
@@ -1023,7 +1023,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.all { it.result !is TvmExecutionWithStructuralError })
-        assertTrue(tests.all { (it.result as? TvmMethodFailure)?.exitCode != 1001 })
+        assertTrue(tests.all { (it.result as? TvmTestFailure)?.exitCode != 1001 })
     }
 
     @Test
@@ -1052,13 +1052,13 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.all { it.result !is TvmExecutionWithStructuralError })
-        assertTrue(tests.all { (it.result as? TvmMethodFailure)?.exitCode != 1000 })
+        assertTrue(tests.all { (it.result as? TvmTestFailure)?.exitCode != 1000 })
 
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1002 },
             ),
         )
     }
@@ -1079,7 +1079,7 @@ class InputParameterInfoTests {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         checkInvariants(
             tests,
@@ -1109,7 +1109,7 @@ class InputParameterInfoTests {
             tests,
             listOf(
                 { test -> test.result !is TvmExecutionWithStructuralError },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1001 },
             ),
         )
 
@@ -1117,7 +1117,7 @@ class InputParameterInfoTests {
             tests,
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
             ),
         )
     }
@@ -1178,8 +1178,8 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
             ),
         )
     }
@@ -1235,7 +1235,7 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1437,7 +1437,7 @@ class InputParameterInfoTests {
             tests,
             listOf(
                 { test -> test.result !is TvmExecutionWithStructuralError },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
             ),
         )
     }
@@ -1528,8 +1528,8 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1549,7 +1549,7 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1569,7 +1569,7 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1599,8 +1599,8 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1631,7 +1631,7 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1662,7 +1662,7 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1696,8 +1696,8 @@ class InputParameterInfoTests {
         checkInvariants(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1001 },
                 { test -> test.result !is TvmExecutionWithStructuralError },
             ),
         )
@@ -1724,7 +1724,7 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1752,7 +1752,7 @@ class InputParameterInfoTests {
             tests,
             listOf(
                 { test -> test.result !is TvmExecutionWithStructuralError },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
             ),
         )
     }
@@ -1771,7 +1771,7 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1800,14 +1800,14 @@ class InputParameterInfoTests {
             tests,
             listOf(
                 { test -> test.result !is TvmExecutionWithStructuralError },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode != 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1001 },
             ),
         )
 
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
                 { test -> test.result is TvmSuccessfulExecution },
             ),
         )
@@ -1838,7 +1838,7 @@ class InputParameterInfoTests {
             tests,
             listOf(
                 { test -> test.result !is TvmSuccessfulExecution },
-                { test -> test.result !is TvmMethodFailure },
+                { test -> test.result !is TvmTestFailure },
             ),
         )
 
@@ -1906,11 +1906,11 @@ class InputParameterInfoTests {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 998 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 998 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 999 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1002 },
                 { test -> test.debugInfo.numberOfDataEqualityConstraintsFromTlb == 1 },
             ),
         )
@@ -1959,12 +1959,12 @@ class InputParameterInfoTests {
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode != 1000 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
         )
 
         TvmTestExecutor.executeGeneratedTests(tests, resourcePath, TsRenderer.ContractType.Func)
@@ -1980,7 +1980,7 @@ class InputParameterInfoTests {
 
         propertiesFound(
             tests,
-            listOf { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
         )
 
         TvmTestExecutor.executeGeneratedTests(tests, resourcePath, TsRenderer.ContractType.Func)

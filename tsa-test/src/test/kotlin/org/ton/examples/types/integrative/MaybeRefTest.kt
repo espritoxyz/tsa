@@ -8,8 +8,8 @@ import org.ton.test.utils.propertiesFound
 import org.usvm.machine.types.TvmUnexpectedEndOfReading
 import org.usvm.machine.types.TvmUnexpectedRefReading
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -35,7 +35,7 @@ class MaybeRefTest {
         checkInvariants(
             tests,
             listOf { test ->
-                test.result !is TvmExecutionWithStructuralError && test.result !is TvmMethodFailure
+                test.result !is TvmExecutionWithStructuralError && test.result !is TvmTestFailure
             },
         )
     }
@@ -54,7 +54,7 @@ class MaybeRefTest {
         checkInvariants(
             tests,
             listOf { test ->
-                test.result !is TvmExecutionWithStructuralError && test.result !is TvmMethodFailure
+                test.result !is TvmExecutionWithStructuralError && test.result !is TvmTestFailure
             },
         )
     }
@@ -69,7 +69,7 @@ class MaybeRefTest {
         val tests = results.testSuites.first()
 
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         propertiesFound(
             tests,
@@ -90,7 +90,7 @@ class MaybeRefTest {
         val tests = results.testSuites.first()
 
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.all { it.result !is TvmMethodFailure })
+        assertTrue(tests.all { it.result !is TvmTestFailure })
 
         propertiesFound(
             tests,

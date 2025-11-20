@@ -12,7 +12,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput
 import kotlin.io.path.readText
 import kotlin.test.Test
@@ -57,7 +57,7 @@ class IntercontractTest {
         val failedPaths =
             resultStates.mapNotNull { test ->
                 val result =
-                    test.result as? TvmMethodFailure
+                    test.result as? TvmTestFailure
                         ?: return@mapNotNull null
 
                 result.exitCode to test.intercontractPath
@@ -132,7 +132,7 @@ class IntercontractTest {
         checkInvariants(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 257 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 257 },
                 { test ->
                     ((((test.additionalInputs[0] as? TvmTestInput.RecvInternalInput)?.msgBody)?.cell)?.data)
                         ?.startsWith(

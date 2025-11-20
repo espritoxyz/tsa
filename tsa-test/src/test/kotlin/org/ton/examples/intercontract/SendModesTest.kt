@@ -15,7 +15,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -78,8 +78,8 @@ class SendModesTest {
             tests,
             listOf { test ->
                 test.eventsList.any {
-                    val methodResult = it.methodResult
-                    methodResult is TvmMethodFailure && methodResult.exitCode == 37
+                    val methodResult = it.actionPhaseResult
+                    methodResult is TvmTestFailure && methodResult.exitCode == 37
                 }
             },
         )
@@ -210,11 +210,9 @@ class SendModesTest {
         checkInvariants(
             tests,
             listOf { test ->
-                test.eventsList.any {
-                    val methodResult = it.methodResult
-                    methodResult is TvmExecutionWithSoftFailure &&
-                        methodResult.failure.exit is TvmDoubleSendRemainingValue
-                }
+                val methodResult = test.result
+                methodResult is TvmExecutionWithSoftFailure &&
+                    methodResult.failure.exit is TvmDoubleSendRemainingValue
             },
         )
     }

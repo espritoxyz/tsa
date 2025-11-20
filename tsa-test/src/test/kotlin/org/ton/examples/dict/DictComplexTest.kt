@@ -12,7 +12,7 @@ import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -89,8 +89,8 @@ class DictComplexTest {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 999 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
             ),
         )
 
@@ -109,10 +109,10 @@ class DictComplexTest {
         propertiesFound(
             tests,
             listOf(
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 999 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1000 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1001 },
-                { test -> (test.result as? TvmMethodFailure)?.exitCode == 1002 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 999 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1002 },
             ),
         )
 

@@ -7,6 +7,7 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.runFiftMethod
 import org.ton.test.utils.testConcreteOptions
+import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestIntegerValue
 import kotlin.test.assertEquals
 
@@ -27,7 +28,7 @@ class IntComparisonExample {
             val results =
                 tests
                     .flatMap { test ->
-                        test.result.stack.map { (it as TvmTestIntegerValue).value.toInt() }
+                        (test.result as TvmSuccessfulExecution).stack.map { (it as TvmTestIntegerValue).value.toInt() }
                     }.sorted()
             assertEquals(listOf(1, 2), results)
         }

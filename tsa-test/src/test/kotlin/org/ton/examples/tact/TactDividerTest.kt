@@ -5,7 +5,7 @@ import org.ton.test.utils.tactCompileAndAnalyzeAllMethods
 import org.usvm.machine.TactSourcesDescription
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.TvmIntegerOverflowError
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -27,7 +27,7 @@ class TactDividerTest {
         val exceptions =
             results
                 .mapNotNull {
-                    (it as? TvmMethodFailure)?.failure?.exit
+                    (it as? TvmTestFailure)?.failure?.exit
                 }.filterIsInstance<TvmIntegerOverflowError>()
         assertTrue(exceptions.isNotEmpty(), "Division by zero was not found!")
     }

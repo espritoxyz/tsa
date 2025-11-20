@@ -54,7 +54,6 @@ data class SwitchTlbStackFrame(
                             TvmStructuralError(
                                 TvmReadingSwitchWithUnexpectedType(loadData.type),
                                 phase,
-                                stack,
                             ),
                         ),
                         value = null,
@@ -70,7 +69,7 @@ data class SwitchTlbStackFrame(
                     GuardedResult(
                         mkSizeGtExpr(readSize, switchSize),
                         StepError(
-                            TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), phase, stack),
+                            TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), phase),
                         ),
                         value = null,
                     ),

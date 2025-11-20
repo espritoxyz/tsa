@@ -7,7 +7,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getResourcePath
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -37,9 +37,9 @@ class BalanceReductionTest {
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
             )
-        val failures = result.tests.filter { it.result is TvmMethodFailure }
+        val failures = result.tests.filter { it.result is TvmTestFailure }
 
-        val balanceReductionExecutions = failures.filter { (it.result as TvmMethodFailure).exitCode == 256 }
+        val balanceReductionExecutions = failures.filter { (it.result as TvmTestFailure).exitCode == 256 }
 
         assertTrue(balanceReductionExecutions.isNotEmpty())
     }

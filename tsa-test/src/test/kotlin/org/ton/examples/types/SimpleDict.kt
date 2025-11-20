@@ -4,9 +4,9 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
 import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestDictCellValue
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestSliceValue
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,7 +27,7 @@ class SimpleDict {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.any { it.result is TvmMethodFailure })
+        assertTrue(tests.any { it.result is TvmTestFailure })
 
         propertiesFound(
             tests,

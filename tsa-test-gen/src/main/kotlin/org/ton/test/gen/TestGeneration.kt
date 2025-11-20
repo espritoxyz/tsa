@@ -30,10 +30,10 @@ import org.usvm.machine.TvmContext.Companion.stdMsgAddrSize
 import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.minimization.minimizeTestCase
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTerminalMethodSymbolicResult
 import org.usvm.test.resolver.TvmTestDataCellValue
+import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput
 import org.usvm.test.resolver.TvmTestInput.RecvInternalInput
 import org.usvm.test.resolver.TvmTestIntegerValue
@@ -101,7 +101,7 @@ private fun TsContext.constructTests(
 ): TsTestFile? {
     val recvInternalTests =
         tests
-            .filter { it.methodId == RECEIVE_INTERNAL_ID && it.result is TvmMethodFailure }
+            .filter { it.methodId == RECEIVE_INTERNAL_ID && it.result is TvmTestFailure }
             .let { if (useMinimization) minimizeTestCase(it) else it }
 
     val recvExternalTests =
@@ -109,7 +109,7 @@ private fun TsContext.constructTests(
             tests
                 .filter {
                     it.methodId == RECEIVE_EXTERNAL_ID &&
-                        it.result is TvmMethodFailure &&
+                        it.result is TvmTestFailure &&
                         (it.input as? TvmTestInput.RecvExternalInput)?.wasAccepted == true
                 }.let { if (useMinimization) minimizeTestCase(it) else it }
         } else {
@@ -402,7 +402,7 @@ private fun generateTestNames(tests: List<TvmSymbolicTest>): List<String> {
     val exitsCounter = mutableMapOf<String, Int>()
 
     return tests.map { test ->
-        val exit = (test.result as? TvmMethodFailure)?.failure?.exit
+        val exit = (test.result as? TvmTestFailure)?.failure?.exit
         val exitName =
             if (exit is TvmUserDefinedFailure) {
                 "${exit.ruleName}-${exit.exitCode}"

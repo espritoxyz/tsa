@@ -422,7 +422,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
                     falseStateIsExceptional = true,
                     blockOnFalseState = {
                         falseState = this
-                        setExit(TvmMethodResult.TvmSoftFailure(failure, phase, stack))
+                        setExit(TvmResult.TvmSoftFailure(failure, phase))
                     },
                 ) ?: return@doWithCtx null
 

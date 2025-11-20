@@ -9,8 +9,8 @@ import org.usvm.machine.TvmManualStateProcessor
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.state.TvmState
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmTestFailure
 
 fun runAnalysisAndExtractFailingExecutions(
     contracts: List<TsaContractCode>,
@@ -47,6 +47,6 @@ fun runAnalysisAndExtractFailingExecutions(
             manualStateProcessor = postProcessor,
         )
     val foundTests = analysisResult.tests
-    val result = foundTests.filter { it.result is TvmMethodFailure }
+    val result = foundTests.filter { it.result is TvmTestFailure }
     return result
 }

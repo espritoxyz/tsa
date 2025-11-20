@@ -397,6 +397,10 @@ class TsaCheckerFunctionsInterpreter(
                 is NewReceiverInput -> 0
             }
 
+        check(currentComputeFeeUsed == null) {
+            "Unexpected value of compute fee: $currentComputeFeeUsed"
+        }
+
         contractStack =
             contractStack.add(
                 TvmEventInformation(
@@ -404,10 +408,12 @@ class TsaCheckerFunctionsInterpreter(
                     stmt.nextStmt(),
                     oldMemory,
                     takeFromNewStack,
-                    currentEventId,
+                    phaseBeginTime = currentPhaseBeginTime,
+                    phaseEndTime = null,
                     receivedMessage,
-                    computeFeeUsed,
                     isExceptional,
+                    computeFee = null,
+                    phase = phase,
                 ),
             )
         currentPhaseBeginTime = pseudologicalTime
@@ -423,7 +429,8 @@ class TsaCheckerFunctionsInterpreter(
                 state.additionalInputs[stackOperations.inputId]
                     ?: error("Input with id ${stackOperations.inputId} not found")
             receivedMessage = ReceivedMessage.InputMessage(input)
-            currentInput = input
+        } else {
+            receivedMessage = null
         }
 
         switchToFirstMethodInContract(nextContractCode, nextMethodId.toMethodId())

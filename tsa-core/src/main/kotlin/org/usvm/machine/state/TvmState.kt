@@ -27,8 +27,6 @@ import org.usvm.isStaticHeapRef
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
 import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
-import org.usvm.machine.state.TvmPhase.COMPUTE_PHASE
-import org.usvm.machine.state.TvmPhase.TERMINATED
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
@@ -54,17 +52,16 @@ class TvmState(
     ownership: MutabilityOwnership,
     override val entrypoint: TvmDisasmCodeBlock,
     val emptyRefValue: TvmRefEmptyValue,
-    val analysisOfGetMethod: Boolean,
     private var symbolicRefs: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
-    var gasUsageHistory: PersistentList<UExpr<UBv32Sort>>,
+    var gasUsageHistory: PersistentList<Pair<ContractId, UExpr<UBv32Sort>>>,
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
     pathConstraints: UPathConstraints<TvmType>,
     memory: UMemory<TvmType, TvmCodeBlock>,
     models: List<UModelBase<TvmType>> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<TvmInst>> = PathNode.root(),
-    var phase: TvmPhase = COMPUTE_PHASE,
-    var methodResult: TvmMethodResult = TvmMethodResult.NoCall,
+    var phase: TvmPhase = TvmComputePhase,
+    var result: TvmResult = TvmResult.NoCall,
     targets: UTargetsSet<TvmTarget, TvmInst> = UTargetsSet.empty(),
     val typeSystem: TvmTypeSystem,
     var lastCommitedStateOfContracts: PersistentMap<ContractId, TvmCommitedState> = persistentMapOf(),
@@ -87,11 +84,12 @@ class TvmState(
     var forwardFees: PersistentSet<FwdFeeInfo> = persistentSetOf(),
     var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
-    var currentInput: TvmInput? = null,
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
     var receivedMessage: ReceivedMessage? = null,
     var eventsLog: PersistentList<TvmMessageDrivenContractExecutionEntry> = persistentListOf(),
     var currentPhaseBeginTime: Int = 0,
+    var currentPhaseEndTime: Int? = null,
+    var currentComputeFeeUsed: UExpr<TvmContext.TvmInt257Sort>? = null,
     val debugInfo: TvmStateDebugInfo = TvmStateDebugInfo(),
     var inputDictionaryStorage: InputDictionaryStorage = InputDictionaryStorage(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
@@ -109,12 +107,11 @@ class TvmState(
         get() = gasUsageHistory.size
     val currentEventId: EventId
         get() = currentPhaseBeginTime
-    var computeFeeUsed: UExpr<TvmContext.TvmInt257Sort> = ctx.zeroValue
 
     override var isExceptional: Boolean = false
 
     val isTerminated: Boolean
-        get() = phase == TERMINATED
+        get() = phase == TvmTerminated
 
     lateinit var dataCellInfoStorage: TvmDataCellInfoStorage
     lateinit var registersOfCurrentContract: TvmRegisters
@@ -178,7 +175,7 @@ class TvmState(
             models = models,
             pathNode = pathNode,
             forkPoints = forkPoints,
-            methodResult = methodResult,
+            result = result,
             targets = targets.clone(),
             typeSystem = typeSystem,
             lastCommitedStateOfContracts = lastCommitedStateOfContracts,
@@ -197,10 +194,8 @@ class TvmState(
             messageQueue = messageQueue,
             intercontractPath = intercontractPath,
             phase = phase,
-            analysisOfGetMethod = analysisOfGetMethod,
             unprocessedMessages = unprocessedMessages,
             additionalInputs = additionalInputs,
-            currentInput = currentInput,
             acceptedInputs = acceptedInputs,
             receivedMessage = receivedMessage,
             eventsLog = eventsLog,
@@ -208,6 +203,8 @@ class TvmState(
             debugInfo = debugInfo.clone(),
             inputDictionaryStorage = inputDictionaryStorage,
             forwardFees = forwardFees,
+            currentComputeFeeUsed = currentComputeFeeUsed,
+            currentPhaseEndTime = currentPhaseEndTime,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -224,7 +221,7 @@ class TvmState(
     override fun toString(): String =
         buildString {
             appendLine("Instruction: $lastStmt")
-            if (isExceptional) appendLine("Exception: $methodResult")
+            if (isExceptional) appendLine("Exception: $result")
         }
 
     fun generateSymbolicRef(referenceType: TvmRealReferenceType): UConcreteHeapRef =
@@ -246,22 +243,13 @@ class TvmState(
     }
 }
 
-enum class TvmPhase {
-    COMPUTE_PHASE,
-    ACTION_PHASE,
-    BOUNCE_PHASE,
-    EXIT_PHASE,
-    POSTPROCESS_PHASE,
-    TERMINATED,
-}
-
 data class TvmCommitedState(
     val c4: C4Register,
     val c5: C5Register,
 )
 
 /**
- * Represents a state of an event (for the definition see [TvmEventLogEntry]).
+ * Represents a state of an event (for the definition see [TvmMessageDrivenContractExecutionEntry]).
  * @param inst is the first instruction to be executed when we pop the `TvmContractPosition` from the stack
  * @param stackEntriesToTake number of entries to fetch from the upper contract
  * (from the point of [TvmState.contractStack]) when it exited
@@ -271,10 +259,12 @@ data class TvmEventInformation(
     val inst: TvmInst,
     val executionMemory: TvmContractExecutionMemory,
     val stackEntriesToTake: Int,
-    val eventId: EventId,
+    val phaseBeginTime: Int,
+    val phaseEndTime: Int?,
     val receivedMessage: ReceivedMessage?,
-    val computeFeeUsed: UExpr<TvmContext.TvmInt257Sort>,
     val isExceptional: Boolean,
+    val computeFee: UExpr<TvmContext.TvmInt257Sort>?,
+    val phase: TvmPhase,
 )
 
 data class TvmContractExecutionMemory(

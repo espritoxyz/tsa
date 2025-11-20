@@ -47,7 +47,7 @@ data class TlbStack(
                         GuardedResult(
                             emptyRead.not(),
                             Error(
-                                TvmStructuralError(TvmUnexpectedDataReading(loadData.type), phase, stack),
+                                TvmStructuralError(TvmUnexpectedDataReading(loadData.type), phase),
                                 fromMutableTlb = false,
                             ),
                             value = null,

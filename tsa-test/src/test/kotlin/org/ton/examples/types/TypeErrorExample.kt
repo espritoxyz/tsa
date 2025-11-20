@@ -2,8 +2,8 @@ package org.ton.examples.types
 
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
-import org.usvm.test.resolver.TvmMethodFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -19,6 +19,6 @@ class TypeErrorExample {
         assertEquals(1, results.testSuites.size)
         val tests = results.testSuites.first()
         assertTrue(tests.any { it.result is TvmSuccessfulExecution })
-        assertTrue(tests.any { it.result is TvmMethodFailure })
+        assertTrue(tests.any { it.result is TvmTestFailure })
     }
 }

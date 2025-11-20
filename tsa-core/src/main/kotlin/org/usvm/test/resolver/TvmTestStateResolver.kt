@@ -39,8 +39,8 @@ import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
 import org.usvm.machine.state.TvmCellRefsRegionValueInfo
-import org.usvm.machine.state.TvmMethodResult
 import org.usvm.machine.state.TvmRefsMemoryRegion
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmStack.TvmStackTupleValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
@@ -120,6 +120,31 @@ class TvmTestStateResolver(
             }
         }
     }
+
+    fun resolveEvents(): List<TvmMessageDrivenContractExecutionTestEntry> =
+        state.eventsLog.map { entry ->
+
+            if (ctx.tvmOptions.performAdditionalChecksWhileResolving) {
+                val expectedContract = entry.contractId
+                state.gasUsageHistory.subList(entry.executionBegin, entry.executionEnd).forEach {
+                    check(it.first == expectedContract) {
+                        "Instruction with wrong contract in event"
+                    }
+                }
+            }
+
+            TvmMessageDrivenContractExecutionTestEntry(
+                id = entry.id,
+                executionBegin = entry.executionBegin,
+                executionEnd = entry.executionEnd,
+                contractId = entry.contractId,
+                incomingMessage = resolveReceivedMessage(entry.incomingMessage),
+                computePhaseResult = resolveResultStackImpl(entry.computePhaseResult),
+                actionPhaseResult = entry.actionPhaseResult?.let { resolveResultStackImpl(it) },
+                gasUsageHistory = resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
+                computeFee = resolveInt257(entry.computeFee),
+            )
+        }
 
     private fun resolveRecvInternalInput(input: RecvInternalInput): TvmTestInput.RecvInternalInput =
         TvmTestInput.RecvInternalInput(
@@ -233,40 +258,38 @@ class TvmTestStateResolver(
             ?: error("Unexpected $idx parameter value: $value")
     }
 
-    fun resolveResultStackImpl(methodResult: TvmMethodResult): TvmMethodSymbolicResult {
-        val results = methodResult.stack?.results ?: error("Missed result for state $state")
-
-        // Do not include exit code for exceptional results to the result
-        val resultsWithoutExitCode =
-            if (methodResult is TvmMethodResult.TvmFailure) {
-                results.dropLast(
-                    1,
-                )
-            } else {
-                results
+    fun resolveResultStackImpl(methodResult: TvmResult): TvmTestResult =
+        when (methodResult) {
+            TvmResult.NoCall -> {
+                error("Unexpected result when resolving: $methodResult")
             }
-        val resolvedResults = resultsWithoutExitCode.filterNotNull().map { resolveStackValue(it) }
-
-        return when (val it = methodResult) {
-            TvmMethodResult.NoCall -> error("Missed result for state $state")
-            is TvmMethodResult.TvmFailure -> {
-                var node = it.pathNodeAtFailurePoint
+            is TvmResult.TvmFailure -> {
+                var node = methodResult.pathNodeAtFailurePoint
                 while (node.statement is TvmArtificialInst) {
                     node = node.parent
                         ?: error("Unexpected execution path without non-artificial instructions")
                 }
 
-                TvmMethodFailure(methodResult, node.statement, methodResult.exit.exitCode, resolvedResults)
+                TvmTestFailure(methodResult, node.statement, methodResult.exit.exitCode)
             }
-
-            is TvmMethodResult.TvmSuccess -> TvmSuccessfulExecution(it.exit.exitCode, resolvedResults)
-            is TvmStructuralError -> resolveTvmStructuralError(state.lastStmt, resolvedResults, it)
-            is TvmMethodResult.TvmSoftFailure -> TvmExecutionWithSoftFailure(state.lastStmt, resolvedResults, it)
+            is TvmResult.TvmComputePhaseSuccess -> {
+                val results = methodResult.stack.results
+                val resolvedResults = results.filterNotNull().map { resolveStackValue(it) }
+                TvmSuccessfulExecution(methodResult.exit.exitCode, resolvedResults)
+            }
+            is TvmStructuralError -> {
+                resolveTvmStructuralError(state.lastStmt, methodResult)
+            }
+            is TvmResult.TvmSoftFailure -> {
+                TvmExecutionWithSoftFailure(state.lastStmt, methodResult)
+            }
+            is TvmResult.TvmActionPhaseSuccess -> {
+                TvmSuccessfulActionPhase
+            }
         }
-    }
 
-    fun resolveResultStack(): TvmMethodSymbolicResult {
-        val methodResult = state.methodResult
+    fun resolveResultStack(): TvmTestResult {
+        val methodResult = state.result
         return resolveResultStackImpl(methodResult)
     }
 
@@ -318,7 +341,6 @@ class TvmTestStateResolver(
 
     private fun resolveTvmStructuralError(
         lastStmt: TvmInst,
-        stack: List<TvmTestValue>,
         exit: TvmStructuralError,
     ): TvmExecutionWithStructuralError {
         val resolvedExit =
@@ -347,7 +369,7 @@ class TvmTestStateResolver(
                         resolveCellDataType(structuralExit.readingType),
                     )
             }
-        return TvmExecutionWithStructuralError(lastStmt, stack, resolvedExit)
+        return TvmExecutionWithStructuralError(lastStmt, resolvedExit)
     }
 
     private fun resolveBuiltinLabel(

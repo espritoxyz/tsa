@@ -2,7 +2,6 @@
 #include "../../imports/tsa_functions.fc";
 
 () on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
-    
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     tsa_assert_not(flags & 1);

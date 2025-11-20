@@ -4,7 +4,7 @@ import org.ton.cell.CellBuilder
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.getResourcePath
-import org.usvm.test.resolver.TvmMethodFailure
+import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -17,7 +17,7 @@ class PersistentDataTest {
         val allTests = symbolicResult.map { it.tests }.flatten()
         val results = allTests.map { it.result }
         assertTrue(results.isNotEmpty())
-        assertTrue(results.any { (it as? TvmMethodFailure)?.exitCode == 1000 })
+        assertTrue(results.any { (it as? TvmTestFailure)?.exitCode == 1000 })
     }
 
     @Test
@@ -31,6 +31,6 @@ class PersistentDataTest {
         val allTests = symbolicResult.map { it.tests }.flatten()
         val results = allTests.map { it.result }
         assertTrue(results.isNotEmpty())
-        assertTrue(results.all { (it as? TvmMethodFailure)?.exitCode != 1000 })
+        assertTrue(results.all { (it as? TvmTestFailure)?.exitCode != 1000 })
     }
 }
