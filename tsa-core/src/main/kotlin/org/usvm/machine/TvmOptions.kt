@@ -21,6 +21,10 @@ data class TvmOptions(
     val timeout: Duration = Duration.INFINITE,
     val solverTimeout: Duration = 1.seconds,
     val excludeExecutionsWithFailures: Boolean = false,
+    /**
+     * Represents the maximum number of iterations (specifically, loop body executions) in
+     * a symbolic context (that is, when forking occurs during iteration).
+     */
     val loopIterationLimit: Int? = DEFAULT_LOOP_ITERATIONS_LIMIT,
     val intercontractOptions: IntercontractOptions = IntercontractOptions(),
     val useMainMethodForInitialMethodJump: Boolean = true,

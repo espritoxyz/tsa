@@ -7,6 +7,7 @@ import org.ton.test.utils.executionCode
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeSpecificMethod
 import org.usvm.logger
+import org.usvm.machine.TvmOptions
 import org.usvm.machine.toMethodId
 import java.io.File
 
@@ -20,6 +21,8 @@ import java.io.File
 fun runTestsInFileDefault(
     file: File,
     testName: String,
+    options: TvmOptions = TvmOptions(),
+    generateTests: Boolean = true,
 ) {
     logger.info("Executing test \"$testName\"")
     logger.info("File is ${file.absolutePath}")
@@ -43,7 +46,7 @@ fun runTestsInFileDefault(
     logger.info("Assumption error codes: $assumes")
     logger.info("Assertion error codes: $asserts")
     logger.info("Successful execution error codes: $success")
-    val tests = funcCompileAndAnalyzeSpecificMethod(file.toPath(), methodId = 0.toMethodId())
+    val tests = funcCompileAndAnalyzeSpecificMethod(file.toPath(), methodId = 0.toMethodId(), tvmOptions = options)
     val exitCodes = tests.map { it.executionCode() }
     logger.info("Found exit codes: $exitCodes")
     val foundAssertsViolation = exitCodes.intersect(asserts)
@@ -56,9 +59,11 @@ fun runTestsInFileDefault(
         error("Expected but not found exit codes: $expectedNotFound")
     }
     logger.info("Finished symbolic execution of test ${file.name}")
-    logger.info("Beginning the execution of generated tests for ${file.name}")
-    TvmTestExecutor.executeGeneratedTests(tests, file.toPath(), TsRenderer.ContractType.Func)
-    logger.info("Ending the execution of generated tests for ${file.name}")
+    if (generateTests) {
+        logger.info("Beginning the execution of generated tests for ${file.name}")
+        TvmTestExecutor.executeGeneratedTests(tests, file.toPath(), TsRenderer.ContractType.Func)
+        logger.info("Ending the execution of generated tests for ${file.name}")
+    }
 }
 
 private fun existsFuncCommentBeforeOnTheLine(
@@ -86,6 +91,8 @@ private fun existsFuncCommentBeforeOnTheLine(
 fun runTestsInDirectory(
     resourceDirectory: String,
     pattern: String = ".*",
+    options: TvmOptions = TvmOptions(),
+    generateTests: Boolean = true,
 ): List<DynamicTest> {
     logger.info("Executing tests in $resourceDirectory that match pattern:\n    $pattern")
     val basePath = extractResource(resourceDirectory)
@@ -105,6 +112,6 @@ fun runTestsInDirectory(
     return files
         .map { file ->
             val name = file.toRelativeString(basePath.toFile())
-            DynamicTest.dynamicTest(name) { runTestsInFileDefault(file, name) }
+            DynamicTest.dynamicTest(name, file.toURI()) { runTestsInFileDefault(file, name, options, generateTests) }
         }
 }

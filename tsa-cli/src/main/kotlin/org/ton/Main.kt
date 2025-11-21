@@ -178,6 +178,8 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
         .default(DEFAULT_LOOP_ITERATIONS_LIMIT)
         .help {
             "Skip executions where the number of iterations in a loop exceeds the given limit. " +
+                "The number of iterations is counted by how many times the loop body executes." +
+                "Only the iterations where forking occurred are accounted for by this restriction." +
                 "Default: $DEFAULT_LOOP_ITERATIONS_LIMIT."
         }
 
