@@ -646,7 +646,6 @@ class TvmInterpreter(
         logger.debug("Current contract: {}", state.currentContract)
         logger.debug("State id: {}", state.id)
         logger.debug("Executing: {}", formatInstruction(stmt, includeTvmCell = false))
-        logger.debug("Step: {}", stmt)
 
         val initialGasUsage = state.gasUsageHistory
 

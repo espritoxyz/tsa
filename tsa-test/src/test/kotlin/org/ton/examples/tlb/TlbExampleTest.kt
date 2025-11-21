@@ -1,8 +1,8 @@
 package org.ton.examples.tlb
 
+import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
-import org.usvm.machine.getResourcePathEasy
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
 import org.usvm.test.resolver.TvmMethodFailure
@@ -37,7 +37,7 @@ class TlbTest {
     }
 
     private fun assertNoTlbMissesInAnalysis(path: String) {
-        val resourcePath = getResourcePathEasy(path)
+        val resourcePath = extractResource(path)
         val symbolicResult =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
