@@ -25,6 +25,10 @@ class SendModesTest {
     private val remainingBalanceWithAnotherMessageContract =
         "/intercontract/modes/send_remaining_balance_with_another_message.fc"
     private val remainingBalanceChecker = "/intercontract/modes/remaining_balance.fc"
+    private val remainingBalanceNewSender = "/intercontract/modes/remaining-balance/sender.fc"
+    private val remainingBalanceNewChecker = "/intercontract/modes/remaining-balance/checker.fc"
+    private val remainingBalanceNewRecipient = "/intercontract/modes/remaining-balance/recipient.fc"
+    private val remainingBalanceNewCommunicationScheme = "/intercontract/modes/remaining-balance/inter-contract.json"
     private val remainingValueContract = "/intercontract/modes/send_remaining_value.fc"
     private val remainingValueOpcode500Contract = "/intercontract/modes/send_remaining_value_opcode_500.fc"
     private val remainingValueDoubleContract = "/intercontract/modes/send_remaining_value_double.fc"
@@ -62,6 +66,44 @@ class SendModesTest {
         checkInvariants(
             tests,
             listOf { test -> test.exitCode() == 257 },
+        )
+    }
+
+    @Test
+    fun sendRemainingBalanceNewTest() {
+        val checkerContract = extractCheckerContractFromResource(remainingBalanceNewChecker)
+        val analyzedSender = extractFuncContractFromResource(remainingBalanceNewSender)
+        val analyzedReceiver = extractFuncContractFromResource(remainingBalanceNewRecipient)
+        val communicationScheme = extractCommunicationSchemeFromResource(remainingBalanceNewCommunicationScheme)
+
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedSender, analyzedReceiver),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        propertiesFound(
+            tests,
+            listOf (
+                {test -> (test.result as? TvmTestFailure)?.exitCode == 10000},
+                {test -> (test.result as? TvmTestFailure)?.exitCode == 34},
+                {test -> (test.result as? TvmTestFailure)?.exitCode == 37},
+            )
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode !in 201..3001 },
         )
     }
 

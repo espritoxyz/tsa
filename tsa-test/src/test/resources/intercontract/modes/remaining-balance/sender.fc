@@ -3,7 +3,7 @@
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
 
     int op = msg_body~load_uint(32);
-    ;; in all outgoing messages below frd_fee is lump_price = 400000 nanoTons
+    ;; in all outgoing messages below fwd_fee is lump_price = 400000 nanoTons
     if (op == 100) {
         ;; send all balance, the indicated value in outgoing should be reset to remaining balance - fwd_fee
         cell msg = begin_cell()
