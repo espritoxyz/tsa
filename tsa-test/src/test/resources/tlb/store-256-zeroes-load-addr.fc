@@ -1,0 +1,13 @@
+#include "../imports/stdlib.fc";
+
+
+() main() {
+    var stored = begin_cell()
+        .store_uint(4, 3) ;; (
+        .store_int(0, 8) ;; workchain id
+        .store_uint(0, 256) ;; bits 256 ) = MsgAddressInt
+        .end_cell();
+    (slice left, _) = stored.begin_parse().load_msg_addr();
+    throw_unless(400, left.slice_empty?());
+    throw(500);
+}
