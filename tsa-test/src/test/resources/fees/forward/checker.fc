@@ -56,7 +56,7 @@
     } elseif (flag == 1) {
         throw_if(202, fwd_fee != 349070);
         throw_if(2020, value != 1000000000 - 523600);
-        throw_if(2011, sender_balance != 10000000000 - 1000000000);
+        throw_if(2021, sender_balance != 10000000000 - 1000000000);
     } elseif (flag == 2) {
         throw_if(203, fwd_fee != 324270);
         throw_if(2030, value != 1000000000 - 486400);
