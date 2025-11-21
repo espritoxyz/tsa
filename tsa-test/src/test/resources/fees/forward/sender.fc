@@ -118,7 +118,7 @@
         .store_ref(msgBody)
         .end_cell();
         
-        send_raw_message(msg, 0); ;; the fwd_fee will be 610800 nanoTons
+        send_raw_message(msg, 1); ;; the fwd_fee will be 610800 nanoTons and should be paid separately from the message value
 
         return();
     } elseif (op == 600) {
@@ -153,7 +153,7 @@
         .store_ref(msgBody)
         .end_cell();
         
-        send_raw_message(msg, 0); ;; the fwd_fee will be 613600 nanoTons
+        send_raw_message(msg, 1); ;; the fwd_fee will be 613600 nanoTons and should be paid separately from the message value
 
         return();
     }

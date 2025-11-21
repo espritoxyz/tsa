@@ -8,7 +8,7 @@
     int flags = cs~load_uint(4);
     tsa_assert_not(flags & 1);
 
-    tsa_assert(msg_value >= 10000000000);
+    tsa_assert(msg_value == 10000000000);
 
     int op = msg_body~load_uint(32);
     if (input_id == 0) {
@@ -35,26 +35,50 @@
     cs~skip_bits(4); ;; message headers
     cs~load_msg_addr(); ;; src address
     cs~load_msg_addr(); ;; dest address
-    cs~load_grams(); ;; value
+    int value = cs~load_grams(); ;; value
     cs~skip_bits(1); ;; skip extracurrency collection
     cs~load_grams(); ;; ihr fee
     int fwd_fee = cs~load_grams();
 
+    ;; get sender's balance after sending the message
+    int sender_balance = tsa_get_balance(1);
+
     int flag = msg_body~load_uint(10);
+
+    ;; check that:
+    ;; - the 2/3 frac of fwd_fee is indicated in the message info
+    ;; - the outgoing message value equals either 1 Ton minus the fwd_fee or 1 Ton if the mode SendPayFwdFeesSeparately is presented
+    ;; - contract's balance is correct
     if (flag == 0) {
         throw_if(201, fwd_fee != 266669);
+        throw_if(2010, value != 1000000000 - 400000);
+        throw_if(2011, sender_balance != 10000000000 - 1000000000);
     } elseif (flag == 1) {
         throw_if(202, fwd_fee != 349070);
+        throw_if(2020, value != 1000000000 - 523600);
+        throw_if(2011, sender_balance != 10000000000 - 1000000000);
     } elseif (flag == 2) {
         throw_if(203, fwd_fee != 324270);
+        throw_if(2030, value != 1000000000 - 486400);
+        throw_if(2031, sender_balance != 10000000000 - 1000000000);
     } elseif (flag == 3) {
         throw_if(204, fwd_fee != 407204);
+        throw_if(2040, value != 1000000000);
+        throw_if(2041, sender_balance != 10000000000 - 1000000000 - 610800);
     } elseif (flag == 4) {
         throw_if(205, fwd_fee != 409070);
+        throw_if(2050, value != 1000000000);
+        throw_if(2051, sender_balance != 10000000000 - 1000000000 - 613600);
     }
 } 
 
 () main() impure {
+    ;; set sender's balance to zero
+    tsa_forbid_failures();
+    int sender_balance = tsa_get_balance(1);
+    tsa_assert(sender_balance == 0);
+    tsa_allow_failures();
+
     tsa_send_internal_message(1, 0);
     tsa_send_internal_message(1, 1);
     tsa_send_internal_message(1, 2);

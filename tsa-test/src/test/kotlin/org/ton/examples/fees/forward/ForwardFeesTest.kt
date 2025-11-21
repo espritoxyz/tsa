@@ -50,7 +50,7 @@ class ForwardFeesTest {
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmTestFailure)?.exitCode !in 201..205 },
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode !in 201..3001 },
         )
     }
 }
