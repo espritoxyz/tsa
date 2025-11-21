@@ -10,8 +10,8 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmTestFailure
-import kotlin.test.Test
 import kotlin.test.Ignore
+import kotlin.test.Test
 
 class ForwardFeesTest {
     private val checker = "/fees/forward/checker.fc"
