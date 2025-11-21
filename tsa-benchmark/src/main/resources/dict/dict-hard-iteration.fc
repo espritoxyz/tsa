@@ -1,0 +1,16 @@
+#include "../imports/stdlib.fc";
+
+
+() main(slice in_msg) {
+    var dict = in_msg~load_dict();
+    int n = get_data().begin_parse().preload_int(64);
+    int sum = 0;
+    int i = 0;
+    while ((i < n) & (sum < 10)) {
+        (var next, var found) = dict.idict_get?(64, i);
+        if (found) {
+            sum = sum + next.preload_int(64);
+        }
+        i = i + 1;
+    }
+}

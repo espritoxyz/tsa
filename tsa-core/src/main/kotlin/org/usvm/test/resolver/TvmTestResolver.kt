@@ -1,5 +1,6 @@
 package org.usvm.test.resolver
 
+import kotlinx.serialization.Serializable
 import org.ton.TlbResolvedBuiltinLabel
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmArtificialInst
@@ -124,6 +125,7 @@ data class TvmSymbolicTestSuite(
     val tests: List<TvmSymbolicTest>,
 ) : List<TvmSymbolicTest> by tests
 
+@Serializable
 data class TvmMethodCoverage(
     val coverage: Float?,
     val transitiveCoverage: Float?,

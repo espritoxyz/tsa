@@ -1,0 +1,66 @@
+#include "../imports/stdlib.fc";
+
+(int) dict_delete_example() method_id {
+    cell names = new_dict();
+    names~udict_set(256, 27, "Alice");
+    names~udict_set(256, 25, "Bob");
+
+    names~udict_delete?(256, 27);
+
+    (slice val, int key) = names.udict_get?(256, 27);
+
+    return key == 0;
+}
+
+(int) dict_is_empty() method_id {
+    cell d = new_dict();
+    d~udict_set(256, 11, "hello");
+    d~udict_set(256, 17, "world");
+
+    if (d.dict_empty?()) {
+        ;; Determine if dict is empty
+        ;; dict is empty
+        return -1;
+    }
+    else {
+        ;; dict is not empty
+        return 0;
+    }
+}
+
+(int) load_dict_example(cell data) method_id {
+    slice local_storage = data.begin_parse();
+    cell dictionary_cell = local_storage~load_dict();
+    return dictionary_cell.dict_empty?();
+}
+
+(cell) store_dict_example() method_id {
+    cell d = new_dict();
+    d~udict_set(256, 11, "hello");
+    d~udict_set(256, 17, "world");
+    cell result = begin_cell().store_dict(d).end_cell();
+    return result;
+}
+
+(int) iterate_dict_example() method_id {
+    cell d = new_dict();
+    d~udict_set(256, 1, "value 1");
+    d~udict_set(256, 5, "value 2");
+    d~udict_set(256, 12, "value 3");
+
+    ;; iterate keys from small to big
+    (int key, slice val, int flag) = d.udict_get_min?(256);
+
+    ;; do something with pair key->val
+    (key, val, flag) = d.udict_get_next?(256, key);
+
+    return flag;
+}
+
+() recv_internal(int msg_value, cell in_msg, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) {
+        return ();
+    }
+    int op = in_msg_body~load_uint(32);
+}
+
