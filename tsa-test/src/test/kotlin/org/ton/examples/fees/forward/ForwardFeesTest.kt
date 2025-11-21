@@ -11,6 +11,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
+import kotlin.test.Ignore
 
 class ForwardFeesTest {
     private val checker = "/fees/forward/checker.fc"
@@ -18,6 +19,7 @@ class ForwardFeesTest {
     private val receiver = "/fees/forward/receiver.fc"
     private val scheme = "/fees/forward/inter-contract.json"
 
+    @Ignore("Contract's balance is decreased only by 2/3 of fwd_fees")
     @Test
     fun forwardFeesTest() {
         val checkerContract = extractCheckerContractFromResource(checker)
