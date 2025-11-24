@@ -11,7 +11,9 @@ builder msg_prefix_inline_body() {
 builder msg_prefix_ref_body() {
     return begin_cell()
         .store_uint(0x10, 6)
-        .store_uint(4, 3).store_int(0, 8).store_uint(0, 256)
+        .store_uint(4, 3) ;; (
+        .store_int(0, 8) ;; workchain id
+        .store_uint(0, 256) ;; bits 256 ) = MsgAddressInt
         .store_grams(1000000000)
         .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1);
 }

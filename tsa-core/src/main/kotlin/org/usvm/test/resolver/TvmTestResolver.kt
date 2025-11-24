@@ -69,6 +69,7 @@ data object TvmTestResolver {
                 TvmTestDebugInfo(
                     numberOfAddressesWithAssertedDataConstraints,
                     state.debugInfo.numberOfDataEqualityConstraintsFromTlb,
+                    state.debugInfo.tlbMemoryMisses.size,
                 ),
             eventsList = events,
         )
@@ -168,6 +169,7 @@ data class TvmSymbolicTest(
 data class TvmTestDebugInfo(
     val numberOfAddressesWithAssertedDataConstraints: Int,
     val numberOfDataEqualityConstraintsFromTlb: Int = 0,
+    val tlbMemoryMisses: Int,
 )
 
 data class TvmContractState(
