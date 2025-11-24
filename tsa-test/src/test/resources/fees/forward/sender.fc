@@ -1,5 +1,13 @@
 #include "../../imports/stdlib.fc";
 
+;; the cost of the forward fee is calculated as:
+;; lump_price + ceil((bit_price * msg.bits + cell_price * msg.cells) / 2^16)),
+;; where msg.bits is the total bit length of the unique cells (do not include in-place bits!)
+;; and msg.cells are the unique cells used to build the message body and stateinit
+
+;; per calculations, the values are as such:
+;; cell_price = 2621440000 nanotons
+;; bit_price = cell_price / 100 = 26214400 nanotons
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
 
     cell simpleMsgBody = begin_cell()
@@ -60,6 +68,7 @@
         .end_cell();
         
         send_raw_message(msg, 0); ;; the fwd_fee will be 523600 nanoTons
+        ;; = lump_price + ceil((cell_price * 3 + bit_price * 9) / 2 ** 16)
 
         return();
     } elseif (op == 400) {
@@ -79,6 +88,8 @@
         .end_cell();    
 
         send_raw_message(msg, 0); ;; the fwd_fee will be 486400 nanoTons
+        ;; = lump_price + ceil((cell_price * 2 + bit_price * (6 + 10)) / 2 ** 16)
+        ;; one cell is for the message body, one is for the simpleMsgBody
 
         return();
     } elseif (op == 500) {
@@ -118,8 +129,8 @@
         .store_ref(msgBody)
         .end_cell();
         
-        send_raw_message(msg, 0); ;; the fwd_fee will be 610800 nanoTons
-
+        send_raw_message(msg, 1); ;; the fwd_fee will be 610800 nanoTons and should be paid separately from the message value
+        ;; = lump_price + ceil((cell_price * 5 + bit_price * (10 + 6 + 4 + 2 + 5)) / 2 ** 16)
         return();
     } elseif (op == 600) {
         cell cellB = begin_cell()
@@ -153,7 +164,8 @@
         .store_ref(msgBody)
         .end_cell();
         
-        send_raw_message(msg, 0); ;; the fwd_fee will be 613600 nanoTons
+        send_raw_message(msg, 1); ;; the fwd_fee will be 613600 nanoTons and should be paid separately from the message value
+        ;; = lump_price + ceil((cell_price * 5 + bit_price * (6 * 4 + 10)) / 2 ** 16)
 
         return();
     }
