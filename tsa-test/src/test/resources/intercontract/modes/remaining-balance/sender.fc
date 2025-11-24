@@ -34,7 +34,7 @@
         .store_uint(0x10, 6)
         .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
         .store_coins(1000000000) ;; 1 Ton
-        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
         .store_uint(1, 32) ;; some op code
         .end_cell();
         
@@ -69,7 +69,7 @@
         .store_uint(0x10, 6)
         .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
         .store_coins(1000000000) ;; 1 Ton
-        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
         .store_uint(1, 32) ;; some op code
         .end_cell();
         
@@ -77,7 +77,7 @@
         .store_uint(0x10, 6)
         .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
         .store_coins(1000000000) ;; 1 Ton
-        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
         .store_uint(op, 32)
         .end_cell();
 
