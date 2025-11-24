@@ -63,7 +63,7 @@ data class TsaArtificialOnOutMessageHandlerCallInst(
     override val location: TvmInstLocation,
     val sentMessages: List<DispatchedMessage>,
 ) : TsaArtificialInst {
-    override val mnemonic: String get() = "on_out_message_hack"
+    override val mnemonic: String get() = "artificial_on_out_message_bridge"
 
     init {
         checkLocationInitialized()
