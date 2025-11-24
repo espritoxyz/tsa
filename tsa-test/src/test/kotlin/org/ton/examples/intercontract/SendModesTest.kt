@@ -38,6 +38,11 @@ class SendModesTest {
         "/intercontract/modes/send-remaining-value-with-2nd-scheme.json"
     private val valueChecker = "/intercontract/modes/value_checker.fc"
     private val valueContract = "/intercontract/modes/value_contract.fc"
+    private val sendPayForwardFeesSeparatelyChecker = "/intercontract/modes/pay-forward-fees-separately/checker.fc"
+    private val sendPayForwardFeesSeparatelySender = "/intercontract/modes/pay-forward-fees-separately/sender.fc"
+    private val sendPayForwardFeesSeparatelyRecipient = "/intercontract/modes/pay-forward-fees-separately/recipient.fc"
+    private val sendPayForwardFeesSeparatelyCommunicationScheme =
+        "/intercontract/modes/pay-forward-fees-separately/inter-contract.json"
 
     @Test
     fun sendRemainingBalanceTest() {
@@ -128,6 +133,43 @@ class SendModesTest {
         propertiesFound(
             tests,
             listOf { test -> test.exitCode() == 257 },
+        )
+    }
+
+    @Test
+    fun sendPayForwardFeesSeparately() {
+        val checkerContract = extractCheckerContractFromResource(sendPayForwardFeesSeparatelyChecker)
+        val analyzedSender = extractFuncContractFromResource(sendPayForwardFeesSeparatelySender)
+        val analyzedReceiver = extractFuncContractFromResource(sendPayForwardFeesSeparatelyRecipient)
+        val communicationScheme =
+            extractCommunicationSchemeFromResource(sendPayForwardFeesSeparatelyCommunicationScheme)
+
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedSender, analyzedReceiver),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
+            ),
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode !in 201..3001 },
         )
     }
 
