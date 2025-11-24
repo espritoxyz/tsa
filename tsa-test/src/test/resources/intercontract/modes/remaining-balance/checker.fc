@@ -39,6 +39,7 @@
 
     ;; get sender's balance after sending the message
     int sender_balance = tsa_get_balance(1);
+    tsa_fetch_value(sender_balance, 12);
 
     ;; load op code
     int op = msg_body~load_uint(32);
@@ -65,8 +66,8 @@
     tsa_send_internal_message(1, 0);
     tsa_send_internal_message(1, 1);
     tsa_send_internal_message(1, 2);
-    throw(10000); ;; success
 
     tsa_send_internal_message(1, 3);
     tsa_send_internal_message(1, 4);
+    throw(10000); ;; success
 }

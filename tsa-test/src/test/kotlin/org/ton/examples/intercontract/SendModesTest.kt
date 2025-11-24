@@ -94,11 +94,11 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf (
-                {test -> (test.result as? TvmTestFailure)?.exitCode == 10000},
-                {test -> (test.result as? TvmTestFailure)?.exitCode == 34},
-                {test -> (test.result as? TvmTestFailure)?.exitCode == 37},
-            )
+            listOf(
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 34 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 37 },
+            ),
         )
 
         checkInvariants(
