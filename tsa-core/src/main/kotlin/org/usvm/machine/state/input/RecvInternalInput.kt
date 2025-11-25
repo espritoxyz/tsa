@@ -2,14 +2,12 @@ package org.usvm.machine.state.input
 
 import org.ton.Endian
 import org.usvm.UConcreteHeapRef
-import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
-import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.asIntValue
 import org.usvm.machine.state.ContractId
@@ -17,15 +15,15 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocSliceFromData
-import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreIntTlb
-import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.generateSymbolicAddressCell
 import org.usvm.machine.state.generateSymbolicSlice
-import org.usvm.machine.state.input.RecvInternalInput.TlbMessageContent
-import org.usvm.mkSizeExpr
+import org.usvm.machine.state.messages.Flags
+import org.usvm.machine.state.messages.Tail
+import org.usvm.machine.state.messages.TlbCommonMessageInfo
+import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.sizeSort
 
 class RecvInternalInput(
@@ -131,29 +129,6 @@ class RecvInternalInput(
             state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
         }
 
-    data class Flags(
-        val intMsgInfo: UExpr<TvmInt257Sort>,
-        val ihrDisabled: UExpr<TvmInt257Sort>,
-        val bounce: UExpr<TvmInt257Sort>,
-        val bounced: UExpr<TvmInt257Sort>,
-    ) {
-        fun asFlagsList() = listOf(intMsgInfo, ihrDisabled, bounce, bounced)
-    }
-
-    data class TlbMessageContent(
-        val flags: Flags, // 4 bits
-        val srcAddressSlice: UHeapRef,
-        val dstAddressSlice: UHeapRef,
-        val msgValue: UExpr<TvmInt257Sort>, //
-        // assume currency collection is an empty dict (1 bit of zero)
-        val ihrFee: UExpr<TvmInt257Sort>,
-        val fwdFee: UExpr<TvmInt257Sort>,
-        val createdLt: UExpr<TvmInt257Sort>, // 64
-        val createdAt: UExpr<TvmInt257Sort>, // 32
-        // init is (Maybe (Either StateInit ^StateInit)).nothing (1 bit of zero)
-        val bodyDataSlice: UHeapRef, // assume body is (Either X ^X).left, prefix is 1 bit of one
-    )
-
     override fun constructFullMessage(state: TvmState): UConcreteHeapRef =
         with(state.ctx) {
             // hack for using builder operations
@@ -163,19 +138,23 @@ class RecvInternalInput(
             val flags = generateFlagsStruct(this)
 
             val tlbMessageContent =
-                TlbMessageContent(
-                    flags = flags,
-                    srcAddressSlice = srcAddressSlice,
-                    dstAddressSlice = contractAddressSlice,
-                    msgValue = msgValue,
-                    ihrFee = ihrFee,
-                    fwdFee = fwdFee,
-                    createdLt = createdLt,
-                    createdAt = createdAt,
-                    bodyDataSlice = msgBodySliceMaybeBounced,
+                TlbInternalMessageContent(
+                    commonMessageInfo =
+                        TlbCommonMessageInfo(
+                            flags = flags,
+                            srcAddressSlice = srcAddressSlice,
+                            dstAddressSlice = contractAddressSlice,
+                            msgValue = msgValue,
+                            ihrFee = ihrFee,
+                            fwdFee = fwdFee,
+                            createdLt = createdLt,
+                            createdAt = createdAt,
+                        ),
+                    tail = Tail.Explicit(bodySlice = msgBodySliceMaybeBounced),
                 )
 
-            return@with constructMessageFromContent(state, tlbMessageContent)
+            val ref = tlbMessageContent.constructMessageCellFromContent(state).fullMsgCell
+            return@with ref
         }
 
     private fun generateFlagsStruct(ctx: TvmContext): Flags =
@@ -188,124 +167,3 @@ class RecvInternalInput(
             )
         }
 }
-
-fun constructMessageFromContent(
-    state: TvmState,
-    content: TlbMessageContent,
-): UConcreteHeapRef =
-    with(state.ctx) {
-        val resultBuilder = state.allocEmptyBuilder()
-
-        // hack for using builder operations
-        val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
-
-        for (flag in content.flags.asFlagsList()) {
-            builderStoreIntTlb(
-                scope,
-                resultBuilder,
-                resultBuilder,
-                flag,
-                sizeBits = oneSizeExpr,
-                isSigned = false,
-                endian = Endian.BigEndian,
-            )
-                ?: error("Cannot store flags")
-        }
-
-        // src:MsgAddressInt
-        builderStoreSliceTlb(scope, resultBuilder, resultBuilder, content.srcAddressSlice)
-            ?: error("Cannot store src address")
-
-        // dest:MsgAddressInt
-        builderStoreSliceTlb(scope, resultBuilder, resultBuilder, content.dstAddressSlice)
-            ?: error("Cannot store dest address")
-
-        // value:CurrencyCollection
-        // store message value
-        builderStoreGramsTlb(scope, resultBuilder, resultBuilder, content.msgValue)
-            ?: error("Cannot store message value")
-
-        // extra currency collection --- an empty dict (a bit of zero)
-        builderStoreIntTlb(
-            scope,
-            resultBuilder,
-            resultBuilder,
-            zeroValue,
-            sizeBits = oneSizeExpr,
-            isSigned = false,
-            endian = Endian.BigEndian,
-        )
-            ?: error("Cannot store extra currency collection")
-
-        // ihr_fee:Grams
-        builderStoreGramsTlb(scope, resultBuilder, resultBuilder, content.ihrFee)
-            ?: error("Cannot store ihr fee")
-
-        // fwd_fee:Gram
-        builderStoreGramsTlb(scope, resultBuilder, resultBuilder, content.fwdFee)
-            ?: error("Cannot store fwd fee")
-
-        // created_lt:uint64
-        builderStoreIntTlb(
-            scope,
-            resultBuilder,
-            resultBuilder,
-            content.createdLt,
-            sizeBits = mkSizeExpr(64),
-            isSigned = false,
-            endian = Endian.BigEndian,
-        )
-            ?: error("Cannot store created_lt")
-
-        // created_at:uint32
-        builderStoreIntTlb(
-            scope,
-            resultBuilder,
-            resultBuilder,
-            content.createdAt,
-            sizeBits = mkSizeExpr(32),
-            isSigned = false,
-            endian = Endian.BigEndian,
-        )
-            ?: error("Cannot store created_at")
-
-        // init:(Maybe (Either StateInit ^StateInit)).nothing
-        builderStoreIntTlb(
-            scope,
-            resultBuilder,
-            resultBuilder,
-            zeroValue,
-            sizeBits = oneSizeExpr,
-            isSigned = false,
-            endian = Endian.BigEndian,
-        )
-            ?: error("Cannot store init")
-
-        // body:(Either X ^X).left
-        // set prefix of Either.left
-        builderStoreIntTlb(
-            scope,
-            resultBuilder,
-            resultBuilder,
-            oneValue,
-            sizeBits = oneSizeExpr,
-            isSigned = false,
-            endian = Endian.BigEndian,
-        )
-            ?: error("Cannot store body")
-
-        scope.doWithState {
-            val msgBodyCell = memory.readField(content.bodyDataSlice, TvmContext.sliceCellField, addressSort)
-            builderStoreNextRefNoOverflowCheck(resultBuilder, msgBodyCell)
-        }
-
-        val stepResult = scope.stepResult()
-        check(stepResult.originalStateAlive) {
-            "Original state died while building full message"
-        }
-        check(stepResult.forkedStates.none()) {
-            "Unexpected forks while building full message"
-        }
-
-        return state.builderToCell(resultBuilder)
-    }

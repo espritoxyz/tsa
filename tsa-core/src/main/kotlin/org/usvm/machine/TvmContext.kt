@@ -614,6 +614,8 @@ class TvmContext(
 
     infix fun <T : KBvSort> KExpr<T>.bvAdd(other: KExpr<T>): KExpr<T> = mkBvAddExpr(this, other)
 
+    infix fun <T : KBvSort> KExpr<T>.bvMul(other: KExpr<T>): KExpr<T> = mkBvMulExpr(this, other)
+
     infix fun <T : KBvSort> KExpr<T>.bvSub(other: KExpr<T>): KExpr<T> = mkBvSubExpr(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvUlt(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessExpr(this, other)

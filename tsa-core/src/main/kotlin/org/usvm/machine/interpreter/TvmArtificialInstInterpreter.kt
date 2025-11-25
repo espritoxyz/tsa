@@ -34,6 +34,7 @@ import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmResult.TvmAbstractSoftFailure
 import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmStack
+import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
@@ -51,15 +52,17 @@ import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.initializeContractExecutionMemory
-import org.usvm.machine.state.input.RecvInternalInput
-import org.usvm.machine.state.input.constructMessageFromContent
 import org.usvm.machine.state.isExceptional
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ContractSender
+import org.usvm.machine.state.messages.Flags
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.MessageSource
 import org.usvm.machine.state.messages.ReceivedMessage
+import org.usvm.machine.state.messages.Tail
+import org.usvm.machine.state.messages.TlbCommonMessageInfo
+import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceCell
@@ -159,9 +162,10 @@ class TvmArtificialInstInterpreter(
         val nextInst = stmt.copy(sentMessages = tail)
         val currentContractToPush = currentContract
         val pushArgsOnStack: TvmState.() -> Unit = {
+            val constructedMessageCells = head.content.toStackArgs(this)
             with(ctx) {
-                stack.addCell(head.message.fullMsgCell)
-                stack.addSlice(head.message.msgBodySlice)
+                stack.addCell(constructedMessageCells.fullMsgCell)
+                stack.addSlice(constructedMessageCells.msgBodySlice)
                 stack.addInt((head.receiver ?: -1).toBv257()) // receiver
                 stack.addInt(currentContractToPush.toBv257()) // sender
             }
@@ -295,18 +299,20 @@ class TvmArtificialInstInterpreter(
             }
 
             processNewMessages(scope, commitedState, stmt.computePhaseResult) { result, messages ->
-                val sentMessages =
-                    messages.map { (receiver, outMessage) ->
-                        TsaArtificialOnOutMessageHandlerCallInst.SentMessage(outMessage.content, receiver)
-                    }
                 doWithState {
                     isExceptional = isExceptional || oldIsExceptional
+                    // workaround, so that on_out_message has access to the balance
+                    contractIdToFirstElementOfC7 =
+                        contractIdToFirstElementOfC7.put(
+                            currentContract,
+                            registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew,
+                        )
                     newStmt(
                         TsaArtificialOnOutMessageHandlerCallInst(
                             computePhaseResult = stmt.computePhaseResult,
                             actionPhaseResult = result,
                             lastStmt.location,
-                            sentMessages,
+                            messages,
                         ),
                     )
                 }
@@ -471,7 +477,7 @@ class TvmArtificialInstInterpreter(
                     }
                 // TODO fill the ihrFee, msgValue, ... with reasonable values
                 val bouncedFlags =
-                    RecvInternalInput.Flags(
+                    Flags(
                         intMsgInfo = 0.toBv257(),
                         ihrDisabled = 1.toBv257(),
                         bounce = 0.toBv257(),
@@ -479,27 +485,29 @@ class TvmArtificialInstInterpreter(
                     )
                 val dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) }
                 val content =
-                    RecvInternalInput.TlbMessageContent(
-                        flags = bouncedFlags,
-                        srcAddressSlice = oldMessage.destAddrSlice,
-                        dstAddressSlice = dstAddressSlice,
-                        msgValue = zeroValue,
-                        ihrFee = zeroValue,
-                        fwdFee = zeroValue,
-                        createdLt = zeroValue,
-                        createdAt = zeroValue,
-                        bodyDataSlice = bodySlice,
+                    TlbInternalMessageContent(
+                        TlbCommonMessageInfo(
+                            flags = bouncedFlags,
+                            srcAddressSlice = oldMessage.destAddrSlice,
+                            dstAddressSlice = dstAddressSlice,
+                            msgValue = zeroValue,
+                            ihrFee = zeroValue,
+                            fwdFee = zeroValue,
+                            createdLt = zeroValue,
+                            createdAt = zeroValue,
+                        ),
+                        tail = Tail.Explicit(bodySlice),
                     )
-                Triple(constructMessageFromContent(scope.calcOnState { this }, content), bodySlice, dstAddressSlice)
+                Triple(content.constructMessageCellFromContent(scope.calcOnState { this }), bodySlice, dstAddressSlice)
             }
-        return msgCellAndBodySliceOrNull?.let { (msgCell, bodySlice, dstAddressSlice) ->
+        return msgCellAndBodySliceOrNull?.let { (constructedMsgCells, _, dstAddressSlice) ->
             MessageAsStackArguments(
                 msgValue = oldMessage.msgValue,
-                fullMsgCell = msgCell,
-                msgBodySlice = bodySlice,
+                fullMsgCell = constructedMsgCells.fullMsgCell,
+                msgBodySlice = constructedMsgCells.msgBodySlice,
                 destAddrSlice = dstAddressSlice,
                 source = MessageSource.Bounced,
-                fwdFee = ctx.zeroValue,
+                fwdFeeFull = ctx.zeroValue,
             )
         }
     }
@@ -560,7 +568,7 @@ class TvmArtificialInstInterpreter(
 
             val (sender, receiver, message) = messageQueue.first()
             messageQueue = messageQueue.removeAt(0)
-            executeContractTriggeredByMessage(receiver, message, sender)
+            executeContractTriggeredByMessage(sender, receiver, message)
         }
     }
 
@@ -593,9 +601,9 @@ class TvmArtificialInstInterpreter(
     }
 
     private fun TvmState.executeContractTriggeredByMessage(
+        sender: ContractSender,
         receiver: ContractId,
         message: MessageAsStackArguments,
-        sender: ContractSender,
     ) {
         val nextContractCode =
             contractsCode.getOrNull(receiver)
@@ -637,14 +645,14 @@ class TvmArtificialInstInterpreter(
         computePhaseResult: TvmResult.TvmTerminalResult,
         restActions: TvmStepScopeManager.(
             TvmResult.TvmTerminalResult,
-            List<TvmTransactionInterpreter.MessageWithMaybeReceiver>,
+            List<DispatchedMessage>,
         ) -> Unit,
     ) {
-        transactionInterpreter.parseActionsToDestinations(
+        transactionInterpreter.parseActionsAndResolveReceivers(
             scope,
             commitedState,
         ) {
-            transactionInterpreter.handleMessages(this, it.orderedMessages) { actionsHandlingResult ->
+            transactionInterpreter.handleMessageCosts(this, it.parsedOrderedMessages) { actionsHandlingResult ->
                 when (actionsHandlingResult) {
                     is ActionHandlingResult.Success -> {
                         this.calcOnState { registerActionPhaseEffect(actionsHandlingResult) }
@@ -686,12 +694,12 @@ class TvmArtificialInstInterpreter(
         setBalance(finalMessageHandlingState.balanceLeft)
         val messagesSent = finalMessageHandlingState.messagesSent
         val messagesWithDestinations =
-            messagesSent.mapNotNull { (receiverOrNull, message) ->
+            messagesSent.mapNotNull { (receiverOrNull, messageContent) ->
                 receiverOrNull?.let { receiver ->
                     ReceivedMessage.MessageFromOtherContract(
                         ContractSender(currentContract, currentEventId),
                         receiver,
-                        message.content,
+                        messageContent.toStackArgs(this),
                     )
                 }
             }

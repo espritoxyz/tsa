@@ -263,6 +263,7 @@ class TvmTestStateResolver(
             TvmResult.NoCall -> {
                 error("Unexpected result when resolving: $methodResult")
             }
+
             is TvmResult.TvmFailure -> {
                 var node = methodResult.pathNodeAtFailurePoint
                 while (node.statement is TvmArtificialInst) {
@@ -272,17 +273,21 @@ class TvmTestStateResolver(
 
                 TvmTestFailure(methodResult, node.statement, methodResult.exit.exitCode)
             }
+
             is TvmResult.TvmComputePhaseSuccess -> {
                 val results = methodResult.stack.results
                 val resolvedResults = results.filterNotNull().map { resolveStackValue(it) }
                 TvmSuccessfulExecution(methodResult.exit.exitCode, resolvedResults)
             }
+
             is TvmStructuralError -> {
                 resolveTvmStructuralError(state.lastStmt, methodResult)
             }
+
             is TvmResult.TvmSoftFailure -> {
                 TvmExecutionWithSoftFailure(state.lastStmt, methodResult)
             }
+
             is TvmResult.TvmActionPhaseSuccess -> {
                 TvmSuccessfulActionPhase
             }
@@ -327,7 +332,13 @@ class TvmTestStateResolver(
         }
 
     fun resolveOutMessages(): List<Pair<ContractId, TvmTestMessage>> =
-        state.unprocessedMessages.map { (contractId, message) -> contractId to resolveOutMessage(message.content) }
+        state.unprocessedMessages.map { (contractId, message) ->
+            val oldIsExceptional = state.isExceptional
+            state.isExceptional = false
+            val result = contractId to resolveOutMessage(message.toStackArgs(state))
+            state.isExceptional = oldIsExceptional
+            result
+        }
 
     fun resolveAdditionalInputs(): Map<Int, TvmTestInput> =
         state.additionalInputs.entries.associate { (inputId, symbolicInput) ->
