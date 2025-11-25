@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "inOpcodeToDestination": {},
+    "other": {
+      "type": "linear",
+      "destinations": [2]
+    }
+  },
+  {
+    "id": 2,
+    "inOpcodeToDestination": {}
+  }
+]
