@@ -137,7 +137,21 @@ class SendModesTest {
     }
 
     @Test
-    fun sendPayForwardFeesSeparately() {
+    fun sendPayForwardFeesSeparatelyPure() {
+        payForwardFeesSeparatelyBaseTest(100)
+    }
+
+    @Test
+    fun sendPayForwardFeesSeparatelyWithSendRemainingBalance() {
+        payForwardFeesSeparatelyBaseTest(200)
+    }
+
+    @Test
+    fun sendPayForwardFeesSeparatelyWithSendRemainingValue() {
+        payForwardFeesSeparatelyBaseTest(300)
+    }
+
+    private fun payForwardFeesSeparatelyBaseTest(opcode: Int) {
         val checkerContract = extractCheckerContractFromResource(sendPayForwardFeesSeparatelyChecker)
         val analyzedSender = extractFuncContractFromResource(sendPayForwardFeesSeparatelySender)
         val analyzedReceiver = extractFuncContractFromResource(sendPayForwardFeesSeparatelyRecipient)
@@ -155,6 +169,12 @@ class SendModesTest {
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedSender, analyzedReceiver),
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder.beginCell().storeInt(opcode, 64).endCell()),
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(),
+                    ),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,

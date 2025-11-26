@@ -21,6 +21,11 @@ class ForwardFeesTest {
     private val scheme = "/fees/forward/inter-contract.json"
 
     @Test
+    fun forwardFeesTest0() {
+        forwardFeesBaseTest(0)
+    }
+
+    @Test
     fun forwardFeesTest1() {
         forwardFeesBaseTest(1)
     }

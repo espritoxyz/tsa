@@ -10,17 +10,10 @@
 
     tsa_assert(msg_value == 2000000000); ;; 2 Ton as a message value
     int sender_balance = tsa_get_balance(1);
-    tsa_assert(sender_balance == 1000000000); ;; 1 Ton as account's balance
+    tsa_assert(sender_balance == 1000000000 + msg_value); ;; 1 Ton as account's balance
 
     int op = msg_body~load_uint(32);
-    if (input_id == 0) {
-        tsa_assert(op == 100);
-    } elseif (input_id == 1) {
-        tsa_assert(op == 200);
-    } elseif (input_id == 2) {
-        tsa_assert(op == 300);
-    }
-
+    tsa_assert(op == input_id);
     tsa_allow_failures();
 }
 
@@ -53,8 +46,7 @@
 } 
 
 () main() impure {
-    tsa_send_internal_message(1, 0);
-    tsa_send_internal_message(1, 1);
-    tsa_send_internal_message(1, 2);
+    int sent_opcode = get_data().begin_parse().preload_int(64);
+    tsa_send_internal_message(1, sent_opcode);
     throw(10000); ;; success
 }
