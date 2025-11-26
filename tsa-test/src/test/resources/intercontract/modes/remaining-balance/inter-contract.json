@@ -3,8 +3,15 @@
     "id": 1,
     "inOpcodeToDestination": {},
     "other": {
-      "type": "linear",
-      "destinations": [2]
+      "type": "out_opcodes",
+      "outOpcodeToDestination": {
+        "00000001": [2],
+        "00000064": [2],
+        "000000c8": [2],
+        "0000012c": [2],
+        "00000190": [2],
+        "000001f4": [2]
+      }
     }
   },
   {

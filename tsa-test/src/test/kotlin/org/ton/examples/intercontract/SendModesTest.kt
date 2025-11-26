@@ -3,6 +3,7 @@ package org.ton.examples.intercontract
 import org.ton.cell.CellBuilder
 import org.ton.cell.buildCell
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.executionCode
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
@@ -15,6 +16,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
+import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Ignore
 import kotlin.test.Test
@@ -70,7 +72,34 @@ class SendModesTest {
     }
 
     @Test
-    fun sendRemainingBalanceNewTest() {
+    fun `SendRemainingBalance pure`() {
+        sendRemainingBalanceBaseTest(100, listOf(10000))
+    }
+
+    @Test
+    fun `SendRemainingBalance with PayForwardFeesSeparately`() {
+        sendRemainingBalanceBaseTest(200, listOf(10000))
+    }
+
+    @Test
+    fun `SendRemainingBalance after normal message`() {
+        sendRemainingBalanceBaseTest(300, listOf(10000))
+    }
+
+    @Test
+    fun `SendRemainingBalance plus SendRemainingValue`() {
+        sendRemainingBalanceBaseTest(400, listOf(34))
+    }
+
+    @Test
+    fun `normal message after SendRemainingBalance`() {
+        sendRemainingBalanceBaseTest(500, listOf(37))
+    }
+
+    private fun sendRemainingBalanceBaseTest(
+        opcode: Int,
+        expectedOpCodes: List<Int>,
+    ) {
         val checkerContract = extractCheckerContractFromResource(remainingBalanceNewChecker)
         val analyzedSender = extractFuncContractFromResource(remainingBalanceNewSender)
         val analyzedReceiver = extractFuncContractFromResource(remainingBalanceNewRecipient)
@@ -87,6 +116,12 @@ class SendModesTest {
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedSender, analyzedReceiver),
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder.beginCell().storeInt(opcode, 64).endCell()),
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(),
+                    ),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
@@ -94,11 +129,9 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf(
-                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
-                { test -> (test.result as? TvmTestFailure)?.exitCode == 34 },
-                { test -> (test.result as? TvmTestFailure)?.exitCode == 37 },
-            ),
+            expectedOpCodes.map { expectedOpcode ->
+                { test: TvmSymbolicTest -> test.executionCode() == expectedOpcode }
+            },
         )
 
         checkInvariants(

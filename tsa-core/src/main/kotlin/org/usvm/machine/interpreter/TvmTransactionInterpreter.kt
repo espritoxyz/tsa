@@ -15,6 +15,7 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.isFalse
 import org.usvm.isTrue
+import org.usvm.logger
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.OP_BITS
@@ -23,6 +24,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
@@ -157,6 +159,8 @@ class TvmTransactionInterpreter(
 
         companion object {
             fun insufficientFundsError(contractId: ContractId) = RealFailure(InsufficientFunds(contractId))
+
+            fun incompatibleModsError(contractId: ContractId) = RealFailure(IncompatibleMessageModes(contractId))
 
             fun doubleSendRemainingValue(contractId: ContractId) = SoftFailure(TvmDoubleSendRemainingValue(contractId))
         }
@@ -306,12 +310,19 @@ class TvmTransactionInterpreter(
         val transform2: List<CondTransform> =
             listOf(
                 CondTransform(
-                    predicate = { sendRemainingBalance },
+                    predicate = { sendRemainingBalance and sendRemainingValue.not() },
                     transform =
                         asOnCopy {
                             remainingInboundMessageValue = zeroValue
                             messageValue = currentContractBalance
                             build()
+                        },
+                ),
+                CondTransform(
+                    predicate = { sendRemainingBalance and sendRemainingValue },
+                    transform =
+                        asOnCopy {
+                            MessageHandlingState.incompatibleModsError(currentContractId)
                         },
                 ),
                 CondTransform(
@@ -608,10 +619,15 @@ class TvmTransactionInterpreter(
                         )
                     }
 
-                scope.doWithConditions(actions) { param ->
-                    assertCorrectAddresses(this, param.messagesForQueue)
-                        ?: return@doWithConditions
-                    restActions(param)
+                if (combinations.isNotEmpty()) {
+                    scope.doWithConditions(actions) { param ->
+                        assertCorrectAddresses(this, param.messagesForQueue)
+                            ?: return@doWithConditions
+                        restActions(param)
+                    }
+                } else {
+                    logger.warn("No actions were found fot the opcode")
+                    scope.restActions(ActionsParsingResult(messages.map { ParsedMessageWithResolvedNullReceiver(it) }))
                 }
             }
         }
