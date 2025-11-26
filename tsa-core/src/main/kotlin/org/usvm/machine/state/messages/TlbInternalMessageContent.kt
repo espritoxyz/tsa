@@ -372,7 +372,6 @@ data class TlbInternalMessageContent(
             constructedCells.fullMsgCell,
             constructedCells.msgBodySlice,
             commonMessageInfo.dstAddressSlice,
-            commonMessageInfo.fwdFee, // fake, it is actually just 2/3 of fwd fee
             source = MessageSource.Bounced,
         )
     }
@@ -390,95 +389,116 @@ data class TlbInternalMessageContent(
 
                 val tailSlice = ptr.slice
 
-                val stateInitBit =
-                    sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
-                        ?: return@with null
-
-                val stateInitIsMissing = stateInitBit eq zeroValue
-
                 val stateInitRef =
-                    if (resolver.eval(stateInitIsMissing).isTrue) {
-                        scope.assert(stateInitIsMissing)
-                            ?: return@with null
+                    loadStateInit(resolver, scope, ptr).getOrReturn { return@with null }
 
-                        null
-                    } else {
-                        scope.assert(stateInitIsMissing.not())
-                            ?: return@with null
+                val (bodyCellOriginal, bodyCell) =
+                    loadBody(resolver, scope, ptr)
+                        .getOrReturn { return@with null }
 
-                        val stateInitInlineBit =
-                            sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
-                                ?: return@with null
-
-                        val stateInitIsInlined = stateInitInlineBit eq zeroValue
-
-                        if (resolver.eval(stateInitIsInlined).isFalse) {
-                            scope.assert(stateInitIsInlined.not())
-                                ?: return@with null
-
-                            sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
-                                ?: return@with null
-                        } else {
-                            scope.assert(stateInitIsInlined)
-                                ?: return@with null
-
-                            // fixed_prefix_length:(Maybe (## 5)) special:(Maybe TickTock)
-                            val stateInitPrefix =
-                                sliceLoadIntTransaction(scope, ptr.slice, 2)?.unwrap(ptr)
-                                    ?: return@with null
-                            scope.assert(stateInitPrefix eq zeroValue)
-                                ?: return@with null
-
-                            // code:(Maybe ^Cell)
-                            loadMaybeRef(scope, ptr, resolver)
-                                ?: return@with null
-
-                            // code:(Maybe ^Cell)
-                            loadMaybeRef(scope, ptr, resolver)
-                                ?: return@with null
-
-                            // library:(Maybe ^Cell)
-                            loadMaybeRef(scope, ptr, resolver)
-                                ?: return@with null
-
-                            null
-                        }
-                    }
-
-                val bodyBit =
-                    sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
-                        ?: return@with null
-
-                val bodyBitIsInlined = bodyBit eq zeroValue
-
-                val (bodyRefOriginal, bodyCell) =
-                    if (resolver.eval(bodyBitIsInlined).isFalse) {
-                        scope.assert(bodyBitIsInlined.not())
-                            ?: return@with null
-
-                        sliceLoadRefTransaction(scope, ptr.slice)
-                            ?.unwrap(ptr)
-                            ?.let { it to it }
-                            ?: return@with null
-                    } else {
-                        scope.assert(bodyBitIsInlined)
-                            ?: return@with null
-
-                        val bodyBuilder = scope.calcOnState { allocEmptyBuilder() }
-                        builderStoreSliceTransaction(scope, bodyBuilder, ptr.slice)
-                            ?: return null
-                        val newBody = scope.builderToCell(bodyBuilder)
-
-                        null to newBody
-                    }
                 val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
-                val tail = Tail.Implicit(tailSlice, bodySlice, stateInitRef, bodyRefOriginal)
+                val tail = Tail.Implicit(tailSlice, bodySlice, stateInitRef, bodyCellOriginal)
 
                 TlbInternalMessageContent(
                     commonMessageInfo = commonMessageInfo,
                     tail = tail,
                 )
             }
+
+        private fun TvmContext.loadBody(
+            resolver: TvmTestStateResolver,
+            scope: TvmStepScopeManager,
+            ptr: ParsingState,
+        ): ValueOrDeadScope<Pair<UHeapRef?, UHeapRef>> {
+            val bodyBit =
+                sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                    ?: return scopeDied
+
+            val bodyBitIsInlined = bodyBit eq zeroValue
+
+            val (bodyCellOriginal, bodyCell) =
+                if (resolver.eval(bodyBitIsInlined).isFalse) {
+                    scope.assert(bodyBitIsInlined.not())
+                        ?: return scopeDied
+
+                    sliceLoadRefTransaction(scope, ptr.slice)
+                        ?.unwrap(ptr)
+                        ?.let { it to it }
+                        ?: return scopeDied
+                } else {
+                    scope.assert(bodyBitIsInlined)
+                        ?: return scopeDied
+
+                    val bodyBuilder = scope.calcOnState { allocEmptyBuilder() }
+                    builderStoreSliceTransaction(scope, bodyBuilder, ptr.slice)
+                        ?: return scopeDied
+                    val newBody = scope.builderToCell(bodyBuilder)
+
+                    null to newBody
+                }
+            return (bodyCellOriginal to bodyCell).ok()
+        }
+
+        private fun TvmContext.loadStateInit(
+            resolver: TvmTestStateResolver,
+            scope: TvmStepScopeManager,
+            ptr: ParsingState,
+        ): ValueOrDeadScope<UHeapRef?> {
+            val stateInitBit =
+                sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                    ?: return scopeDied
+            val stateInitIsMissing = stateInitBit eq zeroValue
+
+            val stateInitRef =
+                if (resolver.eval(stateInitIsMissing).isTrue) {
+                    scope.assert(stateInitIsMissing)
+                        ?: return scopeDied
+
+                    null
+                } else {
+                    scope.assert(stateInitIsMissing.not())
+                        ?: return scopeDied
+
+                    val stateInitInlineBit =
+                        sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                            ?: return scopeDied
+
+                    val stateInitIsInlined = stateInitInlineBit eq zeroValue
+
+                    if (resolver.eval(stateInitIsInlined).isFalse) {
+                        scope.assert(stateInitIsInlined.not())
+                            ?: return scopeDied
+
+                        sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
+                            ?: return scopeDied
+                    } else {
+                        scope.assert(stateInitIsInlined)
+                            ?: return scopeDied
+
+                        // fixed_prefix_length:(Maybe (## 5)) special:(Maybe TickTock)
+                        val stateInitPrefix =
+                            sliceLoadIntTransaction(scope, ptr.slice, 2)?.unwrap(ptr)
+                                ?: return scopeDied
+                        scope.assert(stateInitPrefix eq zeroValue)
+                            ?: return scopeDied
+
+                        // code:(Maybe ^Cell)
+                        loadMaybeRef(scope, ptr, resolver)
+                            ?: return scopeDied
+
+                        // code:(Maybe ^Cell)
+                        loadMaybeRef(scope, ptr, resolver)
+                            ?: return scopeDied
+
+                        // library:(Maybe ^Cell)
+                        loadMaybeRef(scope, ptr, resolver)
+                            ?: return scopeDied
+
+                        null
+                    }
+                }
+            return Ok(stateInitRef)
+        }
 
         private fun loadMaybeRef(
             scope: TvmStepScopeManager,

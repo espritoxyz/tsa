@@ -153,8 +153,7 @@ class RecvInternalInput(
                     tail = Tail.Explicit(bodySlice = msgBodySliceMaybeBounced),
                 )
 
-            val ref = tlbMessageContent.constructMessageCellFromContent(state).fullMsgCell
-            return@with ref
+            return@with tlbMessageContent.constructMessageCellFromContent(state).fullMsgCell
         }
 
     private fun generateFlagsStruct(ctx: TvmContext): Flags =

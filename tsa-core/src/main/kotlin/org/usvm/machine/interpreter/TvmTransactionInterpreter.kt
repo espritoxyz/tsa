@@ -59,10 +59,33 @@ private typealias MutableTransformation =
 class TvmTransactionInterpreter(
     val ctx: TvmContext,
 ) {
-    data class ParsedMessageWithResolvedReceiver(
-        val receiver: ContractId?,
-        val outMessage: MessageActionParseResult,
-    )
+    sealed interface ParsedMessageWithResolvedReceiver {
+        val receiver: ContractId?
+        val outMessage: MessageActionParseResult
+
+        companion object {
+            fun construct(
+                receiver: ContractId?,
+                outMessage: MessageActionParseResult,
+            ): ParsedMessageWithResolvedReceiver =
+                if (receiver == null) {
+                    ParsedMessageWithResolvedNullReceiver(outMessage)
+                } else {
+                    ParsedMessageWithResolvedNonnullReceiver(receiver, outMessage)
+                }
+        }
+    }
+
+    data class ParsedMessageWithResolvedNullReceiver(
+        override val outMessage: MessageActionParseResult,
+    ) : ParsedMessageWithResolvedReceiver {
+        override val receiver: ContractId? = null
+    }
+
+    data class ParsedMessageWithResolvedNonnullReceiver(
+        override val receiver: ContractId,
+        override val outMessage: MessageActionParseResult,
+    ) : ParsedMessageWithResolvedReceiver
 
     /**
      * @property parsedOrderedMessages are ordered in the same way they were in the action list
@@ -70,25 +93,9 @@ class TvmTransactionInterpreter(
     class ActionsParsingResult(
         val parsedOrderedMessages: List<ParsedMessageWithResolvedReceiver>,
     ) {
-        val unprocessedMessages: List<MessageActionParseResult>
+        val messagesForQueue: List<ParsedMessageWithResolvedNonnullReceiver>
             get() =
-                parsedOrderedMessages.mapNotNull { (contractId, outMessage) ->
-                    if (contractId == null) {
-                        outMessage
-                    } else {
-                        null
-                    }
-                }
-
-        val messagesForQueue: List<Pair<ContractId, MessageActionParseResult>>
-            get() =
-                parsedOrderedMessages.mapNotNull { (contractId, outMessage) ->
-                    contractId?.let { it to outMessage }
-                }
-
-        operator fun component1(): List<MessageActionParseResult> = unprocessedMessages
-
-        operator fun component2(): List<Pair<ContractId, MessageActionParseResult>> = messagesForQueue
+                parsedOrderedMessages.filterIsInstance<ParsedMessageWithResolvedNonnullReceiver>()
     }
 
     sealed interface MessageHandlingState {
@@ -200,17 +207,20 @@ class TvmTransactionInterpreter(
         val compatibleRestActions: TvmStepScopeManager.(MessageHandlingState) -> Unit = {
             val arg =
                 when (it) {
-                    is MessageHandlingState.RealFailure ->
+                    is MessageHandlingState.RealFailure -> {
                         ActionHandlingResult.RealFailure(it.exit)
+                    }
 
-                    is MessageHandlingState.SoftFailure ->
+                    is MessageHandlingState.SoftFailure -> {
                         ActionHandlingResult.SoftFailure(it.exit)
+                    }
 
-                    is MessageHandlingState.Ok ->
+                    is MessageHandlingState.Ok -> {
                         ActionHandlingResult.Success(
                             it.remainingBalance,
                             it.sentMessages,
                         )
+                    }
                 }
             this.restActions(arg)
         }
@@ -252,7 +262,10 @@ class TvmTransactionInterpreter(
     ): ParsedMessageWithResolvedReceiver {
         val oldContent = outMessage.content
         val content = oldContent.copy(commonMessageInfo = oldContent.commonMessageInfo.copy(msgValue = messageValue))
-        return copy(outMessage = outMessage.copy(content = content))
+        return when (this) {
+            is ParsedMessageWithResolvedNonnullReceiver -> copy(outMessage = outMessage.copy(content = content))
+            is ParsedMessageWithResolvedNullReceiver -> copy(outMessage = outMessage.copy(content = content))
+        }
     }
 
     /**
@@ -455,7 +468,6 @@ class TvmTransactionInterpreter(
             scope.calcOnState {
                 with(ctx) { makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort) }
             }
-//        val fwdFeeSymbolic = with(ctx) { 400000.toBv257() }
         val fwdFeeInfo =
             FwdFeeInfo(
                 fwdFeeSymbolic,
@@ -512,7 +524,7 @@ class TvmTransactionInterpreter(
         }
 
         if (!ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-            return ActionsParsingResult(messages.map { ParsedMessageWithResolvedReceiver(null, it) }).let {
+            return ActionsParsingResult(messages.map { ParsedMessageWithResolvedNullReceiver(it) }).let {
                 scope.restActions(it)
             }
         }
@@ -542,7 +554,7 @@ class TvmTransactionInterpreter(
         status ?: return
 
         if (handler == null) {
-            return ActionsParsingResult(messages.map { ParsedMessageWithResolvedReceiver(null, it) }).let {
+            return ActionsParsingResult(messages.map { ParsedMessageWithResolvedNullReceiver(it) }).let {
                 scope.restActions(it)
             }
         }
@@ -557,7 +569,7 @@ class TvmTransactionInterpreter(
                 val messagesForQueue =
                     handler.destinations
                         .zip(messages)
-                        .map { (receiver, message) -> ParsedMessageWithResolvedReceiver(receiver, message) }
+                        .map { (receiver, message) -> ParsedMessageWithResolvedNonnullReceiver(receiver, message) }
                 ActionsParsingResult(messagesForQueue).let { scope.restActions(it) }
             }
 
@@ -584,7 +596,9 @@ class TvmTransactionInterpreter(
                 val actions =
                     combinations.map { destinations ->
                         val parsedMessages =
-                            destinations.zip(messages) { dest, msg -> ParsedMessageWithResolvedReceiver(dest, msg) }
+                            destinations.zip(messages) { dest, msg ->
+                                ParsedMessageWithResolvedReceiver.construct(dest, msg)
+                            }
 
                         TvmStepScopeManager.ActionOnCondition(
                             caseIsExceptional = false,
@@ -605,7 +619,7 @@ class TvmTransactionInterpreter(
 
     private fun assertCorrectAddresses(
         scope: TvmStepScopeManager,
-        newMessagesForQueue: List<Pair<ContractId, MessageActionParseResult>>,
+        newMessagesForQueue: List<ParsedMessageWithResolvedNonnullReceiver>,
     ): Unit? =
         with(scope.ctx) {
             val constraint =
@@ -806,7 +820,7 @@ class TvmTransactionInterpreter(
         makeCellToSliceNoFork(scope, msg, msgSlice) // for further TL-B readings
 
         val ptr = ParsingState(msgSlice)
-        val (messageContentActual) =
+        val messageContentActual =
             parseMessageInfo(scope, ptr, resolver)
                 ?: return null
 
@@ -832,15 +846,11 @@ class TvmTransactionInterpreter(
         )
     }
 
-    private data class MessageInfo(
-        val messageContent: TlbInternalMessageContent,
-    )
-
     private fun parseMessageInfo(
         scope: TvmStepScopeManager,
         ptr: ParsingState,
         resolver: TvmTestStateResolver,
-    ): MessageInfo? =
+    ): TlbInternalMessageContent? =
         with(ctx) {
             val tag =
                 sliceLoadIntTransaction(scope, ptr.slice, 1)?.second
@@ -852,7 +862,7 @@ class TvmTransactionInterpreter(
                 TlbInternalMessageContent.extractFromSlice(scope, ptr, resolver)
                     ?: return@with null
 
-            return MessageInfo(messageContent)
+            return messageContent
         }
 
     private fun visitReserveAction() {

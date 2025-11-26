@@ -5,6 +5,9 @@ import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.messages.TlbInternalMessageContent
 
+/**
+ * Represents a message that is already sent into the blockchain, but not necessarily yet received by some contract
+ */
 data class DispatchedMessage(
     val receiver: ContractId?,
     val content: TlbInternalMessageContent,
@@ -13,7 +16,7 @@ data class DispatchedMessage(
 interface ActionHandlingResult {
     data class Success(
         val balanceLeft: Int257Expr,
-        val messagesSent: List<DispatchedMessage>,
+        val messagesDispatched: List<DispatchedMessage>,
     ) : ActionHandlingResult
 
     data class RealFailure(

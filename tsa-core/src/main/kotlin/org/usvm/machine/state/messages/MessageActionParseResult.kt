@@ -29,14 +29,12 @@ data class MessageActionParseResult(
  * was extracted from the sent message; in tsa, the receiver is resolved via contract id match in
  * communication scheme and not by an actual address, which means, that [destAddrSlice] is not
  * necessarily equal to the corresponding c7 parameter of the destination contract.
- * @param fwdFeeFull represents a full forward fee (must be multiplied by 2/3 before being put into the actual message)
  */
 data class MessageAsStackArguments(
     val msgValue: Int257Expr,
     val fullMsgCell: UHeapRef,
     val msgBodySlice: UHeapRef,
     val destAddrSlice: UHeapRef,
-    val fwdFeeFull: Int257Expr,
     val source: MessageSource, // for debugging
 )
 

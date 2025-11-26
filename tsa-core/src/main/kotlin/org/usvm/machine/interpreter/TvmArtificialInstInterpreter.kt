@@ -507,7 +507,6 @@ class TvmArtificialInstInterpreter(
                 msgBodySlice = constructedMsgCells.msgBodySlice,
                 destAddrSlice = dstAddressSlice,
                 source = MessageSource.Bounced,
-                fwdFeeFull = ctx.zeroValue,
             )
         }
     }
@@ -658,7 +657,7 @@ class TvmArtificialInstInterpreter(
                         this.calcOnState { registerActionPhaseEffect(actionsHandlingResult) }
                         this.restActions(
                             TvmResult.TvmActionPhaseSuccess(computePhaseResult),
-                            actionsHandlingResult.messagesSent,
+                            actionsHandlingResult.messagesDispatched,
                         )
                     }
 
@@ -692,7 +691,7 @@ class TvmArtificialInstInterpreter(
 
     private fun TvmState.registerActionPhaseEffect(finalMessageHandlingState: ActionHandlingResult.Success) {
         setBalance(finalMessageHandlingState.balanceLeft)
-        val messagesSent = finalMessageHandlingState.messagesSent
+        val messagesSent = finalMessageHandlingState.messagesDispatched
         val messagesWithDestinations =
             messagesSent.mapNotNull { (receiverOrNull, messageContent) ->
                 receiverOrNull?.let { receiver ->

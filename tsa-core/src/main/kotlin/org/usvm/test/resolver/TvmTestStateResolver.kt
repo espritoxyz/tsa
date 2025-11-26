@@ -315,24 +315,27 @@ class TvmTestStateResolver(
 
     fun resolveReceivedMessage(message: ReceivedMessage): TvmTestInput.ReceivedTestMessage =
         when (message) {
-            is ReceivedMessage.InputMessage ->
+            is ReceivedMessage.InputMessage -> {
                 TvmTestInput.ReceivedTestMessage.InputMessage(
                     when (val it = message.input) {
                         is RecvExternalInput -> resolveRecvExternalInput(it)
                         is RecvInternalInput -> resolveRecvInternalInput(it)
                     },
                 )
+            }
 
-            is ReceivedMessage.MessageFromOtherContract ->
+            is ReceivedMessage.MessageFromOtherContract -> {
                 TvmTestInput.ReceivedTestMessage.MessageFromOtherContract(
                     message.sender,
                     message.receiver,
                     resolveOutMessage(message.message),
                 )
+            }
         }
 
     fun resolveOutMessages(): List<Pair<ContractId, TvmTestMessage>> =
         state.unprocessedMessages.map { (contractId, message) ->
+            // workaround to support the resolving of the message even in failed states
             val oldIsExceptional = state.isExceptional
             state.isExceptional = false
             val result = contractId to resolveOutMessage(message.toStackArgs(state))
@@ -356,29 +359,39 @@ class TvmTestStateResolver(
     ): TvmExecutionWithStructuralError {
         val resolvedExit =
             when (val structuralExit = exit.exit) {
-                is TvmUnexpectedDataReading ->
+                is TvmUnexpectedDataReading -> {
                     TvmUnexpectedDataReading(
                         resolveCellDataType(structuralExit.readingType),
                     )
+                }
 
-                is TvmReadingOfUnexpectedType ->
+                is TvmReadingOfUnexpectedType -> {
                     TvmReadingOfUnexpectedType(
                         expectedLabel = resolveBuiltinLabel(structuralExit.expectedLabel, structuralExit.typeArgs),
                         typeArgs = emptyList(),
                         actualType = resolveCellDataType(structuralExit.actualType),
                     )
+                }
 
-                is TvmUnexpectedEndOfReading -> TvmUnexpectedEndOfReading
-                is TvmUnexpectedRefReading -> TvmUnexpectedRefReading
-                is TvmReadingOutOfSwitchBounds ->
+                is TvmUnexpectedEndOfReading -> {
+                    TvmUnexpectedEndOfReading
+                }
+
+                is TvmUnexpectedRefReading -> {
+                    TvmUnexpectedRefReading
+                }
+
+                is TvmReadingOutOfSwitchBounds -> {
                     TvmReadingOutOfSwitchBounds(
                         resolveCellDataType(structuralExit.readingType),
                     )
+                }
 
-                is TvmReadingSwitchWithUnexpectedType ->
+                is TvmReadingSwitchWithUnexpectedType -> {
                     TvmReadingSwitchWithUnexpectedType(
                         resolveCellDataType(structuralExit.readingType),
                     )
+                }
             }
         return TvmExecutionWithStructuralError(lastStmt, resolvedExit)
     }
@@ -411,27 +424,41 @@ class TvmTestStateResolver(
 
     private fun resolveStackValue(stackValue: TvmStackValue): TvmTestValue =
         when (stackValue) {
-            is TvmStack.TvmStackIntValue -> resolveInt257(stackValue.intValue)
-            is TvmStack.TvmStackCellValue ->
+            is TvmStack.TvmStackIntValue -> {
+                resolveInt257(stackValue.intValue)
+            }
+
+            is TvmStack.TvmStackCellValue -> {
                 resolveCell(
                     stackValue.cellValue.also { state.ensureSymbolicCellInitialized(it) },
                 )
+            }
 
-            is TvmStack.TvmStackSliceValue ->
+            is TvmStack.TvmStackSliceValue -> {
                 resolveSlice(
                     stackValue.sliceValue.also { state.ensureSymbolicSliceInitialized(it) },
                 )
+            }
 
-            is TvmStack.TvmStackBuilderValue ->
+            is TvmStack.TvmStackBuilderValue -> {
                 resolveBuilder(
                     stackValue.builderValue.also {
                         state.ensureSymbolicBuilderInitialized(it)
                     },
                 )
+            }
 
-            is TvmStack.TvmStackNullValue -> TvmTestNullValue
-            is TvmStack.TvmStackContinuationValue -> TODO()
-            is TvmStackTupleValue -> resolveTuple(stackValue)
+            is TvmStack.TvmStackNullValue -> {
+                TvmTestNullValue
+            }
+
+            is TvmStack.TvmStackContinuationValue -> {
+                TODO()
+            }
+
+            is TvmStackTupleValue -> {
+                resolveTuple(stackValue)
+            }
         }
 
     fun resolveRef(ref: UHeapRef): TvmTestReferenceValue {
@@ -690,6 +717,7 @@ class TvmTestStateResolver(
                 }
 
                 is TvmRefsMemoryRegion.TvmRefsRegionEmptyUpdateNode -> {}
+
                 is TvmRefsMemoryRegion.TvmRefsRegionCopyUpdateNode -> {
                     val guardValue = evaluateInModel(updateNode.guard)
                     if (guardValue.isTrue) {
@@ -730,17 +758,29 @@ class TvmTestStateResolver(
 
     private fun resolveCellDataType(type: TvmCellDataTypeRead<*>): TvmTestCellDataTypeRead =
         when (type) {
-            is TvmCellDataIntegerRead ->
+            is TvmCellDataIntegerRead -> {
                 TvmTestCellDataIntegerRead(
                     resolveInt(type.sizeBits),
                     type.isSigned,
                     type.endian,
                 )
+            }
 
-            is TvmCellMaybeConstructorBitRead -> TvmTestCellDataMaybeConstructorBitRead
-            is TvmCellDataBitArrayRead -> TvmTestCellDataBitArrayRead(resolveInt(type.sizeBits))
-            is TvmCellDataMsgAddrRead -> TvmTestCellDataMsgAddrRead
-            is TvmCellDataCoinsRead -> TvmTestCellDataCoinsRead
+            is TvmCellMaybeConstructorBitRead -> {
+                TvmTestCellDataMaybeConstructorBitRead
+            }
+
+            is TvmCellDataBitArrayRead -> {
+                TvmTestCellDataBitArrayRead(resolveInt(type.sizeBits))
+            }
+
+            is TvmCellDataMsgAddrRead -> {
+                TvmTestCellDataMsgAddrRead
+            }
+
+            is TvmCellDataCoinsRead -> {
+                TvmTestCellDataCoinsRead
+            }
         }
 
     fun resolveInt257(expr: UExpr<out USort>): TvmTestIntegerValue {
