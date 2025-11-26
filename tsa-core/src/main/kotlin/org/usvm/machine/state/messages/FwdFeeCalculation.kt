@@ -3,6 +3,7 @@ package org.usvm.machine.state.messages
 import org.ton.cell.Cell
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.state.BIT_PRICE
 import org.usvm.machine.state.CELL_PRICE
@@ -36,15 +37,11 @@ fun calculateConcreteForwardFee(
     val uniqueCells = calculateNumberOfUniqueCells(cells)
 
     val fullFwdFee = LUMP_PRICE + (bits * BIT_PRICE + uniqueCells * CELL_PRICE + (1 shl 16) - 1) / (1 shl 16)
-    return calculateTwoThirdLikeInTVM(fullFwdFee)
+    return fullFwdFee
 }
 
-private fun calculateTwoThirdLikeInTVM(value: Long): Long {
-    check(value >= 0) {
-        "Cannot perform this operation for negative integer"
-    }
-    return value - ((value * FIRST_FRAC) shr 16)
-}
+internal fun TvmContext.calculateTwoThirdLikeInTVM(value: Int257Expr): Int257Expr =
+    value bvSub mkBvLogicalShiftRightExpr((value bvMul FIRST_FRAC.toBv257()), 16.toBv257())
 
 private fun calculateNumberOfBitsInUniqueCells(cells: List<Cell>): Int {
     val hashes = hashSetOf<String>()

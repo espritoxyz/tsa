@@ -14,12 +14,17 @@ object MessageMode {
 }
 
 data class MessageActionParseResult(
-    val content: MessageAsStackArguments,
+    val content: TlbInternalMessageContent,
     val sendMessageMode: Int257Expr,
 )
 
 /**
- * represents the arguments that are used in `recv_internal_message` / `recv_external_message`
+ * represents the arguments that are used in `recv_internal_message` / `recv_external_message`.
+ *
+ * WARNING! Do not use it until the message is not supposed to be changed later!
+ * The structure assumes that [fullMsgCell] contains the mentioned data (e.g. [msgValue]),
+ * and the class will become inconsistent if you only change one thing.
+ *
  * @param destAddrSlice is  an exception to the rule above and contains a destination address that
  * was extracted from the sent message; in tsa, the receiver is resolved via contract id match in
  * communication scheme and not by an actual address, which means, that [destAddrSlice] is not
@@ -30,7 +35,6 @@ data class MessageAsStackArguments(
     val fullMsgCell: UHeapRef,
     val msgBodySlice: UHeapRef,
     val destAddrSlice: UHeapRef,
-    val fwdFee: Int257Expr,
     val source: MessageSource, // for debugging
 )
 
