@@ -232,6 +232,17 @@ data class TvmOutOfGas(
         "TVM out of gas error (exit code: $exitCode): gas consumed: $consumedGas, limit: $gasLimit"
 }
 
+data class IncompatibleMessageModes(
+    val contractId: ContractId,
+) : TvmErrorExit {
+    override val exitCode: Int = 34
+    override val ruleName: String = "incompatible-message-modes"
+
+    override fun toString(): String =
+        "TVM message sent by contract $contractId contains incompatible message mode flags " +
+            "(SendRemainingValue and SendRemainingBalance)"
+}
+
 data class InsufficientFunds(
     val contractId: ContractId,
 ) : TvmErrorExit {
