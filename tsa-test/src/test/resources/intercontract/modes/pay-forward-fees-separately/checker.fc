@@ -1,0 +1,52 @@
+#include "../../../imports/stdlib.fc";
+#include "../../../imports/tsa_functions.fc";
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    tsa_forbid_failures();
+    
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    tsa_assert_not(flags & 1);
+
+    tsa_assert(msg_value == 2000000000); ;; 2 Ton as a message value
+    int sender_balance = tsa_get_balance(1);
+    tsa_assert(sender_balance == 1000000000 + msg_value); ;; 1 Ton as account's balance
+
+    int op = msg_body~load_uint(32);
+    tsa_assert(op == input_id);
+    tsa_allow_failures();
+}
+
+() on_out_message(cell msg_full, slice msg_body, int receiver_contract_id, int sender_contract_id) impure method_id {
+    throw_if(3000, sender_contract_id != 1);
+    throw_if(3001, receiver_contract_id != 2);
+
+    ;; load value
+    slice cs = msg_full.begin_parse();
+    cs~skip_bits(4); ;; message headers
+    cs~load_msg_addr(); ;; src address
+    cs~load_msg_addr(); ;; dest address
+    int value = cs~load_grams(); ;; value
+
+    ;; get sender's balance after sending the message
+    int sender_balance = tsa_get_balance(1);
+
+    ;; load op code
+    int op = msg_body~load_uint(32);
+    if (op == 100) {
+        throw_if(201, value != 1000000000);
+        throw_if(2010, sender_balance != 1000000000 + 2000000000 - 1000000000 - 400000);
+    } elseif (op == 200) {
+        throw_if(202, value != 3000000000 - 400000);
+        throw_if(2020, sender_balance != 0);
+    } elseif (op == 300) {
+        throw_if(203, value != 2500000000);
+        throw_if(2030, sender_balance != 1000000000 + 2000000000 - 2000000000 - 500000000 - 400000);
+    }
+} 
+
+() main() impure {
+    int sent_opcode = get_data().begin_parse().preload_int(64);
+    tsa_send_internal_message(1, sent_opcode);
+    throw(10000); ;; success
+}
