@@ -1,0 +1,90 @@
+#include "../../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+
+    int op = msg_body~load_uint(32);
+    ;; in all outgoing messages below fwd_fee is lump_price = 400000 nanoTons
+    if (op == 100) {
+        ;; send all balance, the indicated value in outgoing should be reset to remaining balance - fwd_fee
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op, 32)
+        .end_cell();
+
+        ;; 128 == SendRemainingBalance
+        send_raw_message(msg, 128);
+    } elseif (op == 200) {
+        ;; if the mode 128 + 1 is used, then +1 should be ignored and the behavior should be as in the above case
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op, 32)
+        .end_cell();
+        
+        ;; +1 == SendPayFwdFeesSeparately
+        send_raw_message(msg, 128 + 1);  
+    } elseif (op == 300) {
+        ;; send first regular message and then message with remaining balance
+        cell msg1 = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(1, 32) ;; some op code
+        .end_cell();
+        
+        cell msg2 = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op, 32)
+        .end_cell();
+
+        ;; some message with coins
+        send_raw_message(msg1, 0);
+
+        ;; message carrying the remaining balance
+        send_raw_message(msg2, 128);
+    } elseif (op == 400) {
+        ;; Simultaneous usage of send modes SendRemainingValue and SendRemainingBalance leads to error 34
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op, 32)
+        .end_cell();
+
+        ;; SendRemainingValue + SendRemainingBalance
+        send_raw_message(msg, 64 + 128); 
+    } elseif (op == 500) {
+        ;; sending first regular message with remaining balance and then another message with some value should lead to error 37
+        cell msg1 = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(1, 32) ;; some op code
+        .end_cell();
+        
+        cell msg2 = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op, 32)
+        .end_cell();
+
+        ;; some message with coins
+        send_raw_message(msg2, 128);
+
+        ;; message carrying the remaining balance
+        send_raw_message(msg1, 0);
+    }
+}

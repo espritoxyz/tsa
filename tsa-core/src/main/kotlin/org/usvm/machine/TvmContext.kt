@@ -46,8 +46,6 @@ import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.UIteExpr
 import org.usvm.isTrue
-import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellOverflowError
 import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDictError
@@ -161,8 +159,6 @@ class TvmContext(
     }
 
     val throwRealDictError: (TvmState) -> Unit = setFailure(TvmDictError, TvmFailureType.RealError)
-
-    fun throwInsufficientFunds(contractId: ContractId): (TvmState) -> Unit = setFailure(InsufficientFunds(contractId))
 
     val sendMsgActionTag = mkBvHex("0ec3c86d", 32u)
     val reserveActionTag = mkBvHex("36e6b809", 32u)

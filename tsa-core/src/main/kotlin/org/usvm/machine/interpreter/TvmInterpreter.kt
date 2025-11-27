@@ -743,12 +743,29 @@ class TvmInterpreter(
                 // Do nothing
             }
 
-            is TvmStackBasicPopInst -> doPop(scope, stmt.i)
-            is TvmStackBasicPushInst -> doPush(scope, stmt.i)
-            is TvmStackBasicXchg0iInst -> doXchg(scope, stmt.i, 0)
-            is TvmStackBasicXchgIjInst -> doXchg(scope, stmt.i, stmt.j)
-            is TvmStackBasicXchg1iInst -> doXchg(scope, stmt.i, 1)
-            is TvmStackBasicXchg0iLongInst -> doXchg(scope, stmt.i, 0)
+            is TvmStackBasicPopInst -> {
+                doPop(scope, stmt.i)
+            }
+
+            is TvmStackBasicPushInst -> {
+                doPush(scope, stmt.i)
+            }
+
+            is TvmStackBasicXchg0iInst -> {
+                doXchg(scope, stmt.i, 0)
+            }
+
+            is TvmStackBasicXchgIjInst -> {
+                doXchg(scope, stmt.i, stmt.j)
+            }
+
+            is TvmStackBasicXchg1iInst -> {
+                doXchg(scope, stmt.i, 1)
+            }
+
+            is TvmStackBasicXchg0iLongInst -> {
+                doXchg(scope, stmt.i, 0)
+            }
         }
 
         scope.doWithState {
@@ -824,6 +841,7 @@ class TvmInterpreter(
                 }
 
             is TvmStackComplexPopLongInst -> doPop(scope, stmt.i)
+
             is TvmStackComplexPush2Inst ->
                 scope.doWithState {
                     stack.push(stmt.i)
@@ -838,6 +856,7 @@ class TvmInterpreter(
                 }
 
             is TvmStackComplexPushLongInst -> doPush(scope, stmt.i)
+
             is TvmStackComplexXchg2Inst ->
                 scope.doWithState {
                     stack.doXchg2(stmt.i, stmt.j)
@@ -964,8 +983,11 @@ class TvmInterpreter(
                 }
 
             is TvmStackComplexDepthInst -> TODO("Cannot implement stack depth yet (TvmStackComplexDepthInst)")
+
             is TvmStackComplexChkdepthInst -> TODO("Cannot implement stack depth yet (TvmStackComplexChkdepthInst)")
+
             is TvmStackComplexOnlytopxInst -> TODO("??")
+
             is TvmStackComplexOnlyxInst -> TODO("??")
         }
 
@@ -995,10 +1017,22 @@ class TvmInterpreter(
                     x.toBv257()
                 }
 
-                is TvmConstIntPushint8Inst -> x.toBv257()
-                is TvmConstIntPushint16Inst -> x.toBv257()
-                is TvmConstIntPushintLongInst -> BigInteger(x).toBv257()
-                is TvmConstIntPushnanInst -> TODO("NaN value")
+                is TvmConstIntPushint8Inst -> {
+                    x.toBv257()
+                }
+
+                is TvmConstIntPushint16Inst -> {
+                    x.toBv257()
+                }
+
+                is TvmConstIntPushintLongInst -> {
+                    BigInteger(x).toBv257()
+                }
+
+                is TvmConstIntPushnanInst -> {
+                    TODO("NaN value")
+                }
+
                 is TvmConstIntPushpow2Inst -> {
                     check(x in 0..255) { "Unexpected power $x" }
 
@@ -1102,7 +1136,9 @@ class TvmInterpreter(
                 scope.consumeDefaultGas(stmt)
             }
 
-            else -> TODO("$stmt")
+            else -> {
+                TODO("$stmt")
+            }
         }
     }
 
@@ -1600,101 +1636,118 @@ class TvmInterpreter(
         scope.consumeDefaultGas(stmt)
 
         when (stmt) {
-            is TvmCompareIntEqintInst ->
+            is TvmCompareIntEqintInst -> {
                 scope.doWithState {
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val y = stmt.y.toBv257()
                     val expr = x eq y
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntNeqintInst ->
+            is TvmCompareIntNeqintInst -> {
                 scope.doWithState {
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val y = stmt.y.toBv257()
                     val expr = (x eq y).not()
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntGtintInst ->
+            is TvmCompareIntGtintInst -> {
                 scope.doWithState {
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val y = stmt.y.toBv257()
                     val expr = mkBvSignedGreaterExpr(x, y)
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntLessintInst ->
+            is TvmCompareIntLessintInst -> {
                 scope.doWithState {
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val y = stmt.y.toBv257()
                     val expr = mkBvSignedLessExpr(x, y)
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntEqualInst ->
+            is TvmCompareIntEqualInst -> {
                 scope.doWithState {
                     val y = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val expr = x eq y
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntNeqInst ->
+            is TvmCompareIntNeqInst -> {
                 scope.doWithState {
                     val y = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val expr = (x eq y).not()
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntGreaterInst ->
+            is TvmCompareIntGreaterInst -> {
                 scope.doWithState {
                     val y = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val expr = mkBvSignedGreaterExpr(x, y)
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntGeqInst ->
+            is TvmCompareIntGeqInst -> {
                 scope.doWithState {
                     val y = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val expr = mkBvSignedGreaterOrEqualExpr(x, y)
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntLessInst ->
+            is TvmCompareIntLessInst -> {
                 scope.doWithState {
                     val y = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val expr = mkBvSignedLessExpr(x, y)
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntLeqInst ->
+            is TvmCompareIntLeqInst -> {
                 scope.doWithState {
                     val y = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val expr = mkBvSignedLessOrEqualExpr(x, y)
                     putBooleanAndToNewStmt(stmt, expr)
                 }
+            }
 
-            is TvmCompareIntCmpInst ->
+            is TvmCompareIntCmpInst -> {
                 scope.doWithState {
                     val y = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     doCmp(stmt, x, y)
                 }
+            }
 
-            is TvmCompareIntSgnInst ->
+            is TvmCompareIntSgnInst -> {
                 scope.doWithState {
                     val x = takeLastIntOrThrowTypeError() ?: return@doWithState
                     doCmp(stmt, x, zeroValue)
                 }
+            }
 
-            is TvmCompareIntChknanInst -> TODO()
-            is TvmCompareIntIsnanInst -> TODO()
+            is TvmCompareIntChknanInst -> {
+                TODO()
+            }
+
+            is TvmCompareIntIsnanInst -> {
+                TODO()
+            }
         }
     }
 
@@ -1725,7 +1778,10 @@ class TvmInterpreter(
         stmt: TvmCompareOtherInst,
     ) = with(ctx) {
         when (stmt) {
-            is TvmCompareOtherSdeqInst -> visitSliceDataEqInst(scope, stmt)
+            is TvmCompareOtherSdeqInst -> {
+                visitSliceDataEqInst(scope, stmt)
+            }
+
             is TvmCompareOtherSdemptyInst -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -1825,7 +1881,9 @@ class TvmInterpreter(
                 }
             }
 
-            else -> TODO("$stmt")
+            else -> {
+                TODO("$stmt")
+            }
         }
     }
 
@@ -1857,10 +1915,22 @@ class TvmInterpreter(
         stmt: TvmContRegistersInst,
     ) {
         when (stmt) {
-            is TvmContRegistersPushctrInst -> visitTvmPushCtrInst(scope, stmt)
-            is TvmContRegistersPopctrInst -> visitTvmPopCtrInst(scope, stmt)
-            is TvmContRegistersSetcontctrInst -> visitSetContCtr(scope, stmt)
-            is TvmContRegistersSaveInst -> visitSaveInst(scope, stmt)
+            is TvmContRegistersPushctrInst -> {
+                visitTvmPushCtrInst(scope, stmt)
+            }
+
+            is TvmContRegistersPopctrInst -> {
+                visitTvmPopCtrInst(scope, stmt)
+            }
+
+            is TvmContRegistersSetcontctrInst -> {
+                visitSetContCtr(scope, stmt)
+            }
+
+            is TvmContRegistersSaveInst -> {
+                visitSaveInst(scope, stmt)
+            }
+
             is TvmContRegistersSamealtInst -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -1932,7 +2002,9 @@ class TvmInterpreter(
                 }
             }
 
-            else -> TODO("$stmt")
+            else -> {
+                TODO("$stmt")
+            }
         }
     }
 
@@ -1948,7 +2020,10 @@ class TvmInterpreter(
 
         val updatedC0 =
             when (registerIndex) {
-                0 -> c0.defineC0(c0)
+                0 -> {
+                    c0.defineC0(c0)
+                }
+
                 1 -> {
                     val c1 = registers.c1.value
                     c0.defineC1(c1)
@@ -1979,7 +2054,9 @@ class TvmInterpreter(
                     c0.defineC7(c7)
                 }
 
-                else -> TODO("Not yet implemented: $stmt")
+                else -> {
+                    TODO("Not yet implemented: $stmt")
+                }
             }
 
         registers.c0 = C0Register(updatedC0)
@@ -2056,7 +2133,9 @@ class TvmInterpreter(
                     cont.defineC7(tuple)
                 }
 
-                else -> TODO("Not yet implemented: $stmt")
+                else -> {
+                    TODO("Not yet implemented: $stmt")
+                }
             }
 
         stack.addContinuation(updatedCont)
@@ -2141,7 +2220,9 @@ class TvmInterpreter(
                 registers.c7 = C7Register(newC7)
             }
 
-            else -> TODO("Not yet implemented: $stmt")
+            else -> {
+                TODO("Not yet implemented: $stmt")
+            }
         }
 
         newStmt(stmt.nextStmt())
@@ -2207,7 +2288,9 @@ class TvmInterpreter(
                     newStmt(stmt.nextStmt())
                 }
 
-                else -> TODO("Not yet implemented: $stmt")
+                else -> {
+                    TODO("Not yet implemented: $stmt")
+                }
             }
         }
     }
@@ -2285,7 +2368,9 @@ class TvmInterpreter(
                 scope.jumpToContinuation(continuationValue)
             }
 
-            else -> TODO("$stmt")
+            else -> {
+                TODO("$stmt")
+            }
         }
     }
 
@@ -2603,7 +2688,9 @@ class TvmInterpreter(
                 }
             }
 
-            else -> TODO("Unknown stmt: $stmt")
+            else -> {
+                TODO("Unknown stmt: $stmt")
+            }
         }
     }
 
@@ -2698,7 +2785,9 @@ class TvmInterpreter(
                 scope.doWithState { newStmt(stmt.nextStmt()) }
             }
 
-            else -> TODO("$stmt")
+            else -> {
+                TODO("$stmt")
+            }
         }
     }
 
