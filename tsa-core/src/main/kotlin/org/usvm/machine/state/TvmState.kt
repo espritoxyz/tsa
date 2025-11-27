@@ -31,8 +31,9 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.state.messages.FwdFeeInfo
-import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.ReceivedMessage
+import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
 import org.usvm.machine.types.TvmRealReferenceType
@@ -74,7 +75,7 @@ class TvmState(
     var currentContract: ContractId,
     var fetchedValues: PersistentMap<Int, TvmStack.TvmStackEntry> = persistentMapOf(),
     var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
-    var unprocessedMessages: PersistentList<Pair<ContractId, MessageActionParseResult>> = persistentListOf(),
+    var unprocessedMessages: PersistentList<Pair<ContractId, TlbInternalMessageContent>> = persistentListOf(),
     // inter-contract fields
     var messageQueue: PersistentList<ReceivedMessage.MessageFromOtherContract> = persistentListOf(),
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
@@ -272,15 +273,25 @@ data class TvmContractExecutionMemory(
     val registers: TvmRegisters,
 )
 
+data class MemoryAccessInformation(
+    val inst: TvmInst,
+    val pseudoLogicalTime: Int,
+    val type: TvmCellDataTypeRead<*>,
+)
+
 class TvmStateDebugInfo(
     var numberOfDataEqualityConstraintsFromTlb: Int = 0,
     var dataConstraints: PersistentSet<UBoolExpr> = persistentSetOf(),
     var extractedTlbGrams: PersistentSet<UExpr<TvmContext.TvmInt257Sort>> = persistentSetOf(),
+    var tlbMemoryHits: PersistentList<MemoryAccessInformation> = persistentListOf(),
+    var tlbMemoryMisses: PersistentList<MemoryAccessInformation> = persistentListOf(),
 ) {
     fun clone() =
         TvmStateDebugInfo(
             numberOfDataEqualityConstraintsFromTlb,
             dataConstraints,
             extractedTlbGrams,
+            tlbMemoryHits,
+            tlbMemoryMisses,
         )
 }

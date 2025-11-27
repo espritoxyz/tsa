@@ -1,13 +1,12 @@
 package org.ton.bytecode
 
 import kotlinx.serialization.Serializable
+import org.usvm.machine.interpreter.DispatchedMessage
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
-import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
 import org.usvm.machine.state.TvmComputePhase
 import org.usvm.machine.state.TvmResult
-import org.usvm.machine.state.messages.MessageAsStackArguments
 
 sealed interface TsaArtificialInst : TvmArtificialInst
 
@@ -62,7 +61,7 @@ data class TsaArtificialOnOutMessageHandlerCallInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     val actionPhaseResult: TvmResult.TvmTerminalResult?,
     override val location: TvmInstLocation,
-    val sentMessages: List<SentMessage>,
+    val sentMessages: List<DispatchedMessage>,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "on_out_message_hack"
 
@@ -75,11 +74,6 @@ data class TsaArtificialOnOutMessageHandlerCallInst(
             "Unexpected actionPhaseResult in TsaArtificialOnOutMessageHandlerCallInst: $actionPhaseResult"
         }
     }
-
-    data class SentMessage(
-        val message: MessageAsStackArguments,
-        val receiver: ContractId?,
-    )
 }
 
 data class TsaArtificialOnComputePhaseExitInst(

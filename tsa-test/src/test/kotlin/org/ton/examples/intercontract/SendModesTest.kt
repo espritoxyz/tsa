@@ -3,6 +3,7 @@ package org.ton.examples.intercontract
 import org.ton.cell.CellBuilder
 import org.ton.cell.buildCell
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.executionCode
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
@@ -15,6 +16,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
+import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Ignore
 import kotlin.test.Test
@@ -25,6 +27,10 @@ class SendModesTest {
     private val remainingBalanceWithAnotherMessageContract =
         "/intercontract/modes/send_remaining_balance_with_another_message.fc"
     private val remainingBalanceChecker = "/intercontract/modes/remaining_balance.fc"
+    private val remainingBalanceNewSender = "/intercontract/modes/remaining-balance/sender.fc"
+    private val remainingBalanceNewChecker = "/intercontract/modes/remaining-balance/checker.fc"
+    private val remainingBalanceNewRecipient = "/intercontract/modes/remaining-balance/recipient.fc"
+    private val remainingBalanceNewCommunicationScheme = "/intercontract/modes/remaining-balance/inter-contract.json"
     private val remainingValueContract = "/intercontract/modes/send_remaining_value.fc"
     private val remainingValueOpcode500Contract = "/intercontract/modes/send_remaining_value_opcode_500.fc"
     private val remainingValueDoubleContract = "/intercontract/modes/send_remaining_value_double.fc"
@@ -43,6 +49,14 @@ class SendModesTest {
     private val sendRemainingValueRecipient = "/intercontract/modes/remaining-value/recipient.fc"
     private val sendRemainingValueCommunicationScheme =
         "/intercontract/modes/remaining-value/inter-contract.json"
+<<<<<<< HEAD
+=======
+    private val sendPayForwardFeesSeparatelyChecker = "/intercontract/modes/pay-forward-fees-separately/checker.fc"
+    private val sendPayForwardFeesSeparatelySender = "/intercontract/modes/pay-forward-fees-separately/sender.fc"
+    private val sendPayForwardFeesSeparatelyRecipient = "/intercontract/modes/pay-forward-fees-separately/recipient.fc"
+    private val sendPayForwardFeesSeparatelyCommunicationScheme =
+        "/intercontract/modes/pay-forward-fees-separately/inter-contract.json"
+>>>>>>> bb4dce9b8bc96ecdefb0da0848351d8a429e6295
 
     @Test
     fun sendRemainingBalanceTest() {
@@ -62,6 +76,75 @@ class SendModesTest {
         checkInvariants(
             tests,
             listOf { test -> test.exitCode() == 257 },
+        )
+    }
+
+    @Test
+    fun `SendRemainingBalance pure`() {
+        sendRemainingBalanceBaseTest(100, listOf(10000))
+    }
+
+    @Test
+    fun `SendRemainingBalance with PayForwardFeesSeparately`() {
+        sendRemainingBalanceBaseTest(200, listOf(10000))
+    }
+
+    @Test
+    fun `SendRemainingBalance after normal message`() {
+        sendRemainingBalanceBaseTest(300, listOf(10000))
+    }
+
+    @Test
+    fun `SendRemainingBalance plus SendRemainingValue`() {
+        sendRemainingBalanceBaseTest(400, listOf(34))
+    }
+
+    @Test
+    fun `normal message after SendRemainingBalance`() {
+        sendRemainingBalanceBaseTest(500, listOf(37))
+    }
+
+    private fun sendRemainingBalanceBaseTest(
+        opcode: Int,
+        expectedOpCodes: List<Int>,
+    ) {
+        val checkerContract = extractCheckerContractFromResource(remainingBalanceNewChecker)
+        val analyzedSender = extractFuncContractFromResource(remainingBalanceNewSender)
+        val analyzedReceiver = extractFuncContractFromResource(remainingBalanceNewRecipient)
+        val communicationScheme = extractCommunicationSchemeFromResource(remainingBalanceNewCommunicationScheme)
+
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedSender, analyzedReceiver),
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder.beginCell().storeInt(opcode, 64).endCell()),
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(),
+                    ),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        propertiesFound(
+            tests,
+            expectedOpCodes.map { expectedOpcode ->
+                { test: TvmSymbolicTest -> test.executionCode() == expectedOpcode }
+            },
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode !in 201..3001 },
         )
     }
 
@@ -133,6 +216,63 @@ class SendModesTest {
         propertiesFound(
             tests,
             listOf { test -> test.exitCode() == 257 },
+        )
+    }
+
+    @Test
+    fun sendPayForwardFeesSeparatelyPure() {
+        payForwardFeesSeparatelyBaseTest(100)
+    }
+
+    @Test
+    fun sendPayForwardFeesSeparatelyWithSendRemainingBalance() {
+        payForwardFeesSeparatelyBaseTest(200)
+    }
+
+    @Test
+    fun sendPayForwardFeesSeparatelyWithSendRemainingValue() {
+        payForwardFeesSeparatelyBaseTest(300)
+    }
+
+    private fun payForwardFeesSeparatelyBaseTest(opcode: Int) {
+        val checkerContract = extractCheckerContractFromResource(sendPayForwardFeesSeparatelyChecker)
+        val analyzedSender = extractFuncContractFromResource(sendPayForwardFeesSeparatelySender)
+        val analyzedReceiver = extractFuncContractFromResource(sendPayForwardFeesSeparatelyRecipient)
+        val communicationScheme =
+            extractCommunicationSchemeFromResource(sendPayForwardFeesSeparatelyCommunicationScheme)
+
+        val options =
+            TvmOptions(
+                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedSender, analyzedReceiver),
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder.beginCell().storeInt(opcode, 64).endCell()),
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(),
+                    ),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
+            ),
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode !in 201..3001 },
         )
     }
 

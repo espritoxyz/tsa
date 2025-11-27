@@ -127,31 +127,47 @@ data class ConstTlbStackFrame(
             result
         }
 
+    /**
+     * @param concreteOffset if `null` if the offset is not concrete
+     */
     private fun <ReadResult> TvmContext.extractReadSizeFromType(
         type: TvmCellDataTypeRead<ReadResult>,
         concreteOffset: Int?,
-    ): KExpr<TvmSizeSort>? {
-        val fourDataBits =
-            if (concreteOffset != null) {
+    ): KExpr<TvmSizeSort>? =
+        if (type is SizedCellDataTypeRead) {
+            type.sizeBits
+        } else if (type is TvmCellDataCoinsRead && concreteOffset != null) {
+            val fourDataBits =
                 data.substring(concreteOffset, min(concreteOffset + 4, data.length))
+            if (fourDataBits == "0000") {
+                // special case when reading const with coin read is possible
+                fourSizeExpr
             } else {
                 null
             }
-        return if (type is SizedCellDataTypeRead) {
-            type.sizeBits
-        } else if (type is TvmCellDataCoinsRead && concreteOffset != null && fourDataBits == "0000") {
-            // special case when reading const with coin read is possible
-            fourSizeExpr
-        } else if (type is TvmCellDataMsgAddrRead &&
-            concreteOffset != null &&
-            fourDataBits?.startsWith("00") == true
-        ) {
-            // special case when reading const with address read is possible (result is addr_none)
-            twoSizeExpr
+        } else if (type is TvmCellDataMsgAddrRead && concreteOffset != null) {
+            val tlbPrefix =
+                data.substring(concreteOffset, min(concreteOffset + 2, data.length))
+            when (tlbPrefix) {
+                "00" -> twoSizeExpr
+                "10" -> {
+                    val noAnycast = data.getOrNull(concreteOffset + 2) == '0'
+                    if (noAnycast) {
+                        val tlbPrefixSize = 2
+                        val nothingCtorSize = 1
+                        val workchainIdSize = 8
+                        val addressBitsSize = 256
+                        (tlbPrefixSize + nothingCtorSize + workchainIdSize + addressBitsSize).toSizeSort()
+                    } else {
+                        null // unsupported
+                    }
+                }
+
+                else -> null
+            }
         } else {
             null
         }
-    }
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
 

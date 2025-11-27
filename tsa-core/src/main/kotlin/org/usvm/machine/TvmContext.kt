@@ -46,8 +46,6 @@ import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.UIteExpr
 import org.usvm.isTrue
-import org.usvm.machine.state.ContractId
-import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellOverflowError
 import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDictError
@@ -162,8 +160,6 @@ class TvmContext(
 
     val throwRealDictError: (TvmState) -> Unit = setFailure(TvmDictError, TvmFailureType.RealError)
 
-    fun throwInsufficientFunds(contractId: ContractId): (TvmState) -> Unit = setFailure(InsufficientFunds(contractId))
-
     val sendMsgActionTag = mkBvHex("0ec3c86d", 32u)
     val reserveActionTag = mkBvHex("36e6b809", 32u)
     val bouncedMessageTagLong = 0xffffffff
@@ -180,6 +176,8 @@ class TvmContext(
         }
 
     fun Number.toBv257(): KBitVecValue<TvmInt257Sort> = mkBv(toBigInteger(), int257sort)
+
+    fun Number.toSizeSort(): KBitVecValue<TvmSizeSort> = mkBv(toBigInteger(), sizeSort)
 
     fun Number.toCellSort(): KBitVecValue<TvmCellDataSort> = mkBv(toBigInteger(), cellDataSort)
 
@@ -611,6 +609,8 @@ class TvmContext(
     ) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
 
     infix fun <T : KBvSort> KExpr<T>.bvAdd(other: KExpr<T>): KExpr<T> = mkBvAddExpr(this, other)
+
+    infix fun <T : KBvSort> KExpr<T>.bvMul(other: KExpr<T>): KExpr<T> = mkBvMulExpr(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvSub(other: KExpr<T>): KExpr<T> = mkBvSubExpr(this, other)
 
