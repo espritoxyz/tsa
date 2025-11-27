@@ -49,14 +49,11 @@ class SendModesTest {
     private val sendRemainingValueRecipient = "/intercontract/modes/remaining-value/recipient.fc"
     private val sendRemainingValueCommunicationScheme =
         "/intercontract/modes/remaining-value/inter-contract.json"
-<<<<<<< HEAD
-=======
     private val sendPayForwardFeesSeparatelyChecker = "/intercontract/modes/pay-forward-fees-separately/checker.fc"
     private val sendPayForwardFeesSeparatelySender = "/intercontract/modes/pay-forward-fees-separately/sender.fc"
     private val sendPayForwardFeesSeparatelyRecipient = "/intercontract/modes/pay-forward-fees-separately/recipient.fc"
     private val sendPayForwardFeesSeparatelyCommunicationScheme =
         "/intercontract/modes/pay-forward-fees-separately/inter-contract.json"
->>>>>>> bb4dce9b8bc96ecdefb0da0848351d8a429e6295
 
     @Test
     fun sendRemainingBalanceTest() {
