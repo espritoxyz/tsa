@@ -396,42 +396,6 @@ class SendModesTest {
         )
     }
 
-    @Test
-    fun sendRemainingValueNewTest() {
-        val checkerContract = extractCheckerContractFromResource(sendRemainingValueChecker)
-        val analyzedSender = extractFuncContractFromResource(sendRemainingValueSender)
-        val analyzedReceiver = extractFuncContractFromResource(sendRemainingValueRecipient)
-        val communicationScheme =
-            extractCommunicationSchemeFromResource(sendRemainingValueCommunicationScheme)
-        val options =
-            TvmOptions(
-                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
-                turnOnTLBParsingChecks = false,
-                enableOutMessageAnalysis = true,
-                stopOnFirstError = false,
-            )
-
-        val tests =
-            analyzeInterContract(
-                listOf(checkerContract, analyzedSender, analyzedReceiver),
-                startContractId = 0,
-                methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = options,
-            )
-
-        propertiesFound(
-            tests,
-            listOf(
-                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
-            ),
-        )
-
-        checkInvariants(
-            tests,
-            listOf { test -> (test.result as? TvmTestFailure)?.exitCode !in 201..3001 },
-        )
-    }
-
     private fun sendRemainingValueNewBaseTest(opcode: Int) {
         val checkerContract = extractCheckerContractFromResource(sendRemainingValueChecker)
         val analyzedSender = extractFuncContractFromResource(sendRemainingValueSender)
