@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "inOpcodeToDestination": {
+      "000000c8": {
+        "type": "linear",
+        "destinations": [2]
+      },
+      "00000064": {
+        "type": "linear",
+        "destinations": [2]
+      }
+    }
+  }
+]

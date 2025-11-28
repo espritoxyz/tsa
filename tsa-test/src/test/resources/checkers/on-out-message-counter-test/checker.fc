@@ -1,0 +1,34 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+global int on_out_message_successes;
+
+() on_out_message(int contract_message_number, cell msg_full, slice msg_body, int receiver_contract_id, int sender_contract_id) impure method_id {
+    throw_unless(400, sender_contract_id == 1);
+    int op = msg_body~load_uint(32);
+    if (contract_message_number == 0) {
+        throw_unless(401, op == 100);
+    }
+    if (contract_message_number == 1) {
+        throw_unless(402, op == 200);
+    }
+    on_out_message_successes += 1;
+}
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    tsa_forbid_failures();
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    tsa_assert_not(flags & 1);
+    int op = msg_body~load_uint(32);
+    tsa_assert(op == input_id);
+    tsa_allow_failures();
+}
+
+() main() impure {
+    on_out_message_successes = 0;
+    tsa_send_internal_message(1, 100);
+    tsa_send_internal_message(1, 200);
+    throw_if(500, on_out_message_successes == 2);
+}
