@@ -1,0 +1,55 @@
+#include "../../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+
+    int op = msg_body~load_uint(32);
+    ;; in all outgoing messages below fwd_fee is lump_price = 400000 nanoTons
+    if (op == 100) {
+        ;; send a message with 0.5 Ton and SendRemainingValue mode
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(500000000) ;; 0.5 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op, 32)
+        .end_cell();
+
+        ;; 64 == SendRemainingValue
+        send_raw_message(msg, 64);
+    } elseif (op == 200) {
+        ;; send two messages, one regular with 0.2 Ton and the same but with SendRemainingValue mode
+        cell msg1 = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(200000000) ;; 0.2 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op + 10, 32)
+        .end_cell();
+
+        cell msg2 = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(200000000) ;; 0.2 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op, 32)
+        .end_cell();
+
+        send_raw_message(msg1, 0);
+        
+        send_raw_message(msg2, 64);  
+    } elseif (op == 300) {
+        ;; send a message with modes SendRemainingValue and SendPayFwdFeesSeparately
+        ;; account has 1 Ton, the incoming message value is 2 Ton, and the indicated outgoing message value is 0.5 Ton
+        ;; It is expected that the final outgoing message value will be 2.5 Ton and account's balance will be 1 + 2 - 2 - 0.5 - fwd_fee (400000 nTon) 
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(500000000) ;; 0.5 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(op, 32) 
+        .end_cell();
+
+        ;; 1 == SendPayFwdFeesSeparately 
+        send_raw_message(msg, 64 + 1);
+    }
+}
