@@ -14,6 +14,10 @@ data class DispatchedMessage(
 )
 
 interface ActionHandlingResult {
+    /**
+     * @param messagesDispatched contains the messages dispatched by the executing contract in the same order
+     * they were in the action list of the contract.
+     */
     data class Success(
         val balanceLeft: Int257Expr,
         val messagesDispatched: List<DispatchedMessage>,

@@ -56,6 +56,13 @@ class CheckersTest {
         const val SCHEME = "/checkers/on-out-message-test/communication-scheme.json"
     }
 
+    private object OnOutMessageCounterTestData {
+        const val CHECKER = "/checkers/on-out-message-counter-test/checker.fc"
+        const val SENDER = "/checkers/on-out-message-counter-test/sender.fc"
+        const val RECEIVER = "/checkers/on-out-message-counter-test/receiver.fc"
+        const val SCHEME = "/checkers/on-out-message-counter-test/communication-scheme.json"
+    }
+
     private object OnComputePhaseExitTestData {
         const val CHECKER = "/checkers/on-compute-phase-exit-test/checker.fc"
         const val CHECKER_FAIL = "/checkers/on-compute-phase-exit-test/checker_fail.fc"
@@ -262,6 +269,31 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf { test -> test.exitCode() == 400 },
+        )
+    }
+
+    @Test
+    fun `on_out_message counter works`() {
+        val checkerContract = extractCheckerContractFromResource(OnOutMessageCounterTestData.CHECKER)
+        val senderContract = extractFuncContractFromResource(OnOutMessageCounterTestData.SENDER)
+        val receiverContract = extractFuncContractFromResource(OnOutMessageCounterTestData.RECEIVER)
+        val communicationScheme = extractCommunicationSchemeFromResource(OnOutMessageCounterTestData.SCHEME)
+        val options = createIntercontractOptions(communicationScheme)
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract, receiverContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() !in 400..499 },
+        )
+        propertiesFound(
+            tests,
+            listOf { test -> test.exitCode() == 500 },
         )
     }
 
