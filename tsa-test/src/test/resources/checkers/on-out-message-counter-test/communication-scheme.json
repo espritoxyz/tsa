@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "inOpcodeToDestination": {},
+    "other": {
+      "type": "out_opcodes",
+      "outOpcodeToDestination": {
+        "00000064": [2],
+        "000000c8": [2]
+      }
+    }
+  }
+]

@@ -56,14 +56,17 @@ data class TsaArtificialActionPhaseInst(
  *  This instruction is automatically inserted after the action phase
  *  and is used to call the `on_out_message` handler in checker with
  *  returning back to process the contract exit.
+ *  @param messageOrderNumber represents the number of the sent message (specifically, of the [sentMessages]`.first()`)
+ *  from the corresponding contract execution
  */
 data class TsaArtificialOnOutMessageHandlerCallInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     val actionPhaseResult: TvmResult.TvmTerminalResult?,
     override val location: TvmInstLocation,
     val sentMessages: List<DispatchedMessage>,
+    val messageOrderNumber: Int,
 ) : TsaArtificialInst {
-    override val mnemonic: String get() = "on_out_message_hack"
+    override val mnemonic: String get() = "artificial_on_out_message_bridge"
 
     init {
         checkLocationInitialized()

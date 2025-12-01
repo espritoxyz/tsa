@@ -158,12 +158,15 @@ class TvmArtificialInstInterpreter(
             return null
         }
         val (head, tail) =
-            stmt.sentMessages.splitHeadTail() ?: return null
-        val nextInst = stmt.copy(sentMessages = tail)
+            stmt.sentMessages.splitHeadTail()
+                ?: return null
+        val nextInst = stmt.copy(sentMessages = tail, messageOrderNumber = stmt.messageOrderNumber + 1)
         val currentContractToPush = currentContract
         val pushArgsOnStack: TvmState.() -> Unit = {
             val constructedMessageCells = head.content.toStackArgs(this)
+            val messageCounter = stmt.messageOrderNumber
             with(ctx) {
+                stack.addInt(messageCounter.toBv257())
                 stack.addCell(constructedMessageCells.fullMsgCell)
                 stack.addSlice(constructedMessageCells.msgBodySlice)
                 stack.addInt((head.receiver ?: -1).toBv257()) // receiver
@@ -313,6 +316,7 @@ class TvmArtificialInstInterpreter(
                             actionPhaseResult = result,
                             lastStmt.location,
                             messages,
+                            0,
                         ),
                     )
                 }
@@ -326,6 +330,7 @@ class TvmArtificialInstInterpreter(
                         actionPhaseResult = null,
                         lastStmt.location,
                         sentMessages = emptyList(),
+                        0,
                     ),
                 )
             }
