@@ -1490,6 +1490,7 @@ fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellF
 
 data class SliceReadData(
     val dataPos: UExpr<TvmSizeSort>,
+    val cell: UHeapRef,
     val cellData: UExpr<TvmCellDataSort>,
 )
 
@@ -1501,6 +1502,7 @@ fun TvmState.readSliceFull(slice: UHeapRef): SliceReadData {
     val cellData = fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(this, cell)
     return SliceReadData(
         dataPos,
+        cell,
         cellData,
     )
 }

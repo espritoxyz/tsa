@@ -96,22 +96,12 @@ sealed class ReceiverInput(
                         trueExpr
                     }
 
-                val fwdFeeConstraint =
-                    if (fwdFee != null) {
-                        val high = mkBvSignedLessOrEqualExpr(fwdFee!!, TvmContext.MAX_FWD_FEE.toBv257())
-                        val low = mkBvSignedGreaterOrEqualExpr(fwdFee!!, zeroValue)
-                        low and high
-                    } else {
-                        trueExpr
-                    }
-
                 mkAnd(
                     msgValueConstraint,
                     createdLtConstraint,
                     createdAtConstraint,
                     balanceConstraints,
                     opcodeConstraint,
-                    fwdFeeConstraint,
                 )
             }
 

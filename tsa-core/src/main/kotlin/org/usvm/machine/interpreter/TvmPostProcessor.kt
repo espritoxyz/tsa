@@ -47,18 +47,20 @@ class TvmPostProcessor(
                 val depthConstraint =
                     generateDepthConstraint(scope, resolver)
                         ?: return@assertConstraints null
-
-                val fwdFeeConstraint =
-                    generateFwdFeeConstraints(scope, resolver)
-                        ?: return@assertConstraints null
-
-                hashConstraint and depthConstraint and fwdFeeConstraint
+                hashConstraint and depthConstraint
             } ?: return null
 
             // must be asserted separately since it relies on correct hash values
-            return assertConstraints(scope) { resolver ->
+            assertConstraints(scope) { resolver ->
                 generateSignatureConstraints(scope, resolver)
-            }
+            } ?: return null
+
+            assertConstraints(scope) { resolver ->
+                val fwdFeeConstraint =
+                    generateFwdFeeConstraints(scope, resolver)
+                        ?: return@assertConstraints null
+                fwdFeeConstraint
+            } ?: return null
         }
 
     private inline fun assertConstraints(
@@ -189,13 +191,16 @@ class TvmPostProcessor(
                 val cell = transformTestDataCellIntoCell(value)
                 calculateHashOfCell(cell)
             }
+
             is TvmTestDictCellValue -> {
                 val cell = transformTestDictCellIntoCell(value)
                 calculateHashOfCell(cell)
             }
+
             is TvmTestBuilderValue -> {
                 TODO()
             }
+
             is TvmTestSliceValue -> {
                 val restCell = truncateSliceCell(value)
                 calculateConcreteHash(restCell)
