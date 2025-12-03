@@ -1,0 +1,30 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    int op = msg_body~load_uint(32); ;; make non-trivial slice
+    tsa_assert(op == 256);
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    tsa_assert_not(flags & 1);
+    cs~load_msg_addr(); ;; src
+    cs~load_msg_addr(); ;; dst
+    cs~load_coins(); ;; value
+    cs~load_dict(); ;; currency collection
+    cs~load_coins(); ;; ihr_fee
+    cs~load_coins(); ;; fwd_fee
+    cs~load_int(64); ;; created_lt
+    cs~load_int(32); ;; created_at
+    cs~load_int(1); ;; state init is empty
+    var body_either_bit = cs~load_uint(1);
+    var outside_slice = cs~load_ref().begin_parse();
+    throw_unless(400, body_either_bit == 1);
+    throw_unless(401, outside_slice.slice_hash() == msg_body.slice_hash());
+}
+
+() main() impure {
+    tsa_send_internal_message(1, 0);
+    throw(500);
+}

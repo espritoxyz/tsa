@@ -1,5 +1,6 @@
 package org.ton.examples.checkers
 
+import org.junit.jupiter.api.Disabled
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
@@ -61,6 +62,11 @@ class CheckersTest {
         const val SENDER = "/checkers/on-out-message-counter-test/sender.fc"
         const val RECEIVER = "/checkers/on-out-message-counter-test/receiver.fc"
         const val SCHEME = "/checkers/on-out-message-counter-test/communication-scheme.json"
+    }
+
+    private object BodyAsRefTest {
+        const val CHECKER = "/checkers/body-as-ref-test/checker.fc"
+        const val SENDER = "/checkers/body-as-ref-test/sender.fc"
     }
 
     private object OnComputePhaseExitTestData {
@@ -287,6 +293,35 @@ class CheckersTest {
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, senderContract, receiverContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() !in 400..499 },
+        )
+        propertiesFound(
+            tests,
+            listOf { test -> test.exitCode() == 500 },
+        )
+    }
+
+    @Disabled
+    @Test
+    fun `internal message has not-inline body`() {
+        val checkerContract = extractCheckerContractFromResource(BodyAsRefTest.CHECKER)
+        val senderContract = extractFuncContractFromResource(BodyAsRefTest.SENDER)
+        val options =
+            TvmOptions(
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
