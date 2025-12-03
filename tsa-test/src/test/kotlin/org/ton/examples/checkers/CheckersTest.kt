@@ -1,6 +1,5 @@
 package org.ton.examples.checkers
 
-import org.junit.jupiter.api.Disabled
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
@@ -308,7 +307,6 @@ class CheckersTest {
         )
     }
 
-    @Disabled
     @Test
     fun `internal message has not-inline body`() {
         val checkerContract = extractCheckerContractFromResource(BodyAsRefTest.CHECKER)

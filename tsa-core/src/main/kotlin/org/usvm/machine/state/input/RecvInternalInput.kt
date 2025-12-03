@@ -24,6 +24,7 @@ import org.usvm.machine.state.messages.Flags
 import org.usvm.machine.state.messages.Tail
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.readSliceCell
 import org.usvm.sizeSort
 
 class RecvInternalInput(
@@ -136,7 +137,10 @@ class RecvInternalInput(
             assertArgConstraints(scope, minMessageCurrencyValue = minMessageCurrencyValue)
 
             val flags = generateFlagsStruct(this)
-
+            val bodyCellMaybeBounced =
+                with(state) {
+                    readSliceCell(msgBodySliceMaybeBounced)
+                }
             val tlbMessageContent =
                 TlbInternalMessageContent(
                     commonMessageInfo =
@@ -150,7 +154,7 @@ class RecvInternalInput(
                             createdLt = createdLt,
                             createdAt = createdAt,
                         ),
-                    tail = Tail.Explicit(bodySlice = msgBodySliceMaybeBounced),
+                    tail = Tail.Explicit(bodyCellMaybeBounced, msgBodySliceMaybeBounced),
                 )
 
             return@with tlbMessageContent.constructMessageCellFromContent(state).fullMsgCell

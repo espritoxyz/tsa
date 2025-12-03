@@ -473,9 +473,11 @@ class TvmArtificialInstInterpreter(
                     scope.slicePreloadDataBits(oldMessage.msgBodySlice, leftLength)
                         ?: return@with null
                 scope.builderStoreDataBits(builder, builder, leftData, leftLength, null)
-                val bodySlice =
+                val (bodyCell, bodySlice) =
                     scope.calcOnState {
-                        allocSliceFromCell(builderToCell(builder))
+                        val cell = builderToCell(builder)
+                        val slice = allocSliceFromCell(cell)
+                        cell to slice
                     }
                 val destinationAddressCell =
                     scope.calcOnState {
@@ -503,7 +505,7 @@ class TvmArtificialInstInterpreter(
                             createdLt = zeroValue,
                             createdAt = zeroValue,
                         ),
-                        tail = Tail.Explicit(bodySlice),
+                        tail = Tail.Explicit(bodyCell, bodySlice),
                     )
                 Triple(content.constructMessageCellFromContent(scope.calcOnState { this }), bodySlice, dstAddressSlice)
             }
