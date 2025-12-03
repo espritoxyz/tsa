@@ -132,15 +132,17 @@ class RecvInternalInput(
 
     override fun constructFullMessage(state: TvmState): UConcreteHeapRef =
         with(state.ctx) {
-            with(state) {
-                val msgBodyCell =
-                    memory.readField(
-                        msgBodySliceMaybeBounced,
-                        TvmContext.sliceCellField,
-                        addressSort,
-                    )
-                val fwdFeeInfo = FwdFeeInfo(fwdFee, null, msgBodyCell)
-                this.forwardFees = forwardFees.add(fwdFeeInfo)
+            if (this.tvmOptions.usePreciseFwdFeesOnCheckerInternalMessages) {
+                with(state) {
+                    val msgBodyCell =
+                        memory.readField(
+                            msgBodySliceMaybeBounced,
+                            TvmContext.sliceCellField,
+                            addressSort,
+                        )
+                    val fwdFeeInfo = FwdFeeInfo(fwdFee, null, msgBodyCell)
+                    this.forwardFees = forwardFees.add(fwdFeeInfo)
+                }
             }
             // hack for using builder operations
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)

@@ -37,31 +37,33 @@ class TvmPostProcessor(
     private val publicKey by lazy { privateKey.publicKey() }
     private val publicKeyHex by lazy { publicKey.key.encodeHex() }
 
-    fun postProcessState(scope: TvmStepScopeManager): Unit? =
-        with(ctx) {
-            assertConstraints(scope) { resolver ->
-                val hashConstraint =
-                    generateHashConstraint(scope, resolver)
-                        ?: return@assertConstraints null
+    fun postProcessState(scope: TvmStepScopeManager): Unit? {
+        assertConstraints(scope) { resolver ->
+            val depthConstraint =
+                generateDepthConstraint(scope, resolver)
+                    ?: return@assertConstraints null
+            depthConstraint
+        } ?: return null
 
-                val depthConstraint =
-                    generateDepthConstraint(scope, resolver)
-                        ?: return@assertConstraints null
-                hashConstraint and depthConstraint
-            } ?: return null
+        assertConstraints(scope) { resolver ->
+            val hashConstraint =
+                generateHashConstraint(scope, resolver)
+                    ?: return@assertConstraints null
+            hashConstraint
+        } ?: return null
+        // must be asserted separately since it relies on correct hash values
+        assertConstraints(scope) { resolver ->
+            generateSignatureConstraints(scope, resolver)
+        } ?: return null
 
-            // must be asserted separately since it relies on correct hash values
-            assertConstraints(scope) { resolver ->
-                generateSignatureConstraints(scope, resolver)
-            } ?: return null
-
-            assertConstraints(scope) { resolver ->
-                val fwdFeeConstraint =
-                    generateFwdFeeConstraints(scope, resolver)
-                        ?: return@assertConstraints null
-                fwdFeeConstraint
-            } ?: return null
-        }
+        assertConstraints(scope) { resolver ->
+            val fwdFeeConstraint =
+                generateFwdFeeConstraints(scope, resolver)
+                    ?: return@assertConstraints null
+            fwdFeeConstraint
+        } ?: return null
+        return Unit
+    }
 
     private inline fun assertConstraints(
         scope: TvmStepScopeManager,

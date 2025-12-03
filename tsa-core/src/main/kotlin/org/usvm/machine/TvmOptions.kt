@@ -41,6 +41,13 @@ data class TvmOptions(
     val stopOnFirstError: Boolean = true,
     val useIntBlasting: Boolean = false,
     val collectTlbMemoryStats: Boolean = false,
+    /**
+     * When set to `true`, adds a strict constraint on the forward fee relative to the body of the message
+     * sent by the checker or received by the contract under analysis (stateInit, however, is not considered at all).
+     * The careful to not break tests that assert that no data asserts were made
+     * (as forward fee checks fix the cell data and thus break tests)
+     */
+    val usePreciseFwdFeesOnCheckerInternalMessages: Boolean = true,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
