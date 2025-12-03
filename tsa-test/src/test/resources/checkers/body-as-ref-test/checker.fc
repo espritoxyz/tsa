@@ -3,7 +3,7 @@
 
 
 () on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
-    int op = msg_body~load_uint(32); ;; make non-trivial slice
+    int op = msg_body.preload_uint(32); ;; make non-trivial slice
     tsa_assert(op == 256);
 
     slice cs = in_msg_full.begin_parse();
