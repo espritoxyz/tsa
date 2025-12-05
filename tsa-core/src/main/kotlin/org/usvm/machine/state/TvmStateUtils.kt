@@ -109,13 +109,16 @@ fun TvmState.setExit(result: TvmResult.TvmTerminalResult) {
         is TvmComputePhase -> {
             newStmt(TsaArtificialOnComputePhaseExitInst(result, lastStmt.location))
         }
+
         is TvmActionPhase -> {
             newStmt(TsaArtificialExitInst(phase.computePhaseResult, result, lastStmt.location))
         }
+
         is TvmBouncePhase -> {
             // for now, substitute error from action phase
             newStmt(TsaArtificialExitInst(phase.computePhaseResult, result, lastStmt.location))
         }
+
         else -> {
             error("Unexpected exit on phase: $phase")
         }
@@ -184,7 +187,7 @@ fun TvmContext.signedIntegerFitsBits(
 ): UBoolExpr =
     when {
         bits == 0u -> value eq zeroValue
-        bits >= TvmContext.INT_BITS -> trueExpr
+        bits >= INT_BITS -> trueExpr
         else ->
             mkAnd(
                 mkBvSignedLessOrEqualExpr(value, powerOfTwo(bits - 1u).minus(BigInteger.ONE).toBv257()),
@@ -210,7 +213,7 @@ fun TvmContext.unsignedIntegerFitsBits(
     }
 
 /**
- * 0 <= [sizeBits] <= 257
+ * 0 <= [bits] <= 257
  */
 fun TvmContext.signedIntegerFitsBits(
     value: UExpr<TvmInt257Sort>,
@@ -222,7 +225,7 @@ fun TvmContext.signedIntegerFitsBits(
     )
 
 /**
- * 0 <= [sizeBits] <= 256
+ * 0 <= [bits] <= 256
  *
  * @see unsignedIntegerFitsBits
  */
@@ -709,6 +712,23 @@ private fun TvmState.mockNonNegativeInt(): UExpr<TvmInt257Sort> =
     with(ctx) {
         val unsignedPart = makeSymbolicPrimitive(ctx.mkBvSort((INT_BITS.toInt() - 1).toUInt()))
         return unsignedPart.zeroExtendToSort(int257sort)
+    }
+
+fun <T> withExceptionalDropped(
+    scope: TvmStepScopeManager,
+    f: TvmState.() -> T,
+): T = withExceptionalDropped(scope.calcOnState { this }, f)
+
+fun <T> withExceptionalDropped(
+    state: TvmState,
+    f: TvmState.() -> T,
+): T =
+    with(state) {
+        val oldIsExceptional = isExceptional
+        isExceptional = false
+        val result = f()
+        isExceptional = isExceptional || oldIsExceptional
+        return result
     }
 
 fun TvmState.generateSymbolicTime(): UExpr<TvmInt257Sort> =

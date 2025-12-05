@@ -1,12 +1,15 @@
 package org.ton.bytecode
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import org.usvm.UHeapRef
 import org.usvm.machine.interpreter.DispatchedMessage
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
 import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
 import org.usvm.machine.state.TvmComputePhase
 import org.usvm.machine.state.TvmResult
+import org.usvm.machine.state.messages.MessageActionParseResult
 
 sealed interface TsaArtificialInst : TvmArtificialInst
 
@@ -50,6 +53,18 @@ data class TsaArtificialActionPhaseInst(
             "Unexpected computePhaseResult in TsaArtificialActionPhaseInst: $computePhaseResult"
         }
     }
+}
+
+@Serializable
+data class TsaArtificialActionParseInst(
+    val computePhaseResult: TvmResult.TvmTerminalResult,
+    override val location: TvmInstLocation,
+    @Transient
+    val yetUnparsedActions: List<UHeapRef> = listOf(),
+    @Transient
+    val parsedAndPreprocessedActions: List<MessageActionParseResult> = listOf(),
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "artificial_action_parse_inst"
 }
 
 /**
