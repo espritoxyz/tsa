@@ -26,7 +26,6 @@ import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
-import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.allocSliceFromCell
@@ -519,13 +518,12 @@ class TvmTransactionInterpreter(
 
     fun parseActionsAndResolveReceivers(
         scope: TvmStepScopeManager,
-        commitedState: TvmCommitedState,
+        actions: List<UHeapRef>,
         restActions: TvmStepScopeManager.(ActionsParsingResult) -> Unit,
     ) {
         val resolver = TvmTestStateResolver(ctx, scope.calcOnState { models.first() }, scope.calcOnState { this })
-
         val messages =
-            parseOutMessages(scope, commitedState, resolver)
+            parseOutMessages(scope, resolver, actions)
                 ?: return
 
         if (messages.isEmpty()) {
@@ -735,16 +733,10 @@ class TvmTransactionInterpreter(
 
     private fun parseOutMessages(
         scope: TvmStepScopeManager,
-        commitedState: TvmCommitedState,
         resolver: TvmTestStateResolver,
+        actions: List<UHeapRef>,
     ): List<MessageActionParseResult>? =
         with(ctx) {
-            val commitedActions = scope.calcOnState { commitedState.c5.value.value }
-
-            val actions =
-                extractActions(scope, commitedActions)
-                    ?: return null
-
             val outMessages = mutableListOf<MessageActionParseResult>()
 
             for (action in actions) {
@@ -783,12 +775,12 @@ class TvmTransactionInterpreter(
             return outMessages
         }
 
-    private fun extractActions(
+    fun extractListOfActions(
         scope: TvmStepScopeManager,
-        actions: UHeapRef,
+        actionsCell: UHeapRef,
     ): List<UHeapRef>? =
         with(ctx) {
-            var cur = actions
+            var cur = actionsCell
             val actionList = mutableListOf<UHeapRef>()
 
             while (true) {

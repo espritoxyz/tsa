@@ -1,6 +1,8 @@
 package org.usvm.machine.interpreter
 
+import kotlinx.collections.immutable.persistentListOf
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
+import org.ton.bytecode.TsaArtificialActionParseInst
 import org.ton.bytecode.TsaArtificialActionPhaseInst
 import org.ton.bytecode.TsaArtificialBouncePhaseInst
 import org.ton.bytecode.TsaArtificialCheckerReturn
@@ -15,6 +17,7 @@ import org.ton.bytecode.TsaArtificialOnOutMessageHandlerCallInst
 import org.ton.bytecode.TsaArtificialPostprocessInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
+import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
@@ -23,7 +26,6 @@ import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
-import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmComputePhase
 import org.usvm.machine.state.TvmEventInformation
 import org.usvm.machine.state.TvmExitPhase
@@ -72,6 +74,7 @@ import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setBalance
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
+import org.usvm.machine.state.withExceptionalDropped
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.sizeSort
@@ -128,6 +131,12 @@ class TvmArtificialInstInterpreter(
                 scope.consumeDefaultGas(stmt)
 
                 visitActionPhaseInst(scope, stmt)
+            }
+
+            is TsaArtificialActionParseInst -> {
+                scope.consumeDefaultGas(stmt)
+
+                visitParseActionInst(scope, stmt)
             }
 
             is TsaArtificialBouncePhaseInst -> {
@@ -280,30 +289,16 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun visitActionPhaseInst(
+    private fun visitParseActionInst(
         scope: TvmStepScopeManager,
-        stmt: TsaArtificialActionPhaseInst,
+        stmt: TsaArtificialActionParseInst,
     ) {
-        val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
-
-        val commitedState =
-            scope.calcOnState {
-                lastCommitedStateOfContracts[currentContract]
-            }
-
         // temporarily remove isExceptional mark for further processing
         val oldIsExceptional = scope.calcOnState { isExceptional }
         scope.doWithState {
             isExceptional = false
-        }
-
-        val analyzingReceiver = scope.calcOnState { receivedMessage != null }
-        if (analyzingReceiver && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis && !isTsaChecker) {
-            scope.doWithState {
-                phase = TvmActionPhase(stmt.computePhaseResult)
-            }
-
-            processNewMessages(scope, commitedState, stmt.computePhaseResult) { result, messages ->
+            val actions = stmt.yetUnparsedActions
+            processNewMessages(scope, stmt.computePhaseResult, actions) { result, messages ->
                 doWithState {
                     isExceptional = isExceptional || oldIsExceptional
                     // workaround, so that on_out_message has access to the balance
@@ -323,9 +318,44 @@ class TvmArtificialInstInterpreter(
                     )
                 }
             }
+        }
+    }
+
+    private fun visitActionPhaseInst(
+        scope: TvmStepScopeManager,
+        stmt: TsaArtificialActionPhaseInst,
+    ) {
+        val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
+
+        val commitedState =
+            scope.calcOnState {
+                lastCommitedStateOfContracts[currentContract]
+            }
+
+        val analyzingReceiver = scope.calcOnState { receivedMessage != null }
+        if (analyzingReceiver && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis && !isTsaChecker) {
+            scope.doWithState {
+                phase = TvmActionPhase(stmt.computePhaseResult)
+            }
+            val commitedActions = scope.calcOnState { commitedState.c5.value.value }
+            val actions =
+                withExceptionalDropped(scope) {
+                    transactionInterpreter.extractListOfActions(scope, commitedActions)
+                }
+                    ?: return
+
+            scope.calcOnState {
+                newStmt(
+                    TsaArtificialActionParseInst(
+                        stmt.computePhaseResult,
+                        lastStmt.location,
+                        actions,
+                        persistentListOf(),
+                    ),
+                )
+            }
         } else {
             scope.doWithState {
-                isExceptional = isExceptional || oldIsExceptional
                 newStmt(
                     TsaArtificialOnOutMessageHandlerCallInst(
                         computePhaseResult = stmt.computePhaseResult,
@@ -671,8 +701,8 @@ class TvmArtificialInstInterpreter(
 
     private fun processNewMessages(
         scope: TvmStepScopeManager,
-        commitedState: TvmCommitedState,
         computePhaseResult: TvmResult.TvmTerminalResult,
+        actions: List<UHeapRef>,
         restActions: TvmStepScopeManager.(
             TvmResult.TvmTerminalResult,
             List<DispatchedMessage>,
@@ -680,7 +710,7 @@ class TvmArtificialInstInterpreter(
     ) {
         transactionInterpreter.parseActionsAndResolveReceivers(
             scope,
-            commitedState,
+            actions,
         ) {
             transactionInterpreter.handleMessageCosts(this, it.parsedOrderedMessages) { actionsHandlingResult ->
                 when (actionsHandlingResult) {
