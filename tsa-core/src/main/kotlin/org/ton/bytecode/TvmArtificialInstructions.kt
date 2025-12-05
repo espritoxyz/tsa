@@ -5,6 +5,7 @@ import kotlinx.serialization.Transient
 import org.usvm.UHeapRef
 import org.usvm.machine.interpreter.DispatchedMessage
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
+import org.usvm.machine.interpreter.TvmTransactionInterpreter
 import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
 import org.usvm.machine.state.TvmComputePhase
@@ -55,7 +56,6 @@ data class TsaArtificialActionPhaseInst(
     }
 }
 
-@Serializable
 data class TsaArtificialActionParseInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
@@ -65,6 +65,14 @@ data class TsaArtificialActionParseInst(
     val parsedAndPreprocessedActions: List<MessageActionParseResult> = listOf(),
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_action_parse_inst"
+}
+
+data class TsaArtificialHandleMessagesCostInst(
+    val computePhaseResult: TvmResult.TvmTerminalResult,
+    override val location: TvmInstLocation,
+    val parsingResult: TvmTransactionInterpreter.ActionsParsingResult,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "artificial_action_handle_messages_cost"
 }
 
 /**
