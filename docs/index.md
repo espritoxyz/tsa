@@ -25,7 +25,7 @@ nav_order: 1
       </a>
     </div>
     <div>
-      <a href="detectors">
+      <a href="reference/detectors">
         <img src="images/detectors.svg" alt="Detectors">
       </a>
     </div>
