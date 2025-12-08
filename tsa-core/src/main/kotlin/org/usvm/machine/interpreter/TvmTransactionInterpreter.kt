@@ -21,6 +21,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.OP_BITS
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.asIntValue
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
@@ -53,6 +54,7 @@ import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TvmModel
 import org.usvm.mkSizeExpr
+import org.usvm.utils.intValueOrNull
 
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
 private typealias Transformation =
@@ -249,6 +251,13 @@ class TvmTransactionInterpreter(
             val sendRemainingValue = mode.hasBitSet(MessageMode.SEND_REMAINING_VALUE_BIT)
             val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE_BIT)
             val sendFwdFeesSeparately = mode.hasBitSet(MessageMode.SEND_FEES_SEPARATELY)
+            val sendIgnoreErrors =
+                mode
+                    .hasBitSet(MessageMode.SEND_IGNORE_ERRORS)
+                    .asIntValue()
+                    .intValueOrNull
+                    ?.let { it != 0 }
+                    ?: error("Only concrete mode is supported")
             val messageValue = head.outMessage.content.commonMessageInfo.msgValue
             ctx.handleSingleMessage(
                 scope = this@handleMessagesImpl,
@@ -260,7 +269,13 @@ class TvmTransactionInterpreter(
                 currentState = currentMessageHandlingState,
                 currentMessage = head,
             ) { newCurrentState ->
-                handleMessagesImpl(tail, newCurrentState, restActions)
+                val newCurrentStateWithPossiblyIgnoredError =
+                    if (newCurrentState is MessageHandlingState.RealFailure && sendIgnoreErrors) {
+                        currentMessageHandlingState
+                    } else {
+                        newCurrentState
+                    }
+                handleMessagesImpl(tail, newCurrentStateWithPossiblyIgnoredError, restActions)
             }
         }
 
@@ -520,7 +535,7 @@ class TvmTransactionInterpreter(
         }
     }
 
-    fun parseActionCell(
+    fun parseSingleActionSlice(
         scope: TvmStepScopeManager,
         actionSlice: SliceRef,
     ): ValueOrDeadScope<MessageActionParseResult?> =
