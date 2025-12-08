@@ -65,7 +65,7 @@ import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.messages.Tail
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
-import org.usvm.machine.state.messages.getOrReturn
+import org.usvm.machine.state.messages.getOrElse
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceCell
@@ -393,7 +393,7 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
-        val parsedHead = transactionInterpreter.parseActionCell(scope, head).getOrReturn { return }
+        val parsedHead = transactionInterpreter.parseSingleActionSlice(scope, head).getOrElse { return }
         val updatedParsedAndPreprocessed =
             if (parsedHead != null) {
                 stmt.parsedAndPreprocessedActions + parsedHead

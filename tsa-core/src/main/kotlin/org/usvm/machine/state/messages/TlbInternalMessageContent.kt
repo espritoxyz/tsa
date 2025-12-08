@@ -385,11 +385,11 @@ data class TlbInternalMessageContent(
                 val tailSlice = ptr.slice
 
                 val stateInitRef =
-                    loadStateInit(scope, model, ptr).getOrReturn { return@with null }
+                    loadStateInit(scope, model, ptr).getOrElse { return@with null }
 
                 val (bodyCellOriginal, bodyCell) =
                     loadBody(scope, model, ptr)
-                        .getOrReturn { return@with null }
+                        .getOrElse { return@with null }
 
                 val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
                 val tail = Tail.Implicit(tailSlice, bodySlice, stateInitRef, bodyCellOriginal)
