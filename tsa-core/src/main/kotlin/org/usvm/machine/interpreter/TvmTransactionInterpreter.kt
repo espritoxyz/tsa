@@ -38,17 +38,21 @@ import org.usvm.machine.state.makeCellToSliceNoFork
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.MessageMode
+import org.usvm.machine.state.messages.Ok
 import org.usvm.machine.state.messages.ParsingState
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.messages.ValueOrDeadScope
 import org.usvm.machine.state.messages.bodySlice
 import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
 import org.usvm.machine.state.messages.getMsgBodySlice
+import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.sliceLoadIntTransaction
 import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.types.SliceRef
+import org.usvm.machine.types.TvmModel
 import org.usvm.mkSizeExpr
-import org.usvm.test.resolver.TvmTestStateResolver
 
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
 private typealias Transformation =
@@ -516,16 +520,51 @@ class TvmTransactionInterpreter(
         }
     }
 
-    fun parseActionsAndResolveReceivers(
+    fun parseActionCell(
         scope: TvmStepScopeManager,
-        actions: List<UHeapRef>,
+        actionSlice: SliceRef,
+    ): ValueOrDeadScope<MessageActionParseResult?> =
+        with(scope.ctx) {
+            val resolver = scope.calcOnState { models.first() }
+            val (actionBody, tag) =
+                sliceLoadIntTransaction(scope, actionSlice.value, 32)
+                    ?: return scopeDied
+
+            val isSendMsgAction = tag eq sendMsgActionTag.unsignedExtendToInteger()
+            val isReserveAction = tag eq reserveActionTag.unsignedExtendToInteger()
+
+            when {
+                resolver.eval(isReserveAction).isTrue -> {
+                    scope.assert(isReserveAction)
+                        ?: return scopeDied
+
+                    visitReserveAction()
+                    Ok(null)
+                }
+
+                resolver.eval(isSendMsgAction).isTrue -> {
+                    scope.assert(isSendMsgAction)
+                        ?: return scopeDied
+
+                    val msg =
+                        parseAndPreprocessMessageAction(scope, actionBody, resolver)
+                            ?: return scopeDied
+
+                    Ok(msg)
+                }
+
+                else -> {
+                    error("Unknown action in C5 register")
+                }
+            }
+        }
+
+    fun resolveMessageReceivers(
+        scope: TvmStepScopeManager,
+        messages: List<MessageActionParseResult>,
+        model: TvmModel,
         restActions: TvmStepScopeManager.(ActionsParsingResult) -> Unit,
     ) {
-        val resolver = TvmTestStateResolver(ctx, scope.calcOnState { models.first() }, scope.calcOnState { this })
-        val messages =
-            parseOutMessages(scope, resolver, actions)
-                ?: return
-
         if (messages.isEmpty()) {
             return ActionsParsingResult(emptyList()).let {
                 scope.restActions(it)
@@ -556,7 +595,7 @@ class TvmTransactionInterpreter(
                 msgBody,
                 handlers.inOpcodeToDestination,
                 handlers.other,
-                resolver,
+                model,
                 scope,
             )
 
@@ -590,7 +629,7 @@ class TvmTransactionInterpreter(
                                 it.content.tail.bodySlice(),
                                 handler.outOpcodeToDestination,
                                 handler.other,
-                                resolver,
+                                model,
                                 scope,
                             )
 
@@ -683,7 +722,7 @@ class TvmTransactionInterpreter(
         msgBodySlice: UHeapRef,
         variants: Map<String, T>,
         defaultVariant: T?,
-        resolver: TvmTestStateResolver,
+        resolver: TvmModel,
         scope: TvmStepScopeManager,
     ): Pair<T?, Unit?> =
         with(scope.ctx) {
@@ -731,57 +770,13 @@ class TvmTransactionInterpreter(
             return handler to Unit
         }
 
-    private fun parseOutMessages(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-        actions: List<UHeapRef>,
-    ): List<MessageActionParseResult>? =
-        with(ctx) {
-            val outMessages = mutableListOf<MessageActionParseResult>()
-
-            for (action in actions) {
-                val (actionBody, tag) =
-                    sliceLoadIntTransaction(scope, action, 32)
-                        ?: return null
-
-                val isSendMsgAction = tag eq sendMsgActionTag.unsignedExtendToInteger()
-                val isReserveAction = tag eq reserveActionTag.unsignedExtendToInteger()
-
-                when {
-                    resolver.eval(isReserveAction).isTrue -> {
-                        scope.assert(isReserveAction)
-                            ?: return null
-
-                        visitReserveAction()
-                    }
-
-                    resolver.eval(isSendMsgAction).isTrue -> {
-                        scope.assert(isSendMsgAction)
-                            ?: return null
-
-                        val msg =
-                            parseAndPreprocessMessageAction(scope, actionBody, resolver)
-                                ?: return null
-
-                        outMessages.add(msg)
-                    }
-
-                    else -> {
-                        error("Unknown action in C5 register")
-                    }
-                }
-            }
-
-            return outMessages
-        }
-
     fun extractListOfActions(
         scope: TvmStepScopeManager,
         actionsCell: UHeapRef,
-    ): List<UHeapRef>? =
+    ): List<SliceRef>? =
         with(ctx) {
             var cur = actionsCell
-            val actionList = mutableListOf<UHeapRef>()
+            val actionList = mutableListOf<SliceRef>()
 
             while (true) {
                 val slice = scope.calcOnState { allocSliceFromCell(cur) }
@@ -801,7 +796,7 @@ class TvmTransactionInterpreter(
                         it.first
                     }
                         ?: return null
-                actionList.add(action)
+                actionList.add(SliceRef(action))
 
                 if (actionList.size > TvmContext.MAX_ACTIONS) {
                     // TODO set error code
@@ -815,7 +810,7 @@ class TvmTransactionInterpreter(
     private fun parseAndPreprocessMessageAction(
         scope: TvmStepScopeManager,
         slice: UHeapRef,
-        resolver: TvmTestStateResolver,
+        resolver: TvmModel,
     ): MessageActionParseResult? {
         val (_, sendMsgMode) =
             sliceLoadIntTransaction(scope, slice, 8, false)
@@ -857,7 +852,7 @@ class TvmTransactionInterpreter(
     private fun parseMessageInfo(
         scope: TvmStepScopeManager,
         ptr: ParsingState,
-        resolver: TvmTestStateResolver,
+        resolver: TvmModel,
     ): TlbInternalMessageContent? =
         with(ctx) {
             val tag =

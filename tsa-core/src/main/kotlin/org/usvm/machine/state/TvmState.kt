@@ -36,12 +36,12 @@ import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
+import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.TvmStructuralConstraintsHolder
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
-import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
 typealias ContractId = Int
@@ -58,7 +58,7 @@ class TvmState(
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
     pathConstraints: UPathConstraints<TvmType>,
     memory: UMemory<TvmType, TvmCodeBlock>,
-    models: List<UModelBase<TvmType>> = listOf(),
+    models: List<TvmModel> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<TvmInst>> = PathNode.root(),
     var phase: TvmPhase = TvmComputePhase,
