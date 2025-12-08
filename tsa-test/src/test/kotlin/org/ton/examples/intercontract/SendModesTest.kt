@@ -361,7 +361,29 @@ class SendModesTest {
 
     @Ignore("SendIgnoreError flag is not supported")
     @Test
-    fun sendIgnoreErrorTest() {
+    fun `SendIgnoreError invalid source address`() {
+        sendIgnoreErrorBaseTest(100)
+    }
+
+    @Ignore("SendIgnoreError flag is not supported")
+    @Test
+    fun `SendIgnoreError invalid destination address`() {
+        sendIgnoreErrorBaseTest(101)
+    }
+
+//    @Ignore("SendIgnoreError flag is not supported")
+    @Test
+    fun `SendIgnoreError not enough Toncoin`() {
+        sendIgnoreErrorBaseTest(102)
+    }
+
+    @Ignore("SendIgnoreError flag is not supported")
+    @Test
+    fun `SendIgnoreError good message between two ignored messages`() {
+        sendIgnoreErrorBaseTest(105)
+    }
+
+    private fun sendIgnoreErrorBaseTest(opcode: Int) {
         val checkerContract = extractCheckerContractFromResource(ignoreErrorsChecker)
         val analyzedSender = extractFuncContractFromResource(ignoreErrorsContract)
         val analyzedRecipient = extractFuncContractFromResource(recipientBouncePath)
@@ -376,6 +398,12 @@ class SendModesTest {
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedSender, analyzedRecipient),
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder().storeInt(opcode, 64).endCell()),
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(),
+                    ),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
@@ -383,7 +411,7 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf { test -> test.exitCode() == 258 },
+            listOf { test -> test.exitCode() == 500 },
         )
 
         checkInvariants(

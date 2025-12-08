@@ -7,9 +7,8 @@ import org.usvm.machine.TvmContext
 
 object MessageMode {
     const val SEND_REMAINING_BALANCE_BIT = 7
-
     const val SEND_REMAINING_VALUE_BIT = 6
-
+    const val SEND_IGNORE_ERRORS = 1
     const val SEND_FEES_SEPARATELY = 0
 }
 
