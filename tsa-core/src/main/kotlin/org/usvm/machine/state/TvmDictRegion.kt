@@ -24,6 +24,7 @@ import org.usvm.collection.set.primitive.USetRegionId
 import org.usvm.collection.set.primitive.setEntries
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.setUnion
+import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.ULValue
@@ -32,7 +33,6 @@ import org.usvm.memory.UMemoryRegion
 import org.usvm.memory.UMemoryRegionId
 import org.usvm.memory.UReadOnlyMemory
 import org.usvm.memory.USymbolicCollectionKeyInfo
-import org.usvm.model.UModelBase
 import org.usvm.regions.SetRegion
 import org.usvm.sizeSort
 import org.usvm.uctx
@@ -250,7 +250,7 @@ fun TvmState.copyDict(
 }
 
 fun dictKeyEntries(
-    model: UModelBase<TvmType>,
+    model: TvmModel,
     memory: UMemory<TvmType, TvmCodeBlock>,
     dict: UConcreteHeapRef,
     dictId: DictId,
@@ -265,7 +265,7 @@ fun dictKeyEntries(
 }
 
 private fun dictModelKeyEntries(
-    model: UModelBase<TvmType>,
+    model: TvmModel,
     dict: UConcreteHeapRef,
     dictId: DictId,
     keySort: UBvSort,
