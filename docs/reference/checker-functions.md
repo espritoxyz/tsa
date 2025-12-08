@@ -37,6 +37,9 @@ occured without any exception (like cell underflow) would be considered.
 
 # Handlers
 
+**Handlers** are functions that are invoked in a callback-like manner in response to an event.
+The event can usually be derived from the name of a handler.
+
 ## On internal message send
 
 ### Signature:
@@ -47,15 +50,15 @@ occured without any exception (like cell underflow) would be considered.
 
 ### Semantics
 
-Is called after the message was sent by the checker to the receiver contract, but before its first instruction was
+This handler is called after the message was sent by the checker to the receiver contract, but before its first instruction was
 executed.
-Its arguments are the same (with the addition of `input_id`) as `recv_internal` would have after receiving the message.
+Its arguments are the same (with the addition of `input_id`) as those `recv_internal` would have after receiving the message.
 
-Should be used to verify the input parameters of the `recv_internal` call in the context of the receiver contract.
+This handler should be used to verify the input parameters of the `recv_internal` call in the context of the receiver contract.
 
 ### Note
 
-You probably do not want to verigy the global state of contracts (e.g. its balance) in this handler, as it will be
+You probably do not want to verify the global state of contracts (e.g. its balance) in this handler, as it will be
 called on each of the sent messages.
 It is recommended to perform such checks *before* sending the message (i.e. before the call to `send_internal_message`)
 
@@ -81,7 +84,6 @@ Same as for `on_internal_message_send`, but for external messages.
 
 ### Semantics
 
-Is called after the action phase of the contract on each message that was eventually sent into the network, regardless
-of whether the receiver is one of the contracts under test.
+This handler is called after the action phase of the contract on each message that was eventually sent into the network, regardless of whether the receiver is one of the contracts under test.
 The `contract_message_number` is the order number of the message relative within the action phase it was sent in.
-`receiver_contract_id` might be -1 if the receiving contract was resolved to be not within the contracts under test.
+`receiver_contract_id` might be equal to -1 if the receiving contract was resolved to be not within the contracts under test.
