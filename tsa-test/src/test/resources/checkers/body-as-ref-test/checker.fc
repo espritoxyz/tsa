@@ -20,7 +20,7 @@
     cs~load_int(1); ;; state init is empty
     var body_either_bit = cs~load_uint(1);
     var outside_slice = cs~load_ref().begin_parse();
-    throw_unless(400, body_either_bit == 1);
+    tsa_assert(body_either_bit == 1);
     throw_unless(401, outside_slice.slice_hash() == msg_body.slice_hash());
 }
 
