@@ -250,6 +250,7 @@ private fun createTvmOptions(
     interContractSchemePath: Path?,
     turnOnTLBParsingChecks: Boolean,
     useReceiverInput: Boolean,
+    enableOutMessageAnalysisIfSingleContract: Boolean,
 ): TvmOptions {
     val options =
         TvmOptions(
@@ -261,6 +262,7 @@ private fun createTvmOptions(
             useReceiverInputs = useReceiverInput,
             maxRecursionDepth = if (analysisOptions.noRecursionDepthLimit) null else analysisOptions.maxRecursionDepth,
             loopIterationLimit = if (analysisOptions.noIterationLimit) null else analysisOptions.iterationLimit,
+            enableOutMessageAnalysis = enableOutMessageAnalysisIfSingleContract,
         )
 
     if (interContractSchemePath != null) {
@@ -290,6 +292,7 @@ private fun <SourcesDescription> performAnalysis(
             interContractSchemePath = null,
             turnOnTLBParsingChecks = !tlbOptions.doNotPerformTlbChecks,
             useReceiverInput = true,
+            enableOutMessageAnalysisIfSingleContract = false,
         )
 
     val inputInfo = TlbCLIOptions.extractInputInfo(tlbOptions.tlbJsonPath)
@@ -356,6 +359,7 @@ private fun performAnalysisInterContract(
             interContractSchemePath,
             turnOnTLBParsingChecks,
             useReceiverInput,
+            enableOutMessageAnalysisIfSingleContract = true,
         )
 
     val additionalStopStrategy =
