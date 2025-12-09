@@ -240,8 +240,7 @@ fun TvmState.initContractInfo(
         // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/smc-envelope/SmartContract.cpp#L154
         val msgsSent = TvmStackIntValue(zeroValue)
 
-        val unixTimeValue = makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_UNIX_TIME)).zeroExtendToSort(int257sort)
-        val unixTime = TvmStackIntValue(unixTimeValue)
+        val unixTime = TvmStackIntValue(time)
 
         // Right now, this parameter can only be set to zero in emulator
         // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/smc-envelope/SmartContract.cpp#L156

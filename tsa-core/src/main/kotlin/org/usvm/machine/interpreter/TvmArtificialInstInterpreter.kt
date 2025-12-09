@@ -49,6 +49,7 @@ import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
 import org.usvm.machine.state.doWithStateCtx
+import org.usvm.machine.state.generateSymbolicTime
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.initializeContractExecutionMemory
@@ -273,6 +274,7 @@ class TvmArtificialInstInterpreter(
                         computePhaseResult = result,
                         actionPhaseResult = null, // might be set later
                         computeFee = computeFee,
+                        eventTime = time,
                     ),
                 )
         }
@@ -516,10 +518,24 @@ class TvmArtificialInstInterpreter(
         }
     }
 
+    private fun updateTime(scope: TvmStepScopeManager): Unit? =
+        with(scope.ctx) {
+            val oldTime = scope.calcOnState { time }
+            val newTime =
+                scope.calcOnState {
+                    time = generateSymbolicTime()
+                    time
+                }
+            return scope.assert(mkBvSignedGreaterOrEqualExpr(newTime, oldTime))
+        }
+
     private fun visitExitInst(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialExitInst,
     ) {
+        updateTime(scope)
+            ?: return
+
         scope.doWithStateCtx {
             phase = TvmExitPhase(stmt.computePhaseResult, stmt.actionPhaseResult)
 

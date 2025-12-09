@@ -118,6 +118,7 @@ class TvmState(
     lateinit var registersOfCurrentContract: TvmRegisters
     lateinit var contractIdToC4Register: PersistentMap<ContractId, C4Register>
     lateinit var contractIdToFirstElementOfC7: PersistentMap<ContractId, TvmStackTupleValueConcreteNew>
+    lateinit var time: UExpr<TvmContext.TvmInt257Sort>
 
     /**
      * We preserve the invariant that there is a single checker contract and it has a single
@@ -216,6 +217,7 @@ class TvmState(
             newState.stack = stack.clone()
             newState.initialInput = initialInput
             newState.isExceptional = isExceptional
+            newState.time = time
         }
     }
 

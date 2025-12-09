@@ -704,3 +704,8 @@ private fun TvmState.mockNonNegativeInt(): UExpr<TvmInt257Sort> =
         val unsignedPart = makeSymbolicPrimitive(ctx.mkBvSort((INT_BITS.toInt() - 1).toUInt()))
         return unsignedPart.zeroExtendToSort(int257sort)
     }
+
+fun TvmState.generateSymbolicTime(): UExpr<TvmInt257Sort> =
+    with(ctx) {
+        makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_UNIX_TIME)).zeroExtendToSort(int257sort)
+    }
