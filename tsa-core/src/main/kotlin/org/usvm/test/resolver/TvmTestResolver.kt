@@ -1,5 +1,7 @@
 package org.usvm.test.resolver
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.ton.TlbResolvedBuiltinLabel
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmArtificialInst
@@ -180,11 +182,12 @@ data class TvmContractState(
 /**
  * @param mode is `null` if the message was bounced (and thus, no mode was attached to it)
  */
+@Serializable
 data class TvmTestMessage(
     val value: TvmTestIntegerValue,
-    val fullMessage: TvmTestCellValue,
+    @Transient val fullMessage: TvmTestCellValue = TvmTestDataCellValue(),
     val bodySlice: TvmTestSliceValue,
-    val mode: BigInteger?,
+    @Transient val mode: BigInteger? = null,
 )
 
 sealed interface TvmTestResult

@@ -2,6 +2,7 @@ package org.usvm.test.resolver
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.EventId
 import org.usvm.machine.state.messages.ContractSender
@@ -56,11 +57,14 @@ sealed interface TvmTestInput {
             get() = listOf(msgBody)
     }
 
+    @Serializable
     sealed interface ReceivedTestMessage {
+        @Serializable
         data class InputMessage(
             val input: TvmTestInput,
         ) : ReceivedTestMessage
 
+        @Serializable
         data class MessageFromOtherContract(
             val sender: ContractSender,
             val receiver: ContractId,
@@ -69,15 +73,18 @@ sealed interface TvmTestInput {
     }
 }
 
+@Serializable
 data class TvmMessageDrivenContractExecutionTestEntry(
     val id: EventId,
     val executionBegin: Int,
     val executionEnd: Int,
     val contractId: ContractId,
     val incomingMessage: TvmTestInput.ReceivedTestMessage,
-    val computePhaseResult: TvmTestResult,
-    val actionPhaseResult: TvmTestResult?,
-    val gasUsageHistory: Int,
+    @Transient val computePhaseResult: TvmTestResult? = null,
+    @Transient val actionPhaseResult: TvmTestResult? = null,
+    val gasUsage: Int,
     val computeFee: TvmTestIntegerValue,
     val eventTime: TvmTestIntegerValue,
+    val computePhaseResultSummary: String = computePhaseResult.toString(),
+    val actionPhaseResultSummary: String = actionPhaseResult.toString(),
 )
