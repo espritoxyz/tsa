@@ -13,6 +13,9 @@ PROGRAM{
   8  DECLMETHOD stones
   9  DECLMETHOD stones_large
   10  DECLMETHOD stdict_large
+  11  DECLMETHOD brefs_1
+  12  DECLMETHOD brefs_2
+  13  DECLMETHOD brefs_3
 
   stsliceconst PROC:<{
     192 PUSHINT
@@ -143,6 +146,37 @@ PROGRAM{
     NEWC
     STSLICE
     STDICT  // throws cell overflow
+  }>
+
+  brefs_1 PROC:<{
+    192 PUSHINT
+    NEWC
+    8 STU
+    BREFS
+  }>
+
+  brefs_2 PROC:<{
+    192 PUSHINT
+    NEWC
+    8 STU
+    b{00010000000000} STSLICECONST
+    ENDC
+
+    192 PUSHINT
+    NEWC
+    8 STU
+
+    STREF
+
+    BREFS
+  }>
+
+  brefs_3 PROC:<{
+    192 PUSHINT
+    NEWC
+    8 STU
+    ENDC
+    BREFS
   }>
 
 }END>c
