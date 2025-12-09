@@ -9,6 +9,7 @@ import org.ton.bitstring.BitString
 import org.ton.bytecode.BALANCE_PARAMETER_IDX
 import org.ton.bytecode.INBOUND_MESSAGE_VALUE_PARAMETER_IDX
 import org.ton.bytecode.MethodId
+import org.ton.bytecode.TIME_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TsaArtificialOnComputePhaseExitInst
@@ -38,6 +39,7 @@ import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.maxUnsignedValue
+import org.usvm.machine.state.TvmStack.TvmStackIntValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.toTvmCell
 import org.usvm.machine.types.TvmBuilderType
@@ -519,7 +521,11 @@ fun initializeContractExecutionMemory(
                         }
 
                         INBOUND_MESSAGE_VALUE_PARAMETER_IDX -> {
-                            TvmStack.TvmConcreteStackEntry(TvmStack.TvmStackIntValue(newMsgValue))
+                            TvmStack.TvmConcreteStackEntry(TvmStackIntValue(newMsgValue))
+                        }
+
+                        TIME_PARAMETER_IDX -> {
+                            TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.time))
                         }
 
                         else -> {

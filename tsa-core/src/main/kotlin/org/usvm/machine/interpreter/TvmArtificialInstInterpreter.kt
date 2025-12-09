@@ -526,7 +526,12 @@ class TvmArtificialInstInterpreter(
                     time = generateSymbolicTime()
                     time
                 }
-            return scope.assert(mkBvSignedGreaterOrEqualExpr(newTime, oldTime))
+            return scope.assert(
+                mkAnd(
+                    mkBvSignedGreaterOrEqualExpr(newTime, oldTime),
+                    mkBvSignedGreaterOrEqualExpr(unixTimeMaxValue, newTime),
+                ),
+            )
         }
 
     private fun visitExitInst(

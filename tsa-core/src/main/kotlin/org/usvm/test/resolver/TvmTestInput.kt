@@ -78,5 +78,6 @@ data class TvmMessageDrivenContractExecutionTestEntry(
     val computePhaseResult: TvmTestResult,
     val actionPhaseResult: TvmTestResult?,
     val gasUsageHistory: Int,
-    val computeFee: TvmTestIntegerValue?,
+    val computeFee: TvmTestIntegerValue,
+    val eventTime: TvmTestIntegerValue,
 )

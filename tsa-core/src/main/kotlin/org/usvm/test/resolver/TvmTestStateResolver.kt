@@ -143,6 +143,7 @@ class TvmTestStateResolver(
                 actionPhaseResult = entry.actionPhaseResult?.let { resolveResultStackImpl(it) },
                 gasUsageHistory = resolvePhaseGasUsage(entry.executionBegin, entry.executionEnd),
                 computeFee = resolveInt257(entry.computeFee),
+                eventTime = resolveInt257(entry.eventTime),
             )
         }
 

@@ -307,12 +307,10 @@ fun TvmState.initContractInfo(
         check(models.isEmpty()) {
             "Model list must be empty at this point but is not."
         }
-        pathConstraints += mkBvSignedLessOrEqualExpr(unitTimeMinValue, unixTime.intValue)
-        pathConstraints += mkBvSignedLessOrEqualExpr(unixTime.intValue, unitTimeMaxValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(blockLogicTime.intValue, zeroValue)
-        pathConstraints += mkBvSignedGreaterExpr(maxTimestampValue, blockLogicTime.intValue)
+        pathConstraints += mkBvSignedGreaterExpr(maxLogicalTimeValue, blockLogicTime.intValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(transactionLogicTime.intValue, zeroValue)
-        pathConstraints += mkBvSignedGreaterExpr(maxTimestampValue, transactionLogicTime.intValue)
+        pathConstraints += mkBvSignedGreaterExpr(maxLogicalTimeValue, transactionLogicTime.intValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(initialBalance, zeroValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(storagePhaseFees.intValue, zeroValue)
         pathConstraints += mkAnd((extendedWorkchain eq masterchain) or (extendedWorkchain eq baseChain))

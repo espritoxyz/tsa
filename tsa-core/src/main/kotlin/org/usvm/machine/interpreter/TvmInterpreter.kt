@@ -397,6 +397,13 @@ class TvmInterpreter(
             )
 
         state.time = state.generateSymbolicTime()
+        pathConstraints +=
+            with(ctx) {
+                mkAnd(
+                    mkBvSignedGreaterOrEqualExpr(state.time, unixTimeMinValue),
+                    mkBvSignedGreaterOrEqualExpr(unixTimeMaxValue, state.time),
+                )
+            }
 
         state.contractIdToC4Register =
             contractsCode.indices
