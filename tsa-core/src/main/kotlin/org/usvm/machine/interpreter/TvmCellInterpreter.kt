@@ -5,6 +5,7 @@ import org.ton.Endian
 import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellBuildBbitsInst
 import org.ton.bytecode.TvmCellBuildBdepthInst
+import org.ton.bytecode.TvmCellBuildBrefsInst
 import org.ton.bytecode.TvmCellBuildEndcInst
 import org.ton.bytecode.TvmCellBuildInst
 import org.ton.bytecode.TvmCellBuildNewcInst
@@ -96,6 +97,7 @@ import org.ton.bytecode.TvmCellParseSrefsInst
 import org.ton.bytecode.TvmCellParseSskiplastInst
 import org.ton.bytecode.TvmCellParseXctosInst
 import org.ton.bytecode.TvmInst
+import org.ton.bytecode.TvmRealInst
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -811,7 +813,35 @@ class TvmCellInterpreter(
                 visitStoreRefInst(scope, stmt, quiet = false)
             }
 
+            is TvmCellBuildBrefsInst -> visitCellBrefsInst(scope, stmt)
+
             else -> TODO("$stmt")
+        }
+    }
+
+    private fun visitCellBrefsInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmRealInst,
+    ) = with(scope.ctx) {
+        scope.consumeDefaultGas(stmt)
+
+        val builder =
+            scope.calcOnState {
+                takeLastBuilder() ?: run {
+                    throwTypeCheckError(this)
+                    null
+                }
+            } ?: return
+
+        val refs =
+            scope.calcOnState {
+                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, builder)
+            }
+
+        scope.addOnStack(refs.unsignedExtendToInteger(), TvmIntegerType)
+
+        scope.calcOnState {
+            newStmt(stmt.nextStmt())
         }
     }
 
