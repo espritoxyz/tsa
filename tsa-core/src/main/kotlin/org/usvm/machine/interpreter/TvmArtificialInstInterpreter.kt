@@ -533,8 +533,11 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialExitInst,
     ) {
-        updateTime(scope)
-            ?: return
+        val receivedMessage = scope.calcOnState { receivedMessage }
+        if (receivedMessage != null) {
+            updateTime(scope)
+                ?: return
+        }
 
         scope.doWithStateCtx {
             phase = TvmExitPhase(stmt.computePhaseResult, stmt.actionPhaseResult)
