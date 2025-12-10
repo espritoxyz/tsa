@@ -24,7 +24,6 @@ import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.UnknownBlockLengthField
 import org.usvm.mkSizeExpr
-import org.usvm.model.UModelBase
 import kotlin.math.max
 
 class TvmReferenceToLabelMapper private constructor(
@@ -145,7 +144,7 @@ class TvmReferenceToLabelMapper private constructor(
     }
 
     fun getLabelFromModel(
-        model: UModelBase<TvmType>,
+        model: TvmModel,
         ref: UConcreteHeapRef,
     ): TvmParameterInfo.CellInfo {
         check(ref.isStatic) {

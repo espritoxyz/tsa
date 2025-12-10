@@ -1,11 +1,14 @@
 package org.usvm.machine.interpreter
 
+import kotlinx.collections.immutable.persistentListOf
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
+import org.ton.bytecode.TsaArtificialActionParseInst
 import org.ton.bytecode.TsaArtificialActionPhaseInst
 import org.ton.bytecode.TsaArtificialBouncePhaseInst
 import org.ton.bytecode.TsaArtificialCheckerReturn
 import org.ton.bytecode.TsaArtificialExecuteContInst
 import org.ton.bytecode.TsaArtificialExitInst
+import org.ton.bytecode.TsaArtificialHandleMessagesCostInst
 import org.ton.bytecode.TsaArtificialImplicitRetInst
 import org.ton.bytecode.TsaArtificialInst
 import org.ton.bytecode.TsaArtificialJmpToContInst
@@ -23,7 +26,6 @@ import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
-import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmComputePhase
 import org.usvm.machine.state.TvmEventInformation
 import org.usvm.machine.state.TvmExitPhase
@@ -34,7 +36,6 @@ import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmResult.TvmAbstractSoftFailure
 import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmStack
-import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
@@ -63,6 +64,7 @@ import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.messages.Tail
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.messages.getOrElse
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceCell
@@ -71,6 +73,7 @@ import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setBalance
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
+import org.usvm.machine.state.withExceptionalDropped
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.sizeSort
@@ -127,6 +130,18 @@ class TvmArtificialInstInterpreter(
                 scope.consumeDefaultGas(stmt)
 
                 visitActionPhaseInst(scope, stmt)
+            }
+
+            is TsaArtificialActionParseInst -> {
+                scope.consumeDefaultGas(stmt)
+
+                visitParseActionInst(scope, stmt)
+            }
+
+            is TsaArtificialHandleMessagesCostInst -> {
+                scope.consumeDefaultGas(stmt)
+
+                visitHandleMessageCostsInst(scope, stmt)
             }
 
             is TsaArtificialBouncePhaseInst -> {
@@ -278,6 +293,119 @@ class TvmArtificialInstInterpreter(
         }
     }
 
+    private fun visitHandleMessageCostsInst(
+        scope: TvmStepScopeManager,
+        stmt: TsaArtificialHandleMessagesCostInst,
+    ) {
+        val oldIsExceptional = scope.calcOnState { isExceptional }
+        scope.calcOnState { isExceptional = false }
+        transactionInterpreter.handleMessageCosts(
+            scope,
+            stmt.parsingResult.parsedOrderedMessages,
+        ) { actionsHandlingResult ->
+
+            when (actionsHandlingResult) {
+                is ActionHandlingResult.Success -> {
+                    this.calcOnState { registerActionPhaseEffect(actionsHandlingResult) }
+                    val result = TvmResult.TvmActionPhaseSuccess(stmt.computePhaseResult)
+                    val messages = actionsHandlingResult.messagesDispatched
+                    doWithState {
+                        // workaround, so that on_out_message has access to the balance
+                        contractIdToFirstElementOfC7 =
+                            contractIdToFirstElementOfC7.put(
+                                currentContract,
+                                registersOfCurrentContract.c7.value[0, stack].cell(
+                                    stack,
+                                ) as TvmStack.TvmStackTupleValueConcreteNew,
+                            )
+                        calcOnState {
+                            isExceptional = isExceptional || oldIsExceptional
+                        }
+                        newStmt(
+                            TsaArtificialOnOutMessageHandlerCallInst(
+                                computePhaseResult = stmt.computePhaseResult,
+                                actionPhaseResult = result,
+                                lastStmt.location,
+                                messages,
+                                0,
+                            ),
+                        )
+                    }
+                }
+
+                is ActionHandlingResult.RealFailure -> {
+                    this.calcOnState {
+                        val failure =
+                            TvmFailure(
+                                actionsHandlingResult.failure,
+                                TvmFailureType.UnknownError,
+                                phase,
+                                pathNode,
+                            )
+                        calcOnState {
+                            isExceptional = isExceptional || oldIsExceptional
+                        }
+                        newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
+                    }
+                }
+
+                is ActionHandlingResult.SoftFailure -> {
+                    this.calcOnState {
+                        val failure =
+                            TvmResult.TvmSoftFailure(
+                                actionsHandlingResult.failure,
+                                phase,
+                            )
+                        calcOnState {
+                            isExceptional = isExceptional || oldIsExceptional
+                        }
+                        newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun visitParseActionInst(
+        scope: TvmStepScopeManager,
+        stmt: TsaArtificialActionParseInst,
+    ) {
+        // temporarily remove isExceptional mark for further processing
+        val oldIsExceptional = scope.calcOnState { isExceptional }
+        scope.doWithState {
+            isExceptional = false
+        }
+        val (head, tail) =
+            stmt.yetUnparsedActions.splitHeadTail() ?: return run {
+                val someModel = scope.calcOnState { models.first() }
+                transactionInterpreter.resolveMessageReceivers(
+                    scope,
+                    stmt.parsedAndPreprocessedActions,
+                    someModel,
+                ) { parsingResult ->
+                    doWithState {
+                        isExceptional = isExceptional || oldIsExceptional
+                        newStmt(
+                            TsaArtificialHandleMessagesCostInst(stmt.computePhaseResult, stmt.location, parsingResult),
+                        )
+                    }
+                }
+            }
+        val parsedHead = transactionInterpreter.parseSingleActionSlice(scope, head).getOrElse { return }
+        val updatedParsedAndPreprocessed =
+            if (parsedHead != null) {
+                stmt.parsedAndPreprocessedActions + parsedHead
+            } else {
+                stmt.parsedAndPreprocessedActions
+            }
+        scope.calcOnState {
+            isExceptional = isExceptional || oldIsExceptional
+            newStmt(
+                stmt.copy(yetUnparsedActions = tail, parsedAndPreprocessedActions = updatedParsedAndPreprocessed),
+            )
+        }
+    }
+
     private fun visitActionPhaseInst(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialActionPhaseInst,
@@ -289,41 +417,30 @@ class TvmArtificialInstInterpreter(
                 lastCommitedStateOfContracts[currentContract]
             }
 
-        // temporarily remove isExceptional mark for further processing
-        val oldIsExceptional = scope.calcOnState { isExceptional }
-        scope.doWithState {
-            isExceptional = false
-        }
-
         val analyzingReceiver = scope.calcOnState { receivedMessage != null }
         if (analyzingReceiver && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis && !isTsaChecker) {
             scope.doWithState {
                 phase = TvmActionPhase(stmt.computePhaseResult)
             }
-
-            processNewMessages(scope, commitedState, stmt.computePhaseResult) { result, messages ->
-                doWithState {
-                    isExceptional = isExceptional || oldIsExceptional
-                    // workaround, so that on_out_message has access to the balance
-                    contractIdToFirstElementOfC7 =
-                        contractIdToFirstElementOfC7.put(
-                            currentContract,
-                            registersOfCurrentContract.c7.value[0, stack].cell(stack) as TvmStackTupleValueConcreteNew,
-                        )
-                    newStmt(
-                        TsaArtificialOnOutMessageHandlerCallInst(
-                            computePhaseResult = stmt.computePhaseResult,
-                            actionPhaseResult = result,
-                            lastStmt.location,
-                            messages,
-                            0,
-                        ),
-                    )
+            val commitedActions = scope.calcOnState { commitedState.c5.value.value }
+            val actions =
+                withExceptionalDropped(scope) {
+                    transactionInterpreter.extractListOfActions(scope, commitedActions)
                 }
+                    ?: return
+
+            scope.calcOnState {
+                newStmt(
+                    TsaArtificialActionParseInst(
+                        stmt.computePhaseResult,
+                        lastStmt.location,
+                        actions,
+                        persistentListOf(),
+                    ),
+                )
             }
         } else {
             scope.doWithState {
-                isExceptional = isExceptional || oldIsExceptional
                 newStmt(
                     TsaArtificialOnOutMessageHandlerCallInst(
                         computePhaseResult = stmt.computePhaseResult,
@@ -582,8 +699,10 @@ class TvmArtificialInstInterpreter(
         isTsaChecker: Boolean,
         haveToTakeExit: Boolean = false,
     ): TvmResult.TvmTerminalResult? {
-        if (ctx.tvmOptions.stopOnFirstError &&
-            computePhaseResult.isExceptional() ||
+        val isExceptional =
+            ctx.tvmOptions.stopOnFirstError &&
+                computePhaseResult.isExceptional()
+        if (isExceptional ||
             receivedMessage == null ||
             isTsaChecker ||
             computePhaseResult is TvmAbstractSoftFailure
@@ -641,57 +760,6 @@ class TvmArtificialInstInterpreter(
         receivedMessage = ReceivedMessage.MessageFromOtherContract(sender, currentContract, message)
         phase = TvmComputePhase
         switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
-    }
-
-    private fun processNewMessages(
-        scope: TvmStepScopeManager,
-        commitedState: TvmCommitedState,
-        computePhaseResult: TvmResult.TvmTerminalResult,
-        restActions: TvmStepScopeManager.(
-            TvmResult.TvmTerminalResult,
-            List<DispatchedMessage>,
-        ) -> Unit,
-    ) {
-        transactionInterpreter.parseActionsAndResolveReceivers(
-            scope,
-            commitedState,
-        ) {
-            transactionInterpreter.handleMessageCosts(this, it.parsedOrderedMessages) { actionsHandlingResult ->
-                when (actionsHandlingResult) {
-                    is ActionHandlingResult.Success -> {
-                        this.calcOnState { registerActionPhaseEffect(actionsHandlingResult) }
-                        this.restActions(
-                            TvmResult.TvmActionPhaseSuccess(computePhaseResult),
-                            actionsHandlingResult.messagesDispatched,
-                        )
-                    }
-
-                    is ActionHandlingResult.RealFailure -> {
-                        this.calcOnState {
-                            val failure =
-                                TvmFailure(
-                                    actionsHandlingResult.failure,
-                                    TvmFailureType.UnknownError,
-                                    phase,
-                                    pathNode,
-                                )
-                            newStmt(TsaArtificialExitInst(computePhaseResult, failure, lastStmt.location))
-                        }
-                    }
-
-                    is ActionHandlingResult.SoftFailure -> {
-                        this.calcOnState {
-                            val failure =
-                                TvmResult.TvmSoftFailure(
-                                    actionsHandlingResult.failure,
-                                    phase,
-                                )
-                            newStmt(TsaArtificialExitInst(computePhaseResult, failure, lastStmt.location))
-                        }
-                    }
-                }
-            }
-        }
     }
 
     private fun TvmState.registerActionPhaseEffect(finalMessageHandlingState: ActionHandlingResult.Success) {

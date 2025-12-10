@@ -21,12 +21,12 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.OP_BITS
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.asIntValue
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
-import org.usvm.machine.state.TvmCommitedState
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.allocSliceFromCell
@@ -39,17 +39,22 @@ import org.usvm.machine.state.makeCellToSliceNoFork
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.MessageMode
+import org.usvm.machine.state.messages.Ok
 import org.usvm.machine.state.messages.ParsingState
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.messages.ValueOrDeadScope
 import org.usvm.machine.state.messages.bodySlice
 import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
 import org.usvm.machine.state.messages.getMsgBodySlice
+import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.sliceLoadIntTransaction
 import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.types.SliceRef
+import org.usvm.machine.types.TvmModel
 import org.usvm.mkSizeExpr
-import org.usvm.test.resolver.TvmTestStateResolver
+import org.usvm.utils.intValueOrNull
 
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
 private typealias Transformation =
@@ -246,6 +251,13 @@ class TvmTransactionInterpreter(
             val sendRemainingValue = mode.hasBitSet(MessageMode.SEND_REMAINING_VALUE_BIT)
             val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE_BIT)
             val sendFwdFeesSeparately = mode.hasBitSet(MessageMode.SEND_FEES_SEPARATELY)
+            val sendIgnoreErrors =
+                mode
+                    .hasBitSet(MessageMode.SEND_IGNORE_ERRORS)
+                    .asIntValue()
+                    .intValueOrNull
+                    ?.let { it != 0 }
+                    ?: error("Only concrete mode is supported")
             val messageValue = head.outMessage.content.commonMessageInfo.msgValue
             ctx.handleSingleMessage(
                 scope = this@handleMessagesImpl,
@@ -257,7 +269,13 @@ class TvmTransactionInterpreter(
                 currentState = currentMessageHandlingState,
                 currentMessage = head,
             ) { newCurrentState ->
-                handleMessagesImpl(tail, newCurrentState, restActions)
+                val newCurrentStateWithPossiblyIgnoredError =
+                    if (newCurrentState is MessageHandlingState.RealFailure && sendIgnoreErrors) {
+                        currentMessageHandlingState
+                    } else {
+                        newCurrentState
+                    }
+                handleMessagesImpl(tail, newCurrentStateWithPossiblyIgnoredError, restActions)
             }
         }
 
@@ -517,17 +535,51 @@ class TvmTransactionInterpreter(
         }
     }
 
-    fun parseActionsAndResolveReceivers(
+    fun parseSingleActionSlice(
         scope: TvmStepScopeManager,
-        commitedState: TvmCommitedState,
+        actionSlice: SliceRef,
+    ): ValueOrDeadScope<MessageActionParseResult?> =
+        with(scope.ctx) {
+            val resolver = scope.calcOnState { models.first() }
+            val (actionBody, tag) =
+                sliceLoadIntTransaction(scope, actionSlice.value, 32)
+                    ?: return scopeDied
+
+            val isSendMsgAction = tag eq sendMsgActionTag.unsignedExtendToInteger()
+            val isReserveAction = tag eq reserveActionTag.unsignedExtendToInteger()
+
+            when {
+                resolver.eval(isReserveAction).isTrue -> {
+                    scope.assert(isReserveAction)
+                        ?: return scopeDied
+
+                    visitReserveAction()
+                    Ok(null)
+                }
+
+                resolver.eval(isSendMsgAction).isTrue -> {
+                    scope.assert(isSendMsgAction)
+                        ?: return scopeDied
+
+                    val msg =
+                        parseAndPreprocessMessageAction(scope, actionBody, resolver)
+                            ?: return scopeDied
+
+                    Ok(msg)
+                }
+
+                else -> {
+                    error("Unknown action in C5 register")
+                }
+            }
+        }
+
+    fun resolveMessageReceivers(
+        scope: TvmStepScopeManager,
+        messages: List<MessageActionParseResult>,
+        model: TvmModel,
         restActions: TvmStepScopeManager.(ActionsParsingResult) -> Unit,
     ) {
-        val resolver = TvmTestStateResolver(ctx, scope.calcOnState { models.first() }, scope.calcOnState { this })
-
-        val messages =
-            parseOutMessages(scope, commitedState, resolver)
-                ?: return
-
         if (messages.isEmpty()) {
             return ActionsParsingResult(emptyList()).let {
                 scope.restActions(it)
@@ -558,7 +610,7 @@ class TvmTransactionInterpreter(
                 msgBody,
                 handlers.inOpcodeToDestination,
                 handlers.other,
-                resolver,
+                model,
                 scope,
             )
 
@@ -592,7 +644,7 @@ class TvmTransactionInterpreter(
                                 it.content.tail.bodySlice(),
                                 handler.outOpcodeToDestination,
                                 handler.other,
-                                resolver,
+                                model,
                                 scope,
                             )
 
@@ -685,7 +737,7 @@ class TvmTransactionInterpreter(
         msgBodySlice: UHeapRef,
         variants: Map<String, T>,
         defaultVariant: T?,
-        resolver: TvmTestStateResolver,
+        resolver: TvmModel,
         scope: TvmStepScopeManager,
     ): Pair<T?, Unit?> =
         with(scope.ctx) {
@@ -733,63 +785,13 @@ class TvmTransactionInterpreter(
             return handler to Unit
         }
 
-    private fun parseOutMessages(
+    fun extractListOfActions(
         scope: TvmStepScopeManager,
-        commitedState: TvmCommitedState,
-        resolver: TvmTestStateResolver,
-    ): List<MessageActionParseResult>? =
+        actionsCell: UHeapRef,
+    ): List<SliceRef>? =
         with(ctx) {
-            val commitedActions = scope.calcOnState { commitedState.c5.value.value }
-
-            val actions =
-                extractActions(scope, commitedActions)
-                    ?: return null
-
-            val outMessages = mutableListOf<MessageActionParseResult>()
-
-            for (action in actions) {
-                val (actionBody, tag) =
-                    sliceLoadIntTransaction(scope, action, 32)
-                        ?: return null
-
-                val isSendMsgAction = tag eq sendMsgActionTag.unsignedExtendToInteger()
-                val isReserveAction = tag eq reserveActionTag.unsignedExtendToInteger()
-
-                when {
-                    resolver.eval(isReserveAction).isTrue -> {
-                        scope.assert(isReserveAction)
-                            ?: return null
-
-                        visitReserveAction()
-                    }
-
-                    resolver.eval(isSendMsgAction).isTrue -> {
-                        scope.assert(isSendMsgAction)
-                            ?: return null
-
-                        val msg =
-                            parseAndPreprocessMessageAction(scope, actionBody, resolver)
-                                ?: return null
-
-                        outMessages.add(msg)
-                    }
-
-                    else -> {
-                        error("Unknown action in C5 register")
-                    }
-                }
-            }
-
-            return outMessages
-        }
-
-    private fun extractActions(
-        scope: TvmStepScopeManager,
-        actions: UHeapRef,
-    ): List<UHeapRef>? =
-        with(ctx) {
-            var cur = actions
-            val actionList = mutableListOf<UHeapRef>()
+            var cur = actionsCell
+            val actionList = mutableListOf<SliceRef>()
 
             while (true) {
                 val slice = scope.calcOnState { allocSliceFromCell(cur) }
@@ -809,7 +811,7 @@ class TvmTransactionInterpreter(
                         it.first
                     }
                         ?: return null
-                actionList.add(action)
+                actionList.add(SliceRef(action))
 
                 if (actionList.size > TvmContext.MAX_ACTIONS) {
                     // TODO set error code
@@ -823,7 +825,7 @@ class TvmTransactionInterpreter(
     private fun parseAndPreprocessMessageAction(
         scope: TvmStepScopeManager,
         slice: UHeapRef,
-        resolver: TvmTestStateResolver,
+        resolver: TvmModel,
     ): MessageActionParseResult? {
         val (_, sendMsgMode) =
             sliceLoadIntTransaction(scope, slice, 8, false)
@@ -837,7 +839,7 @@ class TvmTransactionInterpreter(
 
         val ptr = ParsingState(msgSlice)
         val messageContentActual =
-            parseMessageInfo(scope, ptr, resolver)
+            parseMessageInfo(scope, resolver, msgSlice)
                 ?: return null
 
         val senderAddressCell =
@@ -864,10 +866,11 @@ class TvmTransactionInterpreter(
 
     private fun parseMessageInfo(
         scope: TvmStepScopeManager,
-        ptr: ParsingState,
-        resolver: TvmTestStateResolver,
+        model: TvmModel,
+        msgSlice: UConcreteHeapRef,
     ): TlbInternalMessageContent? =
         with(ctx) {
+            val ptr = ParsingState(msgSlice)
             val tag =
                 sliceLoadIntTransaction(scope, ptr.slice, 1)?.second
                     ?: return@with null
@@ -875,7 +878,7 @@ class TvmTransactionInterpreter(
             scope.assert(isInternalCond)
                 ?: return@with null
             val messageContent =
-                TlbInternalMessageContent.extractFromSlice(scope, ptr, resolver)
+                TlbInternalMessageContent.extractFromSlice(scope, ptr, model, quietBlock = null)
                     ?: return@with null
 
             return messageContent
