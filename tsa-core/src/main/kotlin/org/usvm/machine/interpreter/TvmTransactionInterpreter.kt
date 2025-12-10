@@ -839,7 +839,7 @@ class TvmTransactionInterpreter(
 
         val ptr = ParsingState(msgSlice)
         val messageContentActual =
-            parseMessageInfo(scope, ptr, resolver)
+            parseMessageInfo(scope, resolver, msgSlice)
                 ?: return null
 
         val senderAddressCell =
@@ -866,10 +866,11 @@ class TvmTransactionInterpreter(
 
     private fun parseMessageInfo(
         scope: TvmStepScopeManager,
-        ptr: ParsingState,
-        resolver: TvmModel,
+        model: TvmModel,
+        msgSlice: UConcreteHeapRef,
     ): TlbInternalMessageContent? =
         with(ctx) {
+            val ptr = ParsingState(msgSlice)
             val tag =
                 sliceLoadIntTransaction(scope, ptr.slice, 1)?.second
                     ?: return@with null
@@ -877,7 +878,7 @@ class TvmTransactionInterpreter(
             scope.assert(isInternalCond)
                 ?: return@with null
             val messageContent =
-                TlbInternalMessageContent.extractFromSlice(scope, ptr, resolver)
+                TlbInternalMessageContent.extractFromSlice(scope, ptr, model, quietBlock = null)
                     ?: return@with null
 
             return messageContent
