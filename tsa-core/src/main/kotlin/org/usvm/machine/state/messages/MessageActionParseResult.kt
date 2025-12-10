@@ -12,7 +12,15 @@ object MessageMode {
     const val SEND_FEES_SEPARATELY = 0
 }
 
+/**
+ * @property content is `null` if there was an error during the parse of the content
+ */
 data class MessageActionParseResult(
+    val content: TlbInternalMessageContent?,
+    val sendMessageMode: Int257Expr,
+)
+
+data class MessageParsedFromAction(
     val content: TlbInternalMessageContent,
     val sendMessageMode: Int257Expr,
 )

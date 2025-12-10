@@ -25,6 +25,7 @@ import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderStoreSliceTransaction
 import org.usvm.machine.state.builderToCell
+import org.usvm.machine.state.createSliceIsEmptyConstraint
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.sliceLoadAddrTransaction
@@ -402,6 +403,12 @@ data class TlbInternalMessageContent(
                 val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
                 val tail = Tail.Implicit(tailSlice, bodySlice, stateInitRef, bodyCellOriginal)
 
+                val sliceFullyParsed = scope.calcOnState { createSliceIsEmptyConstraint(ptr.slice) }
+                scope.fork(
+                    sliceFullyParsed,
+                    falseStateIsExceptional = quietBlock == null,
+                    blockOnFalseState = quietBlock ?: throwCellOverflowError,
+                ) ?: return@with null
                 TlbInternalMessageContent(
                     commonMessageInfo = commonMessageInfo,
                     tail = tail,

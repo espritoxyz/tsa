@@ -365,7 +365,7 @@ class SendModesTest {
         sendIgnoreErrorBaseTest(100)
     }
 
-    @Ignore("SendIgnoreError flag is not supported")
+//    @Ignore("SendIgnoreError flag is not supported")
     @Test
     fun `SendIgnoreError invalid destination address`() {
         sendIgnoreErrorBaseTest(101)

@@ -1,7 +1,9 @@
 package org.usvm.machine.state
 
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KExpr
 import io.ksmt.expr.KInterpretedValue
+import io.ksmt.sort.KBoolSort
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import org.ton.Endian
@@ -1514,3 +1516,27 @@ fun TvmState.readSliceFull(slice: UHeapRef): SliceReadData {
         cellData,
     )
 }
+
+fun TvmState.createSliceIsEmptyConstraint(slice: UHeapRef): KExpr<KBoolSort> =
+    with(ctx) {
+        val state = this@createSliceIsEmptyConstraint
+        val cell = memory.readField(slice, sliceCellField, addressSort)
+        val dataPos =
+            fieldManagers.cellDataLengthFieldManager.readSliceDataPos(
+                state,
+                slice,
+            )
+        val refsPos = memory.readField(slice, sliceRefPosField, sizeSort)
+        val dataLength =
+            fieldManagers.cellDataLengthFieldManager.readCellDataLength(
+                state,
+                cell,
+            )
+        val refsLength =
+            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(state, cell)
+
+        val isRemainingDataEmptyConstraint = mkSizeGeExpr(dataPos, dataLength)
+        val areRemainingRefsEmpty = mkSizeGeExpr(refsPos, refsLength)
+        val result = mkAnd(isRemainingDataEmptyConstraint, areRemainingRefsEmpty)
+        return result
+    }

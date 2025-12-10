@@ -391,18 +391,18 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
-        val parsedHead = transactionInterpreter.parseSingleActionSlice(scope, head).getOrElse { return }
+        val tmpStmt = stmt.copy(yetUnparsedActions = tail)
+        val parsedHead = transactionInterpreter.parseSingleActionSlice(scope, head, tmpStmt).getOrElse { return }
         val updatedParsedAndPreprocessed =
             if (parsedHead != null) {
                 stmt.parsedAndPreprocessedActions + parsedHead
             } else {
                 stmt.parsedAndPreprocessedActions
             }
+        val newStmt = stmt.copy(yetUnparsedActions = tail, parsedAndPreprocessedActions = updatedParsedAndPreprocessed)
         scope.calcOnState {
             isExceptional = isExceptional || oldIsExceptional
-            newStmt(
-                stmt.copy(yetUnparsedActions = tail, parsedAndPreprocessedActions = updatedParsedAndPreprocessed),
-            )
+            newStmt(newStmt)
         }
     }
 
