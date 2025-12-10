@@ -1511,7 +1511,12 @@ class InputParameterInfoTests {
         val results =
             funcCompileAndAnalyzeAllMethods(
                 resourcePath,
-                tvmOptions = TvmOptions(performAdditionalChecksWhileResolving = true, analyzeBouncedMessaged = false),
+                tvmOptions =
+                    TvmOptions(
+                        performAdditionalChecksWhileResolving = true,
+                        analyzeBouncedMessaged = false,
+                        usePreciseFwdFeesOnCheckerInternalMessages = false,
+                    ),
                 inputInfo = mapOf(MethodId.ZERO to inputInfo),
             )
         assertEquals(1, results.testSuites.size)
