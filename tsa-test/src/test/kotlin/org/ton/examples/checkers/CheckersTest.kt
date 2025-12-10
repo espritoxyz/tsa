@@ -77,6 +77,11 @@ class CheckersTest {
         const val SENDER = "/checkers/on-compute-phase-exit-stop-on-first-error-test/sender.fc"
     }
 
+    private object TimeTickingTestData {
+        const val CHECKER = "/checkers/time/checker.fc"
+        const val CONTRACT = "/checkers/time/time_dependant_contract.fc"
+    }
+
     @Test
     fun testConsistentBalanceThroughChecker() {
         runTestConsistentBalanceThroughChecker(internalCallChecker, fetchedKeys = emptySet(), balancePath)
@@ -450,6 +455,29 @@ class CheckersTest {
                     result is TvmSuccessfulExecution
                 }
             },
+        )
+    }
+
+    @Test
+    fun testTimeTicking() {
+        val checkerContract = extractCheckerContractFromResource(TimeTickingTestData.CHECKER)
+        val contract = extractFuncContractFromResource(TimeTickingTestData.CONTRACT)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, contract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options =
+                    TvmOptions(
+                        enableOutMessageAnalysis = true,
+                        stopOnFirstError = true,
+                    ),
+            )
+
+        propertiesFound(
+            tests,
+            listOf { test -> test.exitCode() == 12345 },
         )
     }
 }

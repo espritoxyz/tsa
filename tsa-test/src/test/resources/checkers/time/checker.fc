@@ -1,0 +1,18 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+() main() impure {
+    tsa_forbid_failures();
+
+    slice ds = tsa_get_c4(1).begin_parse();
+    int flag = ds~load_uint(1);
+    tsa_assert(flag == 0);
+    int time = ds~load_uint(32);
+    time~impure_touch();
+
+    tsa_allow_failures();
+
+    tsa_send_internal_message(1, 0);
+
+    tsa_send_internal_message(1, 1);
+}
