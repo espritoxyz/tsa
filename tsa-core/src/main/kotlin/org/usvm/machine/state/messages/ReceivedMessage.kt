@@ -1,9 +1,11 @@
 package org.usvm.machine.state.messages
 
+import kotlinx.serialization.Serializable
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.EventId
 import org.usvm.machine.state.input.ReceiverInput
 
+@Serializable
 data class ContractSender(
     val contractId: ContractId,
     val eventId: EventId,

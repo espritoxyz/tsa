@@ -44,4 +44,5 @@ data class TvmMessageDrivenContractExecutionEntry(
     val computePhaseResult: TvmResult,
     val actionPhaseResult: TvmResult?,
     val computeFee: UExpr<TvmContext.TvmInt257Sort>,
+    val eventTime: UExpr<TvmContext.TvmInt257Sort>,
 ) : TvmEventLogEntry

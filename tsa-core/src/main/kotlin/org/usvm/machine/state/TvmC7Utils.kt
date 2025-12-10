@@ -240,8 +240,7 @@ fun TvmState.initContractInfo(
         // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/smc-envelope/SmartContract.cpp#L154
         val msgsSent = TvmStackIntValue(zeroValue)
 
-        val unixTimeValue = makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_UNIX_TIME)).zeroExtendToSort(int257sort)
-        val unixTime = TvmStackIntValue(unixTimeValue)
+        val unixTime = TvmStackIntValue(time)
 
         // Right now, this parameter can only be set to zero in emulator
         // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/smc-envelope/SmartContract.cpp#L156
@@ -308,12 +307,10 @@ fun TvmState.initContractInfo(
         check(models.isEmpty()) {
             "Model list must be empty at this point but is not."
         }
-        pathConstraints += mkBvSignedLessOrEqualExpr(unitTimeMinValue, unixTime.intValue)
-        pathConstraints += mkBvSignedLessOrEqualExpr(unixTime.intValue, unitTimeMaxValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(blockLogicTime.intValue, zeroValue)
-        pathConstraints += mkBvSignedGreaterExpr(maxTimestampValue, blockLogicTime.intValue)
+        pathConstraints += mkBvSignedGreaterExpr(maxLogicalTimeValue, blockLogicTime.intValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(transactionLogicTime.intValue, zeroValue)
-        pathConstraints += mkBvSignedGreaterExpr(maxTimestampValue, transactionLogicTime.intValue)
+        pathConstraints += mkBvSignedGreaterExpr(maxLogicalTimeValue, transactionLogicTime.intValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(initialBalance, zeroValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(storagePhaseFees.intValue, zeroValue)
         pathConstraints += mkAnd((extendedWorkchain eq masterchain) or (extendedWorkchain eq baseChain))

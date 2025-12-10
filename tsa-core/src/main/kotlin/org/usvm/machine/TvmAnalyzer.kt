@@ -622,7 +622,7 @@ data class FiftInterpreterResult(
     val stack: List<String>,
 )
 
-private const val COMPILER_TIMEOUT = 30.toLong() // seconds
+private const val COMPILER_TIMEOUT = 60.toLong() // seconds
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun Int.toMethodId(): MethodId = toBigInteger()

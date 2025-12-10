@@ -280,6 +280,7 @@ import org.usvm.machine.state.doXchg
 import org.usvm.machine.state.doXchg2
 import org.usvm.machine.state.doXchg3
 import org.usvm.machine.state.generateSymbolicCell
+import org.usvm.machine.state.generateSymbolicTime
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.getSliceRemainingRefsCount
@@ -394,6 +395,15 @@ class TvmInterpreter(
                 fieldManagers = fieldManagers,
                 intercontractPath = persistentListOf(startContractId),
             )
+
+        state.time = state.generateSymbolicTime()
+        pathConstraints +=
+            with(ctx) {
+                mkAnd(
+                    mkBvSignedGreaterOrEqualExpr(state.time, unixTimeMinValue),
+                    mkBvSignedGreaterOrEqualExpr(unixTimeMaxValue, state.time),
+                )
+            }
 
         state.contractIdToC4Register =
             contractsCode.indices

@@ -101,12 +101,12 @@ class TvmContext(
     val minusOneValue: KBitVecValue<TvmInt257Sort> = trueValue
     val intBitsValue: KBitVecValue<TvmInt257Sort> = INT_BITS.toInt().toBv257()
     val maxTupleSizeValue: KBitVecValue<TvmInt257Sort> = MAX_TUPLE_SIZE.toBv257()
-    val unitTimeMinValue: KBitVecValue<TvmInt257Sort> = UNIX_TIME_MIN.toBv257()
-    val unitTimeMaxValue: KBitVecValue<TvmInt257Sort> = UNIX_TIME_MAX.toBv257()
+    val unixTimeMinValue: KBitVecValue<TvmInt257Sort> = UNIX_TIME_MIN.toBv257()
+    val unixTimeMaxValue: KBitVecValue<TvmInt257Sort> = UNIX_TIME_MAX.toBv257()
     val min257BitValue: KExpr<TvmInt257Sort> = bvMinValueSignedExtended(intBitsValue)
     val max257BitValue: KExpr<TvmInt257Sort> = bvMaxValueSignedExtended(intBitsValue)
     val maxGramsValue: KExpr<TvmInt257Sort> = bvMaxValueUnsigned<UBvSort>(MAX_GRAMS_BITS).unsignedExtendToInteger()
-    val maxTimestampValue = mkBvShiftLeftExpr(oneValue, 64.toBv257())
+    val maxLogicalTimeValue = mkBvShiftLeftExpr(oneValue, 64.toBv257())
 
     val masterchain: KBitVecValue<TvmInt257Sort> = minusOneValue
     val baseChain: KBitVecValue<TvmInt257Sort> = zeroValue
