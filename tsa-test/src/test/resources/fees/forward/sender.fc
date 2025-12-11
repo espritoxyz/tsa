@@ -166,7 +166,104 @@
         
         send_raw_message(msg, 1); ;; the fwd_fee will be 613600 nanoTons and should be paid separately from the message value
         ;; = lump_price + ceil((cell_price * 5 + bit_price * (6 * 4 + 10)) / 2 ** 16)
+        return();
+    } elseif (op == 700) {
+        cell simpleMsgBody2 = begin_cell()
+            .store_uint(0, 12)
+            .end_cell();
+        cell msgBody = begin_cell()
+            .store_uint(5, 10) ;; flag for checker
+            .store_ref(simpleMsgBody)
+            .store_ref(simpleMsgBody)
+            .end_cell();
+        cell code = begin_cell()
+            .store_uint(1, 4)
+            .store_ref(simpleMsgBody2) 
+            .end_cell();
+        cell data = begin_cell()
+            .store_uint(0, 2)
+            .end_cell();
+        ;; forming state init structure
+        cell stateInit = begin_cell()
+            .store_uint(1, 3)
+            .store_ref(code)
+            .store_uint(1, 1)
+            .store_ref(data)
+            .store_uint(0, 1)
+            .end_cell();
 
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(1, 1) ;; there is a StateInit
+        .store_uint(0, 1) ;; we store it inlined
+        .store_slice(stateInit.begin_parse())
+        .store_uint(0, 1) ;; we store message inlined
+        .store_slice(msgBody.begin_parse())
+        .end_cell();
+        
+        send_raw_message(msg, 1); ;; the fwd_fee will be 569600 nanoTons and should be paid separately from the message value
+        ;; = lump_price + ceil((cell_price * 4 + bit_price * (6 + 12 + 4 + 2)) / 2 ** 16)
+        return();
+    } elseif (op == 800) {
+        cell simpleMsgBody2 = begin_cell()
+            .store_uint(0, 12)
+            .end_cell();
+        cell code = begin_cell()
+            .store_uint(1, 4)
+            .store_ref(simpleMsgBody2) 
+            .end_cell();
+        cell data = begin_cell()
+            .store_uint(0, 2)
+            .end_cell();
+        ;; forming state init structure
+        cell stateInit = begin_cell()
+            .store_uint(1, 3)
+            .store_ref(code)
+            .store_uint(1, 1)
+            .store_ref(data)
+            .store_uint(0, 1)
+            .end_cell();
+
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(1, 1) ;; there is a StateInit
+        .store_uint(0, 1) ;; we store it inlined
+        .store_slice(stateInit.begin_parse())
+        .store_uint(0, 1) ;; we store message inlined, but there is no refs inside
+        .store_uint(6, 10) ;; flag for checker
+        .end_cell();
+        
+        send_raw_message(msg, 1); ;; the fwd_fee will be 527200 nanoTons and should be paid separately from the message value
+        ;; = lump_price + ceil((cell_price * 3 + bit_price * (12 + 4 + 2)) / 2 ** 16)
+        return();
+    } elseif (op == 900) {
+        cell simpleMsgBody2 = begin_cell()
+            .store_uint(0, 12)
+            .end_cell();
+        cell msgBody = begin_cell()
+            .store_uint(7, 10) ;; flag for checker
+            .store_ref(simpleMsgBody)
+            .store_ref(simpleMsgBody2)
+            .end_cell();
+
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(0, 1) ;; there is no StateInit
+        .store_uint(0, 1) ;; we store message inlined
+        .store_slice(msgBody.begin_parse())
+        .end_cell();
+        
+        send_raw_message(msg, 1); ;; the fwd_fee will be 487200 nanoTons and should be paid separately from the message value
+        ;; = lump_price + ceil((cell_price * 2 + bit_price * (6 + 12)) / 2 ** 16)
         return();
     }
 }
