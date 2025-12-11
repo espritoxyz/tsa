@@ -12,6 +12,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmTestFailure
+import kotlin.test.Ignore
 import kotlin.test.Test
 
 class ForwardFeesTest {
@@ -43,6 +44,24 @@ class ForwardFeesTest {
     @Test
     fun forwardFeesTest4() {
         forwardFeesBaseTest(4)
+    }
+
+    @Ignore("problems with inlined StateInit and message body")
+    @Test
+    fun forwardFeesTest5() {
+        forwardFeesBaseTest(5)
+    }
+
+    @Ignore("problems with inlined StateInit and message Body")
+    @Test
+    fun forwardFeesTest6() {
+        forwardFeesBaseTest(6)
+    }
+
+    @Ignore("problems with inlined StateInit and message Body")
+    @Test
+    fun forwardFeesTest7() {
+        forwardFeesBaseTest(7)
     }
 
     private fun forwardFeesBaseTest(flag: Int) {
