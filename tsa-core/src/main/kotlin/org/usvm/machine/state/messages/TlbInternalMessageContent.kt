@@ -7,7 +7,6 @@ import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
-import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isFalse
 import org.usvm.isTrue
@@ -179,9 +178,14 @@ sealed interface Tail {
     val bodyOriginalRef: UHeapRef?
     val stateInitRef: UHeapRef?
 
+    /**
+     * Contains empty state init and a body as a not-inline cell [bodyCell].
+     * @param bodySlice is a view on the [bodyCell]
+     */
     data class Explicit(
         // init is assumed to be (Maybe (Either StateInit ^StateInit)).nothing (1 bit of zero)
-        val bodySlice: UHeapRef, // assume body is (Either X ^X).left, prefix is 1 bit of one
+        val bodyCell: UHeapRef, // assume body is (Either X ^X).left, prefix is 1 bit of one
+        val bodySlice: UHeapRef,
     ) : Tail {
         override val stateInitRef: UHeapRef?
             get() = null
@@ -312,12 +316,11 @@ data class TlbInternalMessageContent(
             )
                 ?: error("Cannot store init")
 
-            val tail = this@TlbInternalMessageContent.tail
             val bodySlice =
-                when (tail) {
+                when (val tail = this@TlbInternalMessageContent.tail) {
                     is Tail.Explicit -> {
-                        // body:(Either X ^X).left
-                        // set prefix of Either.left
+                        // body:(Either X ^X).right
+                        // set prefix of Either.right
                         builderStoreIntTlb(
                             scope,
                             resultBuilder,
@@ -328,16 +331,8 @@ data class TlbInternalMessageContent(
                             endian = Endian.BigEndian,
                         )
                             ?: error("Cannot store body")
-
-                        val bodySliceRef = this@TlbInternalMessageContent.tail.bodySlice
                         scope.doWithState {
-                            val msgBodyCell =
-                                memory.readField(
-                                    bodySliceRef,
-                                    TvmContext.sliceCellField,
-                                    addressSort,
-                                )
-                            builderStoreNextRefNoOverflowCheck(resultBuilder, msgBodyCell)
+                            builderStoreNextRefNoOverflowCheck(resultBuilder, tail.bodyCell)
                         }
                         tail.bodySlice
                     }

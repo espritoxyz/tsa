@@ -472,9 +472,7 @@ class TsaCheckerFunctionsInterpreter(
                         stack.addStackEntry(
                             TvmConcreteStackEntry(
                                 TvmStackCellValue(
-                                    newInput.constructFullMessage(
-                                        this,
-                                    ),
+                                    newInput.constructFullMessage(this),
                                 ),
                             ),
                         )

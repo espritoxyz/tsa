@@ -63,6 +63,11 @@ class CheckersTest {
         const val SCHEME = "/checkers/on-out-message-counter-test/communication-scheme.json"
     }
 
+    private object BodyAsRefTest {
+        const val CHECKER = "/checkers/body-as-ref-test/checker.fc"
+        const val SENDER = "/checkers/body-as-ref-test/sender.fc"
+    }
+
     private object OnComputePhaseExitTestData {
         const val CHECKER = "/checkers/on-compute-phase-exit-test/checker.fc"
         const val CHECKER_FAIL = "/checkers/on-compute-phase-exit-test/checker_fail.fc"
@@ -287,6 +292,34 @@ class CheckersTest {
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, senderContract, receiverContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() !in 400..499 },
+        )
+        propertiesFound(
+            tests,
+            listOf { test -> test.exitCode() == 500 },
+        )
+    }
+
+    @Test
+    fun `internal message has not-inline body`() {
+        val checkerContract = extractCheckerContractFromResource(BodyAsRefTest.CHECKER)
+        val senderContract = extractFuncContractFromResource(BodyAsRefTest.SENDER)
+        val options =
+            TvmOptions(
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
