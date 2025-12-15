@@ -2,6 +2,7 @@ package org.usvm.machine.interpreter
 
 import org.ton.bytecode.TsaArtificialCheckerReturn
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.TvmCellValue
 import org.ton.bytecode.TvmInst
 import org.ton.compositeLabelOfUnknown
 import org.usvm.UConcreteHeapRef
@@ -13,6 +14,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.C0Register
+import org.usvm.machine.state.C4Register
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmContractExecutionMemory
 import org.usvm.machine.state.TvmEventInformation
@@ -39,6 +41,7 @@ import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.switchToFirstMethodInContract
+import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrNull
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.toMethodId
@@ -131,11 +134,11 @@ class TsaCheckerFunctionsInterpreter(
                 performTsaAssert(scope, stmt, invert = true)
             }
 
-            FETCH_VALUE_ID -> {
+            FETCH_VALUE_METHOD_ID -> {
                 performFetchValue(scope, stmt)
             }
 
-            SEND_INTERNAL_MESSAGE_ID -> {
+            SEND_INTERNAL_MESSAGE_METHOD_ID -> {
                 performRecvInternalCall(scope, stmt)
             }
 
@@ -147,12 +150,16 @@ class TsaCheckerFunctionsInterpreter(
                 performGetC4(scope, stmt)
             }
 
-            SEND_EXTERNAL_MESSAGE_ID -> {
+            SEND_EXTERNAL_MESSAGE_METHOD_ID -> {
                 performRecvExternalCall(scope, stmt)
             }
 
-            GET_BALANCE_ID -> {
+            GET_BALANCE_METHOD_ID -> {
                 performGetBalance(scope, stmt)
+            }
+
+            SET_C4_METHOD_ID -> {
+                performSetC4(scope, stmt)
             }
 
             else -> {
@@ -561,12 +568,41 @@ class TsaCheckerFunctionsInterpreter(
         }
     }
 
+    private fun performSetC4(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val value =
+            scope.takeLastCell()
+                ?: run {
+                    scope.calcOnStateCtx { throwTypeCheckError(this) }
+                    return
+                }
+
+        scope.doWithState {
+            val contractId = getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_set_c4")
+
+            val executingThisContract = contractStack.any { it.contractId == contractId }
+            check(!executingThisContract) {
+                "Cannot use tsa_set_c4 for contract that is currently executing"
+            }
+
+            contractIdToC4Register =
+                contractIdToC4Register.put(
+                    contractId,
+                    C4Register(TvmCellValue(value)),
+                )
+
+            newStmt(stmt.nextStmt())
+        }
+    }
+
     private fun performGetBalance(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
     ) {
         scope.doWithState {
-            val contractId = getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_get_c4")
+            val contractId = getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_get_balance")
 
             val result =
                 getBalanceOf(contractId)

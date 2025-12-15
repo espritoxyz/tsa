@@ -1,0 +1,28 @@
+#include "../imports/stdlib.fc";
+#include "../imports/tsa_functions.fc";
+
+() main() impure {
+    tsa_forbid_failures();
+
+    cell checker_data = get_data();
+    var checker_ds = checker_data.begin_parse();
+    int checker_value = checker_ds~load_uint(32);
+    tsa_assert(checker_value == 0);
+
+    slice old_data = tsa_get_c4(1).begin_parse();
+    int old_value = old_data~load_uint(32);
+    tsa_assert(old_value == 0);
+
+    tsa_allow_failures();
+
+    cell data = begin_cell()
+        .store_uint(0x100, 32)
+        .end_cell();
+    tsa_set_c4(1, data);
+
+    slice new_data = tsa_get_c4(1).begin_parse();
+    int new_value = new_data~load_uint(32);
+
+    throw_unless(1000, new_value == 0x100);
+    throw(1001);
+}

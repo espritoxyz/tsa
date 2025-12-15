@@ -4,11 +4,12 @@ const val FORBID_FAILURES_METHOD_ID = 1
 const val ALLOW_FAILURES_METHOD_ID = 2
 const val ASSERT_METHOD_ID = 3
 const val ASSERT_NOT_METHOD_ID = 4
-const val FETCH_VALUE_ID = 5
-const val SEND_INTERNAL_MESSAGE_ID = 6
+const val FETCH_VALUE_METHOD_ID = 5
+const val SEND_INTERNAL_MESSAGE_METHOD_ID = 6
 const val GET_C4_METHOD_ID = 7
-const val SEND_EXTERNAL_MESSAGE_ID = 8
-const val GET_BALANCE_ID = 9
+const val SEND_EXTERNAL_MESSAGE_METHOD_ID = 8
+const val GET_BALANCE_METHOD_ID = 9
+const val SET_C4_METHOD_ID = 10
 
 /**
  * Were calculated using python script:
