@@ -582,7 +582,8 @@ class TsaCheckerFunctionsInterpreter(
         scope.doWithState {
             val contractId = getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_set_c4")
 
-            val executingThisContract = contractStack.any { it.contractId == contractId }
+            val executingThisContract =
+                contractStack.any { it.contractId == contractId } || currentContract == contractId
             check(!executingThisContract) {
                 "Cannot use tsa_set_c4 for contract that is currently executing"
             }
