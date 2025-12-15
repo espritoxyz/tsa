@@ -59,7 +59,7 @@ fun main() {
         () tsa_send_internal_message(int contract_id, int input_id) impure method_id(6) {
             ;; do nothing
         }
-        
+
         cell tsa_get_c4(int contract_id) impure method_id(7) {
             return return_1();
         }
@@ -71,12 +71,17 @@ fun main() {
         int tsa_get_balance(int contract_id) impure method_id(9) {
             return return_1();
         }
+
+        ;; this function shouldn't be used while executing contract [contract_id] (inside checker handlers)
+        () tsa_set_c4(int contract_id, cell value) impure method_id(10) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =
         """
         ;; making symbolic values API functions
-        
+
         int tsa_mk_int(int bits, int signed) impure method_id(100) {
             return return_1();
         }

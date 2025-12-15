@@ -38,6 +38,7 @@ class CheckersTest {
     private val balancePath = "/args/balance.fc"
     private val balanceExternalPath = "/args/balance_external.fc"
     private val getC4CheckerPath = "/checkers/get_c4.fc"
+    private val setC4CheckerPath = "/checkers/set_c4.fc"
     private val getBalanceCheckerPath = "/checkers/get_balance.fc"
     private val emptyContractPath = "/empty_contract.fc"
     private val tactConfig = "/tact/tact.config.json"
@@ -192,6 +193,37 @@ class CheckersTest {
         checkInvariants(
             tests,
             listOf { test -> test.result is TvmSuccessfulExecution },
+        )
+    }
+
+    @Test
+    fun testSetC4() {
+        val path = extractResource(emptyContractPath)
+        val checkerPath = extractResource(setC4CheckerPath)
+
+        val checkerContract =
+            getFuncContract(
+                checkerPath,
+                FIFT_STDLIB_RESOURCE,
+                isTSAChecker = true,
+            )
+        val analyzedContract = getFuncContract(path, FIFT_STDLIB_RESOURCE)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            )
+
+        propertiesFound(
+            tests,
+            listOf { test -> test.exitCode() == 1001 },
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() != 1000 },
         )
     }
 
