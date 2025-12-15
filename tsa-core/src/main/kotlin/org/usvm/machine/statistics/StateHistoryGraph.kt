@@ -1,5 +1,7 @@
 package org.usvm.machine.statistics
 
+import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.persistentMapOf
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmRealInst
 import org.ton.disasm.TvmPhysicalInstLocation
@@ -33,19 +35,20 @@ class StateHistoryGraph : UMachineObserver<TvmState> {
 
     private lateinit var curInst: TvmInst
 
-    private val instCounter: MutableMap<Pair<StateId, TvmPhysicalInstLocation?>, Int> = hashMapOf()
+    private val instCounter: MutableMap<StateId, PersistentMap<TvmPhysicalInstLocation?, Int>> = hashMapOf()
 
     override fun onStatePeeked(state: TvmState) {
         curInst = state.lastStmt
         val loc = (curInst as? TvmRealInst)?.physicalLocation
-        val oldValue = instCounter.getOrDefault(state.id to loc, 0)
-        instCounter[state.id to loc] = oldValue + 1
+        val oldMap = instCounter.getOrDefault(state.id, persistentMapOf())
+        val oldValue = oldMap[loc] ?: 0
+        instCounter[state.id] = oldMap.put(loc, oldValue + 1)
     }
 
     private fun getEdge(state: TvmState): Edge {
         val loc = (curInst as? TvmRealInst)?.physicalLocation
         val count =
-            instCounter[state.id to loc]
+            instCounter[state.id]?.get(loc)
                 ?: error("unexpected null")
         return Edge(count, curInst)
     }
@@ -63,6 +66,7 @@ class StateHistoryGraph : UMachineObserver<TvmState> {
             val node = NewState(newState.id)
             edgeList.add(edge to node)
             backEdges[newState.id] = edge to parent.id
+            instCounter[newState.id] = instCounter[parent.id] ?: persistentMapOf()
         }
     }
 
