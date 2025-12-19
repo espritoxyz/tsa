@@ -1,0 +1,125 @@
+#include "../imports/stdlib.fc";
+
+;; the cost of the forward fee is calculated as:
+;; lump_price + ceil((bit_price * msg.bits + cell_price * msg.cells) / 2^16)),
+;; where msg.bits is the total bit length of the unique cells (do not include in-place bits!)
+;; and msg.cells are the unique cells used to build the message body and stateinit
+
+;; per calculations, the values are as such:
+;; cell_price = 2621440000 nanotons
+;; bit_price = cell_price / 100 = 26214400 nanotons
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+
+    cell simpleCell = begin_cell()
+        .store_uint(0, 6) ;; some bits
+        .end_cell();
+
+    cell MsgBody = begin_cell()
+        .store_uint(0, 10) ;; flag for checker
+        .store_ref(simpleCell) 
+        .end_cell();
+
+    cell code = begin_cell()
+        .store_uint(1, 2)
+        .end_cell();
+    cell data = begin_cell()
+        .store_uint(0, 2)
+        .end_cell();
+    ;; forming state init structure
+    cell StateInit = begin_cell()
+        .store_uint(1, 3)
+        .store_ref(code)
+        .store_uint(1, 1)
+        .store_ref(data)
+        .store_uint(0, 1)
+        .end_cell();
+
+    int op = msg_body~load_uint(32);
+    if (op == 100) {
+        ;; send a message with StateInit and body stored inline
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32)
+        .store_uint(1, 1) ;; there is a StateInit
+        .store_uint(0, 1) ;; we store it inline
+        .store_slice(StateInit.begin_parse())
+        .store_uint(0, 1) ;; we store the body inline
+        .store_slice(MsgBody.begin_parse())
+        .end_cell();
+
+        send_raw_message(msg, 1);
+    } elseif (op == 200) {
+        ;; send a message with StateInit stored as a ref and with inlined message body
+        cell msg = begin_cell()
+        .store_uint(0x18, 6) ;; let's make it bounceable this time
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1500000000) ;; 1.5 Tons
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(1, 1) ;; there is a StateInit
+        .store_uint(1, 1) ;; we store it as a reference
+        .store_ref(StateInit)
+        .store_uint(0, 1) ;; we store message body inline
+        .store_slice(MsgBody.begin_parse())
+        .end_cell();
+        
+        send_raw_message(msg, 1); 
+    } elseif (op == 300) {
+        ;; send a message with inlined StateInit and body stored as a ref
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(2000000000) ;; 2 Tons
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(1, 1) ;; there is a StateInit
+        .store_uint(0, 1) ;; we store it inline
+        .store_slice(StateInit.begin_parse())
+        .store_uint(1, 1) ;; we store message body as a ref
+        .store_ref(MsgBody)
+        .end_cell();    
+
+        send_raw_message(msg, 1); 
+    } elseif (op == 400) {
+        ;; send a message with StateInit and body stored as refs
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(3000000000) ;; 3 Tons
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(1, 1) ;; there is a StateInit
+        .store_uint(1, 1) ;; we store it as a ref
+        .store_ref(StateInit)
+        .store_uint(1, 1) ;; we store message body as a ref
+        .store_ref(MsgBody)
+        .end_cell();    
+
+        send_raw_message(msg, 1); 
+    } elseif (op == 500) {
+        ;; send a message without StateInit and body stored inline
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(3000000000) ;; 3 Tons
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(0, 1) ;; there is no StateInit
+        .store_uint(0, 1) ;; we store message body inline
+        .store_slice(MsgBody.begin_parse())
+        .end_cell();    
+
+        send_raw_message(msg, 1); 
+    } elseif (op == 600) {
+        ;; send a message without StateInit and body stored as a ref
+        cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(4800000000) ;; 4.8 Tons
+        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+        .store_uint(0, 1) ;; there is no StateInit
+        .store_uint(1, 1) ;; we store message body as a ref
+        .store_ref(MsgBody)
+        .end_cell();    
+
+        send_raw_message(msg, 1); 
+    } 
+}
