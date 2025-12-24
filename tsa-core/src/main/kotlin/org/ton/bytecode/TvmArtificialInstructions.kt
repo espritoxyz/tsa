@@ -1,6 +1,7 @@
 package org.ton.bytecode
 
 import kotlinx.serialization.Serializable
+import org.ton.DestinationDescription
 import org.usvm.machine.interpreter.DispatchedMessage
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
 import org.usvm.machine.interpreter.TvmTransactionInterpreter
@@ -70,6 +71,7 @@ data class TsaArtificialActionParseInst(
     override val location: TvmInstLocation,
     val yetUnparsedActions: List<SliceRef>,
     val parsedAndPreprocessedActions: List<MessageActionParseResult>,
+    val destinationResolver: DestinationDescription?,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_action_parse_inst"
 }

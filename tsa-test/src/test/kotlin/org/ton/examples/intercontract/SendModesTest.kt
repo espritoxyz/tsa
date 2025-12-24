@@ -359,25 +359,22 @@ class SendModesTest {
         )
     }
 
-    @Ignore("SendIgnoreError flag is not supported")
+    @Ignore("The test ends with soft failure due to anycast address")
     @Test
     fun `SendIgnoreError invalid source address`() {
         sendIgnoreErrorBaseTest(100)
     }
 
-    @Ignore("SendIgnoreError flag is not supported")
     @Test
     fun `SendIgnoreError invalid destination address`() {
         sendIgnoreErrorBaseTest(101)
     }
 
-//    @Ignore("SendIgnoreError flag is not supported")
     @Test
     fun `SendIgnoreError not enough Toncoin`() {
         sendIgnoreErrorBaseTest(102)
     }
 
-    @Ignore("SendIgnoreError flag is not supported")
     @Test
     fun `SendIgnoreError good message between two ignored messages`() {
         sendIgnoreErrorBaseTest(105)
@@ -393,6 +390,7 @@ class SendModesTest {
             TvmOptions(
                 intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
                 enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
             )
 
         val tests =

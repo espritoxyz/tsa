@@ -65,6 +65,7 @@ import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.messages.Tail
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.messages.getOrElse
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
@@ -379,32 +380,43 @@ class TvmArtificialInstInterpreter(
         }
         val (head, tail) =
             stmt.yetUnparsedActions.splitHeadTail() ?: return run {
-                val someModel = scope.calcOnState { models.first() }
                 transactionInterpreter.resolveMessageReceivers(
                     scope,
                     stmt.parsedAndPreprocessedActions,
-                    someModel,
                 ) { parsingResult ->
                     doWithState {
-                        isExceptional = isExceptional || oldIsExceptional
                         newStmt(
                             TsaArtificialHandleMessagesCostInst(stmt.computePhaseResult, stmt.location, parsingResult),
                         )
                     }
                 }
             }
-        val parsedHead = transactionInterpreter.parseSingleActionSlice(scope, head).getOrElse { return }
-        val updatedParsedAndPreprocessed =
-            if (parsedHead != null) {
-                stmt.parsedAndPreprocessedActions + parsedHead
-            } else {
-                stmt.parsedAndPreprocessedActions
+        val tmpStmt = stmt.copy(yetUnparsedActions = tail)
+        val possibleParsedHeads =
+            transactionInterpreter.parseSingleActionSlice(scope, head, tmpStmt).getOrElse { return } ?: return
+        val someParsingSucceeded = ctx.mkOr(possibleParsedHeads.map { it.second })
+        scope.assert(someParsingSucceeded)
+            ?: return
+        val actions =
+            possibleParsedHeads.map { (parsedHead, condition) ->
+                TvmStepScopeManager.ActionOnCondition(
+                    {
+                        val updatedParsedAndPreprocessed = stmt.parsedAndPreprocessedActions
+                        val newStmt =
+                            stmt.copy(
+                                yetUnparsedActions = tail,
+                                parsedAndPreprocessedActions = updatedParsedAndPreprocessed + parsedHead,
+                            )
+                        newStmt(newStmt)
+                    },
+                    false,
+                    condition,
+                    Unit,
+                )
             }
-        scope.calcOnState {
-            isExceptional = isExceptional || oldIsExceptional
-            newStmt(
-                stmt.copy(yetUnparsedActions = tail, parsedAndPreprocessedActions = updatedParsedAndPreprocessed),
-            )
+        scope.calcOnState { isExceptional = false }
+        scope.doWithConditions(actions) {
+            calcOnState { isExceptional = isExceptional || oldIsExceptional }
         }
     }
 
@@ -418,6 +430,8 @@ class TvmArtificialInstInterpreter(
             scope.calcOnState {
                 lastCommitedStateOfContracts[currentContract]
             }
+        val oldExceptional = scope.calcOnState { isExceptional }
+        scope.calcOnState { isExceptional = false }
 
         val analyzingReceiver = scope.calcOnState { receivedMessage != null }
         if (analyzingReceiver && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis && !isTsaChecker) {
@@ -431,18 +445,48 @@ class TvmArtificialInstInterpreter(
                 }
                     ?: return
 
+            val scheme = ctx.tvmOptions.intercontractOptions.communicationScheme
+
+            val contractId = scope.calcOnState { currentContract }
+            val handlers = scheme?.get(contractId)
+//            if (handlers == null && actions.isNotEmpty())  {
+//                error("no handlers where messages are possible")
+//            }
+
+            val msgBody =
+                scope.calcOnState { receivedMessage?.getMsgBodySlice() }
+                    ?: error("Unexpected null msg_body")
+
+            val model = scope.calcOnState { models.first() }
+            val (handler, status) =
+                if (handlers != null) {
+                    chooseHandlerBasedOnOpcode(
+                        msgBody,
+                        handlers.inOpcodeToDestination,
+                        handlers.other,
+                        model,
+                        scope,
+                    )
+                } else {
+                    (null to Unit)
+                }
+            status ?: return
+
             scope.calcOnState {
+                isExceptional = isExceptional || oldExceptional
                 newStmt(
                     TsaArtificialActionParseInst(
                         stmt.computePhaseResult,
                         lastStmt.location,
                         actions,
                         persistentListOf(),
+                        handler,
                     ),
                 )
             }
         } else {
             scope.doWithState {
+                isExceptional = isExceptional || oldExceptional
                 newStmt(
                     TsaArtificialOnOutMessageHandlerCallInst(
                         computePhaseResult = stmt.computePhaseResult,
