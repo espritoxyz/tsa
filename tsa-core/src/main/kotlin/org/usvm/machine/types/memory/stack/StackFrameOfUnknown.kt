@@ -89,7 +89,7 @@ data class StackFrameOfUnknown(
 
             var forgottenConstraint = trueExpr as UBoolExpr
 
-            if (scope.allowFailuresOnCurrentStep) {
+            if (scope.allowFailuresOnCurrentStep || !badCellSizeIsExceptional) {
                 val (sizeIsBad, assumeValue) =
                     loadData.type.sizeIsBad(
                         dataSuffix = dataSymbolic,

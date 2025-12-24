@@ -17,6 +17,7 @@ import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocEmptyBuilder
+import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreIntTlb
@@ -24,8 +25,12 @@ import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderStoreSliceTransaction
 import org.usvm.machine.state.builderToCell
+import org.usvm.machine.state.createSliceIsEmptyConstraint
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.getCellContractInfoParam
+import org.usvm.machine.state.readCellDataLength
+import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.sliceLoadAddrTransaction
 import org.usvm.machine.state.sliceLoadGramsTransaction
 import org.usvm.machine.state.sliceLoadIntTransaction
@@ -48,19 +53,20 @@ data class TlbCommonMessageInfo(
         fun extractFromSlice(
             scope: TvmStepScopeManager,
             ptr: ParsingState,
+            quietBlock: (TvmState.() -> Unit)? = null,
         ): TlbCommonMessageInfo? =
             with(scope.ctx) {
                 // int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
                 val tlbFlags =
                     (0 until 4).map {
                         val curFlag =
-                            sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                            sliceLoadIntTransaction(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                                 ?: return@with null
                         curFlag
                     }
 
                 val srcAddSlice =
-                    (sliceSkipNoneOrStdAddr(scope, ptr.slice) ?: return@with null).unwrap(ptr)
+                    (sliceSkipNoneOrStdAddr(scope, ptr.slice, quietBlock = quietBlock) ?: return@with null).unwrap(ptr)
 
                 val addrCell =
                     scope.getCellContractInfoParam(ADDRESS_PARAMETER_IDX)
@@ -72,16 +78,30 @@ data class TlbCommonMessageInfo(
 
                 // dest:MsgAddressInt
                 val tlbDestSlice =
-                    sliceLoadAddrTransaction(scope, ptr.slice)?.unwrap(ptr)
+                    sliceLoadAddrTransaction(scope, ptr.slice, quietBlock)?.unwrap(ptr)
                         ?: return@with null
+
+                val destSliceSize =
+                    with(scope.ctx) {
+                        val position = scope.calcOnState { readSliceDataPos(tlbDestSlice) }
+                        val cellSize = scope.calcOnState { readCellDataLength(readSliceCell(tlbDestSlice)) }
+                        cellSize bvSub position
+                    }
+                if (quietBlock != null) {
+                    scope.fork(
+                        with(scope.ctx) { destSliceSize bvUgt 2.toSizeSort() },
+                        false,
+                        blockOnFalseState = quietBlock,
+                    ) ?: return null
+                }
 
                 // value:CurrencyCollection
                 val tlbSymbolicMsgValue =
-                    sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
+                    sliceLoadGramsTransaction(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
                         ?: return@with null
 
                 val tlbExtraCurrenciesBit =
-                    sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                    sliceLoadIntTransaction(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                         ?: return@with null
 
                 val extraCurrenciesEmptyConstraint = tlbExtraCurrenciesBit eq zeroValue
@@ -90,17 +110,17 @@ data class TlbCommonMessageInfo(
 
                 // extra_currency_bit
                 val ihrFee =
-                    sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
+                    sliceLoadGramsTransaction(scope, ptr.slice, quietBlock)?.unwrap(ptr)
                         ?: return@with null
 
                 // fwd_fee:Grams
                 val fwdFee =
-                    sliceLoadGramsTransaction(scope, ptr.slice)?.unwrap(ptr)
+                    sliceLoadGramsTransaction(scope, ptr.slice, quietBlock)?.unwrap(ptr)
                         ?: return@with null
 
                 // created_lt:uint64 created_at:uint32
                 val createdLt =
-                    sliceLoadIntTransaction(scope, ptr.slice, 64)?.unwrap(ptr)
+                    sliceLoadIntTransaction(scope, ptr.slice, 64, quietBlock = quietBlock)?.unwrap(ptr)
                         ?: return@with null
                 val createdAt =
                     sliceLoadIntTransaction(scope, ptr.slice, 32)?.unwrap(ptr)
@@ -121,6 +141,7 @@ data class TlbCommonMessageInfo(
         private fun sliceSkipNoneOrStdAddr(
             scope: TvmStepScopeManager,
             slice: UHeapRef,
+            quietBlock: (TvmState.() -> Unit)?,
         ): Pair<UHeapRef, UHeapRef?>? =
             scope.doWithCtx {
                 val (afterTagSlice, tag) =
@@ -147,7 +168,7 @@ data class TlbCommonMessageInfo(
                 }
 
                 val (nextSlice, addr) =
-                    sliceLoadAddrTransaction(scope, slice)
+                    sliceLoadAddrTransaction(scope, slice, quietBlock = quietBlock)
                         ?: return@doWithCtx null
 
                 nextSlice to addr
@@ -376,24 +397,31 @@ data class TlbInternalMessageContent(
             scope: TvmStepScopeManager,
             ptr: ParsingState,
             model: TvmModel,
+            quietBlock: (TvmState.() -> Unit)?,
         ): TlbInternalMessageContent? =
             with(scope.ctx) {
                 val commonMessageInfo =
-                    TlbCommonMessageInfo.extractFromSlice(scope, ptr)
+                    TlbCommonMessageInfo.extractFromSlice(scope, ptr, quietBlock)
                         ?: return null
 
                 val tailSlice = ptr.slice
 
                 val stateInitRef =
-                    loadStateInit(scope, model, ptr).getOrElse { return@with null }
+                    loadStateInit(scope, model, ptr, quietBlock).getOrElse { return@with null }
 
                 val (bodyCellOriginal, bodyCell) =
-                    loadBody(scope, model, ptr)
+                    loadBody(scope, model, ptr, quietBlock)
                         .getOrElse { return@with null }
 
                 val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
                 val tail = Tail.Implicit(tailSlice, bodySlice, stateInitRef, bodyCellOriginal)
 
+                val sliceFullyParsed = scope.calcOnState { createSliceIsEmptyConstraint(ptr.slice) }
+                scope.fork(
+                    sliceFullyParsed,
+                    falseStateIsExceptional = quietBlock == null,
+                    blockOnFalseState = quietBlock ?: throwCellOverflowError,
+                ) ?: return@with null
                 TlbInternalMessageContent(
                     commonMessageInfo = commonMessageInfo,
                     tail = tail,
@@ -404,9 +432,10 @@ data class TlbInternalMessageContent(
             scope: TvmStepScopeManager,
             model: TvmModel,
             ptr: ParsingState,
+            quietBlock: (TvmState.() -> Unit)?,
         ): ValueOrDeadScope<Pair<UHeapRef?, UHeapRef>> {
             val bodyBit =
-                sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                sliceLoadIntTransaction(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                     ?: return scopeDied
 
             val bodyBitIsInlined = bodyBit eq zeroValue
@@ -416,7 +445,7 @@ data class TlbInternalMessageContent(
                     scope.assert(bodyBitIsInlined.not())
                         ?: return scopeDied
 
-                    sliceLoadRefTransaction(scope, ptr.slice)
+                    sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)
                         ?.unwrap(ptr)
                         ?.let { it to it }
                         ?: return scopeDied
@@ -427,6 +456,7 @@ data class TlbInternalMessageContent(
                     val bodyBuilder = scope.calcOnState { allocEmptyBuilder() }
                     builderStoreSliceTransaction(scope, bodyBuilder, ptr.slice)
                         ?: return scopeDied
+                    ptr.slice = scope.calcOnState { allocSliceFromCell(allocEmptyCell()) }
                     val newBody = scope.builderToCell(bodyBuilder)
 
                     null to newBody
@@ -438,9 +468,10 @@ data class TlbInternalMessageContent(
             scope: TvmStepScopeManager,
             model: TvmModel,
             ptr: ParsingState,
+            quietBlock: (TvmState.() -> Unit)?,
         ): ValueOrDeadScope<UHeapRef?> {
             val stateInitBit =
-                sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                sliceLoadIntTransaction(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                     ?: return scopeDied
             val stateInitIsMissing = stateInitBit eq zeroValue
 
@@ -455,7 +486,7 @@ data class TlbInternalMessageContent(
                         ?: return scopeDied
 
                     val stateInitInlineBit =
-                        sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                        sliceLoadIntTransaction(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                             ?: return scopeDied
 
                     val stateInitIsInlined = stateInitInlineBit eq zeroValue
@@ -464,7 +495,7 @@ data class TlbInternalMessageContent(
                         scope.assert(stateInitIsInlined.not())
                             ?: return scopeDied
 
-                        sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
+                        sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
                             ?: return scopeDied
                     } else {
                         scope.assert(stateInitIsInlined)
@@ -472,21 +503,21 @@ data class TlbInternalMessageContent(
 
                         // fixed_prefix_length:(Maybe (## 5)) special:(Maybe TickTock)
                         val stateInitPrefix =
-                            sliceLoadIntTransaction(scope, ptr.slice, 2)?.unwrap(ptr)
+                            sliceLoadIntTransaction(scope, ptr.slice, 2, quietBlock = quietBlock)?.unwrap(ptr)
                                 ?: return scopeDied
                         scope.assert(stateInitPrefix eq zeroValue)
                             ?: return scopeDied
 
                         // code:(Maybe ^Cell)
-                        loadMaybeRef(scope, ptr, model)
+                        loadMaybeRef(scope, ptr, model, quietBlock)
                             ?: return scopeDied
 
                         // code:(Maybe ^Cell)
-                        loadMaybeRef(scope, ptr, model)
+                        loadMaybeRef(scope, ptr, model, quietBlock)
                             ?: return scopeDied
 
                         // library:(Maybe ^Cell)
-                        loadMaybeRef(scope, ptr, model)
+                        loadMaybeRef(scope, ptr, model, quietBlock)
                             ?: return scopeDied
 
                         null
@@ -499,10 +530,11 @@ data class TlbInternalMessageContent(
             scope: TvmStepScopeManager,
             ptr: ParsingState,
             model: TvmModel,
+            quietBlock: (TvmState.() -> Unit)?,
         ): Unit? =
             scope.doWithCtx {
                 val maybeBit =
-                    sliceLoadIntTransaction(scope, ptr.slice, 1)?.unwrap(ptr)
+                    sliceLoadIntTransaction(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                         ?: return@doWithCtx null
 
                 val refIsMissing = maybeBit eq zeroValue
@@ -514,7 +546,7 @@ data class TlbInternalMessageContent(
                     scope.assert(refIsMissing.not())
                         ?: return@doWithCtx null
 
-                    sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
+                    sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
                         ?: return@doWithCtx null
                 }
 

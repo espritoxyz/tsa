@@ -4,9 +4,11 @@ import io.ksmt.expr.KExpr
 import io.ksmt.sort.KBoolSort
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
+import org.ton.DestinationDescription
 import org.ton.LinearDestinations
 import org.ton.OpcodeToDestination
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
+import org.ton.bytecode.TsaArtificialActionParseInst
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -15,7 +17,6 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.isFalse
 import org.usvm.isTrue
-import org.usvm.logger
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.OP_BITS
@@ -27,8 +28,10 @@ import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
+import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.machine.state.TvmResult
+import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getCellContractInfoParam
@@ -45,8 +48,8 @@ import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.messages.ValueOrDeadScope
 import org.usvm.machine.state.messages.bodySlice
 import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
-import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.messages.scopeDied
+import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.sliceLoadIntTransaction
 import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.state.slicePreloadNextRef
@@ -68,7 +71,8 @@ class TvmTransactionInterpreter(
 ) {
     sealed interface ParsedMessageWithResolvedReceiver {
         val receiver: ContractId?
-        val outMessage: MessageActionParseResult
+        val content: TlbInternalMessageContent?
+        val sendMessageMode: Int257Expr
 
         companion object {
             fun construct(
@@ -76,22 +80,24 @@ class TvmTransactionInterpreter(
                 outMessage: MessageActionParseResult,
             ): ParsedMessageWithResolvedReceiver =
                 if (receiver == null) {
-                    ParsedMessageWithResolvedNullReceiver(outMessage)
+                    ParsedMessageWithResolvedNullReceiver(outMessage.sendMessageMode, outMessage.content)
                 } else {
-                    ParsedMessageWithResolvedNonnullReceiver(receiver, outMessage)
+                    ParsedMessageWithResolvedNonnullReceiver(receiver, outMessage.sendMessageMode, outMessage.content)
                 }
         }
     }
 
     data class ParsedMessageWithResolvedNullReceiver(
-        override val outMessage: MessageActionParseResult,
+        override val sendMessageMode: Int257Expr,
+        override val content: TlbInternalMessageContent?,
     ) : ParsedMessageWithResolvedReceiver {
         override val receiver: ContractId? = null
     }
 
     data class ParsedMessageWithResolvedNonnullReceiver(
         override val receiver: ContractId,
-        override val outMessage: MessageActionParseResult,
+        override val sendMessageMode: Int257Expr,
+        override val content: TlbInternalMessageContent?,
     ) : ParsedMessageWithResolvedReceiver
 
     /**
@@ -99,11 +105,7 @@ class TvmTransactionInterpreter(
      */
     class ActionsParsingResult(
         val parsedOrderedMessages: List<ParsedMessageWithResolvedReceiver>,
-    ) {
-        val messagesForQueue: List<ParsedMessageWithResolvedNonnullReceiver>
-            get() =
-                parsedOrderedMessages.filterIsInstance<ParsedMessageWithResolvedNonnullReceiver>()
-    }
+    )
 
     sealed interface MessageHandlingState {
         /**
@@ -168,6 +170,8 @@ class TvmTransactionInterpreter(
             fun incompatibleModsError(contractId: ContractId) = RealFailure(IncompatibleMessageModes(contractId))
 
             fun doubleSendRemainingValue(contractId: ContractId) = SoftFailure(TvmDoubleSendRemainingValue(contractId))
+
+            fun cellUnderflow() = RealFailure(TvmCellUnderflowError)
         }
     }
 
@@ -247,7 +251,7 @@ class TvmTransactionInterpreter(
                     restActions(currentMessageHandlingState)
                     return
                 }
-            val mode = head.outMessage.sendMessageMode
+            val mode = head.sendMessageMode
             val sendRemainingValue = mode.hasBitSet(MessageMode.SEND_REMAINING_VALUE_BIT)
             val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE_BIT)
             val sendFwdFeesSeparately = mode.hasBitSet(MessageMode.SEND_FEES_SEPARATELY)
@@ -258,35 +262,46 @@ class TvmTransactionInterpreter(
                     .intValueOrNull
                     ?.let { it != 0 }
                     ?: error("Only concrete mode is supported")
-            val messageValue = head.outMessage.content.commonMessageInfo.msgValue
-            ctx.handleSingleMessage(
-                scope = this@handleMessagesImpl,
-                sendRemainingValue = sendRemainingValue,
-                sendRemainingBalance = sendRemainingBalance,
-                sendFwdFeesSeparately = sendFwdFeesSeparately,
-                computeFees = zeroValue,
-                initMsgValue = messageValue,
-                currentState = currentMessageHandlingState,
-                currentMessage = head,
-            ) { newCurrentState ->
-                val newCurrentStateWithPossiblyIgnoredError =
-                    if (newCurrentState is MessageHandlingState.RealFailure && sendIgnoreErrors) {
-                        currentMessageHandlingState
-                    } else {
-                        newCurrentState
-                    }
-                handleMessagesImpl(tail, newCurrentStateWithPossiblyIgnoredError, restActions)
+            val content = head.content
+            if (content != null) {
+                val messageValue = content.commonMessageInfo.msgValue
+                ctx.handleSingleMessage(
+                    scope = this@handleMessagesImpl,
+                    sendRemainingValue = sendRemainingValue,
+                    sendRemainingBalance = sendRemainingBalance,
+                    sendFwdFeesSeparately = sendFwdFeesSeparately,
+                    computeFees = zeroValue,
+                    initMsgValue = messageValue,
+                    currentState = currentMessageHandlingState,
+                    currentMessage = head,
+                ) { newCurrentState ->
+                    val newCurrentStateWithPossiblyIgnoredError =
+                        if (newCurrentState is MessageHandlingState.RealFailure && sendIgnoreErrors) {
+                            currentMessageHandlingState
+                        } else {
+                            newCurrentState
+                        }
+                    handleMessagesImpl(tail, newCurrentStateWithPossiblyIgnoredError, restActions)
+                }
+            } else {
+                if (sendIgnoreErrors) {
+                    // eat the error and continue the handling
+                    handleMessagesImpl(tail, currentMessageHandlingState, restActions)
+                } else {
+                    val result = MessageHandlingState.cellUnderflow()
+                    restActions(result)
+                }
             }
         }
 
     private fun ParsedMessageWithResolvedReceiver.withSetMessageValue(
         messageValue: Int257Expr,
     ): ParsedMessageWithResolvedReceiver {
-        val oldContent = outMessage.content
-        val content = oldContent.copy(commonMessageInfo = oldContent.commonMessageInfo.copy(msgValue = messageValue))
+        val oldContent = content
+        val content = oldContent?.copy(commonMessageInfo = oldContent.commonMessageInfo.copy(msgValue = messageValue))
         return when (this) {
-            is ParsedMessageWithResolvedNonnullReceiver -> copy(outMessage = outMessage.copy(content = content))
-            is ParsedMessageWithResolvedNullReceiver -> copy(outMessage = outMessage.copy(content = content))
+            is ParsedMessageWithResolvedNonnullReceiver -> copy(content = content)
+            is ParsedMessageWithResolvedNullReceiver -> copy(content = content)
         }
     }
 
@@ -306,6 +321,10 @@ class TvmTransactionInterpreter(
         currentMessage: ParsedMessageWithResolvedReceiver,
         currentContractId: ContractId,
     ): List<List<CondTransform>> {
+        val content = currentMessage.content
+        requireNotNull(content) {
+            "Only nonnull content should reach here"
+        }
         val payFeesSeparately = sendFwdFeesSeparately and sendRemainingBalance.not()
         val transform1: List<CondTransform> =
             listOf(
@@ -408,7 +427,7 @@ class TvmTransactionInterpreter(
                             currentContractBalance = currentContractBalance bvSub messageValueBrutto
                             currentMessage.withSetMessageValue(messageValue)
                             val updatedCommonMessageInfo =
-                                currentMessage.outMessage.content.commonMessageInfo.copy(
+                                content.commonMessageInfo.copy(
                                     msgValue = this.messageValue,
                                     fwdFee = ctx.calculateTwoThirdLikeInTVM(msgFwdFees),
                                 )
@@ -417,9 +436,7 @@ class TvmTransactionInterpreter(
                                     DispatchedMessage(
                                         receiver = currentMessage.receiver,
                                         content =
-                                            currentMessage.outMessage.content.copy(
-                                                commonMessageInfo = updatedCommonMessageInfo,
-                                            ),
+                                            content.copy(commonMessageInfo = updatedCommonMessageInfo),
                                     ),
                                 )
                             build()
@@ -497,11 +514,15 @@ class TvmTransactionInterpreter(
             scope.calcOnState {
                 with(ctx) { makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort) }
             }
+        val content = currentMessage.content
+        requireNotNull(content) {
+            "The caller must check that the content is non-null"
+        }
         val fwdFeeInfo =
             FwdFeeInfo(
                 fwdFeeSymbolic,
-                currentMessage.outMessage.content.stateInitRef,
-                currentMessage.outMessage.content.bodyOriginalRef,
+                content.stateInitRef,
+                content.bodyOriginalRef,
             )
         scope.doWithState {
             forwardFees = forwardFees.add(fwdFeeInfo)
@@ -535,10 +556,14 @@ class TvmTransactionInterpreter(
         }
     }
 
+    /**
+     * @return the possible results
+     */
     fun parseSingleActionSlice(
         scope: TvmStepScopeManager,
         actionSlice: SliceRef,
-    ): ValueOrDeadScope<MessageActionParseResult?> =
+        tmpStmt: TsaArtificialActionParseInst,
+    ): ValueOrDeadScope<List<Pair<MessageActionParseResult, UBoolExpr>>?> =
         with(scope.ctx) {
             val resolver = scope.calcOnState { models.first() }
             val (actionBody, tag) =
@@ -561,11 +586,17 @@ class TvmTransactionInterpreter(
                     scope.assert(isSendMsgAction)
                         ?: return scopeDied
 
-                    val msg =
-                        parseAndPreprocessMessageAction(scope, actionBody, resolver)
+                    val msgs =
+                        parseAndPreprocessMessageAction(
+                            scope,
+                            resolver,
+                            actionBody,
+                            tmpStmt,
+                            tmpStmt.destinationResolver,
+                        )
                             ?: return scopeDied
 
-                    Ok(msg)
+                    Ok(msgs)
                 }
 
                 else -> {
@@ -577,144 +608,19 @@ class TvmTransactionInterpreter(
     fun resolveMessageReceivers(
         scope: TvmStepScopeManager,
         messages: List<MessageActionParseResult>,
-        model: TvmModel,
         restActions: TvmStepScopeManager.(ActionsParsingResult) -> Unit,
     ) {
-        if (messages.isEmpty()) {
-            return ActionsParsingResult(emptyList()).let {
-                scope.restActions(it)
-            }
-        }
-
-        if (!ctx.tvmOptions.intercontractOptions.isIntercontractEnabled) {
-            return ActionsParsingResult(messages.map { ParsedMessageWithResolvedNullReceiver(it) }).let {
-                scope.restActions(it)
-            }
-        }
-
-        val scheme =
-            ctx.tvmOptions.intercontractOptions.communicationScheme
-                ?: error("Communication scheme is not found")
-
-        val contractId = scope.calcOnState { currentContract }
-        val handlers =
-            scheme[contractId]
-                ?: error("Contract handlers are not found")
-
-        val msgBody =
-            scope.calcOnState { receivedMessage?.getMsgBodySlice() }
-                ?: error("Unexpected null msg_body")
-
-        val (handler, status) =
-            chooseHandlerBasedOnOpcode(
-                msgBody,
-                handlers.inOpcodeToDestination,
-                handlers.other,
-                model,
-                scope,
+        val actionsParsingResult =
+            ActionsParsingResult(
+                messages.map {
+                    ParsedMessageWithResolvedReceiver.construct(
+                        it.resolvedReceiver,
+                        MessageActionParseResult(it.content, it.sendMessageMode, it.resolvedReceiver),
+                    )
+                },
             )
-
-        status ?: return
-
-        if (handler == null) {
-            return ActionsParsingResult(messages.map { ParsedMessageWithResolvedNullReceiver(it) }).let {
-                scope.restActions(it)
-            }
-        }
-
-        return when (handler) {
-            is LinearDestinations -> {
-                check(handler.destinations.size == messages.size) {
-                    "The number of actual messages is not equal to the number of destinations in the scheme: " +
-                        "${messages.size} ${handler.destinations.size}"
-                }
-
-                val messagesForQueue =
-                    handler.destinations
-                        .zip(messages)
-                        .map { (receiver, message) -> ParsedMessageWithResolvedNonnullReceiver(receiver, message) }
-                ActionsParsingResult(messagesForQueue).let { scope.restActions(it) }
-            }
-
-            is OpcodeToDestination -> {
-                val destinationVariants =
-                    messages.map {
-                        val (result, innerStatus) =
-                            chooseHandlerBasedOnOpcode(
-                                it.content.tail.bodySlice(),
-                                handler.outOpcodeToDestination,
-                                handler.other,
-                                model,
-                                scope,
-                            )
-
-                        innerStatus ?: return
-
-                        result ?: listOf(null)
-                    }
-
-                val combinations = mutableListOf<List<ContractId?>>()
-                listAllCombinations(destinationVariants, combinations)
-
-                val actions =
-                    combinations.map { destinations ->
-                        val parsedMessages =
-                            destinations.zip(messages) { dest, msg ->
-                                ParsedMessageWithResolvedReceiver.construct(dest, msg)
-                            }
-
-                        TvmStepScopeManager.ActionOnCondition(
-                            caseIsExceptional = false,
-                            condition = ctx.trueExpr,
-                            paramForDoForAllBlock = ActionsParsingResult(parsedMessages),
-                            action = {},
-                        )
-                    }
-
-                if (combinations.isNotEmpty()) {
-                    scope.doWithConditions(actions) { param ->
-                        assertCorrectAddresses(this, param.messagesForQueue)
-                            ?: return@doWithConditions
-                        restActions(param)
-                    }
-                } else {
-                    logger.warn("No actions were found fot the opcode")
-                    scope.restActions(ActionsParsingResult(messages.map { ParsedMessageWithResolvedNullReceiver(it) }))
-                }
-            }
-        }
+        return scope.restActions(actionsParsingResult)
     }
-
-    private fun assertCorrectAddresses(
-        scope: TvmStepScopeManager,
-        newMessagesForQueue: List<ParsedMessageWithResolvedNonnullReceiver>,
-    ): Unit? =
-        with(scope.ctx) {
-            val constraint =
-                newMessagesForQueue.fold(trueExpr as UBoolExpr) { acc, (destinationContract, message) ->
-                    val destinationContractAddress =
-                        scope.calcOnState {
-                            (
-                                getContractInfoParamOf(
-                                    ADDRESS_PARAMETER_IDX,
-                                    destinationContract,
-                                ).cellValue as? UConcreteHeapRef
-                            )?.let { allocSliceFromCell(it) }
-                                ?: error("Cannot extract contract address")
-                        }
-
-                    val equality =
-                        scope.slicesAreEqual(
-                            destinationContractAddress,
-                            message.content.commonMessageInfo.dstAddressSlice,
-                        )
-                            ?: return null
-
-                    acc and equality
-                }
-
-            return scope.assert(constraint)
-        }
 
     private fun <T> listAllCombinations(
         variants: List<List<T>>,
@@ -732,58 +638,6 @@ class TvmTransactionInterpreter(
             curResult.removeLast()
         }
     }
-
-    private fun <T> chooseHandlerBasedOnOpcode(
-        msgBodySlice: UHeapRef,
-        variants: Map<String, T>,
-        defaultVariant: T?,
-        resolver: TvmModel,
-        scope: TvmStepScopeManager,
-    ): Pair<T?, Unit?> =
-        with(scope.ctx) {
-            val msgBodyCell =
-                scope.calcOnState {
-                    memory.readField(
-                        msgBodySlice,
-                        TvmContext.sliceCellField,
-                        addressSort,
-                    )
-                }
-
-            val leftBits =
-                scope.calcOnState {
-                    fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, msgBodyCell)
-                }
-
-            val hasOpcode = mkBvSignedGreaterOrEqualExpr(leftBits, mkSizeExpr(OP_BITS.toInt()))
-            val handler =
-                if (resolver.eval(hasOpcode).isTrue) {
-                    scope.assert(hasOpcode)
-                        ?: return null to null
-
-                    val inOpcode =
-                        sliceLoadIntTransaction(scope, msgBodySlice, OP_BITS.toInt())?.second
-                            ?: return null to null
-
-                    val concreteOp = resolver.eval(inOpcode)
-                    val concreteOpHex =
-                        concreteOp.bigIntValue().toString(16).padStart(TvmContext.OP_BYTES.toInt(), '0')
-                    val concreteHandler = variants[concreteOpHex]
-
-                    if (concreteHandler != null) {
-                        scope.assert(inOpcode eq concreteOp)
-                            ?: return null to null
-
-                        concreteHandler
-                    } else {
-                        defaultVariant
-                    }
-                } else {
-                    defaultVariant
-                }
-
-            return handler to Unit
-        }
 
     fun extractListOfActions(
         scope: TvmStepScopeManager,
@@ -824,9 +678,11 @@ class TvmTransactionInterpreter(
 
     private fun parseAndPreprocessMessageAction(
         scope: TvmStepScopeManager,
+        model: TvmModel,
         slice: UHeapRef,
-        resolver: TvmModel,
-    ): MessageActionParseResult? {
+        tmpStmt: TsaArtificialActionParseInst,
+        handler: DestinationDescription?,
+    ): List<Pair<MessageActionParseResult, UBoolExpr>>? {
         val (_, sendMsgMode) =
             sliceLoadIntTransaction(scope, slice, 8, false)
                 ?: return null
@@ -837,9 +693,21 @@ class TvmTransactionInterpreter(
         val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
         makeCellToSliceNoFork(scope, msg, msgSlice) // for further TL-B readings
 
-        val ptr = ParsingState(msgSlice)
+        val nextStmtAction: TvmState.() -> Unit = {
+            val nextStmt =
+                tmpStmt.copy(
+                    parsedAndPreprocessedActions =
+                        tmpStmt.parsedAndPreprocessedActions +
+                            MessageActionParseResult(
+                                null,
+                                sendMsgMode,
+                                null,
+                            ),
+                )
+            newStmt(nextStmt)
+        }
         val messageContentActual =
-            parseMessageInfo(scope, ptr, resolver)
+            parseMessageInfo(scope, model, msgSlice, nextStmtAction)
                 ?: return null
 
         val senderAddressCell =
@@ -858,18 +726,76 @@ class TvmTransactionInterpreter(
         val messageContent =
             messageContentActual.copy(commonMessageInfo = commonMessageInfo)
 
-        return MessageActionParseResult(
-            messageContent,
-            sendMsgMode,
-        )
+        val receiverOptions =
+            when (handler) {
+                is LinearDestinations -> {
+                    val index = tmpStmt.parsedAndPreprocessedActions.size
+                    val receiver = handler.destinations[index]
+                    listOf(receiver)
+                }
+
+                is OpcodeToDestination -> {
+                    val destinationVariants =
+                        run {
+                            val (result, innerStatus) =
+                                chooseHandlerBasedOnOpcode(
+                                    messageContent.tail.bodySlice(),
+                                    handler.outOpcodeToDestination,
+                                    handler.other,
+                                    model,
+                                    scope,
+                                )
+
+                            innerStatus ?: return null
+
+                            result ?: listOf(null)
+                        }
+                    destinationVariants
+                }
+
+                null -> listOf(null)
+            }
+
+        return receiverOptions.map { possibleReceiver ->
+
+            val equality =
+                run {
+                    if (possibleReceiver != null) {
+                        val destinationContractAddress =
+                            scope.calcOnState {
+                                (
+                                    getContractInfoParamOf(
+                                        ADDRESS_PARAMETER_IDX,
+                                        possibleReceiver,
+                                    ).cellValue as? UConcreteHeapRef
+                                )?.let { allocSliceFromCell(it) }
+                                    ?: error("Cannot extract contract address")
+                            }
+                        scope.slicesAreEqual(
+                            destinationContractAddress,
+                            messageContentActual.commonMessageInfo.dstAddressSlice,
+                        ) ?: return null
+                    } else {
+                        ctx.trueExpr
+                    }
+                }
+
+            MessageActionParseResult(
+                messageContent,
+                sendMsgMode,
+                possibleReceiver,
+            ) to equality
+        }
     }
 
     private fun parseMessageInfo(
         scope: TvmStepScopeManager,
-        ptr: ParsingState,
-        resolver: TvmModel,
+        model: TvmModel,
+        msgSlice: UConcreteHeapRef,
+        nextStmtAction: TvmState.() -> Unit,
     ): TlbInternalMessageContent? =
         with(ctx) {
+            val ptr = ParsingState(msgSlice)
             val tag =
                 sliceLoadIntTransaction(scope, ptr.slice, 1)?.second
                     ?: return@with null
@@ -877,7 +803,7 @@ class TvmTransactionInterpreter(
             scope.assert(isInternalCond)
                 ?: return@with null
             val messageContent =
-                TlbInternalMessageContent.extractFromSlice(scope, ptr, resolver)
+                TlbInternalMessageContent.extractFromSlice(scope, ptr, model, quietBlock = nextStmtAction)
                     ?: return@with null
 
             return messageContent
@@ -904,3 +830,55 @@ class TvmTransactionInterpreter(
             checkRes != null
         }
 }
+
+fun <T> chooseHandlerBasedOnOpcode(
+    msgBodySlice: UHeapRef,
+    variants: Map<String, T>,
+    defaultVariant: T?,
+    model: TvmModel,
+    scope: TvmStepScopeManager,
+): Pair<T?, Unit?> =
+    with(scope.ctx) {
+        val msgBodyCell =
+            scope.calcOnState {
+                memory.readField(
+                    msgBodySlice,
+                    TvmContext.sliceCellField,
+                    addressSort,
+                )
+            }
+
+        val leftBits =
+            scope.calcOnState {
+                fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, msgBodyCell)
+            }
+
+        val hasOpcode = mkBvSignedGreaterOrEqualExpr(leftBits, mkSizeExpr(OP_BITS.toInt()))
+        val handler =
+            if (model.eval(hasOpcode).isTrue) {
+                scope.assert(hasOpcode)
+                    ?: return null to null
+
+                val inOpcode =
+                    sliceLoadIntTransaction(scope, msgBodySlice, OP_BITS.toInt())?.second
+                        ?: return null to null
+
+                val concreteOp = model.eval(inOpcode)
+                val concreteOpHex =
+                    concreteOp.bigIntValue().toString(16).padStart(TvmContext.OP_BYTES.toInt(), '0')
+                val concreteHandler = variants[concreteOpHex]
+
+                if (concreteHandler != null) {
+                    scope.assert(inOpcode eq concreteOp)
+                        ?: return null to null
+
+                    concreteHandler
+                } else {
+                    defaultVariant
+                }
+            } else {
+                defaultVariant
+            }
+
+        return handler to Unit
+    }

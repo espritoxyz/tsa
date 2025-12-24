@@ -104,7 +104,7 @@
 
         cell msg2 = begin_cell()
         .store_uint(0x10, 6)
-        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) 
+        .store_slice(begin_cell().store_uint(0x114AA9552AA, 200).end_cell().begin_parse()) ;; the invalid destination address
         .store_coins(0)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
         .store_uint(200, 32)

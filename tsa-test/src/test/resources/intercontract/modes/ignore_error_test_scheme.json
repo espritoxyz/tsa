@@ -5,7 +5,8 @@
     "other": {
       "type": "out_opcodes",
       "outOpcodeToDestination": {
-        "00000064": [2]
+        "00000064": [2],
+        "000000c8": [2]
       },
       "other": [2]
     }

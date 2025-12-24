@@ -4,6 +4,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
+import org.usvm.machine.state.ContractId
 
 object MessageMode {
     const val SEND_REMAINING_BALANCE_BIT = 7
@@ -12,9 +13,13 @@ object MessageMode {
     const val SEND_FEES_SEPARATELY = 0
 }
 
+/**
+ * @property content is `null` if there was an error during the parse of the content
+ */
 data class MessageActionParseResult(
-    val content: TlbInternalMessageContent,
+    val content: TlbInternalMessageContent?,
     val sendMessageMode: Int257Expr,
+    val resolvedReceiver: ContractId?,
 )
 
 /**
