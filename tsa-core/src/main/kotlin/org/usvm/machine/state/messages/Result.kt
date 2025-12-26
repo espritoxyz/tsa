@@ -6,10 +6,10 @@ package org.usvm.machine.state.messages
  */
 sealed interface Result<out V, out E>
 
-inline fun <V, E> Result<V, E>.getOrReturn(returnExpr: () -> Nothing): V =
+inline fun <V, E> Result<V, E>.getOrElse(returnExpr: E.() -> V): V =
     when (this) {
         is Ok -> this.value
-        is Err -> returnExpr()
+        is Err -> this.error.returnExpr()
     }
 
 data class Ok<V>(

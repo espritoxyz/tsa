@@ -18,7 +18,6 @@ import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestFailure
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -359,9 +358,27 @@ class SendModesTest {
         )
     }
 
-    @Ignore("SendIgnoreError flag is not supported")
     @Test
-    fun sendIgnoreErrorTest() {
+    fun `SendIgnoreError invalid source address`() {
+        sendIgnoreErrorBaseTest(100)
+    }
+
+    @Test
+    fun `SendIgnoreError invalid destination address`() {
+        sendIgnoreErrorBaseTest(101)
+    }
+
+    @Test
+    fun `SendIgnoreError not enough Toncoin`() {
+        sendIgnoreErrorBaseTest(102)
+    }
+
+    @Test
+    fun `SendIgnoreError good message between two ignored messages`() {
+        sendIgnoreErrorBaseTest(105)
+    }
+
+    private fun sendIgnoreErrorBaseTest(opcode: Int) {
         val checkerContract = extractCheckerContractFromResource(ignoreErrorsChecker)
         val analyzedSender = extractFuncContractFromResource(ignoreErrorsContract)
         val analyzedRecipient = extractFuncContractFromResource(recipientBouncePath)
@@ -371,11 +388,18 @@ class SendModesTest {
             TvmOptions(
                 intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
                 enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
             )
 
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedSender, analyzedRecipient),
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder().storeInt(opcode, 64).endCell()),
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(),
+                    ),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
@@ -383,7 +407,7 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf { test -> test.exitCode() == 258 },
+            listOf { test -> test.exitCode() == 500 },
         )
 
         checkInvariants(
