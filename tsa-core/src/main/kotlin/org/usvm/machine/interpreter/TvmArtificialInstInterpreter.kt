@@ -328,9 +328,9 @@ class TvmArtificialInstInterpreter(
                             TsaArtificialOnOutMessageHandlerCallInst(
                                 computePhaseResult = stmt.computePhaseResult,
                                 actionPhaseResult = result,
-                                lastStmt.location,
-                                messages,
-                                0,
+                                location = lastStmt.location,
+                                sentMessages = messages,
+                                messageOrderNumber = 0,
                             ),
                         )
                     }
@@ -400,7 +400,7 @@ class TvmArtificialInstInterpreter(
         val actions =
             possibleParsedHeads.map { (parsedHead, condition) ->
                 TvmStepScopeManager.ActionOnCondition(
-                    {
+                    action = {
                         val updatedParsedAndPreprocessed = stmt.parsedAndPreprocessedActions
                         val newStmt =
                             stmt.copy(
@@ -409,9 +409,9 @@ class TvmArtificialInstInterpreter(
                             )
                         newStmt(newStmt)
                     },
-                    false,
-                    condition,
-                    Unit,
+                    caseIsExceptional = false,
+                    condition = condition,
+                    paramForDoForAllBlock = Unit,
                 )
             }
         scope.calcOnState { isExceptional = false }
@@ -449,9 +449,6 @@ class TvmArtificialInstInterpreter(
 
             val contractId = scope.calcOnState { currentContract }
             val handlers = scheme?.get(contractId)
-//            if (handlers == null && actions.isNotEmpty())  {
-//                error("no handlers where messages are possible")
-//            }
 
             val msgBody =
                 scope.calcOnState { receivedMessage?.getMsgBodySlice() }
