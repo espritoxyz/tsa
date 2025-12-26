@@ -13,7 +13,8 @@
     if (op == 100) {
         ;; 35:Invalid source address in outbound message
         cell msg = begin_cell()
-        .store_uint(0x12, 6) ;; Invalid source address at the last two bits: just begins with addr_std$10 but then faces 10 of the next address, which is not corresponded to TL-B.
+        .store_uint(0x12, 6) ;; Invalid source address at the last two bits: just begins with addr_std$10 but then faces bad address on the next field
+        .store_slice(begin_cell().store_uint(0x114AA9552AA, 400).end_cell().begin_parse()) ;; the invalid source address; handcrafted to not fall into soft failure for the use of anycast address
         .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; the address of the recipient contract
         .store_coins(100000)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
