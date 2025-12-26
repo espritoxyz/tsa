@@ -18,7 +18,6 @@ import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestFailure
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -359,7 +358,6 @@ class SendModesTest {
         )
     }
 
-    @Ignore("The test ends with soft failure due to anycast address")
     @Test
     fun `SendIgnoreError invalid source address`() {
         sendIgnoreErrorBaseTest(100)
