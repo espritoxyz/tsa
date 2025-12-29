@@ -3,7 +3,7 @@ package org.usvm.machine.interpreter
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialActionParseInst
-import org.ton.bytecode.TsaArtificialActionPhaseInst
+import org.ton.bytecode.TsaArtificialActionPhaseStartInst
 import org.ton.bytecode.TsaArtificialBouncePhaseInst
 import org.ton.bytecode.TsaArtificialCheckerReturn
 import org.ton.bytecode.TsaArtificialExecuteContInst
@@ -128,7 +128,7 @@ class TvmArtificialInstInterpreter(
                 visitOnComputeExitPhase(scope, stmt)
             }
 
-            is TsaArtificialActionPhaseInst -> {
+            is TsaArtificialActionPhaseStartInst -> {
                 scope.consumeDefaultGas(stmt)
 
                 visitActionPhaseInst(scope, stmt)
@@ -231,7 +231,7 @@ class TvmArtificialInstInterpreter(
                 stack.addInt(caleeContract.toBv257())
             }
         }
-        val nextInst = TsaArtificialActionPhaseInst(stmt.computePhaseResult, stmt.location)
+        val nextInst = TsaArtificialActionPhaseStartInst(stmt.computePhaseResult, stmt.location)
         return callCheckerMethodIfExists(
             ON_COMPUTE_PHASE_EXIT_METHOD_ID.toBigInteger(),
             nextInst,
@@ -261,10 +261,10 @@ class TvmArtificialInstInterpreter(
             if (!shouldNotCallExitHandler) {
                 val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
                 if (!wasCalled) {
-                    newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
+                    newStmt(TsaArtificialActionPhaseStartInst(stmt.computePhaseResult, lastStmt.location))
                 }
             } else {
-                newStmt(TsaArtificialActionPhaseInst(stmt.computePhaseResult, lastStmt.location))
+                newStmt(TsaArtificialActionPhaseStartInst(stmt.computePhaseResult, lastStmt.location))
             }
         }
     }
@@ -394,9 +394,6 @@ class TvmArtificialInstInterpreter(
         val tmpStmt = stmt.copy(yetUnparsedActions = tail)
         val possibleParsedHeads =
             transactionInterpreter.parseSingleActionSlice(scope, head, tmpStmt).getOrElse { return } ?: return
-        val someParsingSucceeded = ctx.mkOr(possibleParsedHeads.map { it.second })
-        scope.assert(someParsingSucceeded)
-            ?: return
         val actions =
             possibleParsedHeads.map { (parsedHead, condition) ->
                 TvmStepScopeManager.ActionOnCondition(
@@ -407,9 +404,10 @@ class TvmArtificialInstInterpreter(
                                 yetUnparsedActions = tail,
                                 parsedAndPreprocessedActions = updatedParsedAndPreprocessed + parsedHead,
                             )
+                        isExceptional = oldIsExceptional
                         newStmt(newStmt)
                     },
-                    caseIsExceptional = false,
+                    caseIsExceptional = oldIsExceptional,
                     condition = condition,
                     paramForDoForAllBlock = Unit,
                 )
@@ -422,7 +420,7 @@ class TvmArtificialInstInterpreter(
 
     private fun visitActionPhaseInst(
         scope: TvmStepScopeManager,
-        stmt: TsaArtificialActionPhaseInst,
+        stmt: TsaArtificialActionPhaseStartInst,
     ) {
         val isTsaChecker = scope.calcOnState { contractsCode[currentContract].isContractWithTSACheckerFunctions }
 
