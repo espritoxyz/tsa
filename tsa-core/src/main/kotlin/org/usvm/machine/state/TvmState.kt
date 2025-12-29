@@ -112,7 +112,19 @@ class TvmState(
     val currentEventId: EventId
         get() = currentPhaseBeginTime
 
+    /**
+     * Semantically, we set it to `true` when no further processing of the state will be conducted.
+     * For example, when [org.usvm.machine.TvmOptions.stopOnFirstError] is `true`, an exception in the compute phase
+     * will end the execution and set the flag to `true`.
+     *
+     * However, if the mentioned flag is `false`, the `isExceptional` flag will also be `false`, as the execution will
+     * possibly continue. For instance, if we have sent some message A and made a commit before an exception was throw
+     * the sending of the  message A will happen in an action phase.
+     */
     override var isExceptional: Boolean = false
+        set(value) {
+            field = value
+        }
 
     val isTerminated: Boolean
         get() = phase == TvmTerminated
