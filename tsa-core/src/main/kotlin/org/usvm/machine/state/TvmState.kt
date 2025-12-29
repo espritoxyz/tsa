@@ -119,9 +119,6 @@ class TvmState(
      * the sending of the  message A will happen in an action phase.
      */
     override var isExceptional: Boolean = false
-        set(value) {
-            field = value
-        }
 
     val isTerminated: Boolean
         get() = phase == TvmTerminated

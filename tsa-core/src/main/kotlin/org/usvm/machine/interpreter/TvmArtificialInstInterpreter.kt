@@ -75,7 +75,6 @@ import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setBalance
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
-import org.usvm.machine.state.withExceptionalDropped
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.sizeSort
@@ -305,7 +304,6 @@ class TvmArtificialInstInterpreter(
             scope,
             stmt.parsingResult.parsedOrderedMessages,
         ) { actionsHandlingResult ->
-
             when (actionsHandlingResult) {
                 is ActionHandlingResult.Success -> {
                     this.calcOnState { registerActionPhaseEffect(actionsHandlingResult) }
@@ -423,9 +421,7 @@ class TvmArtificialInstInterpreter(
             }
             val commitedActions = scope.calcOnState { commitedState.c5.value.value }
             val actions =
-                withExceptionalDropped(scope) {
-                    transactionInterpreter.extractListOfActions(scope, commitedActions)
-                }
+                transactionInterpreter.extractListOfActions(scope, commitedActions)
                     ?: return
 
             val scheme = ctx.tvmOptions.intercontractOptions.communicationScheme
