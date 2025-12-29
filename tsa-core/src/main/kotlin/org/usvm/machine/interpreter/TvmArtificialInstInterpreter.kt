@@ -310,7 +310,10 @@ class TvmArtificialInstInterpreter(
                     val result = TvmResult.TvmActionPhaseSuccess(stmt.computePhaseResult)
                     val messages = actionsHandlingResult.messagesDispatched
                     doWithState {
-                        // workaround, so that on_out_message has access to the balance
+                        // Workaround, so that on_out_message has access to the balance.
+                        // It is ok to make a commit here as the action phase has essentially ended by this point and
+                        // the left execution of the current contract consists of calling handlers and returning
+                        // control to scheduler.
                         contractIdToFirstElementOfC7 =
                             contractIdToFirstElementOfC7.put(
                                 currentContract,
