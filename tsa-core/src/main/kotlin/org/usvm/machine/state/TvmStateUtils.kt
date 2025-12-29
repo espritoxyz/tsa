@@ -162,18 +162,9 @@ fun TvmState.initializeSymbolicSlice(ref: UConcreteHeapRef) =
         memory.types.allocate(cell.address, TvmDataCellType)
     }
 
-fun TvmState.generateSymbolicBuilder(): UConcreteHeapRef =
-    generateSymbolicRef(TvmBuilderType).also { initializeSymbolicBuilder(it) }
+fun TvmState.generateSymbolicBuilder(): UConcreteHeapRef = generateSymbolicRef(TvmBuilderType)
 
-fun TvmState.ensureSymbolicBuilderInitialized(ref: UHeapRef) =
-    ensureSymbolicRefInitialized(ref, TvmBuilderType) { initializeSymbolicBuilder(it) }
-
-fun TvmState.initializeSymbolicBuilder(ref: UConcreteHeapRef) =
-    with(ctx) {
-//    // TODO hack! Assume that all input builder were not written, that means dataLength == 0 and refsLength == 0
-//    memory.writeField(ref, TvmContext.cellDataLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-//    memory.writeField(ref, TvmContext.cellRefsLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-    }
+fun TvmState.ensureSymbolicBuilderInitialized(ref: UHeapRef) = ensureSymbolicRefInitialized(ref, TvmBuilderType)
 
 fun TvmStepScopeManager.assertIfSat(constraint: UBoolExpr): Boolean {
     val originalState = calcOnState { this }
@@ -726,23 +717,6 @@ private fun TvmState.mockNonNegativeInt(): UExpr<TvmInt257Sort> =
     with(ctx) {
         val unsignedPart = makeSymbolicPrimitive(ctx.mkBvSort((INT_BITS.toInt() - 1).toUInt()))
         return unsignedPart.zeroExtendToSort(int257sort)
-    }
-
-fun <T> withExceptionalDropped(
-    scope: TvmStepScopeManager,
-    f: TvmState.() -> T,
-): T = withExceptionalDropped(scope.calcOnState { this }, f)
-
-fun <T> withExceptionalDropped(
-    state: TvmState,
-    f: TvmState.() -> T,
-): T =
-    with(state) {
-        val oldIsExceptional = isExceptional
-        isExceptional = false
-        val result = f()
-        isExceptional = isExceptional || oldIsExceptional
-        return result
     }
 
 fun TvmState.generateSymbolicTime(): UExpr<TvmInt257Sort> =
