@@ -12,6 +12,19 @@ import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.types.SliceRef
 
+/**
+ * - In one way or another the compute phase ends
+ * - [TsaArtificialOnComputePhaseExitInst]
+ * - [TsaArtificialActionPhaseStartInst]
+ * - [TsaArtificialActionParseInst] (one for each action in an action list and one for an empty list)
+ * - [TsaArtificialHandleMessagesCostInst]
+ * - [TsaArtificialOnOutMessageHandlerCallInst]
+ * - [TsaArtificialBouncePhaseInst]
+ * - [TsaArtificialExitInst]
+ */
+@Suppress("Unused")
+private object ArtificialInstructionOrder
+
 sealed interface TsaArtificialInst : TvmArtificialInst
 
 /**
@@ -46,11 +59,11 @@ data class TsaArtificialImplicitRetInst(
  * Is followed by [TsaArtificialActionParseInst]
  */
 @Serializable
-data class TsaArtificialActionPhaseInst(
+data class TsaArtificialActionPhaseStartInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
-    override val mnemonic: String get() = "artificial_action_phase"
+    override val mnemonic: String get() = "artificial_action_phase_start"
 
     init {
         checkLocationInitialized()
@@ -122,7 +135,7 @@ data class TsaArtificialOnComputePhaseExitInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
-    override val mnemonic: String get() = "on_compute_phase_exit"
+    override val mnemonic: String get() = "on_compute_phase_exit_bridge"
 
     init {
         checkLocationInitialized()
