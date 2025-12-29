@@ -258,7 +258,7 @@ class TvmArtificialInstInterpreter(
                 registerEventIfNeeded(stmt.computePhaseResult)
             }
 
-            val shouldNotCallExitHandler = scope.ctx.tvmOptions.stopOnFirstError && isExceptional || isTsaChecker
+            val shouldNotCallExitHandler = (scope.ctx.tvmOptions.stopOnFirstError && isExceptional) || isTsaChecker
             if (!shouldNotCallExitHandler) {
                 val wasCalled = doCallOnComputeExitIfNecessary(stmt) != null
                 if (!wasCalled) {
@@ -301,8 +301,6 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialHandleMessagesCostInst,
     ) {
-        val oldIsExceptional = scope.calcOnState { isExceptional }
-        scope.calcOnState { isExceptional = false }
         transactionInterpreter.handleMessageCosts(
             scope,
             stmt.parsingResult.parsedOrderedMessages,
@@ -322,9 +320,6 @@ class TvmArtificialInstInterpreter(
                                     stack,
                                 ) as TvmStack.TvmStackTupleValueConcreteNew,
                             )
-                        calcOnState {
-                            isExceptional = isExceptional || oldIsExceptional
-                        }
                         newStmt(
                             TsaArtificialOnOutMessageHandlerCallInst(
                                 computePhaseResult = stmt.computePhaseResult,
@@ -346,9 +341,6 @@ class TvmArtificialInstInterpreter(
                                 phase,
                                 pathNode,
                             )
-                        calcOnState {
-                            isExceptional = isExceptional || oldIsExceptional
-                        }
                         newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
                     }
                 }
@@ -360,9 +352,7 @@ class TvmArtificialInstInterpreter(
                                 actionsHandlingResult.failure,
                                 phase,
                             )
-                        calcOnState {
-                            isExceptional = isExceptional || oldIsExceptional
-                        }
+                        isExceptional = true
                         newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
                     }
                 }
@@ -374,11 +364,6 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialActionParseInst,
     ) {
-        // temporarily remove isExceptional mark for further processing
-        val oldIsExceptional = scope.calcOnState { isExceptional }
-        scope.doWithState {
-            isExceptional = false
-        }
         val (head, tail) =
             stmt.yetUnparsedActions.splitHeadTail() ?: return run {
                 transactionInterpreter.resolveMessageReceivers(
@@ -394,7 +379,8 @@ class TvmArtificialInstInterpreter(
             }
         val tmpStmt = stmt.copy(yetUnparsedActions = tail)
         val possibleParsedHeads =
-            transactionInterpreter.parseSingleActionSlice(scope, head, tmpStmt).getOrElse { return } ?: return
+            transactionInterpreter.parseSingleActionSlice(scope, head, tmpStmt).getOrElse { return }
+                ?: return
         val actions =
             possibleParsedHeads.map { (parsedHead, condition) ->
                 TvmStepScopeManager.ActionOnCondition(
@@ -405,18 +391,15 @@ class TvmArtificialInstInterpreter(
                                 yetUnparsedActions = tail,
                                 parsedAndPreprocessedActions = updatedParsedAndPreprocessed + parsedHead,
                             )
-                        isExceptional = oldIsExceptional
                         newStmt(newStmt)
                     },
-                    caseIsExceptional = oldIsExceptional,
+                    caseIsExceptional = false,
                     condition = condition,
                     paramForDoForAllBlock = Unit,
                 )
             }
         scope.calcOnState { isExceptional = false }
-        scope.doWithConditions(actions) {
-            calcOnState { isExceptional = isExceptional || oldIsExceptional }
-        }
+        scope.doWithConditions(actions) {}
     }
 
     private fun visitActionPhaseInst(
@@ -429,11 +412,12 @@ class TvmArtificialInstInterpreter(
             scope.calcOnState {
                 lastCommitedStateOfContracts[currentContract]
             }
-        val oldExceptional = scope.calcOnState { isExceptional }
-        scope.calcOnState { isExceptional = false }
-
         val analyzingReceiver = scope.calcOnState { receivedMessage != null }
         if (analyzingReceiver && commitedState != null && ctx.tvmOptions.enableOutMessageAnalysis && !isTsaChecker) {
+            scope.calcOnState {
+                // if we are here, we are going to process the action phase and thus need not it to be exceptional
+                isExceptional = false
+            }
             scope.doWithState {
                 phase = TvmActionPhase(stmt.computePhaseResult)
             }
@@ -476,7 +460,6 @@ class TvmArtificialInstInterpreter(
             status ?: return
 
             scope.calcOnState {
-                isExceptional = isExceptional || oldExceptional
                 newStmt(
                     TsaArtificialActionParseInst(
                         stmt.computePhaseResult,
@@ -489,7 +472,6 @@ class TvmArtificialInstInterpreter(
             }
         } else {
             scope.doWithState {
-                isExceptional = isExceptional || oldExceptional
                 newStmt(
                     TsaArtificialOnOutMessageHandlerCallInst(
                         computePhaseResult = stmt.computePhaseResult,
@@ -775,6 +757,7 @@ class TvmArtificialInstInterpreter(
         val isExceptional =
             ctx.tvmOptions.stopOnFirstError &&
                 computePhaseResult.isExceptional()
+        this.isExceptional = isExceptional
         if (isExceptional ||
             receivedMessage == null ||
             isTsaChecker ||

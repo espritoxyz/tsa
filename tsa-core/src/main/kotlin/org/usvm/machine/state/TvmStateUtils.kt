@@ -186,13 +186,20 @@ fun TvmContext.signedIntegerFitsBits(
     bits: UInt,
 ): UBoolExpr =
     when {
-        bits == 0u -> value eq zeroValue
-        bits >= INT_BITS -> trueExpr
-        else ->
+        bits == 0u -> {
+            value eq zeroValue
+        }
+
+        bits >= INT_BITS -> {
+            trueExpr
+        }
+
+        else -> {
             mkAnd(
                 mkBvSignedLessOrEqualExpr(value, powerOfTwo(bits - 1u).minus(BigInteger.ONE).toBv257()),
                 mkBvSignedGreaterOrEqualExpr(value, powerOfTwo(bits - 1u).negate().toBv257()),
             )
+        }
     }
 
 /**
@@ -203,13 +210,20 @@ fun TvmContext.unsignedIntegerFitsBits(
     bits: UInt,
 ): UBoolExpr =
     when {
-        bits == 0u -> value eq zeroValue
-        bits >= TvmContext.INT_BITS - 1u -> mkBvSignedGreaterOrEqualExpr(value, zeroValue)
-        else ->
+        bits == 0u -> {
+            value eq zeroValue
+        }
+
+        bits >= INT_BITS - 1u -> {
+            mkBvSignedGreaterOrEqualExpr(value, zeroValue)
+        }
+
+        else -> {
             mkAnd(
                 mkBvSignedLessOrEqualExpr(value, maxUnsignedValue(bits).toBv257()),
                 mkBvSignedGreaterOrEqualExpr(value, zeroValue),
             )
+        }
     }
 
 /**
