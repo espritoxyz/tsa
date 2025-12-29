@@ -55,8 +55,8 @@ import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.SliceRef
-import org.usvm.machine.types.TvmModel
 import org.usvm.mkSizeExpr
+import org.usvm.test.resolver.TvmTestStateResolver
 import org.usvm.utils.intValueOrNull
 
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
@@ -565,7 +565,14 @@ class TvmTransactionInterpreter(
         tmpStmt: TsaArtificialActionParseInst,
     ): ValueOrDeadScope<List<Pair<MessageActionParseResult, UBoolExpr>>?> =
         with(scope.ctx) {
-            val resolver = scope.calcOnState { models.first() }
+            val model = scope.calcOnState { models.first() }
+            val resolver =
+                TvmTestStateResolver(
+                    ctx,
+                    model,
+                    scope.calcOnState { this },
+                    ctx.tvmOptions.performAdditionalChecksWhileResolving,
+                )
             val (actionBody, tag) =
                 sliceLoadIntTransaction(scope, actionSlice.value, 32)
                     ?: return scopeDied
@@ -678,7 +685,7 @@ class TvmTransactionInterpreter(
 
     private fun parseAndPreprocessMessageAction(
         scope: TvmStepScopeManager,
-        model: TvmModel,
+        resolver: TvmTestStateResolver,
         slice: UHeapRef,
         tmpStmt: TsaArtificialActionParseInst,
         handler: DestinationDescription?,
@@ -707,7 +714,7 @@ class TvmTransactionInterpreter(
             newStmt(nextStmt)
         }
         val messageContentActual =
-            parseMessageInfo(scope, model, msgSlice, nextStmtAction)
+            parseMessageInfo(scope, resolver, msgSlice, nextStmtAction)
                 ?: return null
 
         val senderAddressCell =
@@ -742,7 +749,7 @@ class TvmTransactionInterpreter(
                                     messageContent.tail.bodySlice(),
                                     handler.outOpcodeToDestination,
                                     handler.other,
-                                    model,
+                                    resolver,
                                     scope,
                                 )
 
@@ -790,7 +797,7 @@ class TvmTransactionInterpreter(
 
     private fun parseMessageInfo(
         scope: TvmStepScopeManager,
-        model: TvmModel,
+        resolver: TvmTestStateResolver,
         msgSlice: UConcreteHeapRef,
         nextStmtAction: TvmState.() -> Unit,
     ): TlbInternalMessageContent? =
@@ -803,7 +810,7 @@ class TvmTransactionInterpreter(
             scope.assert(isInternalCond)
                 ?: return@with null
             val messageContent =
-                TlbInternalMessageContent.extractFromSlice(scope, ptr, model, quietBlock = nextStmtAction)
+                TlbInternalMessageContent.extractFromSlice(scope, ptr, resolver, quietBlock = nextStmtAction)
                     ?: return@with null
 
             return messageContent
@@ -835,7 +842,7 @@ fun <T> chooseHandlerBasedOnOpcode(
     msgBodySlice: UHeapRef,
     variants: Map<String, T>,
     defaultVariant: T?,
-    model: TvmModel,
+    resolver: TvmTestStateResolver,
     scope: TvmStepScopeManager,
 ): Pair<T?, Unit?> =
     with(scope.ctx) {
@@ -855,7 +862,7 @@ fun <T> chooseHandlerBasedOnOpcode(
 
         val hasOpcode = mkBvSignedGreaterOrEqualExpr(leftBits, mkSizeExpr(OP_BITS.toInt()))
         val handler =
-            if (model.eval(hasOpcode).isTrue) {
+            if (resolver.eval(hasOpcode).isTrue) {
                 scope.assert(hasOpcode)
                     ?: return null to null
 
@@ -863,7 +870,7 @@ fun <T> chooseHandlerBasedOnOpcode(
                     sliceLoadIntTransaction(scope, msgBodySlice, OP_BITS.toInt())?.second
                         ?: return null to null
 
-                val concreteOp = model.eval(inOpcode)
+                val concreteOp = resolver.eval(inOpcode)
                 val concreteOpHex =
                     concreteOp.bigIntValue().toString(16).padStart(TvmContext.OP_BYTES.toInt(), '0')
                 val concreteHandler = variants[concreteOpHex]
