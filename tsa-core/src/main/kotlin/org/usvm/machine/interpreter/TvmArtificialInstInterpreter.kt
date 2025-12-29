@@ -79,6 +79,7 @@ import org.usvm.machine.state.withExceptionalDropped
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.sizeSort
+import org.usvm.test.resolver.TvmTestStateResolver
 
 class TvmArtificialInstInterpreter(
     val ctx: TvmContext,
@@ -453,13 +454,20 @@ class TvmArtificialInstInterpreter(
                     ?: error("Unexpected null msg_body")
 
             val model = scope.calcOnState { models.first() }
+            val resolver =
+                TvmTestStateResolver(
+                    ctx,
+                    model,
+                    scope.calcOnState { this },
+                    ctx.tvmOptions.performAdditionalChecksWhileResolving,
+                )
             val (handler, status) =
                 if (handlers != null) {
                     chooseHandlerBasedOnOpcode(
                         msgBody,
                         handlers.inOpcodeToDestination,
                         handlers.other,
-                        model,
+                        resolver,
                         scope,
                     )
                 } else {

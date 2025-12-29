@@ -35,8 +35,8 @@ import org.usvm.machine.state.sliceLoadAddrTransaction
 import org.usvm.machine.state.sliceLoadGramsTransaction
 import org.usvm.machine.state.sliceLoadIntTransaction
 import org.usvm.machine.state.sliceLoadRefTransaction
-import org.usvm.machine.types.TvmModel
 import org.usvm.mkSizeExpr
+import org.usvm.test.resolver.TvmTestStateResolver
 
 data class TlbCommonMessageInfo(
     val flags: Flags, // 4 bits
@@ -396,7 +396,7 @@ data class TlbInternalMessageContent(
         fun extractFromSlice(
             scope: TvmStepScopeManager,
             ptr: ParsingState,
-            model: TvmModel,
+            resolver: TvmTestStateResolver,
             quietBlock: (TvmState.() -> Unit)?,
         ): TlbInternalMessageContent? =
             with(scope.ctx) {
@@ -407,10 +407,10 @@ data class TlbInternalMessageContent(
                 val tailSlice = ptr.slice
 
                 val stateInitRef =
-                    loadStateInit(scope, model, ptr, quietBlock).getOrElse { return@with null }
+                    loadStateInit(scope, resolver, ptr, quietBlock).getOrElse { return@with null }
 
                 val (bodyCellOriginal, bodyCell) =
-                    loadBody(scope, model, ptr, quietBlock)
+                    loadBody(scope, resolver, ptr, quietBlock)
                         .getOrElse { return@with null }
 
                 val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
@@ -430,7 +430,7 @@ data class TlbInternalMessageContent(
 
         private fun TvmContext.loadBody(
             scope: TvmStepScopeManager,
-            model: TvmModel,
+            resolver: TvmTestStateResolver,
             ptr: ParsingState,
             quietBlock: (TvmState.() -> Unit)?,
         ): ValueOrDeadScope<Pair<UHeapRef?, UHeapRef>> {
@@ -441,7 +441,7 @@ data class TlbInternalMessageContent(
             val bodyBitIsInlined = bodyBit eq zeroValue
 
             val (bodyCellOriginal, bodyCell) =
-                if (model.eval(bodyBitIsInlined).isFalse) {
+                if (resolver.eval(bodyBitIsInlined).isFalse) {
                     scope.assert(bodyBitIsInlined.not())
                         ?: return scopeDied
 
@@ -466,7 +466,7 @@ data class TlbInternalMessageContent(
 
         private fun TvmContext.loadStateInit(
             scope: TvmStepScopeManager,
-            model: TvmModel,
+            resolver: TvmTestStateResolver,
             ptr: ParsingState,
             quietBlock: (TvmState.() -> Unit)?,
         ): ValueOrDeadScope<UHeapRef?> {
@@ -476,7 +476,7 @@ data class TlbInternalMessageContent(
             val stateInitIsMissing = stateInitBit eq zeroValue
 
             val stateInitRef =
-                if (model.eval(stateInitIsMissing).isTrue) {
+                if (resolver.eval(stateInitIsMissing).isTrue) {
                     scope.assert(stateInitIsMissing)
                         ?: return scopeDied
 
@@ -491,7 +491,7 @@ data class TlbInternalMessageContent(
 
                     val stateInitIsInlined = stateInitInlineBit eq zeroValue
 
-                    if (model.eval(stateInitIsInlined).isFalse) {
+                    if (resolver.eval(stateInitIsInlined).isFalse) {
                         scope.assert(stateInitIsInlined.not())
                             ?: return scopeDied
 
@@ -509,15 +509,15 @@ data class TlbInternalMessageContent(
                             ?: return scopeDied
 
                         // code:(Maybe ^Cell)
-                        loadMaybeRef(scope, ptr, model, quietBlock)
+                        loadMaybeRef(scope, ptr, resolver, quietBlock)
                             ?: return scopeDied
 
                         // code:(Maybe ^Cell)
-                        loadMaybeRef(scope, ptr, model, quietBlock)
+                        loadMaybeRef(scope, ptr, resolver, quietBlock)
                             ?: return scopeDied
 
                         // library:(Maybe ^Cell)
-                        loadMaybeRef(scope, ptr, model, quietBlock)
+                        loadMaybeRef(scope, ptr, resolver, quietBlock)
                             ?: return scopeDied
 
                         null
@@ -529,7 +529,7 @@ data class TlbInternalMessageContent(
         private fun loadMaybeRef(
             scope: TvmStepScopeManager,
             ptr: ParsingState,
-            model: TvmModel,
+            resolver: TvmTestStateResolver,
             quietBlock: (TvmState.() -> Unit)?,
         ): Unit? =
             scope.doWithCtx {
@@ -539,7 +539,7 @@ data class TlbInternalMessageContent(
 
                 val refIsMissing = maybeBit eq zeroValue
 
-                if (model.eval(refIsMissing).isTrue) {
+                if (resolver.eval(refIsMissing).isTrue) {
                     scope.assert(refIsMissing)
                         ?: return@doWithCtx null
                 } else {
