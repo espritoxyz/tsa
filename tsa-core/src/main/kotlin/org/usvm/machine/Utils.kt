@@ -81,3 +81,5 @@ fun maxUnsignedValue(bits: UInt): BigInteger = powerOfTwo(bits).minus(BigInteger
 fun Path.getParentNonNullAbsolutePath(): Path = (parent ?: Paths.get("")).toAbsolutePath()
 
 fun <T> List<T>.splitHeadTail(): Pair<T, List<T>>? = if (isEmpty()) null else first() to subList(1, size)
+
+fun <T> List<T>.dropFirstWithoutChecks(): List<T> = subList(1, size)

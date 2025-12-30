@@ -80,6 +80,17 @@ import org.usvm.machine.types.TvmSliceType
 import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestStateResolver
 
+/**
+ * The order of the artificial instructions after the end of the compute phase is as follows:
+ * - In one way or another the compute phase ends
+ * - [TsaArtificialOnComputePhaseExitInst]
+ * - [TsaArtificialActionPhaseStartInst]
+ * - [TsaArtificialActionParseInst] (one for each action in an action list and one for an empty list)
+ * - [TsaArtificialHandleMessagesCostInst]
+ * - [TsaArtificialOnOutMessageHandlerCallInst] (one for each of the actually sent messages if the handler exists)
+ * - [TsaArtificialBouncePhaseInst]
+ * - [TsaArtificialExitInst]
+ */
 class TvmArtificialInstInterpreter(
     val ctx: TvmContext,
     private val contractsCode: List<TsaContractCode>,
@@ -378,9 +389,10 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
-        val tmpStmt = stmt.copy(yetUnparsedActions = tail)
         val possibleParsedHeads =
-            transactionInterpreter.parseSingleActionSlice(scope, head, tmpStmt).getOrElse { return }
+            transactionInterpreter
+                .parseSingleActionSlice(scope, head, stmt)
+                .getOrElse { return }
                 ?: return
         val actions =
             possibleParsedHeads.map { (parsedHead, condition) ->
