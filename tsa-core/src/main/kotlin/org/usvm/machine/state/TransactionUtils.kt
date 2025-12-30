@@ -52,6 +52,7 @@ fun sliceLoadIntTransaction(
     slice: UHeapRef,
     sizeBits: Int,
     isSigned: Boolean = false,
+    quietBlock: (TvmState.() -> Unit)? = null,
 ): Pair<UHeapRef, UExpr<TvmInt257Sort>>? {
     var result: UExpr<TvmInt257Sort>? = null
     val originalStateId = scope.calcOnState { id }
@@ -59,7 +60,7 @@ fun sliceLoadIntTransaction(
 
     scope.doNotKillScopeOnDoWithConditions = true
 
-    sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned) { value ->
+    sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned, quietBlock = quietBlock) { value ->
         validateSliceLoadState(originalStateId)
 
         result = value
@@ -73,6 +74,7 @@ fun sliceLoadIntTransaction(
 fun sliceLoadAddrTransaction(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
+    quietBlock: (TvmState.() -> Unit)? = null,
 ): Pair<UHeapRef, UHeapRef>? =
     scope.doWithCtx {
         var result: UHeapRef? = null
@@ -84,7 +86,7 @@ fun sliceLoadAddrTransaction(
 
         scope.doNotKillScopeOnDoWithConditions = true
 
-        sliceLoadAddrTlb(scope, slice, updatedSlice) { value ->
+        sliceLoadAddrTlb(scope, slice, updatedSlice, quietBlock = quietBlock) { value ->
             validateSliceLoadState(originalStateId)
 
             result = value
@@ -98,6 +100,7 @@ fun sliceLoadAddrTransaction(
 fun sliceLoadGramsTransaction(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
+    quietBlock: (TvmState.() -> Unit)?,
 ): Pair<UHeapRef, UExpr<TvmInt257Sort>>? {
     var resGrams: UExpr<TvmInt257Sort>? = null
     val originalStateId = scope.calcOnState { id }
@@ -108,7 +111,7 @@ fun sliceLoadGramsTransaction(
 
     scope.doNotKillScopeOnDoWithConditions = true
 
-    sliceLoadGramsTlb(scope, slice, updatedSlice) { grams ->
+    sliceLoadGramsTlb(scope, slice, updatedSlice, quietBlock = quietBlock) { grams ->
         validateSliceLoadState(originalStateId)
 
         resGrams = grams
@@ -122,6 +125,7 @@ fun sliceLoadGramsTransaction(
 fun sliceLoadRefTransaction(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
+    quietBlock: (TvmState.() -> Unit)? = null,
 ): Pair<UHeapRef, UHeapRef>? {
     var result: UHeapRef? = null
     val originalStateId = scope.calcOnState { id }
@@ -132,7 +136,7 @@ fun sliceLoadRefTransaction(
 
     scope.doNotKillScopeOnDoWithConditions = true
 
-    sliceLoadRefTlb(scope, slice, updatedSlice) { value ->
+    sliceLoadRefTlb(scope, slice, updatedSlice, quietBlock = quietBlock) { value ->
         validateSliceLoadState(originalStateId)
 
         result = value
