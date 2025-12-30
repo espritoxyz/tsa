@@ -24,6 +24,7 @@ import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.asIntValue
 import org.usvm.machine.bigIntValue
+import org.usvm.machine.dropFirstWithoutChecks
 import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.IncompatibleMessageModes
@@ -562,7 +563,7 @@ class TvmTransactionInterpreter(
     fun parseSingleActionSlice(
         scope: TvmStepScopeManager,
         actionSlice: SliceRef,
-        tmpStmt: TsaArtificialActionParseInst,
+        originalStmt: TsaArtificialActionParseInst,
     ): ValueOrDeadScope<List<Pair<MessageActionParseResult, UBoolExpr>>?> =
         with(scope.ctx) {
             val model = scope.calcOnState { models.first() }
@@ -598,8 +599,8 @@ class TvmTransactionInterpreter(
                             scope,
                             resolver,
                             actionBody,
-                            tmpStmt,
-                            tmpStmt.destinationResolver,
+                            originalStmt,
+                            originalStmt.destinationResolver,
                         )
                             ?: return scopeDied
 
@@ -687,7 +688,7 @@ class TvmTransactionInterpreter(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
         slice: UHeapRef,
-        tmpStmt: TsaArtificialActionParseInst,
+        originalStmt: TsaArtificialActionParseInst,
         handler: DestinationDescription?,
     ): List<Pair<MessageActionParseResult, UBoolExpr>>? {
         val (_, sendMsgMode) =
@@ -702,9 +703,11 @@ class TvmTransactionInterpreter(
 
         val nextStmtAction: TvmState.() -> Unit = {
             val nextStmt =
-                tmpStmt.copy(
+                originalStmt.copy(
+                    yetUnparsedActions =
+                        originalStmt.yetUnparsedActions.dropFirstWithoutChecks(),
                     parsedAndPreprocessedActions =
-                        tmpStmt.parsedAndPreprocessedActions +
+                        originalStmt.parsedAndPreprocessedActions +
                             MessageActionParseResult(
                                 null,
                                 sendMsgMode,
@@ -736,7 +739,7 @@ class TvmTransactionInterpreter(
         val receiverOptions =
             when (handler) {
                 is LinearDestinations -> {
-                    val index = tmpStmt.parsedAndPreprocessedActions.size
+                    val index = originalStmt.parsedAndPreprocessedActions.size
                     val receiver = handler.destinations[index]
                     listOf(receiver)
                 }
@@ -760,7 +763,9 @@ class TvmTransactionInterpreter(
                     destinationVariants
                 }
 
-                null -> listOf(null)
+                null -> {
+                    listOf(null)
+                }
             }
 
         return receiverOptions.map { possibleReceiver ->

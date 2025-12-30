@@ -12,19 +12,6 @@ import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.types.SliceRef
 
-/**
- * - In one way or another the compute phase ends
- * - [TsaArtificialOnComputePhaseExitInst]
- * - [TsaArtificialActionPhaseStartInst]
- * - [TsaArtificialActionParseInst] (one for each action in an action list and one for an empty list)
- * - [TsaArtificialHandleMessagesCostInst]
- * - [TsaArtificialOnOutMessageHandlerCallInst]
- * - [TsaArtificialBouncePhaseInst]
- * - [TsaArtificialExitInst]
- */
-@Suppress("Unused")
-private object ArtificialInstructionOrder
-
 sealed interface TsaArtificialInst : TvmArtificialInst
 
 /**

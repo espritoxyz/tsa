@@ -1501,8 +1501,8 @@ fun TvmState.readSliceDataPos(slice: UHeapRef) = fieldManagers.cellDataLengthFie
 fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellField, ctx.addressSort)
 
 @Suppress("Unused")
-fun TvmState.readCellData(cell: UHeapRef): UExpr<TvmCellDataSort> =
-    this.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(this, cell)
+fun TvmStepScopeManager.readCellData(cell: UHeapRef): UExpr<TvmCellDataSort>? =
+    calcOnState { fieldManagers.cellDataFieldManager.readCellData(this@readCellData, cell) }
 
 fun TvmState.readCellDataLength(cell: UHeapRef): UExpr<TvmSizeSort> =
     this.fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
