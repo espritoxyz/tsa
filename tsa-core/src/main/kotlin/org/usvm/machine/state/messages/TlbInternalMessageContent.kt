@@ -90,13 +90,11 @@ data class TlbCommonMessageInfo(
                         val cellSize = scope.calcOnState { readCellDataLength(readSliceCell(tlbDestSlice)) }
                         cellSize bvSub position
                     }
-                if (quietBlock != null) {
-                    scope.fork(
-                        with(scope.ctx) { destSliceSize bvUgt 2.toSizeSort() },
-                        false,
-                        blockOnFalseState = quietBlock,
-                    ) ?: return null
-                }
+                scope.fork(
+                    condition = with(scope.ctx) { destSliceSize bvUgt 2.toSizeSort() },
+                    falseStateIsExceptional = true,
+                    blockOnFalseState = { throwBadDestinationAddress(this) },
+                ) ?: return null
 
                 // value:CurrencyCollection
                 val tlbSymbolicMsgValue =

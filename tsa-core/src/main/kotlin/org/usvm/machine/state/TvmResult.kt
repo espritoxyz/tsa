@@ -111,6 +111,12 @@ data class TvmDoubleSendRemainingValue(
     override val ruleId = "double-send-remaining-value"
 }
 
+data class TvmBadDestinationAddress(
+    val contractId: ContractId,
+) : TvmResult.TvmSoftFailureExit {
+    override val ruleId = "bad-destination-address"
+}
+
 object TvmNormalExit : TvmSuccessfulExit {
     override val exitCode: Int
         get() = 0

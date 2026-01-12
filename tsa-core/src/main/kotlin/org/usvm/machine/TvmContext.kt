@@ -46,18 +46,21 @@ import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.UIteExpr
 import org.usvm.isTrue
+import org.usvm.machine.state.TvmBadDestinationAddress
 import org.usvm.machine.state.TvmCellOverflowError
 import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDictError
 import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmIntegerOutOfRangeError
 import org.usvm.machine.state.TvmIntegerOverflowError
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmStackOverflowError
 import org.usvm.machine.state.TvmStackUnderflowError
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTypeCheckError
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
+import org.usvm.machine.state.setExit
 import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.machine.types.TvmDictCellType
@@ -139,6 +142,10 @@ class TvmContext(
     val quit1Cont = TvmQuitContinuation(1u)
 
     val throwTypeCheckError: (TvmState) -> Unit = setFailure(TvmTypeCheckError)
+    val throwBadDestinationAddress: (TvmState) -> Unit = {
+        it.setExit(TvmResult.TvmSoftFailure(TvmBadDestinationAddress(it.currentContract), it.phase))
+    }
+
     val throwStackUnderflowError: (TvmState) -> Unit = setFailure(TvmStackUnderflowError)
     val throwStackOverflowError: (TvmState) -> Unit = setFailure(TvmStackOverflowError)
     val throwIntegerOverflowError: (TvmState) -> Unit = setFailure(TvmIntegerOverflowError)

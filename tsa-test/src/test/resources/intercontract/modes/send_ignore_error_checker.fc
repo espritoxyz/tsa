@@ -7,7 +7,7 @@
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     tsa_assert_not(flags & 1);
-    tsa_assert(msg_value > 10000000000);
+    tsa_assert(msg_value == 100000000);
     int op = msg_body~load_uint(32);
     tsa_assert(op == input_id);
     tsa_allow_failures();
@@ -16,7 +16,7 @@
 () main() impure {
     tsa_forbid_failures();
     int contract_balance = tsa_call_1_0(1, 1650);
-    tsa_assert(contract_balance == 1);
+    tsa_assert(contract_balance == 0);
     tsa_allow_failures();
 
     var opcode = get_data().begin_parse().preload_int(64);

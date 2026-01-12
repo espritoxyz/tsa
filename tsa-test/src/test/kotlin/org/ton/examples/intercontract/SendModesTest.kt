@@ -41,8 +41,8 @@ class SendModesTest {
     private val remainingValueDoubleContract = "/intercontract/modes/send_remaining_value_double.fc"
     private val remainingValueChecker = "/intercontract/modes/remaining_value.fc"
     private val remainingValueOf2ndChecker = "/intercontract/modes/remaining_value_checker_of_2nd.fc"
-    private val ignoreErrorsContract = "/intercontract/modes/send_ignore_error_flag.fc"
-    private val ignoreErrorsChecker = "/intercontract/modes/ignore_error.fc"
+    private val ignoreErrorsContract = "/intercontract/modes/send_ignore_error_sender.fc"
+    private val ignoreErrorsChecker = "/intercontract/modes/send_ignore_error_checker.fc"
     private val ignoreErrorTestScheme = "/intercontract/modes/ignore_error_test_scheme.json"
     private val recipientBouncePath = "/bounce/receive_bounce_msg.fc"
     private val sendRemainingValueNotFromCheckerCommunicationScheme =
@@ -371,7 +371,7 @@ class SendModesTest {
 
     @Test
     fun `SendIgnoreError invalid destination address`() {
-        sendIgnoreErrorBaseTest(101)
+        sendIgnoreErrorBaseTest(101, expectedSoftFailure = true)
     }
 
     @Test
@@ -387,6 +387,7 @@ class SendModesTest {
     private fun sendIgnoreErrorBaseTest(
         opcode: Int,
         shouldSendSomething: Boolean = false,
+        expectedSoftFailure: Boolean = false,
     ) {
         val checkerContract = extractCheckerContractFromResource(ignoreErrorsChecker)
         val analyzedSender = extractFuncContractFromResource(ignoreErrorsContract)
@@ -414,35 +415,41 @@ class SendModesTest {
                 options = options,
             )
 
-        propertiesFound(
-            tests,
-            listOf { test ->
-                val recipientReceivedTheMessage = test.eventsList.any { it.contractId == 2 }
-                val recipientDidntReceiveTheMessage = test.eventsList.all { it.contractId != 2 }
-                test.exitCode() == 500 &&
-                    shouldSendSomething implies recipientReceivedTheMessage &&
-                    shouldSendSomething.not() implies recipientDidntReceiveTheMessage
-            },
-        )
-
-        checkInvariants(
-            tests,
-            listOf(
-                { test -> test.eventsList.all { it.actionPhaseResult?.exitCode() != InsufficientFunds.EXIT_CODE } },
-                { test ->
-                    test.eventsList.all {
-                        it.actionPhaseResult?.exitCode() !=
-                            InvalidSourceAddressInOutboundMessage.EXIT_CODE
-                    }
+        if (!expectedSoftFailure) {
+            checkInvariants(
+                tests,
+                listOf(
+                    { test -> test.eventsList.all { it.actionPhaseResult?.exitCode() != InsufficientFunds.EXIT_CODE } },
+                    { test ->
+                        test.eventsList.all {
+                            it.actionPhaseResult?.exitCode() !=
+                                InvalidSourceAddressInOutboundMessage.EXIT_CODE
+                        }
+                    },
+                    { test ->
+                        test.eventsList.all {
+                            it.actionPhaseResult?.exitCode() !=
+                                InvalidDestinationAddressInOutboundMessage.EXIT_CODE
+                        }
+                    },
+                ),
+            )
+            propertiesFound(
+                tests,
+                listOf { test ->
+                    val recipientReceivedTheMessage = test.eventsList.any { it.contractId == 2 }
+                    val recipientDidntReceiveTheMessage = test.eventsList.all { it.contractId != 2 }
+                    test.exitCode() == 500 &&
+                        shouldSendSomething implies recipientReceivedTheMessage &&
+                        shouldSendSomething.not() implies recipientDidntReceiveTheMessage
                 },
-                { test ->
-                    test.eventsList.all {
-                        it.actionPhaseResult?.exitCode() !=
-                            InvalidDestinationAddressInOutboundMessage.EXIT_CODE
-                    }
-                },
-            ),
-        )
+            )
+        } else {
+            checkInvariants(
+                tests,
+                listOf { test -> test.result is TvmExecutionWithSoftFailure },
+            )
+        }
     }
 
     private fun sendRemainingValueNewBaseTest(opcode: Int) {
