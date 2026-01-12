@@ -21,6 +21,7 @@ import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.generateSymbolicAddressCell
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.messages.Flags
+import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.Tail
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
@@ -132,6 +133,18 @@ class RecvInternalInput(
 
     override fun constructFullMessage(state: TvmState): UConcreteHeapRef =
         with(state.ctx) {
+            if (this.tvmOptions.usePreciseFwdFeesOnCheckerInternalMessages) {
+                with(state) {
+                    val msgBodyCell =
+                        memory.readField(
+                            msgBodySliceMaybeBounced,
+                            TvmContext.sliceCellField,
+                            addressSort,
+                        )
+                    val fwdFeeInfo = FwdFeeInfo(fwdFee, null, msgBodyCell)
+                    this.forwardFees = forwardFees.add(fwdFeeInfo)
+                }
+            }
             // hack for using builder operations
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
             assertArgConstraints(scope, minMessageCurrencyValue = minMessageCurrencyValue)
