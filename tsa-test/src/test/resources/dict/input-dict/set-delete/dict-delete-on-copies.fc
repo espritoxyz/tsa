@@ -1,0 +1,28 @@
+#include "../../../imports/stdlib.fc";
+
+;; the test is from issue $194 reported by tochilinak
+() delete_single(slice msg) impure {
+    cell dict = msg~load_dict();
+
+    cell dict_copy = dict;
+
+    (slice one_balance, int found?) = dict~udict_delete_get?(256, 0x83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8);
+    throw_unless(300, found?);
+    throw_unless(301, dict.dict_empty?() == -1);
+
+    int key = msg~load_uint(256);
+    (_, slice two_balance, int found?) = dict_copy.udict_delete_get?(256, key);
+    throw_unless(302, found?);
+
+    throw_unless(400, equal_slice_bits(one_balance, two_balance));
+
+    throw(500);
+
+    return ();
+}
+
+
+() main(slice in_msg) {
+    delete_single(in_msg);
+    return ();
+}

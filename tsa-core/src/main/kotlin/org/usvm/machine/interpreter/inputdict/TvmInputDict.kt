@@ -78,7 +78,7 @@ data class InputDictRootInformation(
             val constraints =
                 lazyUniversalQuantifierConstraints.map { lazyConstraint ->
                     val cs = lazyConstraint.modifications.isInputDictKeyContainedInModifiedDict(ctx, t)
-                    cs and lazyConstraint.createConstraint(this, t)
+                    cs implies lazyConstraint.createConstraint(this, t)
                 }
             constraints.toPersistentList()
         }

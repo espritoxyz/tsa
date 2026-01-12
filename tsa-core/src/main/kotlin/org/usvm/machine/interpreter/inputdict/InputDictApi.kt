@@ -23,7 +23,15 @@ fun doInputDictHasKey(
     val rootInputDictionary =
         scope.calcOnState { inputDictionaryStorage.getRootInfoByIdOrThrow(inputDict.rootInputDictId) }
     val result = inputDict.doDictHasKeyImpl(ctx, key, rootInputDictionary, freshKeyConst, keyExists)
-    scope.assert(mkAnd(result.constraints)) ?: return@with null
+    scope.assert(
+        constraint = mkAnd(result.constraints),
+        unsatBlock = {
+            error(
+                "The constraints are only enforce the equibalence of boolean variable and expression and thus should never fail",
+            )
+        },
+    )
+        ?: return@with null
     scope.calcOnState {
         inputDictionaryStorage =
             inputDictionaryStorage.updateRootInputDictionary(inputDict.rootInputDictId, result.updatedRootInfo)
