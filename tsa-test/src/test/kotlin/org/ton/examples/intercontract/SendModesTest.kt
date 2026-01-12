@@ -14,10 +14,14 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.state.InsufficientFunds
+import org.usvm.machine.state.InvalidDestinationAddressInOutboundMessage
+import org.usvm.machine.state.InvalidSourceAddressInOutboundMessage
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestFailure
+import org.usvm.test.resolver.exitCode
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -414,19 +418,29 @@ class SendModesTest {
             tests,
             listOf { test ->
                 val recipientReceivedTheMessage = test.eventsList.any { it.contractId == 2 }
-                val recipientDidntReceivTheMessage = test.eventsList.all { it.contractId != 2 }
+                val recipientDidntReceiveTheMessage = test.eventsList.all { it.contractId != 2 }
                 test.exitCode() == 500 &&
                     shouldSendSomething implies recipientReceivedTheMessage &&
-                    shouldSendSomething.not() implies recipientDidntReceivTheMessage
+                    shouldSendSomething.not() implies recipientDidntReceiveTheMessage
             },
         )
 
         checkInvariants(
             tests,
             listOf(
-                { test -> test.exitCode() != 35 },
-                { test -> test.exitCode() != 36 },
-                { test -> test.exitCode() != 37 },
+                { test -> test.eventsList.all { it.actionPhaseResult?.exitCode() != InsufficientFunds.EXIT_CODE } },
+                { test ->
+                    test.eventsList.all {
+                        it.actionPhaseResult?.exitCode() !=
+                            InvalidSourceAddressInOutboundMessage.EXIT_CODE
+                    }
+                },
+                { test ->
+                    test.eventsList.all {
+                        it.actionPhaseResult?.exitCode() !=
+                            InvalidDestinationAddressInOutboundMessage.EXIT_CODE
+                    }
+                },
             ),
         )
     }

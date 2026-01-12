@@ -66,7 +66,10 @@ data class TlbCommonMessageInfo(
                     }
 
                 val srcAddSlice =
-                    (sliceSkipNoneOrStdAddr(scope, ptr.slice, quietBlock = quietBlock) ?: return@with null).unwrap(ptr)
+                    (
+                        sliceSkipNoneOrStdAddr(scope, ptr.slice, quietBlock = quietBlock)
+                            ?: return@with null
+                    ).unwrap(ptr)
 
                 val addrCell =
                     scope.getCellContractInfoParam(ADDRESS_PARAMETER_IDX)

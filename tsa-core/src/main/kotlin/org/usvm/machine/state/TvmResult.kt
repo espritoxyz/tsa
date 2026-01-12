@@ -243,13 +243,26 @@ data class IncompatibleMessageModes(
             "(SendRemainingValue and SendRemainingBalance)"
 }
 
+object InvalidSourceAddressInOutboundMessage {
+    const val EXIT_CODE = 35
+}
+
+object InvalidDestinationAddressInOutboundMessage {
+    const val EXIT_CODE = 36
+}
+
 data class InsufficientFunds(
     val contractId: ContractId,
 ) : TvmErrorExit {
-    override val exitCode: Int = 37
-    override val ruleName: String = "insufficient-funds"
+    override val exitCode: Int = EXIT_CODE
+    override val ruleName: String = RULE_NAME
 
     override fun toString(): String = "TVM insufficient funds while processing messages sent by contract $contractId"
+
+    companion object {
+        const val RULE_NAME = "insufficient-funds"
+        const val EXIT_CODE = 37
+    }
 }
 
 @Serializable
