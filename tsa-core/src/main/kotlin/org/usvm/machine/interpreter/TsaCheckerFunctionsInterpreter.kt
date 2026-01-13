@@ -162,6 +162,10 @@ class TsaCheckerFunctionsInterpreter(
                 performSetC4(scope, stmt)
             }
 
+            MAKE_ADDRESS_RANDOM_METHOD_ID -> {
+                TODO()
+            }
+
             else -> {
                 return Unit
             }

@@ -1,0 +1,23 @@
+#include "../../imports/stdlib.fc";
+
+const int op::withdraw = 0x12345678;
+const int op::payment = 0x87654321;
+
+() recv_internal(cell full_msg, slice msg_body) {
+    slice cs = full_msg.begin_parse();
+    cs~load_uint(4); ;; flags
+    slice sender = cs~load_msg_addr();
+
+    int opcode = msg_body~load_uint(32);
+    if (opcode == op::withdraw) {
+        cell msg = begin_cell()
+            .store_uint(0x10, 6)
+            .store_slice(sender)
+            .store_coins(0)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+            .store_uint(op::payment, 32)
+            .end_cell();
+
+        send_raw_message(msg, 128);
+    }
+}
