@@ -5,9 +5,9 @@ const int op::payment = 0x87654321;
 
 const int err:unauthorized = 700;
 
-slice get_owner() impure method_id {
+int get_owner_hash() impure method_id {
     slice ds = get_data().begin_parse();
-    return ds~load_msg_addr();
+    return ds~load_uint(256);
 }
 
 () recv_internal(cell full_msg, slice msg_body) {
@@ -23,8 +23,8 @@ slice get_owner() impure method_id {
 
     int opcode = msg_body~load_uint(32);
     if (opcode == op::withdraw) {
-        slice owner = get_owner();
-        throw_unless(err:unauthorized, equal_slice_bits(sender, owner));
+        int owner_hash = get_owner_hash();
+        throw_unless(err:unauthorized, slice_hash(sender) == owner_hash);
 
         cell msg = begin_cell()
             .store_uint(0x10, 6)

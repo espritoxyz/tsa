@@ -84,6 +84,8 @@ class TvmState(
     var refToDepth: PersistentMap<UConcreteHeapAddress, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
     var forwardFees: PersistentSet<FwdFeeInfo> = persistentSetOf(),
     var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),
+    var randomAddressesIndependentFrom: PersistentSet<Pair<UHeapRef, UHeapRef>> = persistentSetOf(),
+    var fixatedRandomAddresses: Set<UHeapRef> = emptySet(),
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
     var receivedMessage: ReceivedMessage? = null,
@@ -207,6 +209,8 @@ class TvmState(
             forwardFees = forwardFees,
             currentComputeFeeUsed = currentComputeFeeUsed,
             currentPhaseEndTime = currentPhaseEndTime,
+            randomAddressesIndependentFrom = randomAddressesIndependentFrom,
+            fixatedRandomAddresses = fixatedRandomAddresses,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

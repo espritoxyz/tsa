@@ -14,8 +14,12 @@ import kotlin.test.Test
 
 class RandomSenderTest {
     private val tonDrainChecker = "/checkers/random-sender/drain_checker.fc"
-    private val nonVulnerableContract = "/checkers/random-sender/non_vulnerable_contract.fc"
     private val vulnerableContract = "/checkers/random-sender/simple_vulnerable_contract.fc"
+    private val vulnerableContractWithHash = "/checkers/random-sender/vulnerable_contract_with_hash.fc"
+    private val vulnerableContractWithHashInC4 = "/checkers/random-sender/vulnerable_contract_with_hash_in_c4.fc"
+
+    private val nonVulnerableContract = "/checkers/random-sender/non_vulnerable_contract.fc"
+    private val nonVulnerableContractWithHash = "/checkers/random-sender/non_vulnerable_contract_with_hash.fc"
 
     private fun runTest(contractPath: String): TvmSymbolicTestSuite {
         val contractPath = extractResource(contractPath)
@@ -29,10 +33,11 @@ class RandomSenderTest {
             )
         val analyzedContract = getFuncContract(contractPath, FIFT_STDLIB_RESOURCE)
 
-        val options = TvmOptions(
-            stopOnFirstError = false,
-            enableOutMessageAnalysis = true,
-        )
+        val options =
+            TvmOptions(
+                stopOnFirstError = false,
+                enableOutMessageAnalysis = true,
+            )
 
         return analyzeInterContract(
             listOf(checkerContract, analyzedContract),
@@ -56,8 +61,49 @@ class RandomSenderTest {
     }
 
     @Test
+    fun testVulnerableToTonDrainWithHash() {
+        val tests = runTest(vulnerableContractWithHash)
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> test.exitCode() == 500 },
+                { test -> test.exitCode() == 1000 },
+            ),
+        )
+    }
+
+    @Test
+    fun testVulnerableToTonDrainWithHashInC4() {
+        val tests = runTest(vulnerableContractWithHashInC4)
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> test.exitCode() == 500 },
+                { test -> test.exitCode() == 1000 },
+            ),
+        )
+    }
+
+    @Test
     fun testNonVulnerableToTonDrain() {
         val tests = runTest(nonVulnerableContract)
+
+        propertiesFound(
+            tests,
+            listOf { test -> test.exitCode() == 500 },
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() != 1000 },
+        )
+    }
+
+    @Test
+    fun testNonVulnerableToTonDrainWithHash() {
+        val tests = runTest(nonVulnerableContractWithHash)
 
         propertiesFound(
             tests,

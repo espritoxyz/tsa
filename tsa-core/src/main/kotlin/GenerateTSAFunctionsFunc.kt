@@ -77,7 +77,7 @@ fun main() {
             ;; do nothing
         }
 
-        () tsa_make_address_random_and_independent_from_contract(slice address, int contract_id) impure method_id(11) {
+        () tsa_make_address_random_and_independent_from(slice address, slice independent_slice) impure method_id(11) {
             ;; do nothing
         }
         """.trimIndent()

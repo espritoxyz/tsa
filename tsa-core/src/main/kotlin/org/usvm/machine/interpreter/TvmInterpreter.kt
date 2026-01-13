@@ -4,6 +4,7 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentMap
 import mu.KLogging
 import org.ton.TlbBasicMsgAddrLabel
@@ -208,6 +209,7 @@ import org.usvm.StepResult
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.UInterpreter
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
@@ -324,6 +326,7 @@ import org.usvm.mkSizeGeExpr
 import org.usvm.sizeSort
 import org.usvm.solver.USatResult
 import org.usvm.targets.UTargetsSet
+import org.usvm.test.resolver.TvmTestStateResolver
 import java.math.BigInteger
 
 // TODO there are a lot of `scope.calcOnState` and `scope.doWithState` invocations that are not inline - optimize it
@@ -630,6 +633,16 @@ class TvmInterpreter(
 
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 
+        val clonedOldState =
+            if (state.randomAddressesIndependentFrom.isNotEmpty()) {
+                check(states.size == 1 && states.single() == state) {
+                    "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
+                }
+                state.clone()
+            } else {
+                null
+            }
+
         val filtered =
             states.filter { state ->
                 val scope =
@@ -646,10 +659,59 @@ class TvmInterpreter(
                 structuralConstraintsHolder.applyTo(scope) != null
             }
 
-        return filtered.flatMap {
-            manualStateProcessor.postProcessAfterPartialConcretization(it)
+        return filtered.flatMap { state ->
+            val newStates = manualStateProcessor.postProcessAfterPartialConcretization(state)
+
+            if (clonedOldState != null) {
+                check(newStates.size == 1 && newStates.single() == state) {
+                    "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
+                }
+
+                processAddressRandomization(clonedOldState, state)
+            } else {
+                newStates
+            }
         }
     }
+
+    private fun processAddressRandomization(
+        clonedOldState: TvmState,
+        stateAfterPostProcess: TvmState,
+    ): List<TvmState> =
+        with(clonedOldState.ctx) {
+            check(clonedOldState.fixatedRandomAddresses.isEmpty()) {
+                "Random addresses shouldn't be fixated at this point"
+            }
+
+            val scope =
+                TvmStepScopeManager(clonedOldState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+
+            // no contradiction can occur since [clonedOldState] is a clone of an ancestor of [stateAfterPostProcess]
+            clonedOldState.models = stateAfterPostProcess.models
+            val resolver = TvmTestStateResolver(ctx, clonedOldState.models.first(), clonedOldState)
+
+            val addresses = hashSetOf<UHeapRef>()
+
+            var fixateCondAcc = trueExpr as UBoolExpr
+            clonedOldState.randomAddressesIndependentFrom.forEach { (address, independentSlice) ->
+
+                val fixateCondCur =
+                    postProcessor.fixateValue(scope, resolver, independentSlice)
+                        ?: return emptyList()
+
+                fixateCondAcc = fixateCondCur and fixateCondAcc
+
+                addresses.add(address)
+            }
+
+            scope.assert(fixateCondAcc)
+                ?: return@with emptyList()
+
+            clonedOldState.randomAddressesIndependentFrom = persistentSetOf()
+            clonedOldState.fixatedRandomAddresses = addresses
+
+            return postProcessState(clonedOldState)
+        }
 
     override fun step(state: TvmState): StepResult<TvmState> {
         val stmt = state.lastStmt
