@@ -17,6 +17,8 @@ class RandomSenderTest {
     private val vulnerableContract = "/checkers/random-sender/simple_vulnerable_contract.fc"
     private val vulnerableContractWithHash = "/checkers/random-sender/vulnerable_contract_with_hash.fc"
     private val vulnerableContractWithHashInC4 = "/checkers/random-sender/vulnerable_contract_with_hash_in_c4.fc"
+    private val vulnerableContractWithHashOfSender =
+        "/checkers/random-sender/vulnerable_contract_with_hash_of_sender.fc"
 
     private val nonVulnerableContract = "/checkers/random-sender/non_vulnerable_contract.fc"
     private val nonVulnerableContractWithHash = "/checkers/random-sender/non_vulnerable_contract_with_hash.fc"
@@ -76,6 +78,19 @@ class RandomSenderTest {
     @Test
     fun testVulnerableToTonDrainWithHashInC4() {
         val tests = runTest(vulnerableContractWithHashInC4)
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> test.exitCode() == 500 },
+                { test -> test.exitCode() == 1000 },
+            ),
+        )
+    }
+
+    @Test
+    fun testVulnerableToTonDrainWithHashOfSender() {
+        val tests = runTest(vulnerableContractWithHashOfSender)
 
         propertiesFound(
             tests,
