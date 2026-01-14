@@ -83,7 +83,7 @@ class TvmValueFixator(
         return fixateConcreteValueForDataCell(scope, cellRef, value.endCell())
     }
 
-    private fun fixateConcreteValueForSlice(
+    fun fixateConcreteValueForSlice(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestSliceValue,

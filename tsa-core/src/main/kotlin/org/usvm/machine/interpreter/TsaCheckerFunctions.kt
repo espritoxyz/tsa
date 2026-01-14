@@ -10,6 +10,8 @@ const val GET_C4_METHOD_ID = 7
 const val SEND_EXTERNAL_MESSAGE_METHOD_ID = 8
 const val GET_BALANCE_METHOD_ID = 9
 const val SET_C4_METHOD_ID = 10
+const val MAKE_ADDRESS_RANDOM_METHOD_ID = 11
+const val MAKE_SLICE_INDEPENDENT_METHOD_ID = 12
 
 /**
  * Were calculated using python script:

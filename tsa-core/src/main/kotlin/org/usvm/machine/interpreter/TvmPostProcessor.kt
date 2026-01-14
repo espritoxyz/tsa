@@ -2,6 +2,7 @@ package org.usvm.machine.interpreter
 
 import io.ksmt.utils.uncheckedCast
 import org.ton.api.pk.PrivateKeyEd25519
+import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
@@ -29,6 +30,7 @@ import kotlin.random.Random
 
 class TvmPostProcessor(
     val ctx: TvmContext,
+    private val random: Random = Random(0),
 ) {
     private val signatureKeySize = 32
     private val privateKey by lazy {
@@ -39,6 +41,12 @@ class TvmPostProcessor(
 
     fun postProcessState(scope: TvmStepScopeManager): Unit? =
         with(ctx) {
+            // must be asserted first
+            assertConstraints(scope) { resolver ->
+                generateRandomAddressConstraint(scope, resolver)
+                    ?: return@assertConstraints null
+            } ?: return null
+
             assertConstraints(scope) { resolver ->
                 val hashConstraint =
                     generateHashConstraint(scope, resolver)
@@ -133,6 +141,31 @@ class TvmPostProcessor(
             }
         }
 
+    private fun generateRandomAddressConstraint(
+        scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val addresses = scope.calcOnState { fixatedRandomAddresses }
+
+            addresses.fold(trueExpr as UBoolExpr) { acc, ref ->
+                val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+                val randomAddress = generateRandomAddress()
+
+                val curConstraint =
+                    fixator.fixateConcreteValueForSlice(scope, ref, randomAddress)
+                        ?: return@with null
+
+                acc and curConstraint
+            }
+        }
+
+    private fun generateRandomAddress(): TvmTestSliceValue {
+        val prefix = TvmContext.STD_ADDRESS_TAG + "0".repeat(TvmContext.STD_WORKCHAIN_BITS + 1)
+        val mainPart = random.nextBytes(TvmContext.ADDRESS_BITS / 8).toBitString().toBinary()
+        return TvmTestSliceValue(cell = TvmTestDataCellValue(prefix + mainPart))
+    }
+
     @OptIn(ExperimentalStdlibApi::class)
     private fun fixateSignatureCheck(
         signatureCheck: TvmSignatureCheck,
@@ -163,6 +196,18 @@ class TvmPostProcessor(
             return fixateHashCond and fixateKeyCond and signatureCond
         }
 
+    fun fixateValue(
+        scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
+        ref: UHeapRef,
+    ): UBoolExpr? {
+        val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+        val fixateValueCond =
+            fixator.fixateConcreteValue(scope, ref)
+                ?: return null
+        return fixateValueCond
+    }
+
     /**
      * Generate expression that fixates ref's value given by model, and its hash (which is originally a mock).
      * */
@@ -174,9 +219,8 @@ class TvmPostProcessor(
     ): UBoolExpr? =
         with(ctx) {
             val value = resolver.resolveRef(ref)
-            val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
             val fixateValueCond =
-                fixator.fixateConcreteValue(scope, ref)
+                fixateValue(scope, resolver, ref)
                     ?: return@with null
             val concreteHash = calculateConcreteHash(value)
             val hashCond = hash eq concreteHash
@@ -215,9 +259,8 @@ class TvmPostProcessor(
     ): UBoolExpr? =
         with(ctx) {
             val value = resolver.resolveRef(ref)
-            val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = true)
             val fixateValueCond =
-                fixator.fixateConcreteValue(scope, ref)
+                fixateValue(scope, resolver, ref)
                     ?: return@with null
             val concreteDepth = calculateConcreteDepth(value)
             val depthCond = depth eq concreteDepth

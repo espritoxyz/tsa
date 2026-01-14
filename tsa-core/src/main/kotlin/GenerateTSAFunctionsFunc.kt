@@ -76,6 +76,14 @@ fun main() {
         () tsa_set_c4(int contract_id, cell value) impure method_id(10) {
             ;; do nothing
         }
+
+        () tsa_make_address_random(slice address) impure method_id(11) {
+            ;; do nothing
+        }
+        
+        () tsa_make_slice_independent_from_random_addresses(slice independent_slice) impure method_id(12) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

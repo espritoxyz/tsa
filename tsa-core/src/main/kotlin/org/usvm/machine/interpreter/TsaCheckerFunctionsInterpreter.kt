@@ -44,6 +44,7 @@ import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrNull
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
+import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.toMethodId
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmIntegerType
@@ -160,6 +161,14 @@ class TsaCheckerFunctionsInterpreter(
 
             SET_C4_METHOD_ID -> {
                 performSetC4(scope, stmt)
+            }
+
+            MAKE_ADDRESS_RANDOM_METHOD_ID -> {
+                performMakeRandomAddress(scope, stmt)
+            }
+
+            MAKE_SLICE_INDEPENDENT_METHOD_ID -> {
+                performMakeSliceIndependent(scope, stmt)
             }
 
             else -> {
@@ -610,6 +619,42 @@ class TsaCheckerFunctionsInterpreter(
                     ?: error("Balance of contract $contractId not found.")
 
             addOnStack(result, TvmIntegerType)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performMakeRandomAddress(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val addressSlice =
+            scope.calcOnState {
+                takeLastSlice()
+            } ?: run {
+                scope.calcOnStateCtx { throwTypeCheckError(this) }
+                return
+            }
+
+        scope.doWithState {
+            addressesToBeRandomized = addressesToBeRandomized.add(addressSlice)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performMakeSliceIndependent(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val independentSlice =
+            scope.calcOnState {
+                takeLastSlice()
+            } ?: run {
+                scope.calcOnStateCtx { throwTypeCheckError(this) }
+                return
+            }
+
+        scope.doWithState {
+            refsToBeIndependentFromRandomAddresses = refsToBeIndependentFromRandomAddresses.add(independentSlice)
             newStmt(stmt.nextStmt())
         }
     }
