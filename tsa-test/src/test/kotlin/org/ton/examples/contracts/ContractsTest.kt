@@ -46,7 +46,7 @@ class ContractsTest {
     private val dnsManualPath: String = "/contracts/dns/dns-manual-code.fc"
     private val electorPath: String = "/contracts/elector/elector-code.fc"
     private val highloadWalletPath: String = "/contracts/highload-wallet/highload-wallet-code.fc"
-    private val highloadWalletBocJsonPath: String = "/contracts/highload-wallet/highload-wallet.boc"
+    private val highloadWalletBocJsonPath: String = "/contracts/highload-wallet/highload-wallet.boc.json"
     private val highloadWalletV2Path: String = "/contracts/highload-wallet/highload-wallet-v2-code.fc"
     private val paymentChannelPath: String = "/contracts/payment-channel/payment-channel-code.fc"
     private val powTestgiverPath: String = "/contracts/pow-testgiver/pow-testgiver-code.fc"
