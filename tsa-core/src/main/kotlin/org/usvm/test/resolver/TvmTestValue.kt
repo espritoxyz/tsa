@@ -141,3 +141,62 @@ data class TvmCellDataTypeLoad(
     val type: TvmTestCellDataTypeRead,
     val offset: Int,
 )
+
+sealed interface TvmTestCellElement {
+    data class BitArray(
+        val data: String,
+        val width: Int,
+    ) : TvmTestCellElement
+
+    data class Coin(
+        val gramsValue: Int,
+        val width: Int,
+    ) : TvmTestCellElement
+
+    data class Integer(
+        val value: Int,
+        val width: Int,
+    ) : TvmTestCellElement
+
+    data object MaybeConstructor : TvmTestCellElement
+
+    data object AddressRead : TvmTestCellElement
+}
+
+fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
+    cell.knownTypes.map { (type, offset) ->
+        when (type) {
+            is TvmTestCellDataBitArrayRead -> {
+                val width = type.bitSize
+                val data = cell.data.substring(offset, offset + width)
+                TvmTestCellElement.BitArray(data, width)
+            }
+
+            TvmTestCellDataCoinsRead -> {
+                val actualGramsBegin = offset + 16
+                val width = cell.data.substring(offset, actualGramsBegin).toInt(2)
+                val value = cell.data.substring(actualGramsBegin, actualGramsBegin + width).toInt(2)
+                TvmTestCellElement.Coin(value, width)
+            }
+
+            is TvmTestCellDataIntegerRead -> {
+                val width = type.bitSize
+                val data =
+                    cell.data
+                        .substring(offset, offset + width)
+                        .let {
+                            if (type.endian == Endian.BigEndian) it.reversed() else it
+                        }.toInt(2)
+                TvmTestCellElement.Integer(data, width)
+            }
+
+            TvmTestCellDataMaybeConstructorBitRead -> {
+                TvmTestCellElement.MaybeConstructor
+            }
+
+            TvmTestCellDataMsgAddrRead -> {
+                // TODO parse the address to include the pretty-printed address
+                TvmTestCellElement.AddressRead
+            }
+        }
+    }
