@@ -167,6 +167,10 @@ class TsaCheckerFunctionsInterpreter(
                 performMakeRandomAddress(scope, stmt)
             }
 
+            MAKE_SLICE_INDEPENDENT_METHOD_ID -> {
+                performMakeSliceIndependent(scope, stmt)
+            }
+
             else -> {
                 return Unit
             }
@@ -623,14 +627,6 @@ class TsaCheckerFunctionsInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
     ) {
-        val independentSlice =
-            scope.calcOnState {
-                takeLastSlice()
-            } ?: run {
-                scope.calcOnStateCtx { throwTypeCheckError(this) }
-                return
-            }
-
         val addressSlice =
             scope.calcOnState {
                 takeLastSlice()
@@ -640,8 +636,25 @@ class TsaCheckerFunctionsInterpreter(
             }
 
         scope.doWithState {
-            randomAddressesIndependentFrom = randomAddressesIndependentFrom.add(addressSlice to independentSlice)
+            addressesToBeRandomized = addressesToBeRandomized.add(addressSlice)
+            newStmt(stmt.nextStmt())
+        }
+    }
 
+    private fun performMakeSliceIndependent(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val independentSlice =
+            scope.calcOnState {
+                takeLastSlice()
+            } ?: run {
+                scope.calcOnStateCtx { throwTypeCheckError(this) }
+                return
+            }
+
+        scope.doWithState {
+            refsToBeIndependentFromRandomAddresses = refsToBeIndependentFromRandomAddresses.add(independentSlice)
             newStmt(stmt.nextStmt())
         }
     }

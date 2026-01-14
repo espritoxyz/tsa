@@ -77,7 +77,11 @@ fun main() {
             ;; do nothing
         }
 
-        () tsa_make_address_random_and_independent_from(slice address, slice independent_slice) impure method_id(11) {
+        () tsa_make_address_random(slice address) impure method_id(11) {
+            ;; do nothing
+        }
+        
+        () tsa_make_slice_independent_from_random_addresses(slice independent_slice) impure method_id(12) {
             ;; do nothing
         }
         """.trimIndent()

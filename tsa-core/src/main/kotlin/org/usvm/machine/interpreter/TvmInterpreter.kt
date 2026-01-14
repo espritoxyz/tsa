@@ -209,7 +209,6 @@ import org.usvm.StepResult
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
-import org.usvm.UHeapRef
 import org.usvm.UInterpreter
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
@@ -634,7 +633,7 @@ class TvmInterpreter(
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 
         val clonedOldState =
-            if (state.randomAddressesIndependentFrom.isNotEmpty()) {
+            if (state.addressesToBeRandomized.isNotEmpty()) {
                 check(states.size == 1 && states.single() == state) {
                     "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
                 }
@@ -690,25 +689,23 @@ class TvmInterpreter(
             clonedOldState.models = stateAfterPostProcess.models
             val resolver = TvmTestStateResolver(ctx, clonedOldState.models.first(), clonedOldState)
 
-            val addresses = hashSetOf<UHeapRef>()
+            val fixateCond =
+                clonedOldState.refsToBeIndependentFromRandomAddresses.fold(
+                    trueExpr as UBoolExpr,
+                ) { acc, independentRef ->
+                    val fixateCondCur =
+                        postProcessor.fixateValue(scope, resolver, independentRef)
+                            ?: return emptyList()
 
-            var fixateCondAcc = trueExpr as UBoolExpr
-            clonedOldState.randomAddressesIndependentFrom.forEach { (address, independentSlice) ->
+                    acc and fixateCondCur
+                }
 
-                val fixateCondCur =
-                    postProcessor.fixateValue(scope, resolver, independentSlice)
-                        ?: return emptyList()
-
-                fixateCondAcc = fixateCondCur and fixateCondAcc
-
-                addresses.add(address)
-            }
-
-            scope.assert(fixateCondAcc)
+            scope.assert(fixateCond)
                 ?: return@with emptyList()
 
-            clonedOldState.randomAddressesIndependentFrom = persistentSetOf()
-            clonedOldState.fixatedRandomAddresses = addresses
+            clonedOldState.fixatedRandomAddresses = clonedOldState.addressesToBeRandomized
+            clonedOldState.addressesToBeRandomized = persistentSetOf()
+            clonedOldState.refsToBeIndependentFromRandomAddresses
 
             return postProcessState(clonedOldState)
         }
