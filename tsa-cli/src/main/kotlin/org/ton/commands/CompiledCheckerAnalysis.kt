@@ -9,8 +9,16 @@ import org.ton.bytecode.TsaContractCode
 import org.usvm.machine.BocAnalyzer
 
 class CompiledCheckerAnalysis : AbstractCheckerAnalysis("custom-checker-compiled") {
-    override val checkerContract: TsaContractCode
-    override val contractsToAnalyze: List<TsaContractCode>
+    override val checkerContract: TsaContractCode by lazy {
+        BocAnalyzer.loadContractFromBoc(checkerContractPath).also {
+            it.isContractWithTSACheckerFunctions = true
+        }
+    }
+    override val contractsToAnalyze: List<TsaContractCode> by lazy {
+        analyzedContracts.map {
+            BocAnalyzer.loadContractFromBoc(it)
+        }
+    }
 
     private val checkerContractPath by option("--checker")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
@@ -21,15 +29,4 @@ class CompiledCheckerAnalysis : AbstractCheckerAnalysis("custom-checker-compiled
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .help("Contract to analyze (in BoC format).")
         .multiple(required = true)
-
-    init {
-        checkerContract =
-            BocAnalyzer.loadContractFromBoc(checkerContractPath).also {
-                it.isContractWithTSACheckerFunctions = true
-            }
-        contractsToAnalyze =
-            analyzedContracts.map {
-                BocAnalyzer.loadContractFromBoc(it)
-            }
-    }
 }

@@ -20,9 +20,6 @@ import org.usvm.machine.TactAnalyzer
 import org.usvm.machine.getFuncContract
 
 class CheckerAnalysis : AbstractCheckerAnalysis("custom-checker") {
-    override val checkerContract: TsaContractCode
-    override val contractsToAnalyze: List<TsaContractCode>
-
     private val checkerContractPath by option("--checker")
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .help("The path to the checker contract (in FunC).")
@@ -63,17 +60,17 @@ class CheckerAnalysis : AbstractCheckerAnalysis("custom-checker") {
             }
         }
 
-    init {
-        checkerContract =
-            getFuncContract(
-                checkerContractPath,
-                fiftOptions.fiftStdlibPath,
-                isTSAChecker = true,
-            )
+    override val checkerContract: TsaContractCode by lazy {
+        getFuncContract(
+            checkerContractPath,
+            fiftOptions.fiftStdlibPath,
+            isTSAChecker = true,
+        )
+    }
 
-        contractsToAnalyze =
-            contractSources.map {
-                it.convertToTsaContractCode(fiftAnalyzer, funcAnalyzer, tactAnalyzer)
-            }
+    override val contractsToAnalyze: List<TsaContractCode> by lazy {
+        contractSources.map {
+            it.convertToTsaContractCode(fiftAnalyzer, funcAnalyzer, tactAnalyzer)
+        }
     }
 }
