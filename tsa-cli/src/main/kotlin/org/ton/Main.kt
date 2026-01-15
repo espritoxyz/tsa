@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.NoOpCliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import org.ton.commands.BocAnalysis
 import org.ton.commands.CheckerAnalysis
+import org.ton.commands.CompiledCheckerAnalysis
 import org.ton.commands.FiftAnalysis
 import org.ton.commands.FuncAnalysis
 import org.ton.commands.InterContractAnalysis
@@ -22,4 +23,5 @@ fun main(args: Array<String>) =
             TestGeneration(),
             CheckerAnalysis(),
             InterContractAnalysis(),
+            CompiledCheckerAnalysis(),
         ).main(args)
