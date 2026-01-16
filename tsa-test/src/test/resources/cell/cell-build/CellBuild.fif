@@ -16,6 +16,7 @@ PROGRAM{
   11  DECLMETHOD brefs_1
   12  DECLMETHOD brefs_2
   13  DECLMETHOD brefs_3
+  14  DECLMETHOD store_with_refs
 
   stsliceconst PROC:<{
     192 PUSHINT
@@ -178,5 +179,31 @@ PROGRAM{
     ENDC
     BREFS
   }>
+
+  store_with_refs PROC:<{
+     1 PUSHINT
+     NEWC
+     8 STU
+     ENDC
+     2 PUSHINT
+     NEWC
+     8 STU
+     ENDC
+     NEWC
+     STREF
+     STREF
+     ENDC
+     // stack is x{} [ x{1} x{2} ]
+     CTOS
+     LDREF
+     SWAP
+     DROP // now the ref pointer is at x{2}
+
+     NEWC
+     STSLICE
+     ENDC
+     HASHCU
+  }>
+
 
 }END>c
