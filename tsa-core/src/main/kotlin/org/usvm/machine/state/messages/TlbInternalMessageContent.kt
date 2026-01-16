@@ -193,6 +193,9 @@ data class TlbCommonMessageInfo(
     }
 }
 
+/**
+ * Contains the part of the message after the CommonMsgInfo
+ */
 sealed interface Tail {
     /**
      * Is the original cell where the body was contained (null if was an inlined slice)
@@ -215,6 +218,9 @@ sealed interface Tail {
             get() = null
     }
 
+    /**
+     * @param tailSlice empbodies the whole slice of the message that follows the CommonMsgInfo
+     */
     data class Implicit(
         val tailSlice: UHeapRef,
         val bodySlice: UConcreteHeapRef, // all the message after the CommonMessageInfo
@@ -326,21 +332,21 @@ data class TlbInternalMessageContent(
             )
                 ?: error("Cannot store created_at")
 
-            // init:(Maybe (Either StateInit ^StateInit)).nothing
-            builderStoreIntTlb(
-                scope,
-                resultBuilder,
-                resultBuilder,
-                zeroValue,
-                sizeBits = oneSizeExpr,
-                isSigned = false,
-                endian = Endian.BigEndian,
-            )
-                ?: error("Cannot store init")
-
             val bodySlice =
                 when (val tail = this@TlbInternalMessageContent.tail) {
                     is Tail.Explicit -> {
+                        // init:(Maybe (Either StateInit ^StateInit)).nothing
+                        builderStoreIntTlb(
+                            scope,
+                            resultBuilder,
+                            resultBuilder,
+                            zeroValue,
+                            sizeBits = oneSizeExpr,
+                            isSigned = false,
+                            endian = Endian.BigEndian,
+                        )
+                            ?: error("Cannot store init")
+
                         // body:(Either X ^X).right
                         // set prefix of Either.right
                         builderStoreIntTlb(
@@ -455,6 +461,9 @@ data class TlbInternalMessageContent(
                         ?: return scopeDied
 
                     val bodyBuilder = scope.calcOnState { allocEmptyBuilder() }
+                    // Note: the line below DOES NOT move pointers in ptr.
+                    // It does not break anything, as we do not read from `ptr` after reading message body
+                    // in this function, even though it is aesthetically unpleasant
                     builderStoreSliceTransaction(scope, bodyBuilder, ptr.slice)
                         ?: return scopeDied
                     ptr.slice = scope.calcOnState { allocSliceFromCell(allocEmptyCell()) }
@@ -532,26 +541,27 @@ data class TlbInternalMessageContent(
             ptr: ParsingState,
             resolver: TvmTestStateResolver,
             quietBlock: (TvmState.() -> Unit)?,
-        ): Unit? =
+        ): ValueOrDeadScope<UHeapRef?> =
             scope.doWithCtx {
                 val maybeBit =
                     sliceLoadIntTransaction(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
-                        ?: return@doWithCtx null
+                        ?: return@doWithCtx scopeDied
 
                 val refIsMissing = maybeBit eq zeroValue
 
-                if (resolver.eval(refIsMissing).isTrue) {
-                    scope.assert(refIsMissing)
-                        ?: return@doWithCtx null
-                } else {
-                    scope.assert(refIsMissing.not())
-                        ?: return@doWithCtx null
+                val value =
+                    if (resolver.eval(refIsMissing).isTrue) {
+                        scope.assert(refIsMissing)
+                            ?: return@doWithCtx scopeDied
+                        null
+                    } else {
+                        scope.assert(refIsMissing.not())
+                            ?: return@doWithCtx scopeDied
 
-                    sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
-                        ?: return@doWithCtx null
-                }
-
-                Unit
+                        sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
+                            ?: return@doWithCtx scopeDied
+                    }
+                value.ok()
             }
     }
 }

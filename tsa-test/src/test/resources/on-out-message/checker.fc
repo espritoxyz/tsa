@@ -33,7 +33,12 @@ global int flag_in;
     cs~load_msg_addr(); ;; src address
     cs~load_msg_addr(); ;; dest address
     int value = cs~load_grams(); ;; value
-    cs~skip_bits(1 + 4 + 4 + 64 + 32); ;; skip other default message headers
+
+    ;; skip other default message headers
+    cs~skip_bits(1);
+    cs~load_coins();
+    cs~load_coins();
+    cs~skip_bits(64 + 32);
 
     if (flag_in == 0) {
         ;; read everything
@@ -62,7 +67,7 @@ global int flag_in;
         throw_unless(203, state_init_as_ref? == 0);
         throw_unless(204, body_as_ref? == 0);
         throw_unless(205, body_formed.slice_hash() == msg_body.slice_hash());
-        throw_unless(206, cs.slice_empty?() == 1);
+        throw_unless(206, cs.slice_empty?() == -1);
     } elseif (flag_in == 1) {
         ;; read everything
         int is_there_state_init? = cs~load_uint(1);
@@ -86,7 +91,7 @@ global int flag_in;
         throw_unless(303, state_init_as_ref? == 1);
         throw_unless(304, body_as_ref? == 0);
         throw_unless(305, body_formed.slice_hash() == msg_body.slice_hash());
-        throw_unless(306, cs.slice_empty?() == 1);
+        throw_unless(306, cs.slice_empty?() == -1);
     } elseif (flag_in == 2) {
         ;; read everything
         int is_there_state_init? = cs~load_uint(1);
@@ -106,7 +111,7 @@ global int flag_in;
         throw_unless(403, state_init_as_ref? == 0);
         throw_unless(404, body_as_ref? == 1);
         throw_unless(405, body_formed.slice_hash() == msg_body.slice_hash());
-        throw_unless(406, cs.slice_empty?() == 1);
+        throw_unless(406, cs.slice_empty?() == -1);
     } elseif (flag_in == 3) {
         ;; read everything
         int is_there_state_init? = cs~load_uint(1);
@@ -122,7 +127,7 @@ global int flag_in;
         throw_unless(503, state_init_as_ref? == 1);
         throw_unless(504, body_as_ref? == 1);
         throw_unless(505, body_formed.slice_hash() == msg_body.slice_hash());
-        throw_unless(506, cs.slice_empty?() == 1);
+        throw_unless(506, cs.slice_empty?() == -1);
     } elseif (flag_in == 4) {
         ;; read everything
         int is_there_state_init? = cs~load_uint(1);
@@ -143,7 +148,7 @@ global int flag_in;
         throw_unless(602, is_there_state_init? == 0);
         throw_unless(604, body_as_ref? == 0);
         throw_unless(605, body_formed.slice_hash() == msg_body.slice_hash());
-        throw_unless(606, cs.slice_empty?() == 1);
+        throw_unless(606, cs.slice_empty?() == -1);
     } elseif (flag_in == 5) {
         ;; read everything
         int is_there_state_init? = cs~load_uint(1);
@@ -156,7 +161,7 @@ global int flag_in;
         throw_unless(702, is_there_state_init? == 0);
         throw_unless(704, body_as_ref? == 1);
         throw_unless(705, body_formed.slice_hash() == msg_body.slice_hash());
-        throw_unless(706, cs.slice_empty?() == 1);
+        throw_unless(706, cs.slice_empty?() == -1);
     }
 } 
 
