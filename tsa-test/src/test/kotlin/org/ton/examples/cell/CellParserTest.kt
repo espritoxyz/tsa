@@ -18,32 +18,36 @@ import kotlin.test.assertEquals
 class CellParserTest {
     @Test
     fun `single integer`() {
-        baseTest(
+        baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeInt(3, 5).endCell(),
             knownTypes =
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.LittleEndian), 0),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Integer(3, 5)),
+            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Integer(3, 5, 0)),
         )
     }
 
     @Test
     fun `two integers`() {
-        baseTest(
+        baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeInt(3, 5).storeInt(7, 19).endCell(),
             knownTypes =
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.LittleEndian), 0),
                     TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(19, false, Endian.LittleEndian), 5),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Integer(3, 5), TvmTestCellElement.Integer(7, 19)),
+            expected =
+                listOf<TvmTestCellElement>(
+                    TvmTestCellElement.Integer(3, 5, 0),
+                    TvmTestCellElement.Integer(7, 19, 5),
+                ),
         )
     }
 
     @Test
     fun `three integers`() {
-        baseTest(
+        baseTestWithFullCellCoverage(
             cellUnderTest =
                 CellBuilder()
                     .storeInt(3, 5)
@@ -58,71 +62,79 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.Integer(3, 5),
-                    TvmTestCellElement.Integer(7, 19),
-                    TvmTestCellElement.Integer(9, 6),
+                    TvmTestCellElement.Integer(value = 3, width = 5, offset = 0),
+                    TvmTestCellElement.Integer(value = 7, width = 19, offset = 5),
+                    TvmTestCellElement.Integer(value = 9, width = 6, offset = 5 + 19),
                 ),
         )
     }
 
     private fun CellBuilder.storeCoin(
         value: Int,
-        width: Int,
-    ): CellBuilder = storeUInt(width, 16).storeUInt(value, width)
+        nanogramsWidthDivBy8: Int,
+    ): CellBuilder = storeUInt(nanogramsWidthDivBy8, 4).storeUInt(value, 8 * nanogramsWidthDivBy8)
 
     @Test
     fun `single coin`() {
-        baseTest(
+        baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeCoin(5, 4).endCell(),
             knownTypes =
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 0),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Coin(5, 4)),
+            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Coin(5, 4, 0)),
         )
     }
 
     @Test
     fun `two coins`() {
-        baseTest(
-            cellUnderTest = CellBuilder().storeCoin(5, 4).storeCoin(13, 4).endCell(),
+        baseTestWithFullCellCoverage(
+            cellUnderTest = CellBuilder().storeCoin(5, 1).storeCoin(13, 1).endCell(),
             knownTypes =
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 0),
-                    TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 20),
+                    TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 12),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Coin(5, 4), TvmTestCellElement.Coin(13, 4)),
+            expected =
+                listOf<TvmTestCellElement>(
+                    TvmTestCellElement.Coin(gramsValue = 5, nanogramsWidth = 1, offset = 0),
+                    TvmTestCellElement.Coin(gramsValue = 13, nanogramsWidth = 1, offset = 12),
+                ),
         )
     }
 
     @Test
     fun `integer and coin`() {
-        baseTest(
-            cellUnderTest = CellBuilder().storeInt(4, 5).storeCoin(13, 4).endCell(),
+        baseTestWithFullCellCoverage(
+            cellUnderTest = CellBuilder().storeInt(4, 5).storeCoin(13, 2).endCell(),
             knownTypes =
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, true, Endian.LittleEndian), 0),
                     TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 5),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Integer(4, 5), TvmTestCellElement.Coin(13, 4)),
+            expected =
+                listOf<TvmTestCellElement>(
+                    TvmTestCellElement.Integer(value = 4, width = 5, offset = 0),
+                    TvmTestCellElement.Coin(gramsValue = 13, nanogramsWidth = 2, offset = 5),
+                ),
         )
     }
 
     @Test
     fun bitarray() {
-        baseTest(
+        baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeBits("0010").endCell(),
             knownTypes =
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataBitArrayRead(4), 0),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.BitArray("0010", 4)),
+            expected = listOf<TvmTestCellElement>(TvmTestCellElement.BitArray("0010", 4, 0)),
         )
     }
 
     @Test
     fun `bitarray and maybe constructor`() {
-        baseTest(
+        baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeBits("00101").endCell(),
             knownTypes =
                 listOf(
@@ -131,8 +143,8 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.BitArray("0010", 4),
-                    TvmTestCellElement.MaybeConstructor,
+                    TvmTestCellElement.BitArray("0010", 4, 0),
+                    TvmTestCellElement.MaybeConstructor(4),
                 ),
         )
     }
@@ -140,8 +152,8 @@ class CellParserTest {
     private fun CellBuilder.storeNoneAddress(): CellBuilder = storeBits("00")
 
     @Test
-    fun address() {
-        baseTest(
+    fun addressNone() {
+        baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeNoneAddress().endCell(),
             knownTypes =
                 listOf(
@@ -149,7 +161,25 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.AddressRead,
+                    TvmTestCellElement.AddressRead(TvmTestCellElement.AddressKind.NONE, 0),
+                ),
+        )
+    }
+
+    @Test
+    fun addressNoneAndStd() {
+        val addressStd = "10" + "0" + "0".repeat(8) + "0".repeat(256)
+        baseTestWithFullCellCoverage(
+            cellUnderTest = CellBuilder().storeNoneAddress().storeBits(addressStd).endCell(),
+            knownTypes =
+                listOf(
+                    TvmCellDataTypeLoad(TvmTestCellDataMsgAddrRead, 0),
+                    TvmCellDataTypeLoad(TvmTestCellDataMsgAddrRead, 2),
+                ),
+            expected =
+                listOf<TvmTestCellElement>(
+                    TvmTestCellElement.AddressRead(TvmTestCellElement.AddressKind.NONE, 0),
+                    TvmTestCellElement.AddressRead(TvmTestCellElement.AddressKind.STD, 2),
                 ),
         )
     }
@@ -158,7 +188,7 @@ class CellParserTest {
      * Note: while this technically implies a three-times repetition, it was decided to keep as to not introduce
      * another hierarchy of similar types specifically for tests.
      */
-    private fun baseTest(
+    private fun baseTestWithFullCellCoverage(
         cellUnderTest: Cell,
         knownTypes: List<TvmCellDataTypeLoad>,
         expected: List<TvmTestCellElement>,
@@ -168,6 +198,10 @@ class CellParserTest {
             TvmTestDataCellValue(dataBits, listOf(), knownTypes)
         val elems = getElements(testCell)
         assertEquals(expected, elems)
+        assertEquals(0, elems.first().cellRange.begin)
+        for ((cur, next) in elems.windowed(2)) {
+            assertEquals(cur.cellRange.end, next.cellRange.begin)
+        }
     }
 
     private fun String.asBits() = map { it == '1' }

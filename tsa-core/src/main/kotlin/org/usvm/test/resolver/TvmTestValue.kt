@@ -142,25 +142,70 @@ data class TvmCellDataTypeLoad(
     val offset: Int,
 )
 
+/**
+ * @param end exclusive
+ */
+data class CellRange(
+    val begin: Int,
+    val end: Int,
+)
+
 sealed interface TvmTestCellElement {
+    val cellRange: CellRange
+
     data class BitArray(
         val data: String,
         val width: Int,
-    ) : TvmTestCellElement
+        val offset: Int,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() = CellRange(offset, offset + width)
+    }
 
     data class Coin(
         val gramsValue: Int,
-        val width: Int,
-    ) : TvmTestCellElement
+        val nanogramsWidth: Int,
+        val offset: Int,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() = CellRange(offset, offset + 4 + nanogramsWidth * 8)
+    }
 
     data class Integer(
         val value: Int,
         val width: Int,
-    ) : TvmTestCellElement
+        val offset: Int,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() = CellRange(offset, offset + width)
+    }
 
-    data object MaybeConstructor : TvmTestCellElement
+    data class MaybeConstructor(
+        val begin: Int,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() = CellRange(begin, begin + 1)
+    }
 
-    data object AddressRead : TvmTestCellElement
+    enum class AddressKind {
+        NONE,
+        STD,
+    }
+
+    data class AddressRead(
+        val kind: AddressKind,
+        val offset: Int,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() {
+                val width =
+                    when (kind) {
+                        AddressKind.NONE -> 2
+                        AddressKind.STD -> 2 + 1 + 8 + 256
+                    }
+                return CellRange(offset, offset + width)
+            }
+    }
 }
 
 fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
@@ -169,14 +214,14 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
             is TvmTestCellDataBitArrayRead -> {
                 val width = type.bitSize
                 val data = cell.data.substring(offset, offset + width)
-                TvmTestCellElement.BitArray(data, width)
+                TvmTestCellElement.BitArray(data, width, offset)
             }
 
             TvmTestCellDataCoinsRead -> {
-                val actualGramsBegin = offset + 16
+                val actualGramsBegin = offset + 4
                 val width = cell.data.substring(offset, actualGramsBegin).toInt(2)
-                val value = cell.data.substring(actualGramsBegin, actualGramsBegin + width).toInt(2)
-                TvmTestCellElement.Coin(value, width)
+                val value = cell.data.substring(actualGramsBegin, actualGramsBegin + width * 8).toInt(2)
+                TvmTestCellElement.Coin(value, width, offset)
             }
 
             is TvmTestCellDataIntegerRead -> {
@@ -187,16 +232,23 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
                         .let {
                             if (type.endian == Endian.BigEndian) it.reversed() else it
                         }.toInt(2)
-                TvmTestCellElement.Integer(data, width)
+                TvmTestCellElement.Integer(data, width, offset)
             }
 
             TvmTestCellDataMaybeConstructorBitRead -> {
-                TvmTestCellElement.MaybeConstructor
+                TvmTestCellElement.MaybeConstructor(offset)
             }
 
             TvmTestCellDataMsgAddrRead -> {
                 // TODO parse the address to include the pretty-printed address
-                TvmTestCellElement.AddressRead
+                val tag = cell.data.substring(offset, offset + 2)
+                val kind =
+                    when (tag) {
+                        "00" -> TvmTestCellElement.AddressKind.NONE
+                        "10" -> TvmTestCellElement.AddressKind.STD
+                        else -> error("Unrecognized tag: $tag")
+                    }
+                TvmTestCellElement.AddressRead(kind, offset)
             }
         }
     }
