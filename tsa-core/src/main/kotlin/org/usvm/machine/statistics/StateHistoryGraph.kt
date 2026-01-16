@@ -4,6 +4,7 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmRealInst
+import org.ton.bytecode.formatInstruction
 import org.ton.disasm.TvmPhysicalInstLocation
 import org.usvm.StateId
 import org.usvm.logger
@@ -100,7 +101,10 @@ class StateHistoryGraph : UMachineObserver<TvmState> {
 
     private fun printLoc(edge: Edge): String {
         val loc = edge.instLoc
-        return "(${loc?.cellHashHex},${loc?.offset})#${edge.locOccurrence}"
+        return "(${loc?.cellHashHex},${loc?.offset})#${edge.locOccurrence} (inst ${formatInstruction(
+            edge.inst,
+            includeTvmCell = false,
+        )})"
     }
 
     // this function is useful when debugging

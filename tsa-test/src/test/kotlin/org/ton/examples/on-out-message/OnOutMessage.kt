@@ -10,44 +10,37 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmTestFailure
-import kotlin.test.Ignore
 import kotlin.test.Test
 
 class OnOutMessageTest {
     private val checker = "/on-out-message/checker.fc"
     private val sender = "/on-out-message/sender.fc"
 
-    @Ignore("malformed out message")
     @Test
     fun onOutMessageTest0() {
         onOutMessageBaseTest(0)
     }
 
-    @Ignore("malformed out message")
     @Test
     fun onOutMessageTest1() {
         onOutMessageBaseTest(1)
     }
 
-    @Ignore("malformed out message")
     @Test
     fun onOutMessageTest2() {
         onOutMessageBaseTest(2)
     }
 
-    @Ignore("malformed out message")
     @Test
     fun onOutMessageTest3() {
         onOutMessageBaseTest(3)
     }
 
-    @Ignore("malformed out message")
     @Test
     fun onOutMessageTest4() {
         onOutMessageBaseTest(4)
     }
 
-    @Ignore("malformed out message")
     @Test
     fun onOutMessageTest5() {
         onOutMessageBaseTest(5)

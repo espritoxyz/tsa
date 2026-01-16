@@ -76,6 +76,7 @@ import java.math.BigInteger
 
 // TODO make it Bv16
 typealias TvmSizeSort = UBv32Sort
+typealias SizeExpr = UExpr<TvmSizeSort>
 
 typealias Int257Expr = UExpr<TvmContext.TvmInt257Sort>
 

@@ -1,5 +1,6 @@
 package org.usvm.machine.state
 
+import io.ksmt.expr.KBitVecCustomValue
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KExpr
 import io.ksmt.expr.KInterpretedValue
@@ -19,6 +20,7 @@ import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.isFalse
 import org.usvm.isStatic
+import org.usvm.machine.SizeExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.ADDRESS_TAG_BITS
@@ -45,6 +47,7 @@ import org.usvm.machine.types.TvmCellDataIntegerRead
 import org.usvm.machine.types.TvmCellDataMsgAddrRead
 import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmSliceType
+import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.machine.types.storeCellDataTlbLabelInBuilder
@@ -58,6 +61,7 @@ import org.usvm.mkSizeExpr
 import org.usvm.mkSizeGeExpr
 import org.usvm.mkSizeLeExpr
 import org.usvm.mkSizeSubExpr
+import org.usvm.model.UModelBase
 import org.usvm.sizeSort
 import org.usvm.utils.flattenReferenceIteSpecialized
 import org.usvm.utils.intValueOrNull
@@ -1045,7 +1049,7 @@ fun TvmStepScopeManager.builderStoreSlice(
 
         doWithState {
             for (i in 0 until TvmContext.MAX_REFS_NUMBER) {
-                val sliceRef = readCellRef(cell, mkSizeExpr(i))
+                val sliceRef = readCellRef(cell, mkSizeAddExpr(refsPosition, mkSizeExpr(i)))
                 writeCellRef(builder, mkSizeAddExpr(oldBuilderRefsSize, mkSizeExpr(i)), sliceRef)
             }
 
@@ -1507,20 +1511,59 @@ fun TvmStepScopeManager.readCellData(cell: UHeapRef): UExpr<TvmCellDataSort>? =
 fun TvmState.readCellDataLength(cell: UHeapRef): UExpr<TvmSizeSort> =
     this.fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
 
+fun TvmState.readSliceRefPos(slice: UHeapRef) = memory.readField(slice, sliceRefPosField, ctx.sizeSort)
+
 data class SliceReadData(
-    val dataPos: UExpr<TvmSizeSort>,
-    val cellData: UExpr<TvmCellDataSort>,
-)
+    val dataPos: SizeExpr,
+    val cellData: UExpr<TvmCellDataSort>?,
+    val cellDataLength: SizeExpr,
+    val cellRef: UHeapRef,
+    val refs: List<UHeapRef>?,
+    val refPos: SizeExpr,
+) {
+    @Suppress("unused")
+    fun withModel(model: UModelBase<TvmType>): SliceReadData =
+        SliceReadData(
+            model.eval(dataPos),
+            cellData?.let { model.eval(it) },
+            model.eval(cellDataLength),
+            cellRef,
+            refs,
+            model.eval(refPos),
+        )
+
+    @Suppress("unused")
+    fun toBitString(): String =
+        if (dataPos is KBitVecValue<*> && cellData is KBitVecCustomValue && cellDataLength is KBitVecValue<*>) {
+            cellData.stringValue.substring(dataPos.intValue(), cellDataLength.intValue())
+        } else {
+            "non-concrete"
+        }
+}
 
 // for debugging
 @Suppress("unused")
-fun TvmState.readSliceFull(slice: UHeapRef): SliceReadData {
-    val dataPos = readSliceDataPos(slice)
-    val cell = readSliceCell(slice)
-    val cellData = fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(this, cell)
+fun TvmStepScopeManager.readSliceFull(slice: UHeapRef): SliceReadData {
+    val dataPos = calcOnState { readSliceDataPos(slice) }
+    val cell = calcOnState { readSliceCell(slice) }
+    val cellData = calcOnState { fieldManagers.cellDataFieldManager.readCellData(this@readSliceFull, cell) }
+    val cellLength = calcOnState { fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell) }
+    val refs =
+        calcOnState {
+            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
+        }.intValueOrNull?.let { refsLength ->
+            (0..<refsLength).map {
+                this.calcOnState { readCellRef(cell, with(ctx) { it.toSizeSort() }) }
+            }
+        }
+    val refPos = calcOnState { readSliceRefPos(slice) }
     return SliceReadData(
         dataPos,
         cellData,
+        cellLength,
+        cell,
+        refs,
+        refPos,
     )
 }
 
@@ -1547,3 +1590,9 @@ fun TvmState.createSliceIsEmptyConstraint(slice: UHeapRef): KExpr<KBoolSort> =
         val result = mkAnd(isRemainingDataEmptyConstraint, areRemainingRefsEmpty)
         return result
     }
+
+@Suppress("unused")
+fun TvmStepScopeManager.readCellFull(cell: UHeapRef): SliceReadData {
+    val slice = calcOnState { allocSliceFromCell(cell) }
+    return readSliceFull(slice)
+}
