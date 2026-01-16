@@ -69,6 +69,10 @@ sealed class AbstractCheckerAnalysis(
 
     private val analysisOptions by AnalysisOptions()
 
+    private val checkerConcreteDataPath by option("--contract-data")
+        .path(mustExist = true, canBeFile = true, canBeDir = false)
+        .help("Path to .boc file with concrete data for checker contract.")
+
     override fun run() {
         check(checkerContract.isContractWithTSACheckerFunctions) {
             "Checker contract must be marked as checker"
@@ -83,8 +87,17 @@ sealed class AbstractCheckerAnalysis(
                 TvmInputInfo()
             } ?: TvmInputInfo() // In case TL-B scheme is not provided, use empty scheme
 
+        val checkerContractData =
+            if (checkerConcreteDataPath == null) {
+                TvmConcreteContractData()
+            } else {
+                val bytes = checkerConcreteDataPath!!.toFile().readBytes()
+                val dataCell = BagOfCells(bytes).roots.single()
+                TvmConcreteContractData(contractC4 = dataCell)
+            }
+
         val concreteContractData =
-            listOf(TvmConcreteContractData()) +
+            listOf(checkerContractData) +
                 concreteData
                     .map { path ->
                         path.path ?: return@map TvmConcreteContractData()
