@@ -14,9 +14,10 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.state.INVALID_DST_ADDRESS_IN_OUTBOUND_MESSAGE
+import org.usvm.machine.state.INVALID_SRC_ADDRESS_IN_OUTBOUND_MESSAGE
 import org.usvm.machine.state.InsufficientFunds
-import org.usvm.machine.state.InvalidDestinationAddressInOutboundMessage
-import org.usvm.machine.state.InvalidSourceAddressInOutboundMessage
+import org.usvm.machine.state.TvmBadDestinationAddress
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTest
@@ -267,9 +268,7 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf(
-                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
-            ),
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
         )
 
         checkInvariants(
@@ -422,14 +421,12 @@ class SendModesTest {
                     { test -> test.eventsList.all { it.actionPhaseResult?.exitCode() != InsufficientFunds.EXIT_CODE } },
                     { test ->
                         test.eventsList.all {
-                            it.actionPhaseResult?.exitCode() !=
-                                InvalidSourceAddressInOutboundMessage.EXIT_CODE
+                            it.actionPhaseResult?.exitCode() != INVALID_DST_ADDRESS_IN_OUTBOUND_MESSAGE
                         }
                     },
                     { test ->
                         test.eventsList.all {
-                            it.actionPhaseResult?.exitCode() !=
-                                InvalidDestinationAddressInOutboundMessage.EXIT_CODE
+                            it.actionPhaseResult?.exitCode() != INVALID_SRC_ADDRESS_IN_OUTBOUND_MESSAGE
                         }
                     },
                 ),
@@ -447,7 +444,10 @@ class SendModesTest {
         } else {
             checkInvariants(
                 tests,
-                listOf { test -> test.result is TvmExecutionWithSoftFailure },
+                listOf { test ->
+                    val result = test.result
+                    result is TvmExecutionWithSoftFailure && result.failure.exit is TvmBadDestinationAddress
+                },
             )
         }
     }
@@ -483,9 +483,7 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf(
-                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
-            ),
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
         )
 
         checkInvariants(

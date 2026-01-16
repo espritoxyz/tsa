@@ -249,13 +249,8 @@ data class IncompatibleMessageModes(
             "(SendRemainingValue and SendRemainingBalance)"
 }
 
-object InvalidSourceAddressInOutboundMessage {
-    const val EXIT_CODE = 35
-}
-
-object InvalidDestinationAddressInOutboundMessage {
-    const val EXIT_CODE = 36
-}
+const val INVALID_SRC_ADDRESS_IN_OUTBOUND_MESSAGE = 35
+const val INVALID_DST_ADDRESS_IN_OUTBOUND_MESSAGE = 36
 
 data class InsufficientFunds(
     val contractId: ContractId,
