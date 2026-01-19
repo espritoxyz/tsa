@@ -1,0 +1,26 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+
+    tsa_forbid_failures();
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    tsa_assert_not(flags & 1);
+    tsa_assert(msg_value == 100000000);
+    int op = msg_body~load_uint(32);
+    tsa_assert(op == input_id);
+    tsa_allow_failures();
+}
+
+() main() impure {
+    tsa_forbid_failures();
+    int contract_balance = tsa_call_1_0(1, 1650);
+    tsa_assert(contract_balance == 0);
+    tsa_allow_failures();
+
+    var opcode = get_data().begin_parse().preload_int(64);
+    tsa_send_internal_message(1, opcode); ;; We should not get an exception here
+
+    throw(500);
+}

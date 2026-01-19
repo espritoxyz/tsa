@@ -74,6 +74,7 @@ import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
 import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.machine.types.TvmFinalReferenceType
+import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmReadingOfUnexpectedType
 import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
 import org.usvm.machine.types.TvmReadingSwitchWithUnexpectedType
@@ -86,14 +87,13 @@ import org.usvm.machine.types.dp.getDefaultDict
 import org.usvm.machine.types.getPossibleTypes
 import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.memory.UMemory
-import org.usvm.model.UModelBase
 import org.usvm.sizeSort
 import org.usvm.solver.UExprTranslator
 import java.math.BigInteger
 
 class TvmTestStateResolver(
     private val ctx: TvmContext,
-    val model: UModelBase<TvmType>,
+    val model: TvmModel,
     val state: TvmState,
     private val performAdditionalChecks: Boolean = false, // for testing
 ) {

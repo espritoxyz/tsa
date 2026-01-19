@@ -109,13 +109,16 @@ fun TvmState.setExit(result: TvmResult.TvmTerminalResult) {
         is TvmComputePhase -> {
             newStmt(TsaArtificialOnComputePhaseExitInst(result, lastStmt.location))
         }
+
         is TvmActionPhase -> {
             newStmt(TsaArtificialExitInst(phase.computePhaseResult, result, lastStmt.location))
         }
+
         is TvmBouncePhase -> {
             // for now, substitute error from action phase
             newStmt(TsaArtificialExitInst(phase.computePhaseResult, result, lastStmt.location))
         }
+
         else -> {
             error("Unexpected exit on phase: $phase")
         }
@@ -159,18 +162,9 @@ fun TvmState.initializeSymbolicSlice(ref: UConcreteHeapRef) =
         memory.types.allocate(cell.address, TvmDataCellType)
     }
 
-fun TvmState.generateSymbolicBuilder(): UConcreteHeapRef =
-    generateSymbolicRef(TvmBuilderType).also { initializeSymbolicBuilder(it) }
+fun TvmState.generateSymbolicBuilder(): UConcreteHeapRef = generateSymbolicRef(TvmBuilderType)
 
-fun TvmState.ensureSymbolicBuilderInitialized(ref: UHeapRef) =
-    ensureSymbolicRefInitialized(ref, TvmBuilderType) { initializeSymbolicBuilder(it) }
-
-fun TvmState.initializeSymbolicBuilder(ref: UConcreteHeapRef) =
-    with(ctx) {
-//    // TODO hack! Assume that all input builder were not written, that means dataLength == 0 and refsLength == 0
-//    memory.writeField(ref, TvmContext.cellDataLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-//    memory.writeField(ref, TvmContext.cellRefsLengthField, sizeSort, mkSizeExpr(0), guard = trueExpr)
-    }
+fun TvmState.ensureSymbolicBuilderInitialized(ref: UHeapRef) = ensureSymbolicRefInitialized(ref, TvmBuilderType)
 
 fun TvmStepScopeManager.assertIfSat(constraint: UBoolExpr): Boolean {
     val originalState = calcOnState { this }
@@ -183,13 +177,20 @@ fun TvmContext.signedIntegerFitsBits(
     bits: UInt,
 ): UBoolExpr =
     when {
-        bits == 0u -> value eq zeroValue
-        bits >= TvmContext.INT_BITS -> trueExpr
-        else ->
+        bits == 0u -> {
+            value eq zeroValue
+        }
+
+        bits >= INT_BITS -> {
+            trueExpr
+        }
+
+        else -> {
             mkAnd(
                 mkBvSignedLessOrEqualExpr(value, powerOfTwo(bits - 1u).minus(BigInteger.ONE).toBv257()),
                 mkBvSignedGreaterOrEqualExpr(value, powerOfTwo(bits - 1u).negate().toBv257()),
             )
+        }
     }
 
 /**
@@ -200,17 +201,24 @@ fun TvmContext.unsignedIntegerFitsBits(
     bits: UInt,
 ): UBoolExpr =
     when {
-        bits == 0u -> value eq zeroValue
-        bits >= TvmContext.INT_BITS - 1u -> mkBvSignedGreaterOrEqualExpr(value, zeroValue)
-        else ->
+        bits == 0u -> {
+            value eq zeroValue
+        }
+
+        bits >= INT_BITS - 1u -> {
+            mkBvSignedGreaterOrEqualExpr(value, zeroValue)
+        }
+
+        else -> {
             mkAnd(
                 mkBvSignedLessOrEqualExpr(value, maxUnsignedValue(bits).toBv257()),
                 mkBvSignedGreaterOrEqualExpr(value, zeroValue),
             )
+        }
     }
 
 /**
- * 0 <= [sizeBits] <= 257
+ * 0 <= [bits] <= 257
  */
 fun TvmContext.signedIntegerFitsBits(
     value: UExpr<TvmInt257Sort>,
@@ -222,7 +230,7 @@ fun TvmContext.signedIntegerFitsBits(
     )
 
 /**
- * 0 <= [sizeBits] <= 256
+ * 0 <= [bits] <= 256
  *
  * @see unsignedIntegerFitsBits
  */

@@ -36,12 +36,12 @@ import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
+import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.TvmStructuralConstraintsHolder
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
-import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
 typealias ContractId = Int
@@ -58,7 +58,7 @@ class TvmState(
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
     pathConstraints: UPathConstraints<TvmType>,
     memory: UMemory<TvmType, TvmCodeBlock>,
-    models: List<UModelBase<TvmType>> = listOf(),
+    models: List<TvmModel> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<TvmInst>> = PathNode.root(),
     var phase: TvmPhase = TvmComputePhase,
@@ -112,6 +112,15 @@ class TvmState(
     val currentEventId: EventId
         get() = currentPhaseBeginTime
 
+    /**
+     * Semantically, we set it to `true` when no further processing of the state will be conducted.
+     * For example, when [org.usvm.machine.TvmOptions.stopOnFirstError] is `true`, an exception in the compute phase
+     * will end the execution and set the flag to `true`.
+     *
+     * However, if the mentioned flag is `false`, the `isExceptional` flag will also be `false`, as the execution will
+     * possibly continue. For instance, if we have sent some message A and made a commit before an exception was throw
+     * the sending of the  message A will happen in an action phase.
+     */
     override var isExceptional: Boolean = false
 
     val isTerminated: Boolean

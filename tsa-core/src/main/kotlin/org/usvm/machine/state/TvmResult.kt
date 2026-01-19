@@ -111,6 +111,12 @@ data class TvmDoubleSendRemainingValue(
     override val ruleId = "double-send-remaining-value"
 }
 
+data class TvmBadDestinationAddress(
+    val contractId: ContractId,
+) : TvmResult.TvmSoftFailureExit {
+    override val ruleId = "bad-destination-address"
+}
+
 object TvmNormalExit : TvmSuccessfulExit {
     override val exitCode: Int
         get() = 0
@@ -243,13 +249,21 @@ data class IncompatibleMessageModes(
             "(SendRemainingValue and SendRemainingBalance)"
 }
 
+const val INVALID_SRC_ADDRESS_IN_OUTBOUND_MESSAGE = 35
+const val INVALID_DST_ADDRESS_IN_OUTBOUND_MESSAGE = 36
+
 data class InsufficientFunds(
     val contractId: ContractId,
 ) : TvmErrorExit {
-    override val exitCode: Int = 37
-    override val ruleName: String = "insufficient-funds"
+    override val exitCode: Int = EXIT_CODE
+    override val ruleName: String = RULE_NAME
 
     override fun toString(): String = "TVM insufficient funds while processing messages sent by contract $contractId"
+
+    companion object {
+        const val RULE_NAME = "insufficient-funds"
+        const val EXIT_CODE = 37
+    }
 }
 
 @Serializable

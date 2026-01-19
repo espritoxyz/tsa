@@ -263,6 +263,7 @@ import org.usvm.machine.state.checkOverflow
 import org.usvm.machine.state.checkUnderflow
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
+import org.usvm.machine.state.createSliceIsEmptyConstraint
 import org.usvm.machine.state.defineC0
 import org.usvm.machine.state.defineC1
 import org.usvm.machine.state.defineC2
@@ -321,7 +322,6 @@ import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
 import org.usvm.memory.UWritableMemory
 import org.usvm.mkSizeExpr
-import org.usvm.mkSizeGeExpr
 import org.usvm.sizeSort
 import org.usvm.solver.USatResult
 import org.usvm.targets.UTargetsSet
@@ -1896,30 +1896,7 @@ class TvmInterpreter(
                     return
                 }
 
-                val cell = scope.calcOnState { memory.readField(slice, sliceCellField, addressSort) }
-                val dataPos =
-                    scope.calcOnState {
-                        fieldManagers.cellDataLengthFieldManager.readSliceDataPos(
-                            this,
-                            slice,
-                        )
-                    }
-                val refsPos = scope.calcOnState { memory.readField(slice, sliceRefPosField, sizeSort) }
-                val dataLength =
-                    scope.calcOnState {
-                        fieldManagers.cellDataLengthFieldManager.readCellDataLength(
-                            this,
-                            cell,
-                        )
-                    }
-                val refsLength =
-                    scope.calcOnState {
-                        fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
-                    }
-
-                val isRemainingDataEmptyConstraint = mkSizeGeExpr(dataPos, dataLength)
-                val areRemainingRefsEmpty = mkSizeGeExpr(refsPos, refsLength)
-                val result = mkAnd(isRemainingDataEmptyConstraint, areRemainingRefsEmpty).toBv257Bool()
+                val result = scope.calcOnState { createSliceIsEmptyConstraint(slice).toBv257Bool() }
 
                 scope.doWithState {
                     stack.addInt(result)

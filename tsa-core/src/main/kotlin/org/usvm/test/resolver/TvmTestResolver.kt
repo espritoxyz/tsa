@@ -218,3 +218,11 @@ data class TvmExecutionWithSoftFailure(
     val lastStmt: TvmInst,
     val failure: TvmResult.TvmSoftFailure,
 ) : TvmTestResult
+
+fun TvmTestResult.exitCode(): Int? =
+    when (this) {
+        is TvmTerminalMethodSymbolicResult -> this.exitCode
+        is TvmExecutionWithSoftFailure -> null
+        is TvmExecutionWithStructuralError -> null
+        TvmSuccessfulActionPhase -> 0
+    }

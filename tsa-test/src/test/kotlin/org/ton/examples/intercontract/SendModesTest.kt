@@ -14,13 +14,19 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.state.INVALID_DST_ADDRESS_IN_OUTBOUND_MESSAGE
+import org.usvm.machine.state.INVALID_SRC_ADDRESS_IN_OUTBOUND_MESSAGE
+import org.usvm.machine.state.InsufficientFunds
+import org.usvm.machine.state.TvmBadDestinationAddress
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestFailure
-import kotlin.test.Ignore
+import org.usvm.test.resolver.exitCode
 import kotlin.test.Test
 import kotlin.test.assertTrue
+
+private infix fun Boolean.implies(other: Boolean) = this.not() || other
 
 class SendModesTest {
     private val remainingBalanceContract = "/intercontract/modes/send_remaining_balance.fc"
@@ -36,8 +42,8 @@ class SendModesTest {
     private val remainingValueDoubleContract = "/intercontract/modes/send_remaining_value_double.fc"
     private val remainingValueChecker = "/intercontract/modes/remaining_value.fc"
     private val remainingValueOf2ndChecker = "/intercontract/modes/remaining_value_checker_of_2nd.fc"
-    private val ignoreErrorsContract = "/intercontract/modes/send_ignore_error_flag.fc"
-    private val ignoreErrorsChecker = "/intercontract/modes/ignore_error.fc"
+    private val ignoreErrorsContract = "/intercontract/modes/send_ignore_error_sender.fc"
+    private val ignoreErrorsChecker = "/intercontract/modes/send_ignore_error_checker.fc"
     private val ignoreErrorTestScheme = "/intercontract/modes/ignore_error_test_scheme.json"
     private val recipientBouncePath = "/bounce/receive_bounce_msg.fc"
     private val sendRemainingValueNotFromCheckerCommunicationScheme =
@@ -262,9 +268,7 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf(
-                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
-            ),
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
         )
 
         checkInvariants(
@@ -359,9 +363,31 @@ class SendModesTest {
         )
     }
 
-    @Ignore("SendIgnoreError flag is not supported")
     @Test
-    fun sendIgnoreErrorTest() {
+    fun `SendIgnoreError invalid source address`() {
+        sendIgnoreErrorBaseTest(100)
+    }
+
+    @Test
+    fun `SendIgnoreError invalid destination address`() {
+        sendIgnoreErrorBaseTest(101, expectedSoftFailure = true)
+    }
+
+    @Test
+    fun `SendIgnoreError not enough Toncoin`() {
+        sendIgnoreErrorBaseTest(102)
+    }
+
+    @Test
+    fun `SendIgnoreError good message between two ignored messages`() {
+        sendIgnoreErrorBaseTest(105, shouldSendSomething = true)
+    }
+
+    private fun sendIgnoreErrorBaseTest(
+        opcode: Int,
+        shouldSendSomething: Boolean = false,
+        expectedSoftFailure: Boolean = false,
+    ) {
         val checkerContract = extractCheckerContractFromResource(ignoreErrorsChecker)
         val analyzedSender = extractFuncContractFromResource(ignoreErrorsContract)
         val analyzedRecipient = extractFuncContractFromResource(recipientBouncePath)
@@ -371,29 +397,59 @@ class SendModesTest {
             TvmOptions(
                 intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
                 enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
             )
 
         val tests =
             analyzeInterContract(
                 listOf(checkerContract, analyzedSender, analyzedRecipient),
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder().storeInt(opcode, 64).endCell()),
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(),
+                    ),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
             )
 
-        propertiesFound(
-            tests,
-            listOf { test -> test.exitCode() == 258 },
-        )
-
-        checkInvariants(
-            tests,
-            listOf(
-                { test -> test.exitCode() != 35 },
-                { test -> test.exitCode() != 36 },
-                { test -> test.exitCode() != 37 },
-            ),
-        )
+        if (!expectedSoftFailure) {
+            checkInvariants(
+                tests,
+                listOf(
+                    { test -> test.eventsList.all { it.actionPhaseResult?.exitCode() != InsufficientFunds.EXIT_CODE } },
+                    { test ->
+                        test.eventsList.all {
+                            it.actionPhaseResult?.exitCode() != INVALID_DST_ADDRESS_IN_OUTBOUND_MESSAGE
+                        }
+                    },
+                    { test ->
+                        test.eventsList.all {
+                            it.actionPhaseResult?.exitCode() != INVALID_SRC_ADDRESS_IN_OUTBOUND_MESSAGE
+                        }
+                    },
+                ),
+            )
+            propertiesFound(
+                tests,
+                listOf { test ->
+                    val recipientReceivedTheMessage = test.eventsList.any { it.contractId == 2 }
+                    val recipientDidntReceiveTheMessage = test.eventsList.all { it.contractId != 2 }
+                    test.exitCode() == 500 &&
+                        shouldSendSomething implies recipientReceivedTheMessage &&
+                        shouldSendSomething.not() implies recipientDidntReceiveTheMessage
+                },
+            )
+        } else {
+            checkInvariants(
+                tests,
+                listOf { test ->
+                    val result = test.result
+                    result is TvmExecutionWithSoftFailure && result.failure.exit is TvmBadDestinationAddress
+                },
+            )
+        }
     }
 
     private fun sendRemainingValueNewBaseTest(opcode: Int) {
@@ -427,9 +483,7 @@ class SendModesTest {
 
         propertiesFound(
             tests,
-            listOf(
-                { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
-            ),
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 10000 },
         )
 
         checkInvariants(

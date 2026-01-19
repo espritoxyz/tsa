@@ -1,12 +1,16 @@
 package org.ton.bytecode
 
 import kotlinx.serialization.Serializable
+import org.ton.DestinationDescription
 import org.usvm.machine.interpreter.DispatchedMessage
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
+import org.usvm.machine.interpreter.TvmTransactionInterpreter
 import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
 import org.usvm.machine.state.TvmComputePhase
 import org.usvm.machine.state.TvmResult
+import org.usvm.machine.state.messages.MessageActionParseResult
+import org.usvm.machine.types.SliceRef
 
 sealed interface TsaArtificialInst : TvmArtificialInst
 
@@ -37,12 +41,16 @@ data class TsaArtificialImplicitRetInst(
     }
 }
 
+/**
+ * Marks the start of an action phase.
+ * Is followed by [TsaArtificialActionParseInst]
+ */
 @Serializable
-data class TsaArtificialActionPhaseInst(
+data class TsaArtificialActionPhaseStartInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
-    override val mnemonic: String get() = "artificial_action_phase"
+    override val mnemonic: String get() = "artificial_action_phase_start"
 
     init {
         checkLocationInitialized()
@@ -53,9 +61,40 @@ data class TsaArtificialActionPhaseInst(
 }
 
 /**
+ * Handles the parsing and preprocessing of actions from the action list (stored in C5 register).
+ * Works with a single action ([yetUnparsedActions]`.first()`) per instruction.
+ * Is followed by the same instruction with updated fields or [TsaArtificialHandleMessagesCostInst] when the parsing
+ * is complete.
+ */
+data class TsaArtificialActionParseInst(
+    val computePhaseResult: TvmResult.TvmTerminalResult,
+    override val location: TvmInstLocation,
+    val yetUnparsedActions: List<SliceRef>,
+    val parsedAndPreprocessedActions: List<MessageActionParseResult>,
+    val destinationResolver: DestinationDescription?,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "artificial_action_parse_inst"
+}
+
+/**
+ * Handles costs of messages and sends the messages into the blockchain, both with respect to the modes the
+ * messages were sent with.
+ * Is followed by [TsaArtificialOnOutMessageHandlerCallInst].
+ */
+data class TsaArtificialHandleMessagesCostInst(
+    val computePhaseResult: TvmResult.TvmTerminalResult,
+    override val location: TvmInstLocation,
+    val parsingResult: TvmTransactionInterpreter.ActionsParsingResult,
+) : TsaArtificialInst {
+    override val mnemonic: String get() = "artificial_action_handle_messages_cost"
+}
+
+/**
  *  This instruction is automatically inserted after the action phase
  *  and is used to call the `on_out_message` handler in checker with
  *  returning back to process the contract exit.
+ *  Is followed by itsef with updated fields or with [TsaArtificialExitInst] after all the messages are passed to
+ *  the handler.
  *  @param messageOrderNumber represents the number of the sent message (specifically, of the [sentMessages]`.first()`)
  *  from the corresponding contract execution
  */
@@ -83,7 +122,7 @@ data class TsaArtificialOnComputePhaseExitInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
 ) : TsaArtificialInst {
-    override val mnemonic: String get() = "on_compute_phase_exit"
+    override val mnemonic: String get() = "on_compute_phase_exit_bridge"
 
     init {
         checkLocationInitialized()
