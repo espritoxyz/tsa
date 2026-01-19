@@ -27,7 +27,7 @@ class IntercontractTest {
     private val schemePath: String = "/intercontract/sample/sample-intercontract-scheme.json"
 
     private val intercontractConsistencySender = "/intercontract/consistency/inter-contract-consistency.fc"
-    private val intercontractConsistencyRecepient = "/intercontract/consistency/inter-contract-consistency-recepient.fc"
+    private val intercontractConsistencyRecipient = "/intercontract/consistency/inter-contract-consistency-recipient.fc"
     private val intercontractConsistencyChecker = "/intercontract/consistency/inter-contract-consistency-checker.fc"
     private val intercontractConsistencyScheme = "/intercontract/consistency/inter-contract-consistency.json"
 
@@ -83,7 +83,7 @@ class IntercontractTest {
     @Test
     fun intercontractConsistencyTest() {
         val pathSender = extractResource(intercontractConsistencySender)
-        val pathRecepient = extractResource(intercontractConsistencyRecepient)
+        val pathRecipient = extractResource(intercontractConsistencyRecipient)
         val checkerPath = extractResource(intercontractConsistencyChecker)
 
         val checkerContract =
@@ -93,7 +93,7 @@ class IntercontractTest {
                 isTSAChecker = true,
             )
         val analyzedSender = getFuncContract(pathSender, FIFT_STDLIB_RESOURCE)
-        val analyzedRecepient = getFuncContract(pathRecepient, FIFT_STDLIB_RESOURCE)
+        val analyzedRecipient = getFuncContract(pathRecipient, FIFT_STDLIB_RESOURCE)
 
         val communicationSchemePath = extractResource(intercontractConsistencyScheme)
         val communicationScheme = communicationSchemeFromJson(communicationSchemePath.readText())
@@ -110,7 +110,7 @@ class IntercontractTest {
 
         val tests =
             analyzeInterContract(
-                listOf(checkerContract, analyzedSender, analyzedRecepient),
+                listOf(checkerContract, analyzedSender, analyzedRecipient),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,

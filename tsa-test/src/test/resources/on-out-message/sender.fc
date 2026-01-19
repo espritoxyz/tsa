@@ -111,15 +111,33 @@
     } elseif (op == 600) {
         ;; send a message without StateInit and body stored as a ref
         cell msg = begin_cell()
-        .store_uint(0x10, 6)
-        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
-        .store_coins(4800000000) ;; 4.8 Tons
-        .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
-        .store_uint(0, 1) ;; there is no StateInit
-        .store_uint(1, 1) ;; we store message body as a ref
-        .store_ref(MsgBody)
-        .end_cell();    
+            .store_uint(0x10, 6)
+            .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+            .store_coins(4800000000) ;; 4.8 Tons
+            .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+            .store_uint(0, 1) ;; there is no StateInit
+            .store_uint(1, 1) ;; we store message body as a ref
+            .store_ref(MsgBody)
+            .end_cell();
 
-        send_raw_message(msg, 1); 
-    } 
+        send_raw_message(msg, 1);
+    } elseif (op == 700) {
+        slice long_cell = begin_cell()
+            .store_int(0, 200)
+            .store_int(0, 112)
+            .end_cell().begin_parse();
+        cell msg = begin_cell()
+            .store_uint(0x10, 6)
+            .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+            .store_coins(0) ;; 4.8 Tons
+            .store_uint(0, 1 + 4 + 4 + 64 + 32) ;; default message headers
+            .store_uint(0, 1) ;; there is no StateInit
+            .store_uint(0, 1) ;; we store message body as a slice
+            .store_slice(long_cell)
+            .end_cell();
+
+        send_raw_message(msg, 128);
+    } else {
+        throw(2000);
+    }
 }
