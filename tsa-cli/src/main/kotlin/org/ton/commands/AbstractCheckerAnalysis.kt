@@ -30,6 +30,8 @@ import org.usvm.test.resolver.TvmTestInput
 import org.usvm.test.resolver.truncateSliceCell
 import java.nio.file.Path
 import kotlin.io.path.div
+import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
 import kotlin.io.path.writeText
 
 /**
@@ -170,6 +172,9 @@ sealed class AbstractCheckerAnalysis(
         val outputDirPath = additionalInputsOutputDir
         if (outputDirPath != null) {
             val additionalInputs = extractedAdditionalInputsFromTest(result)
+            if (outputDirPath.exists() && outputDirPath.isDirectory()) {
+                outputDirPath.toFile().deleteRecursively()
+            }
             val outputDirCreated = outputDirPath.toFile().mkdirs()
             if (!outputDirCreated) {
                 echo("failed to create output directory")
