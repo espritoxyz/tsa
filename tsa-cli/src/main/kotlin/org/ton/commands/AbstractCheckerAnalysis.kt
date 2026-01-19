@@ -8,18 +8,38 @@ import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.path
+import org.ton.CellAsFileContent
 import org.ton.TvmInputInfo
 import org.ton.boc.BagOfCells
 import org.ton.bytecode.TsaContractCode
 import org.ton.common.performAnalysisInterContract
+import org.ton.dumpCellToFolder
 import org.ton.options.AnalysisOptions
 import org.ton.options.NullablePath
 import org.ton.options.SarifOptions
 import org.ton.options.TlbCLIOptions
 import org.ton.sarif.toSarifReport
+import org.ton.toCellAsFileContent
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
+import org.usvm.test.resolver.TvmSymbolicTestSuite
+import org.usvm.test.resolver.TvmTestDataCellValue
+import org.usvm.test.resolver.TvmTestInput
+import org.usvm.test.resolver.TvmTestSliceValue
+import java.nio.file.Path
+import kotlin.io.path.div
 import kotlin.io.path.writeText
+
+/**
+ * @param contractsC4 maps from contract ids
+ * @param additionalInputs maps from additionalInput indices; the values are the cells the original msgBodies
+ * pointed to that were cut by dataPos and refPos fields of the original slices
+ */
+private data class AdditionalOutput(
+    val index: Int,
+    val contractsC4: Map<Int, CellAsFileContent>,
+    val additionalInputs: Map<Int, CellAsFileContent>,
+)
 
 sealed class AbstractCheckerAnalysis(
     commandName: String,
@@ -39,6 +59,9 @@ sealed class AbstractCheckerAnalysis(
         .help("Scheme of the inter-contract communication.")
 
     protected val pathOptionDescriptor = option().path(mustExist = true, canBeFile = true, canBeDir = false)
+    protected val additionalInputsOutputDir by option("-a", "--additional-output")
+        .path(mustExist = false)
+        .help("Folder where to put additional test information (such as C4 of contracts the beginning of an execution)")
 
     private val concreteData: List<NullablePath> by option("-d", "--data")
         .help {
@@ -118,7 +141,9 @@ sealed class AbstractCheckerAnalysis(
                 analysisOptions = analysisOptions,
                 turnOnTLBParsingChecks = false,
                 useReceiverInput = false,
-            )
+            ).let {
+                TvmSymbolicTestSuite(it.methodId, it.methodCoverage, it.tests.filter { true })
+            }
 
         val sarifReport =
             result.toSarifReport(
@@ -130,5 +155,65 @@ sealed class AbstractCheckerAnalysis(
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
             echo(sarifReport)
         }
+        val outputDirPath = additionalInputsOutputDir
+        if (outputDirPath != null) {
+            val additionalInputs = extractedAdditionalInputsFromTest(result)
+            val outputDirCreated = outputDirPath.toFile().mkdirs()
+            if (!outputDirCreated) {
+                echo("failed to create output directory")
+            } else {
+                dumpAdditionalInputs(additionalInputs, outputDirPath)
+            }
+        }
+    }
+
+    private fun dumpAdditionalInputs(
+        additionalInputs: List<AdditionalOutput>,
+        outputDirPath: Path,
+    ) {
+        for (singleExecutionAdditionalOutput in additionalInputs) {
+            val executionFolder = outputDirPath / "input_${singleExecutionAdditionalOutput.index}"
+            executionFolder.toFile().mkdir()
+            for ((contractId, c4) in singleExecutionAdditionalOutput.contractsC4) {
+                val contractOutputFolder = executionFolder / "c4_$contractId"
+                contractOutputFolder.toFile().mkdir()
+                c4.dumpCellToFolder(contractOutputFolder)
+            }
+            for ((inputId, msgBodyCell) in singleExecutionAdditionalOutput.additionalInputs) {
+                val additionalInputsOutputFolder = outputDirPath / "msgBody_$inputId"
+                additionalInputsOutputFolder.toFile().mkdir()
+                msgBodyCell.dumpCellToFolder(additionalInputsOutputFolder)
+            }
+        }
+    }
+
+    private fun extractedAdditionalInputsFromTest(result: TvmSymbolicTestSuite): List<AdditionalOutput> {
+        val toOutput =
+            result.tests.mapIndexed { index, test ->
+                val checkerContractId = 0
+                val c4s =
+                    test.contractStatesBefore
+                        .mapValues { it.value.data.toCellAsFileContent() }
+                        .filter { it.key != checkerContractId }
+                val messageBodies =
+                    test.additionalInputs
+                        .toList()
+                        .mapNotNull { (contractId, testInput) ->
+                            if (testInput is TvmTestInput.RecvInternalInput && contractId != checkerContractId) {
+                                contractId to testInput.msgBody.toStrippedCell().toCellAsFileContent()
+                            } else {
+                                null
+                            }
+                        }.toMap()
+                AdditionalOutput(index, c4s, messageBodies)
+            }
+        return toOutput
     }
 }
+
+private fun TvmTestSliceValue.toStrippedCell(): TvmTestDataCellValue =
+    TvmTestDataCellValue(
+        data = cell.data.drop(dataPos),
+        refs = cell.refs.drop(refPos),
+        knownTypes = cell.knownTypes,
+    )
