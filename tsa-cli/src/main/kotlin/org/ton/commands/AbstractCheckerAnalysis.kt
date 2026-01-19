@@ -3,10 +3,12 @@ package org.ton.commands
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.path
 import org.ton.CellAsFileContent
 import org.ton.TvmInputInfo
@@ -22,6 +24,7 @@ import org.ton.sarif.toSarifReport
 import org.ton.toCellAsFileContent
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
+import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestInput
@@ -62,6 +65,10 @@ sealed class AbstractCheckerAnalysis(
     protected val additionalInputsOutputDir by option("-a", "--additional-output")
         .path(mustExist = false)
         .help("Folder where to put additional test information (such as C4 of contracts the beginning of an execution)")
+
+    protected val includeSoftFailure by option().boolean().default(true).help(
+        "Include the executions that ended with Soft Failure",
+    )
 
     private val concreteData: List<NullablePath> by option("-d", "--data")
         .help {
@@ -141,8 +148,14 @@ sealed class AbstractCheckerAnalysis(
                 analysisOptions = analysisOptions,
                 turnOnTLBParsingChecks = false,
                 useReceiverInput = false,
-            ).let {
-                TvmSymbolicTestSuite(it.methodId, it.methodCoverage, it.tests.filter { true })
+            ).let { testSuite ->
+                TvmSymbolicTestSuite(
+                    testSuite.methodId,
+                    testSuite.methodCoverage,
+                    testSuite.tests.filter {
+                        includeSoftFailure || it.result !is TvmExecutionWithSoftFailure
+                    },
+                )
             }
 
         val sarifReport =
