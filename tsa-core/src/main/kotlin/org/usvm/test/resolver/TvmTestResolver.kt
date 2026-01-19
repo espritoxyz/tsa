@@ -175,7 +175,7 @@ data class TvmTestDebugInfo(
 )
 
 /**
- * @param data is C4 before the beginning of an execution
+ * @param data C4 before the beginning of an execution
  */
 data class TvmContractState(
     val data: TvmTestCellValue,

@@ -26,9 +26,8 @@ import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTestSuite
-import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestInput
-import org.usvm.test.resolver.TvmTestSliceValue
+import org.usvm.test.resolver.truncateSliceCell
 import java.nio.file.Path
 import kotlin.io.path.div
 import kotlin.io.path.writeText
@@ -38,7 +37,7 @@ import kotlin.io.path.writeText
  * @param additionalInputs maps from additionalInput indices; the values are the cells the original msgBodies
  * pointed to that were cut by dataPos and refPos fields of the original slices
  */
-private data class AdditionalOutput(
+private data class ExportedInputs(
     val index: Int,
     val contractsC4: Map<Int, CellAsFileContent>,
     val additionalInputs: Map<Int, CellAsFileContent>,
@@ -63,11 +62,11 @@ sealed class AbstractCheckerAnalysis(
 
     protected val pathOptionDescriptor = option().path(mustExist = true, canBeFile = true, canBeDir = false)
     protected val additionalInputsOutputDir by option("-a", "--additional-output")
-        .path(mustExist = false)
+        .path(mustExist = false, canBeDir = true, canBeFile = false)
         .help("Folder where to put additional test information (such as C4 of contracts the beginning of an execution)")
 
     protected val includeSoftFailure by option().boolean().default(true).help(
-        "Include the executions that ended with Soft Failure",
+        "Include the executions that ended with Soft Failure into the report",
     )
 
     private val concreteData: List<NullablePath> by option("-d", "--data")
@@ -181,7 +180,7 @@ sealed class AbstractCheckerAnalysis(
     }
 
     private fun dumpAdditionalInputs(
-        additionalInputs: List<AdditionalOutput>,
+        additionalInputs: List<ExportedInputs>,
         outputDirPath: Path,
     ) {
         for (singleExecutionAdditionalOutput in additionalInputs) {
@@ -200,7 +199,7 @@ sealed class AbstractCheckerAnalysis(
         }
     }
 
-    private fun extractedAdditionalInputsFromTest(result: TvmSymbolicTestSuite): List<AdditionalOutput> {
+    private fun extractedAdditionalInputsFromTest(result: TvmSymbolicTestSuite): List<ExportedInputs> {
         val toOutput =
             result.tests.mapIndexed { index, test ->
                 val checkerContractId = 0
@@ -213,20 +212,13 @@ sealed class AbstractCheckerAnalysis(
                         .toList()
                         .mapNotNull { (contractId, testInput) ->
                             if (testInput is TvmTestInput.RecvInternalInput && contractId != checkerContractId) {
-                                contractId to testInput.msgBody.toStrippedCell().toCellAsFileContent()
+                                contractId to truncateSliceCell(testInput.msgBody).toCellAsFileContent()
                             } else {
                                 null
                             }
                         }.toMap()
-                AdditionalOutput(index, c4s, messageBodies)
+                ExportedInputs(index, c4s, messageBodies)
             }
         return toOutput
     }
 }
-
-private fun TvmTestSliceValue.toStrippedCell(): TvmTestDataCellValue =
-    TvmTestDataCellValue(
-        data = cell.data.drop(dataPos),
-        refs = cell.refs.drop(refPos),
-        knownTypes = cell.knownTypes,
-    )
