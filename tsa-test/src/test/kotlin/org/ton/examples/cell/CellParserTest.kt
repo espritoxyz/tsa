@@ -22,9 +22,21 @@ class CellParserTest {
             cellUnderTest = CellBuilder().storeInt(3, 5).endCell(),
             knownTypes =
                 listOf(
-                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.LittleEndian), 0),
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.BigEndian), 0),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Integer(3, 5, 0)),
+            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Integer(value = 3, width = 5, offset = 0)),
+        )
+    }
+
+    @Test
+    fun `single integer underflow`() {
+        baseTestWithFullCellCoverage(
+            cellUnderTest = CellBuilder().storeInt(3, 5).endCell(),
+            knownTypes =
+                listOf(
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.BigEndian), 1),
+                ),
+            expected = listOf<TvmTestCellElement>(), // no successfull reads
         )
     }
 
@@ -34,13 +46,13 @@ class CellParserTest {
             cellUnderTest = CellBuilder().storeInt(3, 5).storeInt(7, 19).endCell(),
             knownTypes =
                 listOf(
-                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.LittleEndian), 0),
-                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(19, false, Endian.LittleEndian), 5),
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.BigEndian), 0),
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(19, false, Endian.BigEndian), 5),
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.Integer(3, 5, 0),
-                    TvmTestCellElement.Integer(7, 19, 5),
+                    TvmTestCellElement.Integer(value = 3, width = 5, offset = 0),
+                    TvmTestCellElement.Integer(value = 7, width = 19, offset = 5),
                 ),
         )
     }
@@ -56,9 +68,9 @@ class CellParserTest {
                     .endCell(),
             knownTypes =
                 listOf(
-                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.LittleEndian), 0),
-                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(19, false, Endian.LittleEndian), 5),
-                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(6, false, Endian.LittleEndian), 5 + 19),
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.BigEndian), 0),
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(19, false, Endian.BigEndian), 5),
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(6, false, Endian.BigEndian), 5 + 19),
                 ),
             expected =
                 listOf<TvmTestCellElement>(
@@ -82,7 +94,10 @@ class CellParserTest {
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 0),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Coin(5, 4, 0)),
+            expected =
+                listOf<TvmTestCellElement>(
+                    TvmTestCellElement.Coin(gramsValue = 5, nanogramsWidth = 4, offset = 0),
+                ),
         )
     }
 
@@ -109,7 +124,7 @@ class CellParserTest {
             cellUnderTest = CellBuilder().storeInt(4, 5).storeCoin(13, 2).endCell(),
             knownTypes =
                 listOf(
-                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, true, Endian.LittleEndian), 0),
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, true, Endian.BigEndian), 0),
                     TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 5),
                 ),
             expected =
@@ -143,8 +158,8 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.BitArray("0010", 4, 0),
-                    TvmTestCellElement.MaybeConstructor(4),
+                    TvmTestCellElement.BitArray(data = "0010", width = 4, offset = 0),
+                    TvmTestCellElement.MaybeConstructor(begin = 4, isJust = true),
                 ),
         )
     }
@@ -161,7 +176,7 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.AddressRead(TvmTestCellElement.AddressKind.NONE, 0),
+                    TvmTestCellElement.AddressRead.None(0),
                 ),
         )
     }
@@ -178,8 +193,8 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.AddressRead(TvmTestCellElement.AddressKind.NONE, 0),
-                    TvmTestCellElement.AddressRead(TvmTestCellElement.AddressKind.STD, 2),
+                    TvmTestCellElement.AddressRead.None(0),
+                    TvmTestCellElement.AddressRead.Std(2, addressStd),
                 ),
         )
     }
@@ -198,9 +213,11 @@ class CellParserTest {
             TvmTestDataCellValue(dataBits, listOf(), knownTypes)
         val elems = getElements(testCell)
         assertEquals(expected, elems)
-        assertEquals(0, elems.first().cellRange.begin)
-        for ((cur, next) in elems.windowed(2)) {
-            assertEquals(cur.cellRange.end, next.cellRange.begin)
+        if (elems.isNotEmpty()) {
+            assertEquals(0, elems.first().cellRange.begin)
+            for ((cur, next) in elems.windowed(2)) {
+                assertEquals(cur.cellRange.end, next.cellRange.begin)
+            }
         }
     }
 
