@@ -710,11 +710,18 @@ class TvmInterpreter(
             return postProcessState(clonedOldState)
         }
 
+    private fun formatTsaInstruction(stmt: TvmInst): String =
+        if (stmt is TvmArtificialInst) {
+            stmt.mnemonic
+        } else {
+            formatInstruction(stmt, includeTvmCell = false)
+        }
+
     override fun step(state: TvmState): StepResult<TvmState> {
         val stmt = state.lastStmt
         logger.debug("Current contract: {}", state.currentContract)
         logger.debug("State id: {}", state.id)
-        logger.debug("Executing: {} (class {})", formatInstruction(stmt, includeTvmCell = false), stmt.javaClass.name)
+        logger.debug("Executing: {} (class {})", formatTsaInstruction(stmt), stmt.javaClass.name)
 
         val initialGasUsage = state.gasUsageHistory
 
@@ -849,39 +856,45 @@ class TvmInterpreter(
         scope.consumeDefaultGas(stmt)
 
         when (stmt) {
-            is TvmStackComplexBlkdrop2Inst ->
+            is TvmStackComplexBlkdrop2Inst -> {
                 scope.doWithState {
                     stack.blkDrop2(stmt.i, stmt.j)
                 }
+            }
 
-            is TvmStackComplexReverseInst ->
+            is TvmStackComplexReverseInst -> {
                 scope.doWithState {
                     stack.reverse(stmt.i + 2, stmt.j)
                 }
+            }
 
-            is TvmStackComplexBlkswapInst ->
+            is TvmStackComplexBlkswapInst -> {
                 scope.doWithState {
                     stack.doBlkSwap(stmt.i, stmt.j)
                 }
+            }
 
-            is TvmStackComplexRotInst ->
+            is TvmStackComplexRotInst -> {
                 scope.doWithState {
                     stack.doBlkSwap(0, 1)
                 }
+            }
 
-            is TvmStackComplexBlkdropInst ->
+            is TvmStackComplexBlkdropInst -> {
                 scope.doWithState {
                     stack.blkDrop2(stmt.i, 0)
                 }
+            }
 
-            is TvmStackComplexBlkpushInst ->
+            is TvmStackComplexBlkpushInst -> {
                 scope.doWithState {
                     repeat(stmt.i) {
                         stack.push(stmt.j)
                     }
                 }
+            }
 
-            is TvmStackComplexBlkswxInst ->
+            is TvmStackComplexBlkswxInst -> {
                 scope.doWithState {
                     val j = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val i = takeLastIntOrThrowTypeError() ?: return@doWithState
@@ -889,98 +902,117 @@ class TvmInterpreter(
                     val concreteJ = j.extractConcrete(stmt)
                     stack.doBlkSwap(concreteI - 1, concreteJ - 1)
                 }
+            }
 
-            is TvmStackComplexDrop2Inst ->
+            is TvmStackComplexDrop2Inst -> {
                 scope.doWithState {
                     stack.pop(0)
                     stack.pop(0)
                 }
+            }
 
-            is TvmStackComplexDropxInst ->
+            is TvmStackComplexDropxInst -> {
                 scope.doWithState {
                     val i = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val concreteI = i.extractConcrete(stmt)
                     stack.blkDrop2(concreteI, 0)
                 }
+            }
 
-            is TvmStackComplexDup2Inst ->
+            is TvmStackComplexDup2Inst -> {
                 scope.doWithState {
                     stack.push(1)
                     stack.push(1)
                 }
+            }
 
-            is TvmStackComplexPopLongInst -> doPop(scope, stmt.i)
+            is TvmStackComplexPopLongInst -> {
+                doPop(scope, stmt.i)
+            }
 
-            is TvmStackComplexPush2Inst ->
+            is TvmStackComplexPush2Inst -> {
                 scope.doWithState {
                     stack.push(stmt.i)
                     stack.push(stmt.j + 1)
                 }
+            }
 
-            is TvmStackComplexPush3Inst ->
+            is TvmStackComplexPush3Inst -> {
                 scope.doWithState {
                     stack.push(stmt.i)
                     stack.push(stmt.j + 1)
                     stack.push(stmt.k + 2)
                 }
+            }
 
-            is TvmStackComplexPushLongInst -> doPush(scope, stmt.i)
+            is TvmStackComplexPushLongInst -> {
+                doPush(scope, stmt.i)
+            }
 
-            is TvmStackComplexXchg2Inst ->
+            is TvmStackComplexXchg2Inst -> {
                 scope.doWithState {
                     stack.doXchg2(stmt.i, stmt.j)
                 }
+            }
 
-            is TvmStackComplexOver2Inst ->
+            is TvmStackComplexOver2Inst -> {
                 scope.doWithState {
                     stack.push(3)
                     stack.push(3)
                 }
+            }
 
-            is TvmStackComplexSwap2Inst ->
+            is TvmStackComplexSwap2Inst -> {
                 scope.doWithState {
                     stack.doBlkSwap(1, 1)
                 }
+            }
 
-            is TvmStackComplexXcpuInst ->
+            is TvmStackComplexXcpuInst -> {
                 scope.doWithState {
                     stack.swap(stmt.i, 0)
                     stack.push(stmt.j)
                 }
+            }
 
-            is TvmStackComplexTuckInst ->
+            is TvmStackComplexTuckInst -> {
                 scope.doWithState {
                     stack.swap(0, 1)
                     stack.push(1)
                 }
+            }
 
-            is TvmStackComplexMinusrollxInst ->
+            is TvmStackComplexMinusrollxInst -> {
                 scope.doWithState {
                     val i = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val concreteI = i.extractConcrete(stmt)
                     stack.doBlkSwap(concreteI - 1, 0)
                 }
+            }
 
-            is TvmStackComplexRollxInst ->
+            is TvmStackComplexRollxInst -> {
                 scope.doWithState {
                     val i = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val concreteI = i.extractConcrete(stmt)
                     stack.doBlkSwap(0, concreteI - 1)
                 }
+            }
 
-            is TvmStackComplexPickInst ->
+            is TvmStackComplexPickInst -> {
                 scope.doWithState {
                     val i = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val concreteI = i.extractConcrete(stmt)
                     stack.push(concreteI)
                 }
+            }
 
-            is TvmStackComplexPuxcInst ->
+            is TvmStackComplexPuxcInst -> {
                 scope.doWithState {
                     stack.doPuxc(stmt.i, stmt.j - 1)
                 }
+            }
 
-            is TvmStackComplexRevxInst ->
+            is TvmStackComplexRevxInst -> {
                 scope.doWithState {
                     val j = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val i = takeLastIntOrThrowTypeError() ?: return@doWithState
@@ -988,76 +1020,95 @@ class TvmInterpreter(
                     val concreteJ = j.extractConcrete(stmt)
                     stack.reverse(concreteI, concreteJ)
                 }
+            }
 
-            is TvmStackComplexRotrevInst ->
+            is TvmStackComplexRotrevInst -> {
                 scope.doWithState {
                     stack.swap(1, 2)
                     stack.swap(0, 2)
                 }
+            }
 
-            is TvmStackComplexXchgxInst ->
+            is TvmStackComplexXchgxInst -> {
                 scope.doWithState {
                     val i = takeLastIntOrThrowTypeError() ?: return@doWithState
                     val concreteI = i.extractConcrete(stmt)
                     stack.swap(0, concreteI)
                 }
+            }
 
-            is TvmStackComplexPu2xcInst ->
+            is TvmStackComplexPu2xcInst -> {
                 scope.doWithState {
                     stack.push(stmt.i)
                     stack.swap(0, 1)
                     stack.doPuxc(stmt.j, stmt.k - 1)
                 }
+            }
 
-            is TvmStackComplexPuxc2Inst ->
+            is TvmStackComplexPuxc2Inst -> {
                 scope.doWithState {
                     stack.push(stmt.i)
                     stack.swap(0, 2)
                     stack.doXchg2(stmt.j, stmt.k)
                 }
+            }
 
-            is TvmStackComplexPuxcpuInst ->
+            is TvmStackComplexPuxcpuInst -> {
                 scope.doWithState {
                     stack.doPuxc(stmt.i, stmt.j - 1)
                     stack.push(stmt.k)
                 }
+            }
 
-            is TvmStackComplexXc2puInst ->
+            is TvmStackComplexXc2puInst -> {
                 scope.doWithState {
                     stack.doXchg2(stmt.i, stmt.j)
                     stack.push(stmt.k)
                 }
+            }
 
-            is TvmStackComplexXchg3Inst ->
+            is TvmStackComplexXchg3Inst -> {
                 scope.doWithState {
                     stack.doXchg3(stmt.i, stmt.j, stmt.k)
                 }
+            }
 
-            is TvmStackComplexXchg3AltInst ->
+            is TvmStackComplexXchg3AltInst -> {
                 scope.doWithState {
                     stack.doXchg3(stmt.i, stmt.j, stmt.k)
                 }
+            }
 
-            is TvmStackComplexXcpu2Inst ->
+            is TvmStackComplexXcpu2Inst -> {
                 scope.doWithState {
                     stack.swap(stmt.i, 0)
                     stack.push(stmt.j)
                     stack.push(stmt.k + 1)
                 }
+            }
 
-            is TvmStackComplexXcpuxcInst ->
+            is TvmStackComplexXcpuxcInst -> {
                 scope.doWithState {
                     stack.swap(1, stmt.i)
                     stack.doPuxc(stmt.j, stmt.k - 1)
                 }
+            }
 
-            is TvmStackComplexDepthInst -> TODO("Cannot implement stack depth yet (TvmStackComplexDepthInst)")
+            is TvmStackComplexDepthInst -> {
+                TODO("Cannot implement stack depth yet (TvmStackComplexDepthInst)")
+            }
 
-            is TvmStackComplexChkdepthInst -> TODO("Cannot implement stack depth yet (TvmStackComplexChkdepthInst)")
+            is TvmStackComplexChkdepthInst -> {
+                TODO("Cannot implement stack depth yet (TvmStackComplexChkdepthInst)")
+            }
 
-            is TvmStackComplexOnlytopxInst -> TODO("??")
+            is TvmStackComplexOnlytopxInst -> {
+                TODO("??")
+            }
 
-            is TvmStackComplexOnlyxInst -> TODO("??")
+            is TvmStackComplexOnlyxInst -> {
+                TODO("??")
+            }
         }
 
         scope.doWithState {

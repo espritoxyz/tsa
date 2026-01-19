@@ -146,7 +146,6 @@ class TvmContext(
     val throwBadDestinationAddress: (TvmState) -> Unit = {
         it.setExit(TvmResult.TvmSoftFailure(TvmBadDestinationAddress(it.currentContract), it.phase))
     }
-
     val throwStackUnderflowError: (TvmState) -> Unit = setFailure(TvmStackUnderflowError)
     val throwStackOverflowError: (TvmState) -> Unit = setFailure(TvmStackOverflowError)
     val throwIntegerOverflowError: (TvmState) -> Unit = setFailure(TvmIntegerOverflowError)

@@ -27,6 +27,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.api.readField
+import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isFalse
 import org.usvm.isStatic
 import org.usvm.isTrue
@@ -34,6 +35,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
@@ -334,12 +336,24 @@ class TvmTestStateResolver(
             }
         }
 
-    fun resolveOutMessages(): List<Pair<ContractId, TvmTestMessage>> =
+    fun resolveOutMessages(): List<Pair<ContractId, TvmTestMessage?>> =
         state.unprocessedMessages.map { (contractId, message) ->
             // workaround to support the resolving of the message even in failed states
             val oldIsExceptional = state.isExceptional
             state.isExceptional = false
-            val result = contractId to resolveOutMessage(message.toStackArgs(state))
+
+            val scope =
+                TvmStepScopeManager(state, UForkBlackList.Companion.createDefault(), allowFailuresOnCurrentStep = false)
+            val messageStackArgs = message.toStackArgs(scope, quietBlock = { /*do nothing*/ })
+            val result = contractId to messageStackArgs?.let { resolveOutMessage(it) }
+
+            val stepResult = scope.stepResult()
+            check(stepResult.originalStateAlive) {
+                "Original state died while building full message"
+            }
+            check(stepResult.forkedStates.none()) {
+                "Unexpected forks while building full message"
+            }
             state.isExceptional = oldIsExceptional
             result
         }

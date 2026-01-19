@@ -20,6 +20,8 @@ global int flag_in;
         tsa_assert(op == 500);
     } elseif (input_id == 5) {
         tsa_assert(op == 600);
+    } elseif (input_id == 6) {
+        tsa_assert(op == 700);
     }
     tsa_allow_failures();
 }
