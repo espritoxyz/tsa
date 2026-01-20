@@ -89,7 +89,7 @@ class InterContractAnalysis :
         val result =
             performAnalysisInterContract(
                 contracts,
-                concreteContractData = contracts.map { TvmConcreteContractData() }, // TODO: support conrete data
+                concreteContractData = contracts.map { TvmConcreteContractData() }, // TODO: support concrete data
                 interContractSchemePath,
                 startContractId,
                 methodId = methodId.toMethodId(),
@@ -97,13 +97,13 @@ class InterContractAnalysis :
                 analysisOptions = analysisOptions,
                 turnOnTLBParsingChecks = false,
                 useReceiverInput = true,
+                sarifOptions = sarifOptions,
             )
 
         val sarifReport =
             result.toSarifReport(
                 methodsMapping = emptyMap(),
                 useShortenedOutput = false,
-                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
             )
 
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {

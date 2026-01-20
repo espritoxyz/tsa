@@ -22,10 +22,7 @@ import org.ton.sarif.toSarifReport
 import org.ton.toCellAsFileContent
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
-import org.usvm.machine.state.TvmUserDefinedFailure
-import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTestSuite
-import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput
 import org.usvm.test.resolver.truncateSliceCell
 import java.nio.file.Path
@@ -63,7 +60,7 @@ sealed class AbstractCheckerAnalysis(
         .help("Scheme of the inter-contract communication.")
 
     protected val pathOptionDescriptor = option().path(mustExist = true, canBeFile = true, canBeDir = false)
-    protected val exportedInputs by option("-a", "--exported-inputs")
+    protected val exportedInputs by option("-e", "--exported-inputs")
         .path(mustExist = false, canBeDir = true, canBeFile = false)
         .help("Folder where to put additional test information (such as C4 of contracts the beginning of an execution)")
 
@@ -145,29 +142,13 @@ sealed class AbstractCheckerAnalysis(
                 analysisOptions = analysisOptions,
                 turnOnTLBParsingChecks = false,
                 useReceiverInput = false,
-            ).let { testSuite ->
-                // we want to filter here so the data is consistent between SARIF and other output artifacts
-                TvmSymbolicTestSuite(
-                    testSuite.methodId,
-                    testSuite.methodCoverage,
-                    testSuite.tests.filter {
-                        val result = it.result
-                        val softFailurePasses =
-                            !sarifOptions.excludeUserDefinedErrors || result !is TvmExecutionWithSoftFailure
-                        val userDefinedErrorPasses =
-                            !sarifOptions.excludeSoftFailures ||
-                                result !is TvmTestFailure ||
-                                result.failure.exit is TvmUserDefinedFailure
-                        softFailurePasses && userDefinedErrorPasses
-                    },
-                )
-            }
+                sarifOptions = sarifOptions,
+            )
 
         val sarifReport =
             result.toSarifReport(
                 methodsMapping = emptyMap(),
                 useShortenedOutput = false,
-                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
             )
 
         val outputDirPath = exportedInputs

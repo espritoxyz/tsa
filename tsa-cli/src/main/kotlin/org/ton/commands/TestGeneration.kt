@@ -14,6 +14,7 @@ import org.ton.options.ContractProperties
 import org.ton.options.ContractSources
 import org.ton.options.ContractType
 import org.ton.options.FiftOptions
+import org.ton.options.SarifOptions
 import org.ton.options.SinglePath
 import org.ton.options.TactOptions
 import org.ton.options.TactPath
@@ -68,7 +69,9 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
 
         val (sourcesAbsolutePath, sourcesRelativePath) =
             when (val optionSources = contractSources) {
-                is SinglePath -> optionSources.path.let { toAbsolutePath(it) to it }
+                is SinglePath -> {
+                    optionSources.path.let { toAbsolutePath(it) to it }
+                }
 
                 is TactPath -> {
                     val configAbsolutePath = toAbsolutePath(optionSources.tactPath.configPath)
@@ -84,7 +87,6 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
                 ContractType.Func -> FuncAnalyzer(fiftOptions.fiftStdlibPath)
                 ContractType.Boc -> BocAnalyzer
                 ContractType.Tact -> tactAnalyzer
-
                 ContractType.Fift -> error("Fift is not supported")
             }
 
@@ -96,6 +98,7 @@ class TestGeneration : CliktCommand(name = "test-gen", help = "Options for test 
                 target,
                 tlbOptions,
                 analysisOptions,
+                sarifOptions = SarifOptions(),
             )
 
         val testGenContractType =

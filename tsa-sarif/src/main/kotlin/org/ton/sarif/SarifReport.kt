@@ -15,7 +15,6 @@ import org.ton.bigint.BigIntSerializer
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmContractCode
 import org.usvm.machine.state.TvmResult.TvmFailure
-import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
@@ -26,10 +25,7 @@ import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestFailure
 import java.math.BigInteger
 
-fun TvmContractSymbolicTestResult.toSarifReport(
-    methodsMapping: Map<MethodId, String>,
-    excludeUserDefinedErrors: Boolean = false,
-): String =
+fun TvmContractSymbolicTestResult.toSarifReport(methodsMapping: Map<MethodId, String>): String =
     SarifSchema210(
         schema = TsaSarifSchema.SCHEMA,
         version = TsaSarifSchema.VERSION,
@@ -37,7 +33,7 @@ fun TvmContractSymbolicTestResult.toSarifReport(
             listOf(
                 Run(
                     tool = TsaSarifSchema.TsaSarifTool.TOOL,
-                    results = testSuites.flatMap { it.toSarifResult(methodsMapping, excludeUserDefinedErrors) },
+                    results = testSuites.flatMap { it.toSarifResult(methodsMapping) },
                     properties =
                         PropertyBag(
                             mapOf(
@@ -66,15 +62,12 @@ private val json =
         encodeDefaults = true
     }
 
-private fun TvmSymbolicTestSuite.toSarifResult(
-    methodsMapping: Map<MethodId, String>,
-    excludeUserDefinedErrors: Boolean,
-): List<Result> = tests.toSarifResult(methodsMapping, excludeUserDefinedErrors = excludeUserDefinedErrors)
+private fun TvmSymbolicTestSuite.toSarifResult(methodsMapping: Map<MethodId, String>): List<Result> =
+    tests.toSarifResult(methodsMapping)
 
 fun List<TvmSymbolicTest>.toSarifReport(
     methodsMapping: Map<MethodId, String>,
     useShortenedOutput: Boolean,
-    excludeUserDefinedErrors: Boolean,
 ): String =
     SarifSchema210(
         schema = TsaSarifSchema.SCHEMA,
@@ -83,23 +76,19 @@ fun List<TvmSymbolicTest>.toSarifReport(
             listOf(
                 Run(
                     tool = TsaSarifSchema.TsaSarifTool.TOOL,
-                    results = toSarifResult(methodsMapping, excludeUserDefinedErrors, useShortenedOutput),
+                    results = toSarifResult(methodsMapping, useShortenedOutput),
                 ),
             ),
     ).let { TvmContractCode.json.encodeToString(it) }
 
 private fun List<TvmSymbolicTest>.toSarifResult(
     methodsMapping: Map<MethodId, String>,
-    excludeUserDefinedErrors: Boolean,
     useShortenedOutput: Boolean = false,
 ) = mapNotNull {
     val (ruleId, message) =
         when (it.result) {
             is TvmTestFailure -> {
                 val methodFailure = it.result as TvmTestFailure
-                if (methodFailure.failure.exit is TvmUserDefinedFailure && excludeUserDefinedErrors) {
-                    return@mapNotNull null
-                }
                 resolveRuleId(methodFailure.failure) to methodFailure.failure.toString()
             }
 

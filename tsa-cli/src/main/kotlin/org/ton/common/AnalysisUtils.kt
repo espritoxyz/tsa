@@ -8,6 +8,7 @@ import org.ton.options.AllMethods
 import org.ton.options.AnalysisOptions
 import org.ton.options.AnalysisTarget
 import org.ton.options.Receivers
+import org.ton.options.SarifOptions
 import org.ton.options.SpecificMethod
 import org.ton.options.TlbCLIOptions
 import org.usvm.machine.ExploreExitCodesStopStrategy
@@ -20,11 +21,15 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.hexToCell
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.machine.toMethodId
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
+import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSymbolicTestSuite
+import org.usvm.test.resolver.TvmTestFailure
 import java.math.BigInteger
 import java.nio.file.Path
+import kotlin.collections.filter
 import kotlin.io.path.readText
 import kotlin.time.Duration.Companion.INFINITE
 import kotlin.time.Duration.Companion.seconds
@@ -72,6 +77,7 @@ fun <SourcesDescription> performAnalysis(
     target: AnalysisTarget,
     tlbOptions: TlbCLIOptions,
     analysisOptions: AnalysisOptions,
+    sarifOptions: SarifOptions,
 ): TvmContractSymbolicTestResult {
     val options =
         createTvmOptions(
@@ -126,7 +132,7 @@ fun <SourcesDescription> performAnalysis(
 
     writeCoveredInstructions(analysisOptions, result)
 
-    return result
+    return TvmContractSymbolicTestResult(result.testSuites.map { testSuite -> filterTests(testSuite, sarifOptions) })
 }
 
 fun performAnalysisInterContract(
@@ -139,6 +145,7 @@ fun performAnalysisInterContract(
     analysisOptions: AnalysisOptions,
     turnOnTLBParsingChecks: Boolean,
     useReceiverInput: Boolean,
+    sarifOptions: SarifOptions,
 ): TvmSymbolicTestSuite {
     val options =
         createTvmOptions(
@@ -169,5 +176,28 @@ fun performAnalysisInterContract(
 
     writeCoveredInstructions(analysisOptions, result)
 
-    return result
+    return filterTests(result, sarifOptions)
+}
+
+private fun filterTests(
+    testSuite: TvmSymbolicTestSuite,
+    sarifOptions: SarifOptions,
+): TvmSymbolicTestSuite {
+    val filteredResult =
+        TvmSymbolicTestSuite(
+            testSuite.methodId,
+            testSuite.methodCoverage,
+            testSuite.tests.filter {
+                val result = it.result
+                val softFailurePasses =
+                    !sarifOptions.excludeUserDefinedErrors ||
+                        result !is TvmExecutionWithSoftFailure
+                val userDefinedErrorPasses =
+                    !sarifOptions.excludeSoftFailures ||
+                        result !is TvmTestFailure ||
+                        result.failure.exit is TvmUserDefinedFailure
+                softFailurePasses && userDefinedErrorPasses
+            },
+        )
+    return filteredResult
 }
