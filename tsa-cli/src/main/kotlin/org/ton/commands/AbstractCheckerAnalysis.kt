@@ -15,9 +15,16 @@ import org.ton.bytecode.TsaContractCode
 import org.ton.common.performAnalysisInterContract
 import org.ton.dumpCellToFolder
 import org.ton.options.AnalysisOptions
+import org.ton.options.BalanceOption
+import org.ton.options.CustomOption
 import org.ton.options.NullablePath
 import org.ton.options.SarifOptions
+import org.ton.options.StringOption
 import org.ton.options.TlbCLIOptions
+import org.ton.options.get
+import org.ton.options.parseAddress
+import org.ton.options.parseBalance
+import org.ton.options.validateData
 import org.ton.sarif.toSarifReport
 import org.ton.toCellAsFileContent
 import org.usvm.machine.TvmConcreteContractData
@@ -90,6 +97,17 @@ sealed class AbstractCheckerAnalysis(
                 "If data specified, number of data paths should be equal to the number of contracts (excluding checker contract)"
             }
         }
+    private val balances: List<BalanceOption> by option("-b", "--balance")
+        .help("Balances of contracts in nanotons; use '-' for an unconstrained balance")
+        .convert { value ->
+            value.parseBalance()
+        }.multiple()
+
+    private val addresses: List<StringOption> by option("-a", "--address")
+        .help("Balances of contracts in nanotons. Use '-' for unconstrained balance. Only workchain_id=0 is supported")
+        .convert { value ->
+            value.parseAddress()
+        }.multiple()
 
     private val analysisOptions by AnalysisOptions()
 
@@ -118,14 +136,37 @@ sealed class AbstractCheckerAnalysis(
                 TvmConcreteContractData(contractC4 = dataCell)
             } ?: TvmConcreteContractData()
 
+        val concreteData =
+            concreteData.ifEmpty {
+                contractsToAnalyze.map { NullablePath(null) }
+            }
+        val balances =
+            balances.validateData("balance").ifEmpty {
+                contractsToAnalyze.map { CustomOption.None }
+            }
+        val addresses =
+            addresses.validateData("address").ifEmpty {
+                contractsToAnalyze.map { CustomOption.None }
+            }
         val concreteContractData =
             listOf(checkerContractData) +
                 concreteData
-                    .map { path ->
-                        path.path ?: return@map TvmConcreteContractData()
-                        val bytes = path.path.toFile().readBytes()
-                        val dataCell = BagOfCells(bytes).roots.single()
-                        TvmConcreteContractData(contractC4 = dataCell)
+                    .zip(balances)
+                    .zip(addresses)
+                    .map { (tmp, address) ->
+                        val (path, balance) = tmp
+                        val dataCell =
+                            if (path.path != null) {
+                                val bytes = path.path.toFile().readBytes()
+                                BagOfCells(bytes).roots.single()
+                            } else {
+                                null
+                            }
+                        TvmConcreteContractData(
+                            contractC4 = dataCell,
+                            initialBalance = balance.get(),
+                            addressBits = address.get(),
+                        )
                     }.ifEmpty {
                         contractsToAnalyze.map { TvmConcreteContractData() }
                     }
