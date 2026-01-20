@@ -63,7 +63,7 @@ sealed class AbstractCheckerAnalysis(
         .help("Scheme of the inter-contract communication.")
 
     protected val pathOptionDescriptor = option().path(mustExist = true, canBeFile = true, canBeDir = false)
-    protected val additionalInputsOutputDir by option("-a", "--additional-output")
+    protected val exportedInputs by option("-a", "--exported-inputs")
         .path(mustExist = false, canBeDir = true, canBeFile = false)
         .help("Folder where to put additional test information (such as C4 of contracts the beginning of an execution)")
 
@@ -166,10 +166,7 @@ sealed class AbstractCheckerAnalysis(
                 excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
             )
 
-        sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
-            echo(sarifReport)
-        }
-        val outputDirPath = additionalInputsOutputDir
+        val outputDirPath = exportedInputs
         if (outputDirPath != null) {
             val additionalInputs = extractedAdditionalInputsFromTest(result)
             if (outputDirPath.exists() && outputDirPath.isDirectory()) {
@@ -181,6 +178,11 @@ sealed class AbstractCheckerAnalysis(
             } else {
                 dumpAdditionalInputs(additionalInputs, outputDirPath)
             }
+        }
+        // we might want to write SARIF into the exported-inputs folder, so we
+        // only write SARIF after we've cleaned up the folder and filled it with some content
+        sarifOptions.sarifPath?.writeText(sarifReport) ?: run {
+            echo(sarifReport)
         }
     }
 
