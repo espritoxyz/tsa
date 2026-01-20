@@ -174,6 +174,9 @@ data class TvmTestDebugInfo(
     val tlbMemoryMisses: Int,
 )
 
+/**
+ * @param data C4 before the beginning of an execution
+ */
 data class TvmContractState(
     val data: TvmTestCellValue,
     val balance: TvmTestIntegerValue,

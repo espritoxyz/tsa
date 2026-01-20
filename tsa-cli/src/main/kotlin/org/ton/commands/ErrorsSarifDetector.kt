@@ -35,11 +35,11 @@ sealed class ErrorsSarifDetector<SourcesDescription>(
                 target = target,
                 tlbOptions = tlbOptions,
                 analysisOptions,
+                sarifOptions,
             )
         val sarifReport =
             analysisResult.toSarifReport(
                 methodsMapping = emptyMap(),
-                excludeUserDefinedErrors = sarifOptions.excludeUserDefinedErrors,
             )
 
         sarifOptions.sarifPath?.writeText(sarifReport) ?: run {

@@ -14,4 +14,8 @@ class SarifOptions : OptionGroup("SARIF options") {
     val excludeUserDefinedErrors by option("--no-user-errors")
         .flag()
         .help("Do not report executions with user-defined errors")
+
+    val excludeSoftFailures by option("--no-soft-failures")
+        .flag()
+        .help("Do not report executions with soft failures")
 }
