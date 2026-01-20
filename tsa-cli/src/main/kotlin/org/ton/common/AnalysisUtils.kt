@@ -25,6 +25,7 @@ import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.machine.toMethodId
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
+import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestFailure
 import java.math.BigInteger
@@ -196,7 +197,9 @@ private fun filterTests(
                     !sarifOptions.excludeSoftFailures ||
                         result !is TvmTestFailure ||
                         result.failure.exit is TvmUserDefinedFailure
-                softFailurePasses && userDefinedErrorPasses
+                val isNotSuccessfullExecution =
+                    result !is TvmSuccessfulExecution
+                softFailurePasses && userDefinedErrorPasses && isNotSuccessfullExecution
             },
         )
     return filteredResult

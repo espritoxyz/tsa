@@ -175,12 +175,11 @@ sealed class AbstractCheckerAnalysis(
         additionalInputs: List<ExportedInputs>,
         outputDirPath: Path,
     ) {
-        for ((id, singleExecutionAdditionalOutput) in additionalInputs.withIndex()) {
-            val executionOutputPath = outputDirPath / "execution_$id"
-            val executionFolder = executionOutputPath / "input_${singleExecutionAdditionalOutput.index}"
-            executionFolder.toFile().mkdirs()
+        for (singleExecutionAdditionalOutput in additionalInputs) {
+            val executionOutputPath = outputDirPath / "execution_${singleExecutionAdditionalOutput.index}"
+            executionOutputPath.toFile().mkdirs()
             for ((contractId, c4) in singleExecutionAdditionalOutput.contractsC4) {
-                val contractOutputFolder = executionFolder / "c4_$contractId"
+                val contractOutputFolder = executionOutputPath / "c4_$contractId"
                 contractOutputFolder.toFile().mkdir()
                 c4.dumpCellToFolder(contractOutputFolder)
             }
