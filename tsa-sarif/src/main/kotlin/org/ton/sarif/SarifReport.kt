@@ -124,6 +124,12 @@ private fun List<TvmSymbolicTest>.toSarifResult(
                 "rootContractInitialC4" to json.encodeToJsonElement(it.rootInitialData),
                 "additionalInputs" to json.encodeToJsonElement(it.additionalInputs),
                 "events" to json.encodeToJsonElement(it.eventsList),
+                "initialBalance" to
+                    json.encodeToJsonElement(
+                        it.contractStatesBefore
+                            .map { (contractId, contractState) -> contractId to contractState.balance }
+                            .toMap(),
+                    ),
             ).toMap(),
         )
 

@@ -68,7 +68,7 @@ typealias StringOption = CustomOption<String>
 private fun <T> String.parseSafely(block: String.() -> CustomOption<T>): CustomOption<T> =
     try {
         block()
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         CustomOption.Unparsed(this)
     }
 
@@ -87,7 +87,7 @@ fun String.parseAddress(): StringOption =
         if (this == "-") {
             CustomOption.None
         } else {
-            val parts = split("2")
+            val parts = split(":")
             if (parts.size != 2) {
                 CustomOption.Unparsed(this)
             } else {
