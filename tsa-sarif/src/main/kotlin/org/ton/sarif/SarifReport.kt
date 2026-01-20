@@ -103,7 +103,7 @@ private fun List<TvmSymbolicTest>.toSarifResult(
             }
 
             is TvmSuccessfulExecution -> {
-                return@mapNotNull null
+                error("Should accept tests where successfull execution is filtered")
             }
 
             is TvmSuccessfulActionPhase -> {
