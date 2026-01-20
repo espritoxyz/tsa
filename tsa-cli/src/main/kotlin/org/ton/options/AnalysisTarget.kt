@@ -92,9 +92,12 @@ fun String.parseAddress(): StringOption =
                 CustomOption.Unparsed(this)
             } else {
                 val (workchainId, addressBits) = parts
-                workchainId.toInt()
-                val hexPart = addressBits
-                CustomOption.Parsed("1" + "0".repeat(10) + BigInteger(hexPart, 16).toString(2).padStart(256, '0'))
+                if (workchainId.toInt() != 0) {
+                    CustomOption.Unparsed(this)
+                } else {
+                    val hexPart = addressBits
+                    CustomOption.Parsed("1" + "0".repeat(10) + BigInteger(hexPart, 16).toString(2).padStart(256, '0'))
+                }
             }
         }
     }

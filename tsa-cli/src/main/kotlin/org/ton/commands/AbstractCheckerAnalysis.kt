@@ -104,7 +104,7 @@ sealed class AbstractCheckerAnalysis(
         }.multiple()
 
     private val addresses: List<StringOption> by option("-a", "--address")
-        .help("Balances of contracts in nanotons; use '-' for unconstrained balance")
+        .help("Balances of contracts in nanotons. Use '-' for unconstrained balance. Only workchain_id=0 is supported")
         .convert { value ->
             value.parseAddress()
         }.multiple()
