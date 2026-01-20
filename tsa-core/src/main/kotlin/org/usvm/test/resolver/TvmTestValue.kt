@@ -9,6 +9,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.ton.Endian
+import org.usvm.machine.TvmContext
 import java.math.BigInteger
 
 @Serializable
@@ -141,3 +142,149 @@ data class TvmCellDataTypeLoad(
     val type: TvmTestCellDataTypeRead,
     val offset: Int,
 )
+
+/**
+ * @param end exclusive
+ */
+data class CellRange(
+    val begin: Int,
+    val end: Int,
+)
+
+sealed interface TvmTestCellElement {
+    val cellRange: CellRange
+
+    data class BitArray(
+        val data: String,
+        val width: Int,
+        val offset: Int,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() = CellRange(offset, offset + width)
+    }
+
+    data class Coin(
+        val gramsValue: Int,
+        val nanogramsWidth: Int,
+        val offset: Int,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() = CellRange(offset, offset + 4 + nanogramsWidth * 8)
+    }
+
+    data class Integer(
+        val value: Int,
+        val width: Int,
+        val offset: Int,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() = CellRange(offset, offset + width)
+    }
+
+    data class MaybeConstructor(
+        val begin: Int,
+        val isJust: Boolean,
+    ) : TvmTestCellElement {
+        override val cellRange: CellRange
+            get() = CellRange(begin, begin + 1)
+    }
+
+    sealed interface AddressRead : TvmTestCellElement {
+        data class None(
+            val offset: Int,
+        ) : AddressRead {
+            override val cellRange: CellRange
+                get() = CellRange(offset, offset + 2)
+        }
+
+        data class Std(
+            val offset: Int,
+            val bits: String,
+        ) : AddressRead {
+            override val cellRange: CellRange
+                get() =
+                    CellRange(offset, offset + LENGTH_WITH_TAG)
+
+            companion object {
+                val LENGTH_WITH_TAG =
+                    TvmContext.ADDRESS_TAG_BITS.toInt() + 1 + TvmContext.STD_WORKCHAIN_BITS +
+                        TvmContext.ADDRESS_BITS
+            }
+        }
+    }
+}
+
+private fun String.strictSubstring(
+    begin: Int,
+    end: Int,
+): String? =
+    if (end <= length) {
+        substring(begin, end)
+    } else {
+        null
+    }
+
+fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
+    cell.knownTypes.mapNotNull { (type, offset) ->
+        when (type) {
+            is TvmTestCellDataBitArrayRead -> {
+                val width = type.bitSize
+                val data = cell.data.strictSubstring(offset, offset + width) ?: return@mapNotNull null
+                TvmTestCellElement.BitArray(data, width, offset)
+            }
+
+            TvmTestCellDataCoinsRead -> {
+                val actualGramsBegin = offset + 4
+                val width = cell.data.strictSubstring(offset, actualGramsBegin)?.toInt(2) ?: return@mapNotNull null
+                val value =
+                    cell.data.strictSubstring(actualGramsBegin, actualGramsBegin + width * 8)?.toInt(2)
+                        ?: return@mapNotNull null
+                TvmTestCellElement.Coin(value, width, offset)
+            }
+
+            is TvmTestCellDataIntegerRead -> {
+                val width = type.bitSize
+                val data =
+                    cell.data
+                        .strictSubstring(offset, offset + width)
+                        ?.let {
+                            if (type.endian == Endian.LittleEndian) it.reversed() else it
+                        }?.toInt(2) ?: return@mapNotNull null
+                TvmTestCellElement.Integer(data, width, offset)
+            }
+
+            TvmTestCellDataMaybeConstructorBitRead -> {
+                if (offset < cell.data.length) {
+                    TvmTestCellElement.MaybeConstructor(offset, cell.data[offset] == '1')
+                } else {
+                    null
+                }
+            }
+
+            TvmTestCellDataMsgAddrRead -> {
+                when (val tag = cell.data.substring(offset, offset + 2)) {
+                    "00" -> {
+                        if (offset + 2 <= cell.data.length) {
+                            TvmTestCellElement.AddressRead.None(offset)
+                        } else {
+                            null
+                        }
+                    }
+
+                    "10" -> {
+                        TvmTestCellElement.AddressRead.Std(
+                            offset,
+                            cell.data.strictSubstring(
+                                offset,
+                                offset + TvmTestCellElement.AddressRead.Std.LENGTH_WITH_TAG,
+                            ) ?: return@mapNotNull null,
+                        )
+                    }
+
+                    else -> {
+                        error("Unrecognized tag: $tag")
+                    }
+                }
+            }
+        }
+    }
