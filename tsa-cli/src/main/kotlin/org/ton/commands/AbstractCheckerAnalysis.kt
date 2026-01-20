@@ -15,9 +15,13 @@ import org.ton.bytecode.TsaContractCode
 import org.ton.common.performAnalysisInterContract
 import org.ton.dumpCellToFolder
 import org.ton.options.AnalysisOptions
+import org.ton.options.BalanceOption
 import org.ton.options.NullablePath
 import org.ton.options.SarifOptions
+import org.ton.options.StringOption
 import org.ton.options.TlbCLIOptions
+import org.ton.options.parseAddress
+import org.ton.options.validateData
 import org.ton.sarif.toSarifReport
 import org.ton.toCellAsFileContent
 import org.usvm.machine.TvmConcreteContractData
@@ -91,6 +95,18 @@ sealed class AbstractCheckerAnalysis(
             }
         }
 
+    private val balances: List<BalanceOption> by option("-b", "--balances")
+        .help("Balances of contracts in nanotons; use '-' for an unconstrained balance")
+        .convert { value ->
+            value.parseInt()
+        }.multiple()
+
+    private val addresses: List<StringOption> by option("-a", "--addresses")
+        .help("Balances of contracts in nanotons; use '-' for unconstrained balance")
+        .convert { value ->
+            value.parseAddress()
+        }.multiple()
+
     private val analysisOptions by AnalysisOptions()
 
     private val checkerConcreteDataPath by option("--checker-data")
@@ -118,14 +134,19 @@ sealed class AbstractCheckerAnalysis(
                 TvmConcreteContractData(contractC4 = dataCell)
             } ?: TvmConcreteContractData()
 
+        val balances = balances.validateData("balance")
+        val addresses = addresses.validateData("address")
         val concreteContractData =
             listOf(checkerContractData) +
                 concreteData
-                    .map { path ->
+                    .zip(balances)
+                    .zip(addresses)
+                    .map { (tmp, address) ->
+                        val (path, balance) = tmp
                         path.path ?: return@map TvmConcreteContractData()
                         val bytes = path.path.toFile().readBytes()
                         val dataCell = BagOfCells(bytes).roots.single()
-                        TvmConcreteContractData(contractC4 = dataCell)
+                        TvmConcreteContractData(contractC4 = dataCell, initialBalance = balance)
                     }.ifEmpty {
                         contractsToAnalyze.map { TvmConcreteContractData() }
                     }
