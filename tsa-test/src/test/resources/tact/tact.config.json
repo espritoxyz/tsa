@@ -9,6 +9,11 @@
       "name": "IntOptimization",
       "path": "./int_optimization.tact",
       "output": "./output"
+    },
+    {
+      "name": "BadCounter",
+      "path": "./counter-bad-send-rem-value.tact",
+      "output": "./output"
     }
   ]
 }
