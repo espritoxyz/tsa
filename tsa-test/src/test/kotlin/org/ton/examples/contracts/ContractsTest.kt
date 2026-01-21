@@ -14,6 +14,7 @@ import org.ton.test.utils.funcAnalyzer
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.FiftAnalyzer
+import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.toMethodId
 import kotlin.io.path.createTempFile
@@ -54,6 +55,7 @@ class ContractsTest {
     private val restrictedWalletV2Path: String = "/contracts/restricted-wallet/restricted-wallet2-code.fc"
     private val restrictedWalletV3Path: String = "/contracts/restricted-wallet/restricted-wallet3-code.fc"
     private val walletV3Path: String = "/contracts/wallet-v3/wallet-v3-code.fc"
+    private val tolkContractPath: String = "/contracts/tolk.boc"
 
     private val walletV3FiftPath: String = "/contracts/wallet-v3/wallet-v3-code.fif"
 
@@ -70,6 +72,11 @@ class ContractsTest {
          * TODO: enable test generation when resolve the issue above is fixed
          */
         analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
+    }
+
+    @Test
+    fun testSimpleTolk() {
+        analyzeSpecificMethodBoc(tolkContractPath, MethodId.ZERO, enableTestGeneration = true)
     }
 
     @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
@@ -283,7 +290,11 @@ class ContractsTest {
     ) {
         val funcResourcePath = extractResource(contractPath)
 
-        val methodStates = funcCompileAndAnalyzeAllMethods(funcResourcePath, methodsBlackList = methodsBlackList)
+        val methodStates = funcCompileAndAnalyzeAllMethods(
+            funcResourcePath,
+            methodsBlackList = methodsBlackList,
+            tvmOptions = TvmOptions(quietMode = false),
+        )
         checkAtLeastOneStateForAllMethods(methodsNumber = methodsNumber, methodStates)
 
         if (enableTestGeneration) {
@@ -307,7 +318,7 @@ class ContractsTest {
         enableTestGeneration: Boolean,
     ) {
         val fiftPath = getResourcePath<ContractsTest>(contractPath)
-        val tests = compileAndAnalyzeFift(fiftPath, methodId)
+        val tests = compileAndAnalyzeFift(fiftPath, methodId, tvmOptions = TvmOptions(quietMode = false))
         assertTrue { tests.isNotEmpty() }
         if (enableTestGeneration) {
             val bocFile = createTempFile()
@@ -330,6 +341,7 @@ class ContractsTest {
             BocAnalyzer.analyzeSpecificMethod(
                 bocPath,
                 methodId,
+                tvmOptions = TvmOptions(quietMode = false),
             )
         assertTrue { tests.isNotEmpty() }
 
