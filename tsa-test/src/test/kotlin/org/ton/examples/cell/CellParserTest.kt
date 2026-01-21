@@ -12,7 +12,6 @@ import org.usvm.test.resolver.TvmTestCellDataMsgAddrRead
 import org.usvm.test.resolver.TvmTestCellElement
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.getElements
-import org.usvm.test.resolver.toPrettyYaml
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -37,7 +36,7 @@ class CellParserTest {
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.BigEndian), 1),
                 ),
-            expected = listOf<TvmTestCellElement>(), // no successfull reads
+            expected = listOf<TvmTestCellElement>(), // no successful reads
         )
     }
 
@@ -213,7 +212,6 @@ class CellParserTest {
         val testCell =
             TvmTestDataCellValue(dataBits, listOf(), knownTypes)
         val elems = getElements(testCell)
-        println(testCell.toPrettyYaml())
         assertEquals(expected, elems)
         if (elems.isNotEmpty()) {
             assertEquals(0, elems.first().cellRange.begin)
