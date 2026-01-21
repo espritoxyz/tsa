@@ -51,7 +51,7 @@ fun CellAsFileContent.dumpCellToFolder(folder: java.nio.file.Path) {
     val bocPath = folder / "cell.boc"
     val bocHexPath = folder / "boc-hex.txt"
     val bocBase64Path = folder / "box-base64.txt"
-    val cellReadsPath = folder / "cell-reads.yaml"
+    val cellReadsPath = folder / "cell-types.yaml"
     cellTextPath.createFile().writeText(cellText, Charsets.UTF_8)
     bocPath.createFile().writeBytes(bocBinary)
     bocHexPath.createFile().writeText(bocHex, Charsets.UTF_8)
