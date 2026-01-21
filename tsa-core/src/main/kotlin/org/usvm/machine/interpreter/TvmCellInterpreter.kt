@@ -1536,7 +1536,8 @@ class TvmCellInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmCellParseXctosInst,
     ) {
-        scope.consumeDefaultGas(stmt)
+        // TODO: complex gas
+        scope.doWithState { consumeGas(126) }
 
         // TODO: Exotic cells are not supported, so we handle this instruction as CTOS
         doCellToSlice(scope, stmt) {
