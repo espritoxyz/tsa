@@ -364,7 +364,6 @@ class TvmArtificialInstInterpreter(
                                 actionsHandlingResult.failure,
                                 phase,
                             )
-                        isExceptional = true
                         newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
                     }
                 }
