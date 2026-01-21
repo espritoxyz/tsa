@@ -28,7 +28,6 @@ import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.state.takeLastBuilder
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.types.TvmBuilderType
-import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmSliceType
 
 class TvmMessageAddrInterpreter(
@@ -72,7 +71,10 @@ class TvmMessageAddrInterpreter(
         }
     }
 
-    private fun visitLdStdAddr(scope: TvmStepScopeManager, stmt: TvmAppAddrLdstdaddrInst) = with(ctx) {
+    private fun visitLdStdAddr(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppAddrLdstdaddrInst,
+    ) = with(ctx) {
         val slice =
             scope.calcOnState { takeLastSlice() }
                 ?: return scope.doWithState(throwTypeCheckError)
@@ -83,16 +85,17 @@ class TvmMessageAddrInterpreter(
             }
 
         sliceLoadAddrTlb(scope, slice, updatedSlice) { address ->
-            val prefix = calcOnState {
-                slicePreloadInt(address, sizeBits = twoSizeExpr, isSigned = false)
-            } ?: return@sliceLoadAddrTlb
+            val prefix =
+                calcOnState {
+                    slicePreloadInt(address, sizeBits = twoSizeExpr, isSigned = false)
+                } ?: return@sliceLoadAddrTlb
 
             fork(
                 prefix eq twoValue,
                 falseStateIsExceptional = true,
                 blockOnFalseState = {
                     throwUnknownCellUnderflowError(this)
-                }
+                },
             ) ?: return@sliceLoadAddrTlb
 
             doWithState {
@@ -104,12 +107,17 @@ class TvmMessageAddrInterpreter(
         }
     }
 
-    private fun visitStStdAddr(scope: TvmStepScopeManager, stmt: TvmAppAddrStstdaddrInst) = with(ctx) {
-        val builder = scope.calcOnState { takeLastBuilder() }
-            ?: return scope.doWithState(throwTypeCheckError)
+    private fun visitStStdAddr(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppAddrStstdaddrInst,
+    ) = with(ctx) {
+        val builder =
+            scope.calcOnState { takeLastBuilder() }
+                ?: return scope.doWithState(throwTypeCheckError)
 
-        val address = scope.calcOnState { takeLastSlice() }
-            ?: return scope.doWithState(throwTypeCheckError)
+        val address =
+            scope.calcOnState { takeLastSlice() }
+                ?: return scope.doWithState(throwTypeCheckError)
 
         // TODO: check if this is address
 

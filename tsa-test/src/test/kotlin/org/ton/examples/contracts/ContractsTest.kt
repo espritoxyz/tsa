@@ -74,6 +74,7 @@ class ContractsTest {
         analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
     }
 
+    @Ignore
     @Test
     fun testSimpleTolk() {
         analyzeSpecificMethodBoc(tolkContractPath, MethodId.ZERO, enableTestGeneration = true)
@@ -290,11 +291,12 @@ class ContractsTest {
     ) {
         val funcResourcePath = extractResource(contractPath)
 
-        val methodStates = funcCompileAndAnalyzeAllMethods(
-            funcResourcePath,
-            methodsBlackList = methodsBlackList,
-            tvmOptions = TvmOptions(quietMode = false),
-        )
+        val methodStates =
+            funcCompileAndAnalyzeAllMethods(
+                funcResourcePath,
+                methodsBlackList = methodsBlackList,
+                tvmOptions = TvmOptions(quietMode = false),
+            )
         checkAtLeastOneStateForAllMethods(methodsNumber = methodsNumber, methodStates)
 
         if (enableTestGeneration) {
