@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import org.ton.bytecode.TvmAppGlobalGetextrabalanceInst
 import org.ton.bytecode.TvmAppGlobalGetglobInst
 import org.ton.bytecode.TvmAppGlobalGetglobvarInst
 import org.ton.bytecode.TvmAppGlobalInst
@@ -78,6 +79,8 @@ class TvmGlobalsInterpreter(
                     setGlobalVariable(index, value)
                 }
             }
+
+            is TvmAppGlobalGetextrabalanceInst -> TODO()
         }
 
         scope.doWithState { newStmt(stmt.nextStmt()) }

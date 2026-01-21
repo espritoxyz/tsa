@@ -53,8 +53,11 @@ import org.ton.bytecode.TvmArithmDivMuladddivmodInst
 import org.ton.bytecode.TvmArithmDivMuladddivmodcInst
 import org.ton.bytecode.TvmArithmDivMuladddivmodrInst
 import org.ton.bytecode.TvmArithmDivMuladdrshiftcmodInst
+import org.ton.bytecode.TvmArithmDivMuladdrshiftcmodVarInst
 import org.ton.bytecode.TvmArithmDivMuladdrshiftmodInst
+import org.ton.bytecode.TvmArithmDivMuladdrshiftmodVarInst
 import org.ton.bytecode.TvmArithmDivMuladdrshiftrmodInst
+import org.ton.bytecode.TvmArithmDivMuladdrshiftrmodVarInst
 import org.ton.bytecode.TvmArithmDivMuldivInst
 import org.ton.bytecode.TvmArithmDivMuldivcInst
 import org.ton.bytecode.TvmArithmDivMuldivmodInst
@@ -729,6 +732,10 @@ class TvmArithDivInterpreter(
                 is TvmArithmDivMulmodpow2VarInst -> TODO()
                 is TvmArithmDivMulmodpow2cVarInst -> TODO()
                 is TvmArithmDivMulmodpow2rVarInst -> TODO()
+
+                is TvmArithmDivMuladdrshiftcmodVarInst -> TODO()
+                is TvmArithmDivMuladdrshiftmodVarInst -> TODO()
+                is TvmArithmDivMuladdrshiftrmodVarInst -> TODO()
             }
 
             scope.doWithState {

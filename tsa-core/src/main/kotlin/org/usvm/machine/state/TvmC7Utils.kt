@@ -377,7 +377,7 @@ private fun TvmState.initConfigRoot(): UHeapRef =
         val networkVersion =
             allocCellFromFields(
                 mkBvHex("c4", tagBits), // capabilities tag
-                mkBv(9, uint32Bits), // version
+                mkBv(12, uint32Bits), // version
                 mkBv(494, uint64Bits), // capabilities
             )
         addDictEntry(configDict, 8, networkVersion)
