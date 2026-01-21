@@ -74,7 +74,6 @@ class ContractsTest {
         analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
     }
 
-    @Ignore
     @Test
     fun testSimpleTolk() {
         analyzeSpecificMethodBoc(tolkContractPath, MethodId.ZERO, enableTestGeneration = true)
