@@ -76,8 +76,8 @@ fun String.parseBalance(): BalanceOption =
     if (this == "-") {
         CustomOption.None
     } else {
-        when (this.toIntOrNull()) {
-            is Int -> CustomOption.Parsed(this.toBigInteger())
+        when (this.toBigIntegerOrNull()) {
+            is BigInteger -> CustomOption.Parsed(this.toBigInteger())
             else -> CustomOption.Unparsed(this)
         }
     }
@@ -116,7 +116,7 @@ fun <T> List<CustomOption<T>>.validateData(dataKind: String): List<CustomOption.
             }
 
             is CustomOption.Unparsed -> {
-                println("Failed to parse property of kind $dataKind of value '${it.original}'")
+                System.err.println("Failed to parse property of kind $dataKind of value '${it.original}'")
                 exitProcess(-1)
             }
         }
