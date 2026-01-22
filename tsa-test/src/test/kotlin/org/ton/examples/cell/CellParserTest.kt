@@ -24,7 +24,14 @@ class CellParserTest {
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.BigEndian), 0),
                 ),
-            expected = listOf<TvmTestCellElement>(TvmTestCellElement.Integer(value = 3, width = 5, offset = 0)),
+            expected =
+                listOf<TvmTestCellElement>(
+                    TvmTestCellElement.Integer(
+                        value = 3.toBigInteger(),
+                        width = 5,
+                        offset = 0,
+                    ),
+                ),
         )
     }
 
@@ -51,8 +58,8 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.Integer(value = 3, width = 5, offset = 0),
-                    TvmTestCellElement.Integer(value = 7, width = 19, offset = 5),
+                    TvmTestCellElement.Integer(value = 3.toBigInteger(), width = 5, offset = 0),
+                    TvmTestCellElement.Integer(value = 7.toBigInteger(), width = 19, offset = 5),
                 ),
         )
     }
@@ -74,9 +81,9 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.Integer(value = 3, width = 5, offset = 0),
-                    TvmTestCellElement.Integer(value = 7, width = 19, offset = 5),
-                    TvmTestCellElement.Integer(value = 9, width = 6, offset = 5 + 19),
+                    TvmTestCellElement.Integer(value = 3.toBigInteger(), width = 5, offset = 0),
+                    TvmTestCellElement.Integer(value = 7.toBigInteger(), width = 19, offset = 5),
+                    TvmTestCellElement.Integer(value = 9.toBigInteger(), width = 6, offset = 5 + 19),
                 ),
         )
     }
@@ -96,7 +103,7 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.Coin(gramsValue = 5, nanogramsWidth = 4, offset = 0),
+                    TvmTestCellElement.Coin(gramsValue = 5.toBigInteger(), nanogramsWidth = 4, offset = 0),
                 ),
         )
     }
@@ -112,8 +119,8 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.Coin(gramsValue = 5, nanogramsWidth = 1, offset = 0),
-                    TvmTestCellElement.Coin(gramsValue = 13, nanogramsWidth = 1, offset = 12),
+                    TvmTestCellElement.Coin(gramsValue = 5.toBigInteger(), nanogramsWidth = 1, offset = 0),
+                    TvmTestCellElement.Coin(gramsValue = 13.toBigInteger(), nanogramsWidth = 1, offset = 12),
                 ),
         )
     }
@@ -129,8 +136,8 @@ class CellParserTest {
                 ),
             expected =
                 listOf<TvmTestCellElement>(
-                    TvmTestCellElement.Integer(value = 4, width = 5, offset = 0),
-                    TvmTestCellElement.Coin(gramsValue = 13, nanogramsWidth = 2, offset = 5),
+                    TvmTestCellElement.Integer(value = 4.toBigInteger(), width = 5, offset = 0),
+                    TvmTestCellElement.Coin(gramsValue = 13.toBigInteger(), nanogramsWidth = 2, offset = 5),
                 ),
         )
     }

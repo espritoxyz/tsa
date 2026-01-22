@@ -10,7 +10,7 @@ sealed interface ReadData {
     @Serializable
     @SerialName("Integer")
     data class Integer(
-        val value: Int,
+        val value: String,
     ) : ReadData
 
     @Serializable
@@ -28,7 +28,7 @@ sealed interface ReadData {
     @Serializable
     @SerialName("Coin")
     data class Coin(
-        val grams: Int,
+        val grams: String,
     ) : ReadData
 
     @Serializable
@@ -66,8 +66,9 @@ fun TvmTestCellValue.toPrettyCell(): PrettyCell =
         is TvmTestDictCellValue -> PrettyCell.DictCell
     }
 
-private fun addressBitsToRawAddress(rawAddress: String): String {
+private fun stdAddressBitsToRawAddress(rawAddress: String): String {
     val tag = rawAddress.substring(0..<2)
+    require(tag == "10") { "not an std address" }
     val addrBegin = 3 + 8
     val workchainID = rawAddress.substring(3..<addrBegin).toInt(2).toString()
     val addr =
@@ -91,7 +92,7 @@ fun TvmTestDataCellValue.toPrettyCell(): PrettyCell {
 
                         is TvmTestCellElement.AddressRead.Std -> {
                             ReadData.AddressRead(
-                                addressBitsToRawAddress(
+                                stdAddressBitsToRawAddress(
                                     this@toPrettyCell.data.substring(
                                         it.cellRange.begin,
                                         it.cellRange.end,
@@ -105,11 +106,11 @@ fun TvmTestDataCellValue.toPrettyCell(): PrettyCell {
                         }
 
                         is TvmTestCellElement.Coin -> {
-                            ReadData.Coin(it.gramsValue)
+                            ReadData.Coin(it.gramsValue.toString())
                         }
 
                         is TvmTestCellElement.Integer -> {
-                            ReadData.Integer(it.value)
+                            ReadData.Integer(it.value.toString())
                         }
 
                         is TvmTestCellElement.MaybeConstructor -> {
