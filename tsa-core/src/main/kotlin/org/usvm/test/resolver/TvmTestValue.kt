@@ -146,6 +146,7 @@ data class TvmCellDataTypeLoad(
 /**
  * @param end exclusive
  */
+@Serializable
 data class CellRange(
     val begin: Int,
     val end: Int,

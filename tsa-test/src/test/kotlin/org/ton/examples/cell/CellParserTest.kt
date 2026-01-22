@@ -36,7 +36,7 @@ class CellParserTest {
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.BigEndian), 1),
                 ),
-            expected = listOf<TvmTestCellElement>(), // no successfull reads
+            expected = listOf<TvmTestCellElement>(), // no successful reads
         )
     }
 

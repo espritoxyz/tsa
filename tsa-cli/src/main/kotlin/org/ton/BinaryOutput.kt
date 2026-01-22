@@ -3,6 +3,7 @@ package org.ton
 import io.ktor.util.encodeBase64
 import org.ton.boc.BagOfCells
 import org.usvm.test.resolver.TvmTestCellValue
+import org.usvm.test.resolver.toPrettyYaml
 import org.usvm.test.resolver.transformTestCellIntoCell
 import kotlin.io.path.createFile
 import kotlin.io.path.div
@@ -11,11 +12,15 @@ import kotlin.io.path.isDirectory
 import kotlin.io.path.writeBytes
 import kotlin.io.path.writeText
 
+/**
+ * @param cellReads in yaml
+ */
 class CellAsFileContent(
     val cellText: String,
     val bocBinary: ByteArray,
     val bocHex: String,
     val bocBase64: String,
+    val cellReads: String,
 )
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -25,11 +30,13 @@ fun TvmTestCellValue.toCellAsFileContent(): CellAsFileContent {
     val bocBinary = BagOfCells(cell).toByteArray()
     val bocHex = bocBinary.toHexString()
     val bocBase64 = bocBinary.encodeBase64()
+    val cellReads = toPrettyYaml()
     return CellAsFileContent(
         cellText,
         bocBinary,
         bocHex,
         bocBase64,
+        cellReads,
     )
 }
 
@@ -40,13 +47,14 @@ fun CellAsFileContent.dumpCellToFolder(folder: java.nio.file.Path) {
     if (!folder.exists() || !folder.isDirectory()) {
         error("Path $folder does not exist")
     }
-
     val cellTextPath = folder / "cell-text.txt"
     val bocPath = folder / "cell.boc"
     val bocHexPath = folder / "boc-hex.txt"
     val bocBase64Path = folder / "box-base64.txt"
+    val cellReadsPath = folder / "cell-types.yaml"
     cellTextPath.createFile().writeText(cellText, Charsets.UTF_8)
     bocPath.createFile().writeBytes(bocBinary)
     bocHexPath.createFile().writeText(bocHex, Charsets.UTF_8)
     bocBase64Path.createFile().writeText(bocBase64, Charsets.UTF_8)
+    cellReadsPath.createFile().writeText(cellReads, Charsets.UTF_8)
 }

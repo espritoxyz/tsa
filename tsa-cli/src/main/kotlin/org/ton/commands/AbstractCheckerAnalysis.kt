@@ -194,7 +194,7 @@ sealed class AbstractCheckerAnalysis(
 
         val outputDirPath = exportedInputs
         if (outputDirPath != null) {
-            val additionalInputs = extractedAdditionalInputsFromTest(result)
+            val additionalInputs = extractExportedInputsFromTest(result)
             if (outputDirPath.exists() && outputDirPath.isDirectory()) {
                 outputDirPath.toFile().deleteRecursively()
             }
@@ -202,7 +202,7 @@ sealed class AbstractCheckerAnalysis(
             if (!outputDirCreated) {
                 echo("failed to create output directory")
             } else {
-                dumpAdditionalInputs(additionalInputs, outputDirPath)
+                dumpExportedInputs(additionalInputs, outputDirPath)
             }
         }
         // we might want to write SARIF into the exported-inputs folder, so we
@@ -212,7 +212,7 @@ sealed class AbstractCheckerAnalysis(
         }
     }
 
-    private fun dumpAdditionalInputs(
+    private fun dumpExportedInputs(
         additionalInputs: List<ExportedInputs>,
         outputDirPath: Path,
     ) {
@@ -232,26 +232,27 @@ sealed class AbstractCheckerAnalysis(
         }
     }
 
-    private fun extractedAdditionalInputsFromTest(result: TvmSymbolicTestSuite): List<ExportedInputs> {
-        val toOutput =
-            result.tests.mapIndexed { index, test ->
-                val checkerContractId = 0
-                val c4s =
-                    test.contractStatesBefore
-                        .mapValues { it.value.data.toCellAsFileContent() }
-                        .filter { it.key != checkerContractId }
-                val messageBodies =
-                    test.additionalInputs
-                        .toList()
-                        .mapNotNull { (contractId, testInput) ->
-                            if (testInput is TvmTestInput.RecvInternalInput) {
-                                contractId to truncateSliceCell(testInput.msgBody).toCellAsFileContent()
-                            } else {
-                                null
-                            }
-                        }.toMap()
-                ExportedInputs(index, c4s, messageBodies)
-            }
-        return toOutput
-    }
+    private fun extractExportedInputsFromTest(result: TvmSymbolicTestSuite): List<ExportedInputs> =
+        result.tests.mapIndexed { index, test ->
+            val checkerContractId = 0
+            val c4s =
+                test.contractStatesBefore
+                    .mapValues { it.value.data.toCellAsFileContent() }
+                    .filter { it.key != checkerContractId }
+            val messageBodies =
+                test.additionalInputs
+                    .toList()
+                    .mapNotNull { (contractId, testInput) ->
+                        if (testInput is TvmTestInput.RecvInternalInput) {
+                            contractId to
+                                truncateSliceCell(
+                                    testInput.msgBody,
+                                ).copy(knownTypes = testInput.msgBody.cell.knownTypes)
+                                    .toCellAsFileContent()
+                        } else {
+                            null
+                        }
+                    }.toMap()
+            ExportedInputs(index, c4s, messageBodies)
+        }
 }
