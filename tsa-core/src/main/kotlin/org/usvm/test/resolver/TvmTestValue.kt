@@ -165,7 +165,7 @@ sealed interface TvmTestCellElement {
     }
 
     data class Coin(
-        val gramsValue: Int,
+        val gramsValue: BigInteger,
         val nanogramsWidth: Int,
         val offset: Int,
     ) : TvmTestCellElement {
@@ -174,7 +174,7 @@ sealed interface TvmTestCellElement {
     }
 
     data class Integer(
-        val value: Int,
+        val value: BigInteger,
         val width: Int,
         val offset: Int,
     ) : TvmTestCellElement {
@@ -238,7 +238,7 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
                 val actualGramsBegin = offset + 4
                 val width = cell.data.strictSubstring(offset, actualGramsBegin)?.toInt(2) ?: return@mapNotNull null
                 val value =
-                    cell.data.strictSubstring(actualGramsBegin, actualGramsBegin + width * 8)?.toInt(2)
+                    cell.data.strictSubstring(actualGramsBegin, actualGramsBegin + width * 8)?.toBigInteger(2)
                         ?: return@mapNotNull null
                 TvmTestCellElement.Coin(value, width, offset)
             }
@@ -250,7 +250,7 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
                         .strictSubstring(offset, offset + width)
                         ?.let {
                             if (type.endian == Endian.LittleEndian) it.reversed() else it
-                        }?.toInt(2) ?: return@mapNotNull null
+                        }?.toBigInteger(2) ?: return@mapNotNull null
                 TvmTestCellElement.Integer(data, width, offset)
             }
 
