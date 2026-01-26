@@ -1,13 +1,17 @@
 package org.ton.commands
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.path
+import org.slf4j.LoggerFactory
 import org.ton.CellAsFileContent
 import org.ton.TvmInputInfo
 import org.ton.boc.BagOfCells
@@ -115,7 +119,15 @@ sealed class AbstractCheckerAnalysis(
         .path(mustExist = true, canBeFile = true, canBeDir = false)
         .help("Path to .boc file with concrete data for checker contract.")
 
+    private val verbose by option("-v", "--verbose")
+        .flag(default = false)
+        .help("Enable verbose mode (sets log level to debug)")
+
     override fun run() {
+        if (verbose) {
+            setLogLevelToDebug()
+        }
+
         check(checkerContract.isContractWithTSACheckerFunctions) {
             "Checker contract must be marked as checker"
         }
@@ -255,4 +267,9 @@ sealed class AbstractCheckerAnalysis(
                     }.toMap()
             ExportedInputs(index, c4s, messageBodies)
         }
+
+    private fun setLogLevelToDebug() {
+        val rootLogger = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as Logger
+        rootLogger.level = Level.DEBUG
+    }
 }
