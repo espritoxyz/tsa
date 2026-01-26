@@ -137,8 +137,14 @@ fun compileAndAnalyzeFift(
     methodWhiteList: Set<MethodId>? = null,
     inputInfo: Map<MethodId, TvmInputInfo> = emptyMap(),
     tvmOptions: TvmOptions = TvmOptions(),
-): TvmContractSymbolicTestResult =
-    FiftAnalyzer(fiftStdlibPath = FIFT_STDLIB_RESOURCE).analyzeAllMethods(
+    fiftStdVersion: FiftStdlibVersion = FiftStdlibVersion.DEFAULT,
+): TvmContractSymbolicTestResult {
+    val fiftStdlibPath =
+        when (fiftStdVersion) {
+            FiftStdlibVersion.DEFAULT -> FIFT_STDLIB_RESOURCE
+            FiftStdlibVersion.V12 -> FIFT_STDLIB_V12_RESOURCE
+        }
+    return FiftAnalyzer(fiftStdlibPath = fiftStdlibPath).analyzeAllMethods(
         fiftPath,
         concreteGeneralData,
         concreteContractData,
@@ -147,6 +153,7 @@ fun compileAndAnalyzeFift(
         inputInfo,
         tvmOptions,
     )
+}
 
 fun compileAndAnalyzeFift(
     fiftPath: Path,

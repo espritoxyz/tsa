@@ -484,7 +484,7 @@ private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
         val externAddrLength =
             mkBvExtractExpr(
                 high = prefixLen - 3,
-                low = prefixLen - 11,
+                low = 0,
                 data,
             ).zeroExtendToSort(sizeSort)
         val externLength = mkSizeAddExpr(mkSizeExpr(ADDRESS_TAG_LENGTH + 9), externAddrLength)
@@ -1503,6 +1503,15 @@ fun builderStoreSliceTlb(
 fun TvmState.readSliceDataPos(slice: UHeapRef) = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
 
 fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellField, ctx.addressSort)
+
+fun TvmState.readSliceLeftLength(slice: UHeapRef): KExpr<TvmSizeSort> {
+    val cell = readSliceCell(slice)
+    val cellLength =
+        this.fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
+    val slicePos = readSliceDataPos(slice)
+    val length = with(ctx) { mkBvSubExpr(cellLength, slicePos) }
+    return length
+}
 
 @Suppress("Unused")
 fun TvmStepScopeManager.readCellData(cell: UHeapRef): UExpr<TvmCellDataSort>? =

@@ -1,0 +1,103 @@
+"../fiftstdlib-v12/Fift.fif" include
+"../fiftstdlib-v12/Asm.fif" include
+
+PROGRAM{
+  0  DECLMETHOD store_std_addr
+  1  DECLMETHOD store_std_addr_with_anycast
+  2  DECLMETHOD store_std_addr_too_short
+  3  DECLMETHOD store_std_addr_too_long
+  4  DECLMETHOD store_std_addr_bad_tag
+  store_std_addr PROC:<{
+    NEWC
+    2 PUSHINT // = 0b10, std prefix
+    2 STUR
+    0 PUSHINT // = no anycast
+    1 STUR
+    0 PUSHINT // = workchain id
+    8 STUR
+    0 PUSHINT
+    256 STUR
+    ENDC
+    CTOS // stack is [std-addr-slice]
+    NEWC
+    STSTDADDR
+    ENDC
+    HASHCU
+  }>
+
+  store_std_addr_with_anycast PROC:<{
+    NEWC
+    2 PUSHINT // = 0b10, std prefix
+    2 STUR
+    1 PUSHINT // = no anycast
+    1 STUR
+    0 PUSHINT // = workchain id
+    8 STUR
+    0 PUSHINT
+    256 STUR
+    ENDC
+    CTOS // stack is [std-addr-slice]
+    NEWC
+    STSTDADDR
+    ENDC
+    HASHCU
+  }>
+
+  store_std_addr_too_short PROC:<{
+  NEWC
+    2 PUSHINT // = 0b10, std prefix
+    2 STUR
+    1 PUSHINT // = no anycast
+    1 STUR
+    0 PUSHINT // = workchain id
+    8 STUR
+    0 PUSHINT
+    100 STUR // too short
+    ENDC
+    CTOS // stack is [std-addr-slice]
+    NEWC
+    STSTDADDR
+    ENDC
+    HASHCU
+  }>
+
+
+  store_std_addr_too_long PROC:<{
+  NEWC
+    2 PUSHINT // = 0b10, std prefix
+    2 STUR
+    1 PUSHINT // = no anycast
+    1 STUR
+    0 PUSHINT // = workchain id
+    8 STUR
+    0 PUSHINT
+    256 STUR
+    0 PUSHINT
+    4 STUR // now the slice is too long
+    ENDC
+    CTOS // stack is [std-addr-slice]
+    NEWC
+    STSTDADDR
+    ENDC
+    HASHCU
+  }>
+
+  store_std_addr_bad_tag PROC:<{
+    NEWC
+    0 PUSHINT // = 0b00, none address prefix
+    2 STUR
+    1 PUSHINT // = no anycast
+    1 STUR
+    0 PUSHINT // = workchain id
+    8 STUR
+    0 PUSHINT
+    256 STUR
+    0 PUSHINT
+    4 STUR // now the slice is too long
+    ENDC // stack is [std-addr-slice]
+    NEWC
+    STSTDADDR
+    ENDC
+    HASHCU
+  }>
+}END>c
