@@ -20,6 +20,7 @@ import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
+import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.sliceCopy
 import org.usvm.machine.state.sliceLoadAddrTlb
 import org.usvm.machine.state.sliceMoveDataPtr
@@ -86,9 +87,8 @@ class TvmMessageAddrInterpreter(
 
         sliceLoadAddrTlb(scope, slice, updatedSlice) { address ->
             val prefix =
-                calcOnState {
-                    slicePreloadInt(address, sizeBits = twoSizeExpr, isSigned = false)
-                } ?: return@sliceLoadAddrTlb
+                slicePreloadInt(address, sizeBits = twoSizeExpr, isSigned = false)
+                    ?: return@sliceLoadAddrTlb
 
             fork(
                 prefix eq twoValue,
@@ -110,30 +110,50 @@ class TvmMessageAddrInterpreter(
     private fun visitStStdAddr(
         scope: TvmStepScopeManager,
         stmt: TvmAppAddrStstdaddrInst,
-    ) = with(ctx) {
-        val builder =
-            scope.calcOnState { takeLastBuilder() }
-                ?: return scope.doWithState(throwTypeCheckError)
+    ): Unit? =
+        with(ctx) {
+            val builder =
+                scope.calcOnState { takeLastBuilder() }
+                    ?: return scope.doWithState(throwTypeCheckError)
 
-        val address =
-            scope.calcOnState { takeLastSlice() }
-                ?: return scope.doWithState(throwTypeCheckError)
+            val address =
+                scope.calcOnState { takeLastSlice() }
+                    ?: return scope.doWithState(throwTypeCheckError)
+            val length = scope.calcOnState { readSliceLeftLength(address) }
 
-        // TODO: check if this is address
+            val prefix =
+                scope.slicePreloadInt(address, sizeBits = threeSizeExpr, isSigned = false)
+                    ?: return null
 
-        val resultBuilder =
-            scope.calcOnState {
-                memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
+            scope.fork(
+                prefix eq 0b100.toBv257(), // 10 - std tag, 0 - no anycast
+                falseStateIsExceptional = true,
+                blockOnFalseState = {
+                    throwIntAddressError(this)
+                },
+            ) ?: return null
+            val expectedStdAddLen = 2 + 1 + 8 + 256
+            scope.fork(
+                length eq expectedStdAddLen.toSizeSort(),
+                falseStateIsExceptional = true,
+                blockOnFalseState = {
+                    throwIntAddressError(this)
+                },
+            ) ?: return null
+
+            val resultBuilder =
+                scope.calcOnState {
+                    memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
+                }
+
+            builderStoreSliceTlb(scope, builder, resultBuilder, address)
+                ?: return@with
+
+            scope.doWithState {
+                addOnStack(resultBuilder, TvmBuilderType)
+                newStmt(stmt.nextStmt())
             }
-
-        builderStoreSliceTlb(scope, builder, resultBuilder, address)
-            ?: return@with
-
-        scope.doWithState {
-            addOnStack(resultBuilder, TvmBuilderType)
-            newStmt(stmt.nextStmt())
         }
-    }
 
     private fun visitParseStdAddr(
         scope: TvmStepScopeManager,
