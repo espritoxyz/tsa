@@ -151,6 +151,7 @@ class TvmContext(
     val throwIntegerOverflowError: (TvmState) -> Unit = setFailure(TvmIntegerOverflowError)
     val throwIntegerOutOfRangeError: (TvmState) -> Unit = setFailure(TvmIntegerOutOfRangeError)
     val throwCellOverflowError: (TvmState) -> Unit = setFailure(TvmCellOverflowError)
+    val throwIntAddressError: (TvmState) -> Unit = setFailure(TvmCellOverflowError)
     val throwUnknownCellUnderflowError: (TvmState) -> Unit =
         setFailure(TvmCellUnderflowError, TvmFailureType.UnknownError)
     val throwStructuralCellUnderflowError: (TvmState) -> Unit =
@@ -621,24 +622,16 @@ class TvmContext(
 
     infix fun <T : KBvSort> KExpr<T>.bvSub(other: KExpr<T>): KExpr<T> = mkBvSubExpr(this, other)
 
-    infix fun <T : KBvSort> KExpr<T>.bvUlt(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessExpr(this, other)
-
-    infix fun <T : KBvSort> KExpr<T>.bvUle(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessOrEqualExpr(this, other)
-
     infix fun <T : KBvSort> KExpr<T>.bvUge(other: KExpr<T>): UBoolExpr = mkBvUnsignedGreaterOrEqualExpr(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvUgt(other: KExpr<T>): UBoolExpr = mkBvUnsignedGreaterExpr(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvAnd(other: KExpr<T>): KExpr<T> = mkBvAndExpr(this, other)
 
-    fun <T : KBvSort> KExpr<T>.hasBitSet(idx: Int): UBoolExpr =
-        (
-            (
-                this bvAnd
-                    (1.toBv(this.sort).shiftLeft(idx.toBv(sort)))
-            ) eq
-                0.toBv(this.sort)
-        ).not()
+    fun <T : KBvSort> KExpr<T>.hasBitSet(idx: Int): UBoolExpr {
+        val withMaskedApplied = this bvAnd (1.toBv(this.sort).shiftLeft(idx.toBv(sort)))
+        return withMaskedApplied neq 0.toBv(this.sort)
+    }
 }
 
 val KAst.tctx
