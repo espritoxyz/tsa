@@ -15,13 +15,13 @@ class StdAddrTest {
     fun stStdAddrTests() {
         val fiftResourcePath = extractResource(cellStdAddrFiftPath)
 
+        val methodIds = (0..7).toSet()
         val symbolicResult =
             compileAndAnalyzeFift(
                 fiftResourcePath,
                 tvmOptions = testConcreteOptions,
                 fiftStdVersion = FiftStdlibVersion.V12,
             )
-        val methodIds = (0..4).toSet()
 
         compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
             runFiftMethod(fiftResourcePath, methodId)

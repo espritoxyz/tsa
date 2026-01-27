@@ -180,7 +180,7 @@ fun compileFiftCodeBlocksContract(
     codeBlocks: List<String>,
 ): TsaContractCode =
     FiftAnalyzer(
-        fiftStdlibPath = FIFT_STDLIB_RESOURCE,
+        fiftStdlibPath = FIFT_STDLIB_V12_RESOURCE,
     ).compileFiftCodeBlocksContract(fiftWorkDir, codeBlocks)
 
 fun compileFuncToFift(

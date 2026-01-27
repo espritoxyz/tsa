@@ -8,7 +8,6 @@ import org.ton.test.utils.testConcreteOptions
 import org.usvm.machine.analyzeAllMethods
 import java.nio.file.FileVisitResult
 import java.nio.file.Path
-import kotlin.io.path.Path
 import kotlin.io.path.exists
 import kotlin.io.path.extension
 import kotlin.io.path.name
@@ -50,7 +49,7 @@ class GasTest {
     }
 
     private fun findFiftTestFiles(): Pair<List<Path>, Path> {
-        val fiftStdLib = extractResource("/fiftstdlib")
+        val fiftStdLib = extractResource("/fiftstdlib-v12")
         check(fiftStdLib.exists()) { "Resource root doesn't exists" }
 
         val resourceRoot = fiftStdLib.parent
@@ -65,6 +64,7 @@ class GasTest {
                     "hash",
                     "continuations",
                     -> FileVisitResult.SKIP_SUBTREE
+
                     else -> FileVisitResult.CONTINUE
                 }
             }

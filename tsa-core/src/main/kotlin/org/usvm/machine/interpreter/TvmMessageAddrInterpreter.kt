@@ -30,6 +30,7 @@ import org.usvm.machine.state.takeLastBuilder
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmSliceType
+import kotlin.with
 
 class TvmMessageAddrInterpreter(
     private val ctx: TvmContext,
@@ -132,7 +133,9 @@ class TvmMessageAddrInterpreter(
                     throwIntAddressError(this)
                 },
             ) ?: return null
-            val expectedStdAddLen = 2 + 1 + 8 + 256
+            val expectedStdAddLen =
+                TvmContext.ADDRESS_TAG_BITS.toInt() + 1 + STD_WORKCHAIN_BITS +
+                    ADDRESS_BITS
             scope.fork(
                 length eq expectedStdAddLen.toSizeSort(),
                 falseStateIsExceptional = true,
