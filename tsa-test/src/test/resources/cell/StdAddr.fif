@@ -7,6 +7,10 @@ PROGRAM{
   2  DECLMETHOD store_std_addr_too_short
   3  DECLMETHOD store_std_addr_too_long
   4  DECLMETHOD store_std_addr_bad_tag
+  5  DECLMETHOD load_std_addr
+  6  DECLMETHOD load_std_addr_too_short
+  7  DECLMETHOD load_std_addr_bad_tag
+
   store_std_addr PROC:<{
     NEWC
     2 PUSHINT // = 0b10, std prefix
@@ -98,6 +102,58 @@ PROGRAM{
     NEWC
     STSTDADDR
     ENDC
+    HASHCU
+  }>
+
+  load_std_addr PROC:<{
+    NEWC
+    2 PUSHINT
+    2 STUR
+    0 PUSHINT
+    1 STUR
+    0 PUSHINT
+    8 STUR
+    0 PUSHINT
+    256 STUR
+    ENDC
+    CTOS
+    LDSTDADDR
+    DROP
+    HASHCU
+  }>
+
+
+  load_std_addr_too_short PROC:<{
+    NEWC
+    2 PUSHINT
+    2 STUR
+    0 PUSHINT
+    1 STUR
+    0 PUSHINT
+    8 STUR
+    0 PUSHINT
+    100 STUR
+    ENDC
+    CTOS
+    LDSTDADDR
+    DROP
+    HASHCU
+  }>
+
+  load_std_addr_bad_tag PROC:<{
+    NEWC
+    0 PUSHINT
+    2 STUR
+    0 PUSHINT
+    1 STUR
+    0 PUSHINT
+    8 STUR
+    0 PUSHINT
+    256 STUR
+    ENDC
+    CTOS
+    LDSTDADDR
+    DROP
     HASHCU
   }>
 }END>c
