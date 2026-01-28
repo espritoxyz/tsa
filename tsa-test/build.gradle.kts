@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.logging.TestLogEvent
+
 plugins {
     id("tsa.kotlin-conventions")
     id("org.jmailen.kotlinter") version Versions.kotlinterPluginVersion
@@ -23,6 +25,10 @@ dependencies {
 
 tasks.test {
     maxHeapSize = "2048m"
+    testLogging {
+        showStandardStreams = true
+        events = setOf(TestLogEvent.PASSED, TestLogEvent.FAILED, TestLogEvent.SKIPPED, TestLogEvent.STARTED)
+    }
 }
 
 tasks.register("formatAndLintAll") {
