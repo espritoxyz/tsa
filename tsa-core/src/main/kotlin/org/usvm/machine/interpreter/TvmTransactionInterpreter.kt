@@ -202,7 +202,7 @@ class TvmTransactionInterpreter(
     fun handleMessageCosts(
         scope: TvmStepScopeManager,
         messages: List<ParsedMessageWithResolvedReceiver>,
-        restActions: TvmStepScopeManager.(ActionHandlingResult) -> Unit,
+        restActions: TvmStepScopeManager.(ActionHandlingResult) -> Unit?,
     ) {
         val messageHandlingState =
             scope.calcOnState {
@@ -238,7 +238,7 @@ class TvmTransactionInterpreter(
                 }
             this.restActions(arg)
         }
-        scope.handleMessagesImpl(messages, messageHandlingState, compatibleRestActions)
+        return scope.handleMessagesImpl(messages, messageHandlingState, compatibleRestActions)
     }
 
     private fun TvmStepScopeManager.handleMessagesImpl(
@@ -749,7 +749,7 @@ class TvmTransactionInterpreter(
                         run {
                             val (result, innerStatus) =
                                 chooseHandlerBasedOnOpcode(
-                                    messageContent.tail.bodySlice(),
+                                    messageContent.messageAfterCommonMsgInfo.bodySlice(),
                                     handler.outOpcodeToDestination,
                                     handler.other,
                                     resolver,

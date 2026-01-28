@@ -76,6 +76,7 @@ import java.math.BigInteger
 
 // TODO make it Bv16
 typealias TvmSizeSort = UBv32Sort
+typealias SizeExpr = UExpr<TvmSizeSort>
 
 typealias Int257Expr = UExpr<TvmContext.TvmInt257Sort>
 
@@ -145,7 +146,6 @@ class TvmContext(
     val throwBadDestinationAddress: (TvmState) -> Unit = {
         it.setExit(TvmResult.TvmSoftFailure(TvmBadDestinationAddress(it.currentContract), it.phase))
     }
-
     val throwStackUnderflowError: (TvmState) -> Unit = setFailure(TvmStackUnderflowError)
     val throwStackOverflowError: (TvmState) -> Unit = setFailure(TvmStackOverflowError)
     val throwIntegerOverflowError: (TvmState) -> Unit = setFailure(TvmIntegerOverflowError)

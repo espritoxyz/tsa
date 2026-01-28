@@ -27,6 +27,7 @@ import org.usvm.machine.getFuncContract
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.intValue
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.toMethodId
 import org.usvm.machine.types.TvmIntegerType
@@ -254,7 +255,10 @@ internal fun TvmStack.loadIntegers(n: Int) =
 internal fun TvmSymbolicTest.executionCode(): Int? =
     when (val casted = result) {
         is TvmTerminalMethodSymbolicResult -> casted.exitCode
-        is TvmExecutionWithStructuralError, is TvmExecutionWithSoftFailure -> null // execution interrupted
+
+        is TvmExecutionWithStructuralError, is TvmExecutionWithSoftFailure -> null
+
+        // execution interrupted
         is TvmSuccessfulActionPhase -> error("Unexpected result: $result")
     }
 
@@ -397,6 +401,9 @@ internal fun propertiesFound(
     assertTrue(failedProperties.isEmpty(), "Properties $failedProperties were not found")
 }
 
+internal fun TvmSymbolicTestSuite.assertPropertiesFound(vararg properties: (TvmSymbolicTest) -> Boolean) =
+    propertiesFound(this, properties.toList())
+
 internal fun checkInvariants(
     tests: List<TvmSymbolicTest>,
     properties: List<(TvmSymbolicTest) -> Boolean>,
@@ -412,6 +419,13 @@ internal fun checkInvariants(
     }
     assertTrue(failedInvariants.isEmpty(), "Invariants $failedInvariants were violated")
 }
+
+internal fun List<TvmSymbolicTest>.assertInvariantsHold(vararg properties: (TvmSymbolicTest) -> Boolean) {
+    checkInvariants(this, properties.toList())
+}
+
+internal val TvmSymbolicTest.softFailure: TvmResult.TvmSoftFailureExit?
+    get() = (result as? TvmExecutionWithSoftFailure)?.failure?.exit
 
 internal fun extractTlbInfo(
     typesPath: String,
