@@ -14,8 +14,6 @@ import org.usvm.machine.TvmContext.Companion.INT_BITS
 import org.usvm.machine.TvmContext.Companion.NONE_ADDRESS_TAG
 import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.state.TvmConstructedMessageCellOverflow
-import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocEmptyCell
@@ -32,7 +30,6 @@ import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.readCellDataLength
 import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceDataPos
-import org.usvm.machine.state.setExit
 import org.usvm.machine.state.sliceLoadAddrTransaction
 import org.usvm.machine.state.sliceLoadGramsTransaction
 import org.usvm.machine.state.sliceLoadIntTransaction
@@ -242,6 +239,9 @@ data class ConstructedMessageCells(
     val fullMsgCell: UConcreteHeapRef,
 )
 
+/**
+ * Use this class with caution, as the structure it contains might cause cell overflow
+ */
 data class TlbInternalMessageContent(
     val commonMessageInfo: TlbCommonMessageInfo,
     val messageAfterCommonMsgInfo: MessageAfterCommonMsgInfo,
@@ -377,10 +377,7 @@ data class TlbInternalMessageContent(
                             resultBuilder,
                             resultBuilder,
                             tail.tailSlice,
-                            quietBlock =
-                                quietBlock ?: {
-                                    setExit(TvmResult.TvmSoftFailure(TvmConstructedMessageCellOverflow, phase))
-                                },
+                            quietBlock,
                         ) ?: return@with null
                         tail.bodySlice
                     }
@@ -389,25 +386,6 @@ data class TlbInternalMessageContent(
             val fullMessageCell = state.builderToCell(resultBuilder)
             return ConstructedMessageCells(msgBodySlice = bodySlice, fullMsgCell = fullMessageCell)
         }
-    }
-
-    /**
-     * @return `null` on overflow during message construction
-     */
-    fun toStackArgs(
-        scope: TvmStepScopeManager,
-        quietBlock: (TvmState.() -> Unit)? = null,
-    ): MessageAsStackArguments? {
-        val constructedCells =
-            constructMessageCellFromContent(scope, quietBlock)
-                ?: return null
-        return MessageAsStackArguments(
-            this.commonMessageInfo.msgValue,
-            constructedCells.fullMsgCell,
-            constructedCells.msgBodySlice,
-            commonMessageInfo.dstAddressSlice,
-            source = MessageSource.Bounced,
-        )
     }
 
     companion object {

@@ -19,6 +19,7 @@ import org.ton.bytecode.TsaArtificialPostprocessInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
 import org.usvm.api.makeSymbolicPrimitive
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmStepScopeManager
@@ -197,18 +198,14 @@ class TvmArtificialInstInterpreter(
             val nextInst = stmt.copy(sentMessages = tail, messageOrderNumber = stmt.messageOrderNumber + 1)
             val currentContractToPush = currentContract
             val pushArgsOnStack: TvmState.() -> Unit? = {
-                val constructedMessageCells = head.content.toStackArgs(this@doCallOnOutMessageIfRequired)
-                if (constructedMessageCells != null) {
-                    val messageCounter = stmt.messageOrderNumber
-                    with(ctx) {
-                        stack.addInt(messageCounter.toBv257())
-                        stack.addCell(constructedMessageCells.fullMsgCell)
-                        stack.addSlice(constructedMessageCells.msgBodySlice)
-                        stack.addInt((head.receiver ?: -1).toBv257()) // receiver
-                        stack.addInt(currentContractToPush.toBv257()) // sender
-                    }
-                } else {
-                    null
+                val constructedMessageCells = head.content.toStackArgs()
+                val messageCounter = stmt.messageOrderNumber
+                with(ctx) {
+                    stack.addInt(messageCounter.toBv257())
+                    stack.addCell(constructedMessageCells.fullMsgCell)
+                    stack.addSlice(constructedMessageCells.msgBodySlice)
+                    stack.addInt((head.receiver ?: -1).toBv257()) // receiver
+                    stack.addInt(currentContractToPush.toBv257()) // sender
                 }
             }
 
@@ -349,14 +346,19 @@ class TvmArtificialInstInterpreter(
     ) { actionsHandlingResult ->
         when (actionsHandlingResult) {
             is ActionHandlingResult.Success -> {
-                this.calcOnState { registerActionPhaseEffect(actionsHandlingResult) }
-                    ?: run {
-                        calcOnState {
-                            setExit(TvmResult.TvmSoftFailure(TvmConstructedMessageCellOverflow, phase))
-                        }
-                        return@handleMessageCosts null
+                val sentMessages =
+                    actionsHandlingResult.messagesDispatched.map { msg ->
+                        val msgCells =
+                            msg.content.constructMessageCellFromContent(
+                                this,
+                                quietBlock = {
+                                    setExit(TvmResult.TvmSoftFailure(TvmConstructedMessageCellOverflow, phase))
+                                },
+                            )
+                                ?: return@handleMessageCosts null
+                        DispatchedMessage(msg.receiver, DispatchedMessageContent(msg.content, msgCells))
                     }
-                val messages = actionsHandlingResult.messagesDispatched
+                this.calcOnState { registerActionPhaseEffect(sentMessages, actionsHandlingResult.balanceLeft) }
                 doWithState {
                     // Workaround, so that on_out_message has access to the balance.
                     // It is ok to make a commit here as the action phase has essentially ended by this point and
@@ -374,7 +376,7 @@ class TvmArtificialInstInterpreter(
                             computePhaseResult = stmt.computePhaseResult,
                             actionPhaseResult = TvmResult.TvmActionPhaseSuccess(stmt.computePhaseResult),
                             location = lastStmt.location,
-                            sentMessages = messages,
+                            sentMessages = sentMessages,
                             messageOrderNumber = 0,
                         ),
                     )
@@ -864,27 +866,20 @@ class TvmArtificialInstInterpreter(
         switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
     }
 
-    /**
-     * @return `null` if failed to construct a message (in this case, the scope is dead, we are in Soft Failure)
-     */
     private fun TvmStepScopeManager.registerActionPhaseEffect(
-        finalMessageHandlingState: ActionHandlingResult.Success,
-    ): Unit? =
+        messagesSent: List<DispatchedMessage>,
+        leftBalance: Int257Expr,
+    ): Unit =
         calcOnState {
-            setBalance(finalMessageHandlingState.balanceLeft)
-            val messagesSent = finalMessageHandlingState.messagesDispatched
+            setBalance(leftBalance)
             val messagesWithDestinations = mutableListOf<ReceivedMessage.MessageFromOtherContract>()
-            val newUnprocessedMessages = mutableListOf<Pair<ContractId, TlbInternalMessageContent>>()
+            val newUnprocessedMessages = mutableListOf<Pair<ContractId, DispatchedMessageContent>>()
             for ((receiverOrNull, messageContent) in messagesSent) {
+                val msgStackArgs = messageContent.toStackArgs()
                 if (receiverOrNull == null) {
                     newUnprocessedMessages.add(currentContract to messageContent)
                     continue
                 }
-                val msgStackArgs =
-                    messageContent.toStackArgs(this@registerActionPhaseEffect) ?: run {
-                        setExit(TvmResult.TvmSoftFailure(TvmConstructedMessageCellOverflow, phase))
-                        return@calcOnState null
-                    }
                 messagesWithDestinations.add(
                     ReceivedMessage.MessageFromOtherContract(
                         ContractSender(currentContract, currentEventId),
@@ -895,7 +890,7 @@ class TvmArtificialInstInterpreter(
             }
             messageQueue = messageQueue.addAll(messagesWithDestinations)
             unprocessedMessages = unprocessedMessages.addAll(newUnprocessedMessages)
-            return@calcOnState Unit
+            return@calcOnState
         }
 
     private fun processContractStackReturn(

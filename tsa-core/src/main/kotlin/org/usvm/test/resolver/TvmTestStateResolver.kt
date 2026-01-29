@@ -344,8 +344,8 @@ class TvmTestStateResolver(
 
             val scope =
                 TvmStepScopeManager(state, UForkBlackList.Companion.createDefault(), allowFailuresOnCurrentStep = false)
-            val messageStackArgs = message.toStackArgs(scope, quietBlock = { /*do nothing*/ })
-            val result = contractId to messageStackArgs?.let { resolveOutMessage(it) }
+            val messageStackArgs = message.toStackArgs()
+            val result = contractId to resolveOutMessage(messageStackArgs)
 
             val stepResult = scope.stepResult()
             check(stepResult.originalStateAlive) {

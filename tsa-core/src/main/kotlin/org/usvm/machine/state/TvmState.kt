@@ -26,13 +26,13 @@ import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
+import org.usvm.machine.interpreter.DispatchedMessageContent
 import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.ReceivedMessage
-import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -75,7 +75,7 @@ class TvmState(
     var currentContract: ContractId,
     var fetchedValues: PersistentMap<Int, TvmStack.TvmStackEntry> = persistentMapOf(),
     var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
-    var unprocessedMessages: PersistentList<Pair<ContractId, TlbInternalMessageContent>> = persistentListOf(),
+    var unprocessedMessages: PersistentList<Pair<ContractId, DispatchedMessageContent>> = persistentListOf(),
     // inter-contract fields
     var messageQueue: PersistentList<ReceivedMessage.MessageFromOtherContract> = persistentListOf(),
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
