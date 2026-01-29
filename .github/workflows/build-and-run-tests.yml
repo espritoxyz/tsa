@@ -11,7 +11,7 @@ jobs:
   run-tests:
     name: 'Run tests'
     runs-on: ubuntu-22.04
-    container: explyt/tsa-env:v1.1.3
+    container: explyt/tsa-env:v1.2.0
 
     steps:
       - name: 'Checkout repository'
@@ -20,11 +20,6 @@ jobs:
           submodules: recursive
 
 #        We don't need to setup Java because it is manually installed in the Docker image
-#      - uses: actions/setup-java@v4
-#        with:
-#          distribution: 'temurin'
-#          java-version: '17'
-#          cache: 'gradle'
 
       - name: "Linter check"
         run: ./gradlew clean lintKotlin
