@@ -32,6 +32,8 @@ sealed class ReceiverInput(
     abstract val msgBodySliceMaybeBounced: UHeapRef
     abstract val srcAddressSlice: UConcreteHeapRef? // null for external messages
     abstract val fwdFee: UExpr<TvmInt257Sort>? // null for external messages
+    abstract val bounce: UBoolExpr
+    abstract val bounced: UBoolExpr
 
     abstract fun constructFullMessage(state: TvmState): UConcreteHeapRef
 

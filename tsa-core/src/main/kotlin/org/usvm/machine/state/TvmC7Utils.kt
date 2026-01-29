@@ -334,6 +334,7 @@ fun TvmState.initContractInfo(
                 unpackedConfigTuple,
                 duePayment,
                 gasUsageIfPrecompiled,
+                TvmStackNullValue, // INMSGPARAMS (will be initialized later)
             )
 
         TvmStackTupleValueConcreteNew(

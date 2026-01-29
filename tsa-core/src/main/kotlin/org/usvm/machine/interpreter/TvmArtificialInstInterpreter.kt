@@ -64,7 +64,6 @@ import org.usvm.machine.state.messages.ContractSender
 import org.usvm.machine.state.messages.Flags
 import org.usvm.machine.state.messages.MessageAfterCommonMsgInfo
 import org.usvm.machine.state.messages.MessageAsStackArguments
-import org.usvm.machine.state.messages.MessageSource
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
@@ -701,17 +700,19 @@ class TvmArtificialInstInterpreter(
                         ),
                         messageAfterCommonMsgInfo = MessageAfterCommonMsgInfo.ManuallyConstructed(bodyCell, bodySlice),
                     )
-                Triple(content.constructMessageCellFromContent(scope), bodySlice, dstAddressSlice)
+                content to dstAddressSlice
             }
-        return msgCellAndBodySliceOrNull?.let { (constructedMsgCells, _, dstAddressSlice) ->
-            constructedMsgCells
-                ?: error("Failed to construct bounced message of known length")
+        return msgCellAndBodySliceOrNull?.let { (content, dstAddressSlice) ->
+            val constructedMsgCells =
+                content.constructMessageCellFromContent(scope)
+                    ?: error("Failed to construct bounced message of known length")
             MessageAsStackArguments(
                 msgValue = oldMessage.msgValue,
                 fullMsgCell = constructedMsgCells.fullMsgCell,
                 msgBodySlice = constructedMsgCells.msgBodySlice,
                 destAddrSlice = dstAddressSlice,
-                source = MessageSource.Bounced,
+                content.commonMessageInfo,
+                stateInitCell = null, // TODO: can bounced messages carry state init?
             )
         }
     }
@@ -840,13 +841,15 @@ class TvmArtificialInstInterpreter(
         val prevStack = stack
         // Update current contract to the next contract
         currentContract = receiver
+
+        val wrappedMessage = ReceivedMessage.MessageFromOtherContract(sender, currentContract, message)
         val newMemory =
             initializeContractExecutionMemory(
                 contractsCode,
                 this,
                 currentContract,
                 allowInputStackValues = false,
-                newMsgValue = message.msgValue,
+                message = wrappedMessage,
             )
         stack = newMemory.stack
         stack.copyInputValues(prevStack)
@@ -861,7 +864,7 @@ class TvmArtificialInstInterpreter(
         stack.addInt(message.msgValue)
         addOnStack(message.fullMsgCell, TvmCellType)
         addOnStack(message.msgBodySlice, TvmSliceType)
-        receivedMessage = ReceivedMessage.MessageFromOtherContract(sender, currentContract, message)
+        receivedMessage = wrappedMessage
         phase = TvmComputePhase
         switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)
     }

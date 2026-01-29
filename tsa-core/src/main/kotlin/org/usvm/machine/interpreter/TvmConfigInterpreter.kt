@@ -7,6 +7,7 @@ import org.ton.bytecode.BLOCK_TIME_PARAMETER_IDX
 import org.ton.bytecode.CODE_PARAMETER_IDX
 import org.ton.bytecode.CONFIG_PARAMETER_IDX
 import org.ton.bytecode.DUE_PAYMENT_IDX
+import org.ton.bytecode.IN_MSG_PARAMS_IDX
 import org.ton.bytecode.MSGS_SENT_PARAMETER_IDX
 import org.ton.bytecode.SEED_PARAMETER_IDX
 import org.ton.bytecode.STORAGE_FEES_PARAMETER_IDX
@@ -21,6 +22,7 @@ import org.ton.bytecode.TvmAppConfigGetoriginalfwdfeeInst
 import org.ton.bytecode.TvmAppConfigGetparamInst
 import org.ton.bytecode.TvmAppConfigGetprecompiledgasInst
 import org.ton.bytecode.TvmAppConfigGetstoragefeeInst
+import org.ton.bytecode.TvmAppConfigInmsgparamInst
 import org.ton.bytecode.TvmAppConfigInst
 import org.ton.bytecode.TvmInst
 import org.usvm.UBoolExpr
@@ -45,6 +47,7 @@ import org.usvm.machine.state.LUMP_PRICE
 import org.usvm.machine.state.LUMP_PRICE_MASTERCHAIN
 import org.usvm.machine.state.MC_BIT_PRICE_PS
 import org.usvm.machine.state.MC_CELL_PRICE_PS
+import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.addTuple
@@ -82,6 +85,7 @@ class TvmConfigInterpreter(
             is TvmAppConfigGetforwardfeeInst -> visitGetforwardfeeInst(scope, stmt, isSimple = false)
             is TvmAppConfigGetstoragefeeInst -> visitGetstoragefeeInst(scope, stmt)
             is TvmAppConfigGetgasfeeInst -> visitConfigGetgasfeeInst(scope, stmt)
+            is TvmAppConfigInmsgparamInst -> visitInMsgParamInst(scope, stmt)
             else -> TODO("$stmt")
         }
     }
@@ -187,6 +191,23 @@ class TvmConfigInterpreter(
                 else -> TODO("$i GETPARAM")
             }
 
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun visitInMsgParamInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppConfigInmsgparamInst,
+    ) {
+        val params =
+            scope.calcOnState {
+                getContractInfoParam(IN_MSG_PARAMS_IDX) as? TvmStack.TvmStackTupleValue
+                    ?: error("Unexpected value in C7 at index $IN_MSG_PARAMS_IDX")
+            }
+
+        val entry = params.tupleValue[stmt.i, scope.calcOnState { stack }]
+        scope.calcOnState {
+            stack.addStackEntry(entry)
             newStmt(stmt.nextStmt())
         }
     }

@@ -62,7 +62,6 @@ import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.MessageAsStackArguments
-import org.usvm.machine.state.messages.MessageSource
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.tvmCellRefsRegion
 import org.usvm.machine.types.TvmBuilderType
@@ -301,20 +300,12 @@ class TvmTestStateResolver(
         return resolveResultStackImpl(methodResult)
     }
 
-    private fun resolveOutMessage(message: MessageAsStackArguments): TvmTestMessage {
-        val mode =
-            when (message.source) {
-                is MessageSource.SentWithMode -> message.source.mode
-                is MessageSource.Bounced -> null
-            }
-
-        return TvmTestMessage(
+    private fun resolveOutMessage(message: MessageAsStackArguments): TvmTestMessage =
+        TvmTestMessage(
             value = resolveInt257(message.msgValue),
             fullMessage = resolveCell(message.fullMsgCell),
             bodySlice = resolveSlice(message.msgBodySlice),
-            mode = mode?.let { resolveInt257(it).value },
         )
-    }
 
     fun resolveReceivedMessage(message: ReceivedMessage): TvmTestInput.ReceivedTestMessage =
         when (message) {
