@@ -49,7 +49,7 @@ class GasTest {
     }
 
     private fun findFiftTestFiles(): Pair<List<Path>, Path> {
-        val fiftStdLib = extractResource("/fiftstdlib-v12")
+        val fiftStdLib = extractResource("/fiftstdlib")
         check(fiftStdLib.exists()) { "Resource root doesn't exists" }
 
         val resourceRoot = fiftStdLib.parent

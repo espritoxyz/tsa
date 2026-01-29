@@ -122,22 +122,23 @@ class TvmMessageAddrInterpreter(
                     ?: return scope.doWithState(throwTypeCheckError)
             val length = scope.calcOnState { readSliceLeftLength(address) }
 
+            val expectedStdAddLen =
+                TvmContext.ADDRESS_TAG_BITS.toInt() + 1 + STD_WORKCHAIN_BITS +
+                    ADDRESS_BITS
+            scope.fork(
+                length eq expectedStdAddLen.toSizeSort(),
+                falseStateIsExceptional = true,
+                blockOnFalseState = {
+                    throwIntAddressError(this)
+                },
+            ) ?: return null
+
             val prefix =
                 scope.slicePreloadInt(address, sizeBits = threeSizeExpr, isSigned = false)
                     ?: return null
 
             scope.fork(
                 prefix eq 0b100.toBv257(), // 10 - std tag, 0 - no anycast
-                falseStateIsExceptional = true,
-                blockOnFalseState = {
-                    throwIntAddressError(this)
-                },
-            ) ?: return null
-            val expectedStdAddLen =
-                TvmContext.ADDRESS_TAG_BITS.toInt() + 1 + STD_WORKCHAIN_BITS +
-                    ADDRESS_BITS
-            scope.fork(
-                length eq expectedStdAddLen.toSizeSort(),
                 falseStateIsExceptional = true,
                 blockOnFalseState = {
                     throwIntAddressError(this)

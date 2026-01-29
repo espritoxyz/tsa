@@ -1,5 +1,5 @@
-"../fiftstdlib-v12/Fift.fif" include
-"../fiftstdlib-v12/Asm.fif" include
+"../fiftstdlib/Fift.fif" include
+"../fiftstdlib/Asm.fif" include
 
 PROGRAM{
   0  DECLMETHOD store_std_addr
@@ -10,6 +10,8 @@ PROGRAM{
   5  DECLMETHOD load_std_addr
   6  DECLMETHOD load_std_addr_too_short
   7  DECLMETHOD load_std_addr_bad_tag
+  8  DECLMETHOD store_std_addr_from_none
+  9  DECLMETHOD load_std_addr_from_none
 
   store_std_addr PROC:<{
     NEWC
@@ -150,6 +152,29 @@ PROGRAM{
     8 STUR
     0 PUSHINT
     256 STUR
+    ENDC
+    CTOS
+    LDSTDADDR
+    DROP
+    HASHCU
+  }>
+
+  store_std_addr_from_none PROC:<{
+    NEWC
+    2 PUSHINT // = 0b10, std prefix
+    2 STUR
+    ENDC
+    CTOS // stack is [std-addr-slice]
+    NEWC
+    STSTDADDR
+    ENDC
+    HASHCU
+  }>
+
+  load_std_addr_from_none PROC:<{
+    NEWC
+    0 PUSHINT
+    2 STUR
     ENDC
     CTOS
     LDSTDADDR
