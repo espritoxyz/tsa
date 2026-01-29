@@ -21,6 +21,8 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getTactContract
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmDoubleSendRemainingValue
+import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestFailure
@@ -488,6 +490,29 @@ class CheckersTest {
             enableOutMessageAnalysis = true,
             stopOnFirstError = false,
         )
+
+    @Test
+    fun `double SendRemainingValue should cause SoftFailure`() {
+        val checkerContract = extractCheckerContractFromResource("/checkers/random-sender/drain_checker.fc")
+        val pathTactConfig = extractResource(tactConfig)
+        val analyzedContract = getTactContract(TactSourcesDescription(pathTactConfig, "BadCounter", "Counter"))
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
+            )
+
+        propertiesFound(
+            tests,
+            listOf { test ->
+                val result = test.result
+                result is TvmExecutionWithSoftFailure && result.failure.exit is TvmDoubleSendRemainingValue
+            },
+        )
+    }
 
     @Test
     fun intBlastOptimizationTest() {
