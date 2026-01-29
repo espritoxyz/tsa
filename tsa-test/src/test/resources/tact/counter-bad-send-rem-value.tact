@@ -23,8 +23,8 @@ contract Counter(
 
 	let x: Int = 10;
 	while (x > 0) {
-          cashback(sender());
-          x -= 1;
+        cashback(sender());
+        x -= 1;
 	}
 
         // Forward the remaining value in the
