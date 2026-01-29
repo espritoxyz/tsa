@@ -476,7 +476,7 @@ class TvmInterpreter(
                 contractsCode,
                 state,
                 startContractId,
-                state.receivedMessage,
+                (state.initialInput as? ReceiverInput)?.let { ReceivedMessage.InputMessage(it) },
                 allowInputStackValues,
             )
 

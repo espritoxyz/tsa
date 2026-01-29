@@ -119,7 +119,9 @@ sealed class ReceiverInput(
 
         return scope.assert(
             constraint,
-            unsatBlock = { error("Cannot assert recv_internal constraints") },
+            unsatBlock = {
+                error("Cannot assert recv_internal constraints")
+            },
             unknownBlock = { error("Unknown result while asserting recv_internal constraints") },
         )
     }
