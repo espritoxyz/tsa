@@ -133,6 +133,10 @@ data class TvmMethodCoverage(
     val coverageOfMainMethod: Float?,
 )
 
+/**
+ * @param outMessages values of the map are `null` iff the corresponding message caused cell overflow
+ * during construction
+ */
 data class TvmSymbolicTest(
     val methodId: MethodId,
     val config: TvmTestDictCellValue,
@@ -150,7 +154,7 @@ data class TvmSymbolicTest(
     val gasUsage: Int,
     val additionalFlags: Set<String>,
     val intercontractPath: List<ContractId>,
-    val outMessages: List<Pair<ContractId, TvmTestMessage>>,
+    val outMessages: List<Pair<ContractId, TvmTestMessage?>>,
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
     val eventsList: List<TvmMessageDrivenContractExecutionTestEntry>,

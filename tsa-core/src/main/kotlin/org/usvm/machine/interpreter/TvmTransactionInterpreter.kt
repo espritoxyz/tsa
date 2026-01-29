@@ -119,7 +119,7 @@ class TvmTransactionInterpreter(
             var messageValue: UExpr<TvmInt257Sort>,
             var messageValueBrutto: UExpr<TvmInt257Sort>,
             var remainingInboundMessageValue: UExpr<TvmInt257Sort>,
-            var sentMessages: PersistentList<DispatchedMessage> = persistentListOf(),
+            var sentMessages: PersistentList<DispatchedUnconstructedMessage> = persistentListOf(),
             var alreadyHasMsgsWithSendRemainingValue: UBoolExpr,
         ) {
             fun build() =
@@ -140,7 +140,7 @@ class TvmTransactionInterpreter(
             val messageValue: UExpr<TvmInt257Sort>,
             val messageValueBrutto: UExpr<TvmInt257Sort>,
             val remainingInboundMessageValue: UExpr<TvmInt257Sort>,
-            val sentMessages: PersistentList<DispatchedMessage> = persistentListOf(),
+            val sentMessages: PersistentList<DispatchedUnconstructedMessage> = persistentListOf(),
             val alreadyHasMsgsWithSendRemainingValue: UBoolExpr,
         ) : MessageHandlingState {
             fun toBuilder() =
@@ -202,7 +202,7 @@ class TvmTransactionInterpreter(
     fun handleMessageCosts(
         scope: TvmStepScopeManager,
         messages: List<ParsedMessageWithResolvedReceiver>,
-        restActions: TvmStepScopeManager.(ActionHandlingResult) -> Unit,
+        restActions: TvmStepScopeManager.(ActionHandlingResult) -> Unit?,
     ) {
         val messageHandlingState =
             scope.calcOnState {
@@ -238,7 +238,7 @@ class TvmTransactionInterpreter(
                 }
             this.restActions(arg)
         }
-        scope.handleMessagesImpl(messages, messageHandlingState, compatibleRestActions)
+        return scope.handleMessagesImpl(messages, messageHandlingState, compatibleRestActions)
     }
 
     private fun TvmStepScopeManager.handleMessagesImpl(
@@ -434,7 +434,7 @@ class TvmTransactionInterpreter(
                                 )
                             sentMessages =
                                 sentMessages.add(
-                                    DispatchedMessage(
+                                    DispatchedUnconstructedMessage(
                                         receiver = currentMessage.receiver,
                                         content =
                                             content.copy(commonMessageInfo = updatedCommonMessageInfo),
@@ -749,7 +749,7 @@ class TvmTransactionInterpreter(
                         run {
                             val (result, innerStatus) =
                                 chooseHandlerBasedOnOpcode(
-                                    messageContent.tail.bodySlice(),
+                                    messageContent.messageAfterCommonMsgInfo.bodySlice(),
                                     handler.outOpcodeToDestination,
                                     handler.other,
                                     resolver,

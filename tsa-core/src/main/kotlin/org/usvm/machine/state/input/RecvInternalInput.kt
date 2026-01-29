@@ -21,7 +21,7 @@ import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.generateSymbolicAddressCell
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.messages.Flags
-import org.usvm.machine.state.messages.Tail
+import org.usvm.machine.state.messages.MessageAfterCommonMsgInfo
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.readSliceCell
@@ -154,10 +154,26 @@ class RecvInternalInput(
                             createdLt = createdLt,
                             createdAt = createdAt,
                         ),
-                    tail = Tail.Explicit(bodyCellMaybeBounced, msgBodySliceMaybeBounced),
+                    messageAfterCommonMsgInfo =
+                        MessageAfterCommonMsgInfo.ManuallyConstructed(
+                            bodyCellMaybeBounced,
+                            msgBodySliceMaybeBounced,
+                        ),
                 )
 
-            return@with tlbMessageContent.constructMessageCellFromContent(state).fullMsgCell
+            val result = (
+                tlbMessageContent.constructMessageCellFromContent(scope)?.fullMsgCell
+                    ?: error("overflow during construction fo the full message in receive internal input")
+            )
+
+            val stepResult = scope.stepResult()
+            check(stepResult.originalStateAlive) {
+                "Original state died while building full message"
+            }
+            check(stepResult.forkedStates.none()) {
+                "Unexpected forks while building full message"
+            }
+            return@with result
         }
 
     private fun generateFlagsStruct(ctx: TvmContext): Flags =

@@ -7,7 +7,6 @@ import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
-import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isFalse
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
@@ -92,7 +91,7 @@ data class TlbCommonMessageInfo(
                     }
                 scope.fork(
                     condition = with(scope.ctx) { destSliceSize bvUgt 2.toSizeSort() },
-                    falseStateIsExceptional = true,
+                    falseStateIsExceptional = false, // soft failure
                     blockOnFalseState = { throwBadDestinationAddress(this) },
                 ) ?: return null
 
@@ -193,7 +192,10 @@ data class TlbCommonMessageInfo(
     }
 }
 
-sealed interface Tail {
+/**
+ * Contains the part of the message after the CommonMsgInfo
+ */
+sealed interface MessageAfterCommonMsgInfo {
     /**
      * Is the original cell where the body was contained (null if was an inlined slice)
      */
@@ -204,29 +206,32 @@ sealed interface Tail {
      * Contains empty state init and a body as a not-inline cell [bodyCell].
      * @param bodySlice is a view on the [bodyCell]
      */
-    data class Explicit(
+    data class ManuallyConstructed(
         // init is assumed to be (Maybe (Either StateInit ^StateInit)).nothing (1 bit of zero)
         val bodyCell: UHeapRef, // assume body is (Either X ^X).left, prefix is 1 bit of one
         val bodySlice: UHeapRef,
-    ) : Tail {
+    ) : MessageAfterCommonMsgInfo {
         override val stateInitRef: UHeapRef?
             get() = null
         override val bodyOriginalRef: UHeapRef?
             get() = null
     }
 
-    data class Implicit(
+    /**
+     * @param tailSlice empbodies the whole slice of the message that follows the CommonMsgInfo
+     */
+    data class ConstructedBySomeContract(
         val tailSlice: UHeapRef,
         val bodySlice: UConcreteHeapRef, // all the message after the CommonMessageInfo
         override val stateInitRef: UHeapRef?,
         override val bodyOriginalRef: UHeapRef?,
-    ) : Tail
+    ) : MessageAfterCommonMsgInfo
 }
 
-fun Tail.bodySlice() =
+fun MessageAfterCommonMsgInfo.bodySlice() =
     when (this) {
-        is Tail.Explicit -> this.bodySlice
-        is Tail.Implicit -> this.bodySlice
+        is MessageAfterCommonMsgInfo.ManuallyConstructed -> this.bodySlice
+        is MessageAfterCommonMsgInfo.ConstructedBySomeContract -> this.bodySlice
     }
 
 data class ConstructedMessageCells(
@@ -234,22 +239,29 @@ data class ConstructedMessageCells(
     val fullMsgCell: UConcreteHeapRef,
 )
 
+/**
+ * Use this class with caution, as the structure it contains might cause cell overflow
+ */
 data class TlbInternalMessageContent(
     val commonMessageInfo: TlbCommonMessageInfo,
-    val tail: Tail,
+    val messageAfterCommonMsgInfo: MessageAfterCommonMsgInfo,
 ) {
     val bodyOriginalRef: UHeapRef?
-        get() = tail.bodyOriginalRef
+        get() = messageAfterCommonMsgInfo.bodyOriginalRef
     val stateInitRef: UHeapRef?
-        get() = tail.stateInitRef
+        get() = messageAfterCommonMsgInfo.stateInitRef
 
-    fun constructMessageCellFromContent(state: TvmState): ConstructedMessageCells =
-        with(state.ctx) {
+    /**
+     * @return `null` iff the message failed to construct due to an overflow
+     */
+    fun constructMessageCellFromContent(
+        scope: TvmStepScopeManager,
+        quietBlock: (TvmState.() -> Unit)? = null,
+    ): ConstructedMessageCells? {
+        val state = scope.calcOnState { this }
+        return with(state.ctx) {
             val resultBuilder = state.allocEmptyBuilder()
 
-            // hack for using builder operations
-            val scope =
-                TvmStepScopeManager(state, UForkBlackList.Companion.createDefault(), allowFailuresOnCurrentStep = false)
             val commonMessageInfo = this@TlbInternalMessageContent.commonMessageInfo
             for (flag in commonMessageInfo.flags.asFlagsList()) {
                 builderStoreIntTlb(
@@ -326,21 +338,21 @@ data class TlbInternalMessageContent(
             )
                 ?: error("Cannot store created_at")
 
-            // init:(Maybe (Either StateInit ^StateInit)).nothing
-            builderStoreIntTlb(
-                scope,
-                resultBuilder,
-                resultBuilder,
-                zeroValue,
-                sizeBits = oneSizeExpr,
-                isSigned = false,
-                endian = Endian.BigEndian,
-            )
-                ?: error("Cannot store init")
-
             val bodySlice =
-                when (val tail = this@TlbInternalMessageContent.tail) {
-                    is Tail.Explicit -> {
+                when (val tail = this@TlbInternalMessageContent.messageAfterCommonMsgInfo) {
+                    is MessageAfterCommonMsgInfo.ManuallyConstructed -> {
+                        // init:(Maybe (Either StateInit ^StateInit)).nothing
+                        builderStoreIntTlb(
+                            scope,
+                            resultBuilder,
+                            resultBuilder,
+                            zeroValue,
+                            sizeBits = oneSizeExpr,
+                            isSigned = false,
+                            endian = Endian.BigEndian,
+                        )
+                            ?: error("Cannot store init")
+
                         // body:(Either X ^X).right
                         // set prefix of Either.right
                         builderStoreIntTlb(
@@ -359,38 +371,21 @@ data class TlbInternalMessageContent(
                         tail.bodySlice
                     }
 
-                    is Tail.Implicit -> {
+                    is MessageAfterCommonMsgInfo.ConstructedBySomeContract -> {
                         builderStoreSliceTlb(
                             scope,
                             resultBuilder,
                             resultBuilder,
                             tail.tailSlice,
-                        )
+                            quietBlock,
+                        ) ?: return@with null
                         tail.bodySlice
                     }
                 }
 
-            val stepResult = scope.stepResult()
-            check(stepResult.originalStateAlive) {
-                "Original state died while building full message"
-            }
-            check(stepResult.forkedStates.none()) {
-                "Unexpected forks while building full message"
-            }
-
             val fullMessageCell = state.builderToCell(resultBuilder)
             return ConstructedMessageCells(msgBodySlice = bodySlice, fullMsgCell = fullMessageCell)
         }
-
-    fun toStackArgs(state: TvmState): MessageAsStackArguments {
-        val constructedCells = constructMessageCellFromContent(state)
-        return MessageAsStackArguments(
-            this.commonMessageInfo.msgValue,
-            constructedCells.fullMsgCell,
-            constructedCells.msgBodySlice,
-            commonMessageInfo.dstAddressSlice,
-            source = MessageSource.Bounced,
-        )
     }
 
     companion object {
@@ -415,7 +410,13 @@ data class TlbInternalMessageContent(
                         .getOrElse { return@with null }
 
                 val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
-                val tail = Tail.Implicit(tailSlice, bodySlice, stateInitRef, bodyCellOriginal)
+                val messageAfterCommonMsgInfo =
+                    MessageAfterCommonMsgInfo.ConstructedBySomeContract(
+                        tailSlice,
+                        bodySlice,
+                        stateInitRef,
+                        bodyCellOriginal,
+                    )
 
                 val sliceFullyParsed = scope.calcOnState { createSliceIsEmptyConstraint(ptr.slice) }
                 scope.fork(
@@ -425,7 +426,7 @@ data class TlbInternalMessageContent(
                 ) ?: return@with null
                 TlbInternalMessageContent(
                     commonMessageInfo = commonMessageInfo,
-                    tail = tail,
+                    messageAfterCommonMsgInfo = messageAfterCommonMsgInfo,
                 )
             }
 
@@ -455,6 +456,9 @@ data class TlbInternalMessageContent(
                         ?: return scopeDied
 
                     val bodyBuilder = scope.calcOnState { allocEmptyBuilder() }
+                    // Note: the line below DOES NOT move pointers in ptr.
+                    // It does not break anything, as we do not read from `ptr` after reading message body
+                    // in this function, even though it is aesthetically unpleasant
                     builderStoreSliceTransaction(scope, bodyBuilder, ptr.slice)
                         ?: return scopeDied
                     ptr.slice = scope.calcOnState { allocSliceFromCell(allocEmptyCell()) }
@@ -511,15 +515,15 @@ data class TlbInternalMessageContent(
 
                         // code:(Maybe ^Cell)
                         loadMaybeRef(scope, ptr, resolver, quietBlock)
-                            ?: return scopeDied
+                            .getOrElse { return scopeDied }
 
-                        // code:(Maybe ^Cell)
+                        // data:(Maybe ^Cell)
                         loadMaybeRef(scope, ptr, resolver, quietBlock)
-                            ?: return scopeDied
+                            .getOrElse { return scopeDied }
 
                         // library:(Maybe ^Cell)
                         loadMaybeRef(scope, ptr, resolver, quietBlock)
-                            ?: return scopeDied
+                            .getOrElse { return scopeDied }
 
                         null
                     }
@@ -532,26 +536,27 @@ data class TlbInternalMessageContent(
             ptr: ParsingState,
             resolver: TvmTestStateResolver,
             quietBlock: (TvmState.() -> Unit)?,
-        ): Unit? =
+        ): ValueOrDeadScope<UHeapRef?> =
             scope.doWithCtx {
                 val maybeBit =
                     sliceLoadIntTransaction(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
-                        ?: return@doWithCtx null
+                        ?: return@doWithCtx scopeDied
 
                 val refIsMissing = maybeBit eq zeroValue
 
-                if (resolver.eval(refIsMissing).isTrue) {
-                    scope.assert(refIsMissing)
-                        ?: return@doWithCtx null
-                } else {
-                    scope.assert(refIsMissing.not())
-                        ?: return@doWithCtx null
+                val value =
+                    if (resolver.eval(refIsMissing).isTrue) {
+                        scope.assert(refIsMissing)
+                            ?: return@doWithCtx scopeDied
+                        null
+                    } else {
+                        scope.assert(refIsMissing.not())
+                            ?: return@doWithCtx scopeDied
 
-                    sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
-                        ?: return@doWithCtx null
-                }
-
-                Unit
+                        sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
+                            ?: return@doWithCtx scopeDied
+                    }
+                value.ok()
             }
     }
 }

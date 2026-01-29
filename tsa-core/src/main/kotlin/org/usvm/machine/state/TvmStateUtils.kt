@@ -435,7 +435,7 @@ private fun TvmStepScopeManager.assertConcreteCellType(
         }
     fork(
         ctx.mkNot(badCellTypeGuard),
-        falseStateIsExceptional = true,
+        falseStateIsExceptional = false,
         blockOnFalseState = {
             setExit(TvmResult.TvmSoftFailure(exit, calcOnState { phase }))
         },
@@ -618,70 +618,79 @@ fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort
         return address to workchain
     }
 
+enum class CheckerCallResult {
+    WAS_CALLED,
+    WAS_NOT_CALLED,
+    MSG_CONSTRUCTION_OVERFLOW,
+}
+
 /**
- * @return null if the method was not called
+ * @return `null` if the method was not called
  */
-fun TvmState.callCheckerMethodIfExists(
+fun TvmStepScopeManager.callCheckerMethodIfExists(
     methodId: MethodId,
     returnStmt: TvmInst,
     contractsCode: List<TsaContractCode>,
-    pushArgumentsOnStack: TvmState.() -> Unit,
-): Unit? {
-    val checkerContractIds =
-        contractsCode.mapIndexedNotNull { index, code ->
-            if (code.isContractWithTSACheckerFunctions) index to code else null
+    pushArgumentsOnStack: TvmState.() -> Unit?,
+): CheckerCallResult =
+    calcOnState {
+        val checkerContractIds =
+            contractsCode.mapIndexedNotNull { index, code ->
+                if (code.isContractWithTSACheckerFunctions) index to code else null
+            }
+        if (checkerContractIds.size >= 2) {
+            error("Too many checker contracts (ids: ${checkerContractIds.map { it.first }})")
         }
-    if (checkerContractIds.size >= 2) {
-        error("Too many checker contracts (ids: ${checkerContractIds.map { it.first }})")
-    }
-    val (checkerContractId, checkerCode) = checkerContractIds.singleOrNull() ?: return null
-    require(checkerContractId != currentContract) {
-        "calCheckerMethod is expected to be called outside of checker"
-    }
-    val method = checkerCode.methods[methodId] ?: return null
-    // after this point, we always return non-null
+        val (checkerContractId, checkerCode) =
+            checkerContractIds.singleOrNull()
+                ?: return@calcOnState CheckerCallResult.WAS_NOT_CALLED
+        require(checkerContractId != currentContract) {
+            "calCheckerMethod is expected to be called outside of checker"
+        }
+        val method = checkerCode.methods[methodId] ?: return@calcOnState CheckerCallResult.WAS_NOT_CALLED
+        // after this point, we always return non-null
 
-    val oldMemory = TvmContractExecutionMemory(stack, registersOfCurrentContract)
-    contractStack =
-        contractStack.add(
-            TvmEventInformation(
-                currentContract,
-                returnStmt,
-                oldMemory,
-                0,
-                phaseBeginTime = currentPhaseBeginTime,
-                phaseEndTime = currentPhaseEndTime,
-                receivedMessage = receivedMessage,
-                computeFee = currentComputeFeeUsed,
-                isExceptional = isExceptional,
-                phase = phase,
-            ),
-        )
-    val executionMemory =
-        initializeContractExecutionMemory(
-            contractsCode,
-            this,
-            checkerContractId,
-            newMsgValue = null,
-            allowInputStackValues = false,
-        )
+        val oldMemory = TvmContractExecutionMemory(stack, registersOfCurrentContract)
+        contractStack =
+            contractStack.add(
+                TvmEventInformation(
+                    currentContract,
+                    returnStmt,
+                    oldMemory,
+                    0,
+                    phaseBeginTime = currentPhaseBeginTime,
+                    phaseEndTime = currentPhaseEndTime,
+                    receivedMessage = receivedMessage,
+                    computeFee = currentComputeFeeUsed,
+                    isExceptional = isExceptional,
+                    phase = phase,
+                ),
+            )
+        val executionMemory =
+            initializeContractExecutionMemory(
+                contractsCode,
+                this,
+                checkerContractId,
+                newMsgValue = null,
+                allowInputStackValues = false,
+            )
 
-    phase = TvmComputePhase
-    currentPhaseBeginTime = pseudologicalTime
-    currentPhaseEndTime = null
-    receivedMessage = null
-    currentComputeFeeUsed = null
-    isExceptional = false
-    currentContract = checkerContractId
-    registersOfCurrentContract = executionMemory.registers
-    val storedC7 = checkerC7
-    if (storedC7 != null) {
-        registersOfCurrentContract.c7 = storedC7
+        phase = TvmComputePhase
+        currentPhaseBeginTime = pseudologicalTime
+        currentPhaseEndTime = null
+        receivedMessage = null
+        currentComputeFeeUsed = null
+        isExceptional = false
+        currentContract = checkerContractId
+        registersOfCurrentContract = executionMemory.registers
+        val storedC7 = checkerC7
+        if (storedC7 != null) {
+            registersOfCurrentContract.c7 = storedC7
+        }
+        pushArgumentsOnStack() ?: return@calcOnState CheckerCallResult.MSG_CONSTRUCTION_OVERFLOW
+        switchDirectlyToMethodInContract(method)
+        return@calcOnState CheckerCallResult.WAS_CALLED
     }
-    pushArgumentsOnStack()
-    switchDirectlyToMethodInContract(method)
-    return Unit
-}
 
 private fun TvmState.mockValueForRef(
     ref: UHeapRef,
