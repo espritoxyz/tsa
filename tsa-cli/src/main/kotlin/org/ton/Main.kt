@@ -8,6 +8,7 @@ import org.ton.commands.CompiledCheckerAnalysis
 import org.ton.commands.FiftAnalysis
 import org.ton.commands.FuncAnalysis
 import org.ton.commands.InterContractAnalysis
+import org.ton.commands.OpcodeExtraction
 import org.ton.commands.TactAnalysis
 import org.ton.commands.TestGeneration
 
@@ -24,4 +25,5 @@ fun main(args: Array<String>) =
             CheckerAnalysis(),
             InterContractAnalysis(),
             CompiledCheckerAnalysis(),
+            OpcodeExtraction(),
         ).main(args)

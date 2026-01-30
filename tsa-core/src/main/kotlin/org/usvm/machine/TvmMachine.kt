@@ -5,7 +5,6 @@ import org.ton.TvmInputInfo
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmInst
-import org.usvm.PathSelectionStrategy
 import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
 import org.usvm.UMachineOptions
@@ -20,6 +19,7 @@ import org.usvm.statistics.CompositeUMachineObserver
 import org.usvm.statistics.StepsStatistics
 import org.usvm.statistics.TimeStatistics
 import org.usvm.statistics.collectors.AllStatesCollector
+import org.usvm.statistics.collectors.StatesCollector
 import org.usvm.stopstrategies.GroupedStopStrategy
 import org.usvm.stopstrategies.StepLimitStopStrategy
 import org.usvm.stopstrategies.StopStrategy
@@ -28,13 +28,14 @@ import java.math.BigInteger
 import kotlin.time.Duration.Companion.INFINITE
 
 class TvmMachine(
-    tvmOptions: TvmOptions = TvmOptions(),
+    private val tvmOptions: TvmOptions = TvmOptions(),
 ) : UMachine<TvmState>() {
     override val options: UMachineOptions =
         defaultOptions.copy(
             timeout = tvmOptions.timeout,
             solverTimeout = tvmOptions.solverTimeout,
             loopIterationLimit = tvmOptions.loopIterationLimit?.let { it - 1 },
+            pathSelectionStrategies = tvmOptions.pathSelectionStrategies,
         )
 
     private val components = TvmComponents(tvmOptions)
@@ -147,13 +148,25 @@ class TvmMachine(
             GroupedStopStrategy(listOf(stopStrategy, additionalStopStrategy, timeoutStopStrategy))
 
         val statesCollector =
-            when (options.stateCollectionStrategy) {
-                StateCollectionStrategy.COVERED_NEW, StateCollectionStrategy.REACHED_TARGET ->
-                    TODO(
-                        "Unsupported strategy ${options.stateCollectionStrategy}",
-                    )
+            if (!tvmOptions.collectNonTerminatedState) {
+                AllStatesCollector()
+            } else {
+                object : StatesCollector<TvmState> {
+                    override val collectedStates: List<TvmState>
+                        get() = collectedStatesSet.toList()
 
-                StateCollectionStrategy.ALL -> AllStatesCollector<TvmState>()
+                    private val collectedStatesSet = mutableSetOf<TvmState>()
+
+                    override fun onState(
+                        parent: TvmState,
+                        forks: Sequence<TvmState>,
+                    ) {
+                        collectedStatesSet.add(parent)
+                        forks.forEach {
+                            collectedStatesSet.add(it)
+                        }
+                    }
+                }
             }
 
         val observers =
@@ -192,7 +205,6 @@ class TvmMachine(
 
         val defaultOptions: UMachineOptions =
             UMachineOptions(
-                pathSelectionStrategies = listOf(PathSelectionStrategy.DFS),
                 stateCollectionStrategy = StateCollectionStrategy.ALL,
                 timeout = INFINITE,
                 stopOnCoverage = -1,
