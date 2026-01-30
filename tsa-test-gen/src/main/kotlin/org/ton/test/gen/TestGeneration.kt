@@ -101,7 +101,7 @@ private fun TsContext.constructTests(
 ): TsTestFile? {
     val recvInternalTests =
         tests
-            .filter { it.methodId == RECEIVE_INTERNAL_ID }
+            .filter { it.methodId == RECEIVE_INTERNAL_ID && it.result is TvmTestFailure }
             .let { if (useMinimization) minimizeTestCase(it) else it }
 
     val recvExternalTests =
