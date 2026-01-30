@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -33,9 +34,9 @@ tasks {
         options.compilerArgs = options.compilerArgs + "-Xlint:all" + "-Xlint:-options" // + "-Werror"
     }
     withType<KotlinCompile> {
-        kotlinOptions {
-            jvmTarget = JavaVersion.VERSION_1_8.toString()
-            freeCompilerArgs += listOf("-Xsam-conversions=class", "-Xcontext-receivers")
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_1_8)
+            freeCompilerArgs.addAll(listOf("-Xsam-conversions=class", "-Xcontext-receivers"))
             // For now, we have some compiler warnings about context receivers.
             // When we resolve it, option [allWarningsAsErrors] should be turned on.
 //            allWarningsAsErrors = true
