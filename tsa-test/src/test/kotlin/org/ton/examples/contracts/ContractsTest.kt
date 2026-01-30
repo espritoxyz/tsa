@@ -57,6 +57,7 @@ class ContractsTest {
     private val walletV3Path: String = "/contracts/wallet-v3/wallet-v3-code.fc"
     private val tolk1ContractPath: String = "/contracts/tolk1.boc"
     private val tolk2ContractPath: String = "/contracts/Tolk2.boc"
+    private val tolk3ContractPath: String = "/contracts/Tolk3.boc"
 
     private val walletV3FiftPath: String = "/contracts/wallet-v3/wallet-v3-code.fif"
 
@@ -83,6 +84,16 @@ class ContractsTest {
     @Test
     fun testSimpleTolk2() {
         analyzeSpecificMethodBoc(tolk2ContractPath, MethodId.ZERO, enableTestGeneration = true)
+    }
+
+    @Test
+    fun testSimpleTolk3NoFail() {
+        val options =
+            TvmOptions(
+                quietMode = false,
+                excludeExecutionsWithFailures = true,
+            )
+        analyzeSpecificMethodBoc(tolk3ContractPath, MethodId.ZERO, enableTestGeneration = true, options)
     }
 
     @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
@@ -342,13 +353,14 @@ class ContractsTest {
         contractPath: String,
         methodId: MethodId,
         enableTestGeneration: Boolean,
+        options: TvmOptions? = null,
     ) {
         val bocPath = getResourcePath<ContractsTest>(contractPath)
         val tests =
             BocAnalyzer.analyzeSpecificMethod(
                 bocPath,
                 methodId,
-                tvmOptions = TvmOptions(quietMode = false),
+                tvmOptions = options ?: TvmOptions(quietMode = false),
             )
         assertTrue { tests.isNotEmpty() }
 
