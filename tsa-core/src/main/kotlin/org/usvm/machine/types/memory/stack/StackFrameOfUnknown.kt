@@ -107,22 +107,37 @@ data class StackFrameOfUnknown(
 
                 forgottenConstraint = sizeIsBad.not() and assumeValue
 
-                scope.forkWithCheckerStatusKnowledge(
-                    assumeValue implies sizeIsBad.not(),
-                    blockOnUnknownTrueState = {
-                        badSizeContext = BadSizeContext.GoodSizeIsUnknown
-                    },
-                    blockOnUnsatTrueState = {
-                        badSizeContext = BadSizeContext.GoodSizeIsUnsat
-                    },
-                    blockOnFalseState = {
-                        // because UnknownBlockField got into constraints
-                        fieldManagers.cellDataFieldManager.inferenceManager.fixateRef(loadData.cellRef)
+                if (scope.allowFailuresOnCurrentStep) {
+                    scope.forkWithCheckerStatusKnowledge(
+                        assumeValue implies sizeIsBad.not(),
+                        blockOnUnknownTrueState = {
+                            badSizeContext = BadSizeContext.GoodSizeIsUnknown
+                        },
+                        blockOnUnsatTrueState = {
+                            badSizeContext = BadSizeContext.GoodSizeIsUnsat
+                        },
+                        blockOnFalseState = {
+                            // because UnknownBlockField got into constraints
+                            fieldManagers.cellDataFieldManager.inferenceManager.fixateRef(loadData.cellRef)
 
-                        onBadCellSize(this, badSizeContext)
-                    },
-                    doNotAddConstraintToTrueState = true, // because further constraints are stronger
-                ) ?: return@doWithCtx null
+                            onBadCellSize(this, badSizeContext)
+                        },
+                        doNotAddConstraintToTrueState = true, // because further constraints are stronger
+                    ) ?: return@doWithCtx null
+                } else {
+                    // case when [!badCellSizeIsExceptional]
+                    scope.fork(
+                        assumeValue implies sizeIsBad.not(),
+                        falseStateIsExceptional = false,
+                        blockOnFalseState = {
+                            // because UnknownBlockField got into constraints
+                            fieldManagers.cellDataFieldManager.inferenceManager.fixateRef(loadData.cellRef)
+
+                            // badSizeContext doesn't matter here
+                            onBadCellSize(this, BadSizeContext.GoodSizeIsUnknown)
+                        },
+                    ) ?: return@doWithCtx null
+                }
             }
 
             val newStructure =
