@@ -15,7 +15,6 @@ import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmStructuralExit
-import java.math.BigInteger
 
 data object TvmTestResolver {
     fun resolve(
@@ -186,15 +185,11 @@ data class TvmContractState(
     val balance: TvmTestIntegerValue,
 )
 
-/**
- * @param mode is `null` if the message was bounced (and thus, no mode was attached to it)
- */
 @Serializable
 data class TvmTestMessage(
     val value: TvmTestIntegerValue,
     @Transient val fullMessage: TvmTestCellValue = TvmTestDataCellValue(),
     val bodySlice: TvmTestSliceValue,
-    @Transient val mode: BigInteger? = null,
 )
 
 sealed interface TvmTestResult

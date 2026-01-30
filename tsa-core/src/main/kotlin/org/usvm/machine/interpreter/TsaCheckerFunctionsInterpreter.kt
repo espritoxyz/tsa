@@ -305,7 +305,7 @@ class TsaCheckerFunctionsInterpreter(
                     contractsCode,
                     this,
                     nextContractId,
-                    receiverInput?.msgValue,
+                    receiverInput?.let { ReceivedMessage.InputMessage(it) },
                     allowInputStackValues = false,
                 ).also {
                     stack = it.stack

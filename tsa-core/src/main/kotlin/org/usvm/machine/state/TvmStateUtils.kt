@@ -4,16 +4,20 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.powerOfTwo
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bitstring.BitString
 import org.ton.bytecode.BALANCE_PARAMETER_IDX
 import org.ton.bytecode.INBOUND_MESSAGE_VALUE_PARAMETER_IDX
+import org.ton.bytecode.IN_MSG_PARAMS_IDX
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TIME_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialExitInst
 import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TsaArtificialOnComputePhaseExitInst
 import org.ton.bytecode.TsaContractCode
+import org.ton.bytecode.TvmCell
+import org.ton.bytecode.TvmCellData
 import org.ton.bytecode.TvmCellValue
 import org.ton.bytecode.TvmExceptionContinuation
 import org.ton.bytecode.TvmInst
@@ -41,6 +45,16 @@ import org.usvm.machine.intValue
 import org.usvm.machine.maxUnsignedValue
 import org.usvm.machine.state.TvmStack.TvmStackIntValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.state.messages.ReceivedMessage
+import org.usvm.machine.state.messages.bounce
+import org.usvm.machine.state.messages.bounced
+import org.usvm.machine.state.messages.createdAt
+import org.usvm.machine.state.messages.createdLt
+import org.usvm.machine.state.messages.fwdFee
+import org.usvm.machine.state.messages.getMsgValue
+import org.usvm.machine.state.messages.msgValue
+import org.usvm.machine.state.messages.srcAddressSlice
+import org.usvm.machine.state.messages.stateInit
 import org.usvm.machine.toTvmCell
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
@@ -495,7 +509,7 @@ fun initializeContractExecutionMemory(
     contractsCode: List<TsaContractCode>,
     state: TvmState,
     contractId: ContractId,
-    newMsgValue: UExpr<TvmInt257Sort>?,
+    message: ReceivedMessage?,
     allowInputStackValues: Boolean,
 ): TvmContractExecutionMemory {
     val contractCode = contractsCode[contractId]
@@ -511,7 +525,7 @@ fun initializeContractExecutionMemory(
             val oldFirstElementOfC7 =
                 state.contractIdToFirstElementOfC7[contractId]
                     ?: error("First element of c7 for contract $contractId not found")
-            val newMsgValue = newMsgValue ?: state.ctx.zeroValue
+            val newMsgValue = message?.getMsgValue() ?: state.ctx.zeroValue
             val oldBalance =
                 oldFirstElementOfC7[BALANCE_PARAMETER_IDX, stack]
                     .cell(stack)
@@ -534,6 +548,10 @@ fun initializeContractExecutionMemory(
 
                         TIME_PARAMETER_IDX -> {
                             TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.time))
+                        }
+
+                        IN_MSG_PARAMS_IDX -> {
+                            message?.buildMessageParams(state) ?: buildEmptyMessageParams(state)
                         }
 
                         else -> {
@@ -561,6 +579,60 @@ fun initializeContractExecutionMemory(
         ),
     )
 }
+
+private fun ReceivedMessage.buildMessageParams(state: TvmState): TvmStack.TvmConcreteStackEntry =
+    TvmStack.TvmConcreteStackEntry(
+        TvmStackTupleValueConcreteNew(
+            state.ctx,
+            persistentListOf(
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(bounce())),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(bounced())),
+                TvmStack.TvmConcreteStackEntry(
+                    TvmStack.TvmStackSliceValue(
+                        srcAddressSlice() ?: state.allocSliceFromCell(
+                            TvmCell(TvmCellData("00"), refs = emptyList()),
+                        ),
+                    ),
+                ),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(fwdFee() ?: state.ctx.zeroValue)),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(createdLt())),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(createdAt())),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(msgValue())), // orig_value
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(msgValue())),
+                TvmStack.TvmConcreteStackEntry(TvmStack.TvmStackNullValue), // value_extra
+                TvmStack.TvmConcreteStackEntry(
+                    stateInit()?.let {
+                        TvmStack.TvmStackCellValue(it)
+                    } ?: TvmStack.TvmStackNullValue,
+                ),
+            ),
+        ),
+    )
+
+private fun buildEmptyMessageParams(state: TvmState) =
+    TvmStack.TvmConcreteStackEntry(
+        TvmStackTupleValueConcreteNew(
+            state.ctx,
+            persistentListOf(
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.ctx.zeroValue)),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.ctx.zeroValue)),
+                TvmStack.TvmConcreteStackEntry(
+                    TvmStack.TvmStackSliceValue(
+                        state.allocSliceFromCell(
+                            TvmCell(TvmCellData("00"), refs = emptyList()),
+                        ),
+                    ),
+                ),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.ctx.zeroValue)),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.ctx.zeroValue)),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.ctx.zeroValue)),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.ctx.zeroValue)),
+                TvmStack.TvmConcreteStackEntry(TvmStackIntValue(state.ctx.zeroValue)),
+                TvmStack.TvmConcreteStackEntry(TvmStack.TvmStackNullValue),
+                TvmStack.TvmConcreteStackEntry(TvmStack.TvmStackNullValue),
+            ),
+        ),
+    )
 
 fun TvmState.contractEpilogue(isChecker: Boolean) {
     contractIdToFirstElementOfC7 =
@@ -671,7 +743,7 @@ fun TvmStepScopeManager.callCheckerMethodIfExists(
                 contractsCode,
                 this,
                 checkerContractId,
-                newMsgValue = null,
+                message = null,
                 allowInputStackValues = false,
             )
 

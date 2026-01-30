@@ -15,6 +15,7 @@ const val INBOUND_MESSAGE_VALUE_PARAMETER_IDX: Int = 11
 const val STORAGE_FEES_PARAMETER_IDX: Int = 12
 const val PREV_BLOCK_PARAMETER_IDX: Int = 13
 const val DUE_PAYMENT_IDX = 15
+const val IN_MSG_PARAMS_IDX = 17
 
 fun List<TvmInst>.flattenStatements(): List<TvmInst> {
     val statements = mutableListOf<TvmInst>()

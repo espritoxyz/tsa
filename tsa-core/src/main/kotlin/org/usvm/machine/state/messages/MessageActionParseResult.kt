@@ -1,9 +1,7 @@
 package org.usvm.machine.state.messages
 
-import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.machine.Int257Expr
-import org.usvm.machine.TvmContext
 import org.usvm.machine.state.ContractId
 
 object MessageMode {
@@ -39,13 +37,6 @@ data class MessageAsStackArguments(
     val fullMsgCell: UHeapRef,
     val msgBodySlice: UHeapRef,
     val destAddrSlice: UHeapRef,
-    val source: MessageSource, // for debugging
+    val commonInfo: TlbCommonMessageInfo,
+    val stateInitCell: UHeapRef?,
 )
-
-sealed interface MessageSource {
-    data class SentWithMode(
-        val mode: UExpr<TvmContext.TvmInt257Sort>,
-    ) : MessageSource
-
-    data object Bounced : MessageSource
-}

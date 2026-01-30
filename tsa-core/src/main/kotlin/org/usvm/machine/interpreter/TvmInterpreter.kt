@@ -470,19 +470,13 @@ class TvmInterpreter(
         state: TvmState,
         startContractId: ContractId,
     ) {
-        val msgValue =
-            when (val input = state.initialInput) {
-                is ReceiverInput -> input.msgValue
-                is TvmStackInput -> null
-            }
-
         val allowInputStackValues = ctx.tvmOptions.enableInputValues && (state.initialInput is TvmStackInput)
         val executionMemory =
             initializeContractExecutionMemory(
                 contractsCode,
                 state,
                 startContractId,
-                msgValue,
+                (state.initialInput as? ReceiverInput)?.let { ReceivedMessage.InputMessage(it) },
                 allowInputStackValues,
             )
 

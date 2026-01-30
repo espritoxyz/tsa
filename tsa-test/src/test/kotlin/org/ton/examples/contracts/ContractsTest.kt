@@ -55,7 +55,8 @@ class ContractsTest {
     private val restrictedWalletV2Path: String = "/contracts/restricted-wallet/restricted-wallet2-code.fc"
     private val restrictedWalletV3Path: String = "/contracts/restricted-wallet/restricted-wallet3-code.fc"
     private val walletV3Path: String = "/contracts/wallet-v3/wallet-v3-code.fc"
-    private val tolkContractPath: String = "/contracts/tolk.boc"
+    private val tolk1ContractPath: String = "/contracts/tolk1.boc"
+    private val tolk2ContractPath: String = "/contracts/Tolk2.boc"
 
     private val walletV3FiftPath: String = "/contracts/wallet-v3/wallet-v3-code.fif"
 
@@ -75,8 +76,13 @@ class ContractsTest {
     }
 
     @Test
-    fun testSimpleTolk() {
-        analyzeSpecificMethodBoc(tolkContractPath, MethodId.ZERO, enableTestGeneration = true)
+    fun testSimpleTolk1() {
+        analyzeSpecificMethodBoc(tolk1ContractPath, MethodId.ZERO, enableTestGeneration = true)
+    }
+
+    @Test
+    fun testSimpleTolk2() {
+        analyzeSpecificMethodBoc(tolk2ContractPath, MethodId.ZERO, enableTestGeneration = true)
     }
 
     @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)

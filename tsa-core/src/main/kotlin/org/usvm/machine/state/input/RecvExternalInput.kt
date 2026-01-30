@@ -1,6 +1,7 @@
 package org.usvm.machine.state.input
 
 import org.ton.Endian
+import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.api.readField
@@ -34,6 +35,12 @@ class RecvExternalInput(
 
     override val msgBodySliceMaybeBounced: UConcreteHeapRef
         get() = msgBodySliceNonBounced
+
+    override val bounce: UBoolExpr
+        get() = ctx.falseExpr
+
+    override val bounced: UBoolExpr
+        get() = ctx.falseExpr
 
     override fun constructFullMessage(state: TvmState): UConcreteHeapRef =
         with(ctx) {

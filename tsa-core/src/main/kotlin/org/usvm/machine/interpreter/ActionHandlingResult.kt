@@ -5,7 +5,6 @@ import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.messages.ConstructedMessageCells
 import org.usvm.machine.state.messages.MessageAsStackArguments
-import org.usvm.machine.state.messages.MessageSource
 import org.usvm.machine.state.messages.TlbInternalMessageContent
 
 data class DispatchedMessageContent(
@@ -19,7 +18,8 @@ data class DispatchedMessageContent(
             constructedCells.fullMsgCell,
             constructedCells.msgBodySlice,
             tlbContent.commonMessageInfo.dstAddressSlice,
-            source = MessageSource.Bounced,
+            commonInfo = tlbContent.commonMessageInfo,
+            stateInitCell = tlbContent.stateInitRef,
         )
     }
 }

@@ -57,7 +57,7 @@ class RecvInternalInput(
         }
 
     // bounced:Bool
-    val bounced = state.ctx.mkEq(bouncedFlag, state.ctx.mkBv(1, 1u))
+    override val bounced = state.ctx.mkEq(bouncedFlag, state.ctx.mkBv(1, 1u))
 
     private val msgBodyCellBounced: UConcreteHeapRef by lazy {
         with(state.ctx) {
@@ -116,7 +116,7 @@ class RecvInternalInput(
 
     // bounce:Bool
     // If bounced=true, then bounce must be false
-    val bounce =
+    override val bounce =
         with(state.ctx) {
             bounced.not() and state.makeSymbolicPrimitive(state.ctx.boolSort)
         }
