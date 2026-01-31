@@ -36,6 +36,25 @@ class CellParserTest {
     }
 
     @Test
+    fun `empty integer`() {
+        baseTestWithFullCellCoverage(
+            cellUnderTest = CellBuilder().endCell(),
+            knownTypes =
+                listOf(
+                    TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(0, false, Endian.BigEndian), 0),
+                ),
+            expected =
+                listOf<TvmTestCellElement>(
+                    TvmTestCellElement.Integer(
+                        value = 0.toBigInteger(),
+                        width = 0,
+                        offset = 0,
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `single integer underflow`() {
         baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeInt(3, 5).endCell(),
@@ -43,7 +62,7 @@ class CellParserTest {
                 listOf(
                     TvmCellDataTypeLoad(TvmTestCellDataIntegerRead(5, false, Endian.BigEndian), 1),
                 ),
-            expected = listOf<TvmTestCellElement>(), // no successful reads
+            expected = listOf(), // no successful reads
         )
     }
 
@@ -109,6 +128,21 @@ class CellParserTest {
     }
 
     @Test
+    fun `empty coin`() {
+        baseTestWithFullCellCoverage(
+            cellUnderTest = CellBuilder().storeCoin(0, 0).endCell(),
+            knownTypes =
+                listOf(
+                    TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 0),
+                ),
+            expected =
+                listOf<TvmTestCellElement>(
+                    TvmTestCellElement.Coin(gramsValue = 0.toBigInteger(), nanogramsWidth = 0, offset = 0),
+                ),
+        )
+    }
+
+    @Test
     fun `two coins`() {
         baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeCoin(5, 1).storeCoin(13, 1).endCell(),
@@ -135,7 +169,7 @@ class CellParserTest {
                     TvmCellDataTypeLoad(TvmTestCellDataCoinsRead, 5),
                 ),
             expected =
-                listOf<TvmTestCellElement>(
+                listOf(
                     TvmTestCellElement.Integer(value = 4.toBigInteger(), width = 5, offset = 0),
                     TvmTestCellElement.Coin(gramsValue = 13.toBigInteger(), nanogramsWidth = 2, offset = 5),
                 ),
@@ -164,7 +198,7 @@ class CellParserTest {
                     TvmCellDataTypeLoad(TvmTestCellDataMaybeConstructorBitRead, 4),
                 ),
             expected =
-                listOf<TvmTestCellElement>(
+                listOf(
                     TvmTestCellElement.BitArray(data = "0010", width = 4, offset = 0),
                     TvmTestCellElement.MaybeConstructor(begin = 4, isJust = true),
                 ),

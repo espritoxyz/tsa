@@ -238,19 +238,27 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
                 val actualGramsBegin = offset + 4
                 val width = cell.data.strictSubstring(offset, actualGramsBegin)?.toInt(2) ?: return@mapNotNull null
                 val value =
-                    cell.data.strictSubstring(actualGramsBegin, actualGramsBegin + width * 8)?.toBigInteger(2)
-                        ?: return@mapNotNull null
+                    if (width > 0) {
+                        cell.data.strictSubstring(actualGramsBegin, actualGramsBegin + width * 8)?.toBigInteger(2)
+                            ?: return@mapNotNull null
+                    } else {
+                        BigInteger.ZERO
+                    }
                 TvmTestCellElement.Coin(value, width, offset)
             }
 
             is TvmTestCellDataIntegerRead -> {
                 val width = type.bitSize
                 val data =
-                    cell.data
-                        .strictSubstring(offset, offset + width)
-                        ?.let {
-                            if (type.endian == Endian.LittleEndian) it.reversed() else it
-                        }?.toBigInteger(2) ?: return@mapNotNull null
+                    if (width > 0) {
+                        cell.data
+                            .strictSubstring(offset, offset + width)
+                            ?.let {
+                                if (type.endian == Endian.LittleEndian) it.reversed() else it
+                            }?.toBigInteger(2) ?: return@mapNotNull null
+                    } else {
+                        BigInteger.ZERO
+                    }
                 TvmTestCellElement.Integer(data, width, offset)
             }
 
