@@ -22,7 +22,6 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.OP_BITS
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.asIntValue
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.dropFirstWithoutChecks
 import org.usvm.machine.splitHeadTail
@@ -58,7 +57,6 @@ import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.SliceRef
 import org.usvm.mkSizeExpr
 import org.usvm.test.resolver.TvmTestStateResolver
-import org.usvm.utils.intValueOrNull
 
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
 private typealias Transformation =
@@ -256,44 +254,106 @@ class TvmTransactionInterpreter(
             val sendRemainingValue = mode.hasBitSet(MessageMode.SEND_REMAINING_VALUE_BIT)
             val sendRemainingBalance = mode.hasBitSet(MessageMode.SEND_REMAINING_BALANCE_BIT)
             val sendFwdFeesSeparately = mode.hasBitSet(MessageMode.SEND_FEES_SEPARATELY)
-            val sendIgnoreErrors =
-                mode
-                    .hasBitSet(MessageMode.SEND_IGNORE_ERRORS)
-                    .asIntValue()
-                    .intValueOrNull
-                    ?.let { it != 0 }
-                    ?: error("Only concrete mode is supported")
+            val sendIgnoreErrors = mode.hasBitSet(MessageMode.SEND_IGNORE_ERRORS)
+
             val content = head.content
             if (content != null) {
-                val messageValue = content.commonMessageInfo.msgValue
-                ctx.handleSingleMessage(
-                    scope = this@handleMessagesImpl,
-                    sendRemainingValue = sendRemainingValue,
-                    sendRemainingBalance = sendRemainingBalance,
-                    sendFwdFeesSeparately = sendFwdFeesSeparately,
-                    computeFees = zeroValue,
-                    initMsgValue = messageValue,
-                    currentState = currentMessageHandlingState,
-                    currentMessage = head,
-                ) { newCurrentState ->
-                    val newCurrentStateWithPossiblyIgnoredError =
-                        if (newCurrentState is MessageHandlingState.RealFailure && sendIgnoreErrors) {
-                            currentMessageHandlingState
-                        } else {
-                            newCurrentState
-                        }
-                    handleMessagesImpl(tail, newCurrentStateWithPossiblyIgnoredError, restActions)
+                this@handleMessagesImpl.handleSuccessfullyParsedMessage(
+                    content,
+                    sendRemainingValue,
+                    sendRemainingBalance,
+                    sendFwdFeesSeparately,
+                    this@with,
+                    currentMessageHandlingState,
+                    head,
+                    sendIgnoreErrors,
+                ) { stateAfterHandlingMessage ->
+                    handleMessagesImpl(tail, stateAfterHandlingMessage, restActions)
                 }
             } else {
-                if (sendIgnoreErrors) {
-                    // eat the error and continue the handling
-                    handleMessagesImpl(tail, currentMessageHandlingState, restActions)
-                } else {
-                    val result = MessageHandlingState.cellUnderflow()
-                    restActions(result)
+                concretizeBySplit(sendIgnoreErrors) { sendIgnoreErrors ->
+                    if (sendIgnoreErrors) {
+                        // eat the error and continue the handling
+                        handleMessagesImpl(tail, currentMessageHandlingState, restActions)
+                    } else {
+                        val result = MessageHandlingState.cellUnderflow()
+                        restActions(result)
+                    }
                 }
             }
         }
+
+    private fun TvmStepScopeManager.concretizeBySplit(
+        flag: UBoolExpr,
+        restActions: TvmStepScopeManager.(Boolean) -> Unit,
+    ) {
+        val actions =
+            listOf(
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {},
+                    caseIsExceptional = false,
+                    condition = flag,
+                    paramForDoForAllBlock = true,
+                ),
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {},
+                    caseIsExceptional = false,
+                    condition = with(ctx) { flag.not() },
+                    paramForDoForAllBlock = false,
+                ),
+            )
+        doWithConditions(actions, restActions)
+    }
+
+    private fun TvmStepScopeManager.handleSuccessfullyParsedMessage(
+        content: TlbInternalMessageContent,
+        sendRemainingValue: UBoolExpr,
+        sendRemainingBalance: UBoolExpr,
+        sendFwdFeesSeparately: UBoolExpr,
+        context: TvmContext,
+        currentMessageHandlingState: MessageHandlingState,
+        currentMessage: ParsedMessageWithResolvedReceiver,
+        sendIgnoreErrors: UBoolExpr,
+        restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
+    ) {
+        val messageValue = content.commonMessageInfo.msgValue
+        this.ctx.handleSingleMessage(
+            scope = this,
+            sendRemainingValue = sendRemainingValue,
+            sendRemainingBalance = sendRemainingBalance,
+            sendFwdFeesSeparately = sendFwdFeesSeparately,
+            computeFees = context.zeroValue,
+            initMsgValue = messageValue,
+            currentState = currentMessageHandlingState,
+            currentMessage = currentMessage,
+        ) { newCurrentState ->
+            val actions =
+                listOf(
+                    TvmStepScopeManager.ActionOnCondition(
+                        action = {},
+                        caseIsExceptional = false,
+                        condition = sendIgnoreErrors,
+                        paramForDoForAllBlock =
+                            if (newCurrentState is MessageHandlingState.RealFailure) {
+                                currentMessageHandlingState
+                            } else {
+                                newCurrentState
+                            },
+                    ),
+                    TvmStepScopeManager.ActionOnCondition(
+                        action = {},
+                        caseIsExceptional = false,
+                        condition = with(this.ctx) { sendIgnoreErrors.not() },
+                        paramForDoForAllBlock = newCurrentState,
+                    ),
+                )
+            doWithConditions(
+                actions,
+            ) { stateAfterHandlingMessage ->
+                restActions(stateAfterHandlingMessage)
+            }
+        }
+    }
 
     private fun ParsedMessageWithResolvedReceiver.withSetMessageValue(
         messageValue: Int257Expr,
