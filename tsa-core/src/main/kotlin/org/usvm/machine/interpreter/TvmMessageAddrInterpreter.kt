@@ -2,6 +2,7 @@ package org.usvm.machine.interpreter
 
 import org.ton.bytecode.TvmAppAddrInst
 import org.ton.bytecode.TvmAppAddrLdmsgaddrInst
+import org.ton.bytecode.TvmAppAddrLdoptstdaddrInst
 import org.ton.bytecode.TvmAppAddrLdstdaddrInst
 import org.ton.bytecode.TvmAppAddrRewritestdaddrInst
 import org.ton.bytecode.TvmAppAddrStstdaddrInst
@@ -29,6 +30,7 @@ import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.state.takeLastBuilder
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.types.TvmBuilderType
+import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import kotlin.with
 
@@ -46,6 +48,7 @@ class TvmMessageAddrInterpreter(
             is TvmAppAddrRewritestdaddrInst -> visitParseStdAddr(scope, stmt)
             is TvmAppAddrLdstdaddrInst -> visitLdStdAddr(scope, stmt)
             is TvmAppAddrStstdaddrInst -> visitStStdAddr(scope, stmt)
+            is TvmAppAddrLdoptstdaddrInst -> visitLdOptStdAddr(scope, stmt)
             else -> TODO("$stmt")
         }
     }
@@ -96,6 +99,44 @@ class TvmMessageAddrInterpreter(
                 falseStateIsExceptional = true,
                 blockOnFalseState = {
                     throwUnknownCellUnderflowError(this)
+                },
+            ) ?: return@sliceLoadAddrTlb
+
+            doWithState {
+                addOnStack(address, TvmSliceType)
+                addOnStack(updatedSlice, TvmSliceType)
+
+                newStmt(stmt.nextStmt())
+            }
+        }
+    }
+
+    private fun visitLdOptStdAddr(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppAddrLdoptstdaddrInst,
+    ) = with(ctx) {
+        val slice =
+            scope.calcOnState { takeLastSlice() }
+                ?: return scope.doWithState(throwTypeCheckError)
+
+        val updatedSlice =
+            scope.calcOnState {
+                memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
+            }
+
+        sliceLoadAddrTlb(scope, slice, updatedSlice) { address ->
+            val prefix =
+                slicePreloadInt(address, sizeBits = twoSizeExpr, isSigned = false)
+                    ?: return@sliceLoadAddrTlb
+
+            fork(
+                prefix eq twoValue,
+                falseStateIsExceptional = false,
+                blockOnFalseState = {
+                    addOnStack(ctx.nullValue, TvmNullType)
+                    addOnStack(updatedSlice, TvmSliceType)
+
+                    newStmt(stmt.nextStmt())
                 },
             ) ?: return@sliceLoadAddrTlb
 
