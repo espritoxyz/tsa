@@ -12,6 +12,9 @@ PROGRAM{
   7  DECLMETHOD load_std_addr_bad_tag
   8  DECLMETHOD store_std_addr_from_none
   9  DECLMETHOD load_std_addr_from_none
+  10 DECLMETHOD ld_opt_std_addr
+  11 DECLMETHOD ld_opt_std_addr_none
+  12 DECLMETHOD ld_opt_std_addr_empty
 
   store_std_addr PROC:<{
     NEWC
@@ -180,5 +183,42 @@ PROGRAM{
     LDSTDADDR
     DROP
     HASHCU
+  }>
+
+  ld_opt_std_addr PROC:<{
+    NEWC
+    2 PUSHINT
+    2 STUR
+    0 PUSHINT
+    1 STUR
+    0 PUSHINT
+    8 STUR
+    0 PUSHINT
+    256 STUR
+    ENDC
+    CTOS
+    LDOPTSTDADDR
+    DROP
+    HASHCU
+  }>
+
+  ld_opt_std_addr_none PROC:<{
+    NEWC
+    0 PUSHINT
+    2 STUR
+    ENDC
+    CTOS
+    LDOPTSTDADDR
+    DROP
+    ISNULL
+  }>
+
+  ld_opt_std_addr_empty PROC:<{
+    NEWC
+    ENDC
+    CTOS
+    LDOPTSTDADDR
+    DROP
+    ISNULL
   }>
 }END>c
