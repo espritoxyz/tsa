@@ -218,11 +218,11 @@ sealed interface MessageAfterCommonMsgInfo {
     }
 
     /**
-     * @param tailSlice empbodies the whole slice of the message that follows the CommonMsgInfo
+     * @param tailSlice embodies the whole slice of the message that follows the CommonMsgInfo
      */
     data class ConstructedBySomeContract(
         val tailSlice: UHeapRef,
-        val bodySlice: UConcreteHeapRef, // all the message after the CommonMessageInfo
+        val bodySlice: UConcreteHeapRef,
         override val stateInitRef: UHeapRef?,
         override val bodyOriginalRef: UHeapRef?,
     ) : MessageAfterCommonMsgInfo
