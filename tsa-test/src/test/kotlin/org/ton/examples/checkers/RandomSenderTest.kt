@@ -1,14 +1,14 @@
 package org.ton.examples.checkers
 
-import org.ton.test.utils.FIFT_STDLIB_RESOURCE
+import org.junit.jupiter.api.Disabled
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.exitCode
-import org.ton.test.utils.extractResource
+import org.ton.test.utils.extractCheckerContractFromResource
+import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
-import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import kotlin.test.Test
 
@@ -22,18 +22,11 @@ class RandomSenderTest {
 
     private val nonVulnerableContract = "/checkers/random-sender/non_vulnerable_contract.fc"
     private val nonVulnerableContractWithHash = "/checkers/random-sender/non_vulnerable_contract_with_hash.fc"
+    private val vulnerableWithOverflow = "/checkers/random-sender/simple_vulnerable_contract_with_overflow.fc"
 
     private fun runTest(contractPath: String): TvmSymbolicTestSuite {
-        val contractPath = extractResource(contractPath)
-        val checkerPath = extractResource(tonDrainChecker)
-
-        val checkerContract =
-            getFuncContract(
-                checkerPath,
-                FIFT_STDLIB_RESOURCE,
-                isTSAChecker = true,
-            )
-        val analyzedContract = getFuncContract(contractPath, FIFT_STDLIB_RESOURCE)
+        val checkerContract = extractCheckerContractFromResource(tonDrainChecker)
+        val analyzedContract = extractFuncContractFromResource(contractPath)
 
         val options =
             TvmOptions(
@@ -128,6 +121,19 @@ class RandomSenderTest {
         checkInvariants(
             tests,
             listOf { test -> test.exitCode() != 1000 },
+        )
+    }
+
+    @Disabled("In-place body should be replaced with out-of-place; see issue #243")
+    @Test
+    fun testVulnerableWithCellOverflow() {
+        val tests = runTest(vulnerableWithOverflow)
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> test.exitCode() == 1000 },
+            ),
         )
     }
 }
