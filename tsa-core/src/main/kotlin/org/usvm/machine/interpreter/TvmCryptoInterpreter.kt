@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import org.ton.bytecode.TvmAppCryptoChksignuInst
+import org.ton.bytecode.TvmAppCryptoHashbuInst
 import org.ton.bytecode.TvmAppCryptoHashcuInst
 import org.ton.bytecode.TvmAppCryptoHashextSha256Inst
 import org.ton.bytecode.TvmAppCryptoHashsuInst
@@ -40,6 +41,7 @@ class TvmCryptoInterpreter(
             is TvmAppCryptoHashcuInst -> visitSingleHashInst(scope, stmt, operandType = TvmCellType)
             is TvmAppCryptoChksignuInst -> visitCheckSignatureInst(scope, stmt)
             is TvmAppCryptoHashextSha256Inst -> visitHashExtSha256Inst(scope, stmt)
+            is TvmAppCryptoHashbuInst -> visitSingleHashInst(scope, stmt, operandType = TvmBuilderType)
             else -> TODO("$stmt")
         }
     }
@@ -49,10 +51,6 @@ class TvmCryptoInterpreter(
         stmt: TvmAppCryptoInst,
         operandType: TvmRealReferenceType,
     ) {
-        require(operandType != TvmBuilderType) {
-            "A single hash function for builders does not exist"
-        }
-
         scope.consumeDefaultGas(stmt)
 
         scope.calcOnState {

@@ -65,7 +65,9 @@ data class TvmTestBuilderValue(
     val data: String,
     val refs: List<TvmTestCellValue>,
 ) : TvmTestValue,
-    TvmTestReferenceValue
+    TvmTestReferenceValue {
+    fun toCell(): TvmTestDataCellValue = TvmTestDataCellValue(data, refs)
+}
 
 @Serializable
 data class TvmTestTruncatedSliceValue(

@@ -8,6 +8,8 @@ PROGRAM{
   3 DECLMETHOD ref_hash
   4 DECLMETHOD dict_hash_1
   5 DECLMETHOD dict_hash_2
+  6 DECLMETHOD simple_hashbu
+  7 DECLMETHOD ref_hashbu
   simple_cell_hash PROC:<{
       NEWC
       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
@@ -54,4 +56,19 @@ PROGRAM{
       DICTSET
       HASHCU
   }>
+  simple_hashbu PROC:<{
+      NEWC
+      x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
+      STSLICER
+      HASHBU
+  }>
+  ref_hashbu PROC:<{
+      NEWC
+      x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
+      STSLICER
+      ENDC
+      NEWC
+      STREF
+      HASHBU
+    }>
 }END>c

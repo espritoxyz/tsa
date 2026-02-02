@@ -238,7 +238,8 @@ class TvmPostProcessor(
                 calculateHashOfCell(cell)
             }
             is TvmTestBuilderValue -> {
-                TODO()
+                val cell = transformTestDataCellIntoCell(value.toCell())
+                calculateHashOfCell(cell)
             }
             is TvmTestSliceValue -> {
                 val restCell = truncateSliceCell(value)
