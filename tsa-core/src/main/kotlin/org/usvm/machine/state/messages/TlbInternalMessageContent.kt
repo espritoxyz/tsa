@@ -257,7 +257,8 @@ data class TlbInternalMessageContent(
     fun constructMessageCellFromContent(
         scope: TvmStepScopeManager,
         quietBlock: (TvmState.() -> Unit)? = null,
-    ): ConstructedMessageCells? {
+        restActions: TvmStepScopeManager.(ConstructedMessageCells) -> Unit,
+    ): Unit? {
         val state = scope.calcOnState { this }
         return with(state.ctx) {
             val resultBuilder = state.allocEmptyBuilder()
@@ -384,7 +385,7 @@ data class TlbInternalMessageContent(
                 }
 
             val fullMessageCell = state.builderToCell(resultBuilder)
-            return ConstructedMessageCells(msgBodySlice = bodySlice, fullMsgCell = fullMessageCell)
+            scope.restActions(ConstructedMessageCells(msgBodySlice = bodySlice, fullMsgCell = fullMessageCell))
         }
     }
 

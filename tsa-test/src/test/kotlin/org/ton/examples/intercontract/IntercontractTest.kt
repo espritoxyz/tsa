@@ -1,5 +1,6 @@
 package org.ton.examples.intercontract
 
+import org.junit.jupiter.api.Tag
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.analyzeFuncIntercontract
@@ -20,6 +21,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+@Tag("intercontract")
 class IntercontractTest {
     private val rootPath: String = "/intercontract/sample/root.fc"
     private val contract1Path: String = "/intercontract/sample/contract-1.fc"
@@ -69,7 +71,8 @@ class IntercontractTest {
         val invalidatedInvariantCount = failedPaths.count { it.first == invalidatedInvariantCode }
         assertEquals(0, invalidatedInvariantCount)
 
-        // simple path test
+        // simple path testa
+        // note: these checks depend on the order we take the messages from a queue, which is an implementation detail
         val simplePath = listOf(0, 1, 2)
         val simplePathEndCode = 101
         assertContains(failedPaths, simplePathEndCode to simplePath)
