@@ -15,7 +15,7 @@ class CellBuildTest {
 
     @Test
     fun cellBuildTest() {
-        compareSymbolicAndConcreteFromResource(testPath = storeSliceConstFif, lastMethodIndex = 14)
+        compareSymbolicAndConcreteFromResource(testPath = storeSliceConstFif, lastMethodIndex = 15)
     }
 
     @Test

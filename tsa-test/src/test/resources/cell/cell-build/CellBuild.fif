@@ -12,11 +12,12 @@ PROGRAM{
   7  DECLMETHOD stones_small
   8  DECLMETHOD stones
   9  DECLMETHOD stones_large
-  10  DECLMETHOD stdict_large
-  11  DECLMETHOD brefs_1
-  12  DECLMETHOD brefs_2
-  13  DECLMETHOD brefs_3
-  14  DECLMETHOD store_with_refs
+  10 DECLMETHOD stdict_large
+  11 DECLMETHOD brefs_1
+  12 DECLMETHOD brefs_2
+  13 DECLMETHOD brefs_3
+  14 DECLMETHOD store_with_refs
+  15 DECLMETHOD btos
 
   stsliceconst PROC:<{
     192 PUSHINT
@@ -205,5 +206,13 @@ PROGRAM{
      HASHCU
   }>
 
+  btos PROC:<{
+    192 PUSHINT
+    NEWC
+    8 STU
+    BTOS
+    7 LDU
+    HASHSU
+  }>
 
 }END>c
