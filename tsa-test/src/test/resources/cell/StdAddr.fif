@@ -15,6 +15,10 @@ PROGRAM{
   10 DECLMETHOD ld_opt_std_addr
   11 DECLMETHOD ld_opt_std_addr_none
   12 DECLMETHOD ld_opt_std_addr_empty
+  13 DECLMETHOD st_opt_std_addr
+  14 DECLMETHOD st_opt_std_addr_null
+  15 DECLMETHOD st_opt_std_addr_bad
+  16 DECLMETHOD store_std_addr_short
 
   store_std_addr PROC:<{
     NEWC
@@ -220,5 +224,67 @@ PROGRAM{
     LDOPTSTDADDR
     DROP
     ISNULL
+  }>
+
+  st_opt_std_addr PROC:<{
+    NEWC
+    2 PUSHINT
+    2 STUR
+    0 PUSHINT
+    1 STUR
+    0 PUSHINT
+    8 STUR
+    0 PUSHINT
+    256 STUR
+    ENDC
+    CTOS
+
+    NEWC
+    2 PUSHINT
+    2 STUR
+
+    STOPTSTDADDR
+    HASHBU
+  }>
+
+  st_opt_std_addr_null PROC:<{
+    NULL
+
+    NEWC
+    2 PUSHINT
+    2 STUR
+
+    STOPTSTDADDR
+    HASHBU
+  }>
+
+  st_opt_std_addr_bad PROC:<{
+    NEWC
+    2 PUSHINT
+    2 STUR
+    0 PUSHINT
+    1 STUR
+    0 PUSHINT
+    8 STUR
+    ENDC
+    CTOS
+
+    NEWC
+    2 PUSHINT
+    2 STUR
+
+    STOPTSTDADDR
+    HASHBU
+  }>
+
+  store_std_addr_short PROC:<{
+    NEWC
+    0 PUSHINT
+    1 STUR
+    ENDC
+    CTOS // stack is [std-addr-slice]
+
+    NEWC
+    STSTDADDR
   }>
 }END>c
