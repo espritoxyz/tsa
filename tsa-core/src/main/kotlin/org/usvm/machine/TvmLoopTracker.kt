@@ -6,7 +6,12 @@ import org.usvm.machine.state.TvmState
 import org.usvm.ps.StateLoopTracker
 
 class TvmLoopTracker : StateLoopTracker<UInt, TvmInst, TvmState> {
-    override fun findLoopEntrance(statement: TvmInst): UInt? = (statement as? TsaArtificialLoopEntranceInst)?.id
+    override fun findLoopEntrance(statement: TvmInst): UInt? =
+        if (statement is TsaArtificialLoopEntranceInst) {
+            statement.id
+        } else {
+            null
+        }
 
     override fun isLoopIterationFork(
         loop: UInt,
