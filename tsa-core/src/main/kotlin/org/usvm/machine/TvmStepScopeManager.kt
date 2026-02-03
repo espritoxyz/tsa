@@ -164,6 +164,10 @@ class TvmStepScopeManager(
                 givenConditionsWithActions
             }
 
+        if (givenConditionsWithActions.size > 1) {
+            originalState.forkPoints += originalState.pathNode
+        }
+
         val states = ctx.statesForkProvider.forkMulti(originalState, conditionsWithActions.map { it.condition })
         if (!doNotKillScopeOnDoWithConditions) {
             scope.stepScopeState = CANNOT_BE_PROCESSED

@@ -14,6 +14,7 @@ import org.ton.TvmParameterInfo.CellInfo
 import org.ton.TvmParameterInfo.SliceInfo
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaArtificialExecuteContInst
+import org.ton.bytecode.TsaArtificialLoopEntranceInst
 import org.ton.bytecode.TsaArtificialPostprocessInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmAppActionsInst
@@ -705,10 +706,10 @@ class TvmInterpreter(
         }
 
     private fun formatTsaInstruction(stmt: TvmInst): String =
-        if (stmt is TvmArtificialInst) {
-            stmt.mnemonic
-        } else {
-            formatInstruction(stmt, includeTvmCell = false)
+        when (stmt) {
+            is TsaArtificialLoopEntranceInst -> "${stmt.mnemonic}(id=${stmt.id})"
+            is TvmArtificialInst -> stmt.mnemonic
+            else -> formatInstruction(stmt, includeTvmCell = false)
         }
 
     override fun step(state: TvmState): StepResult<TvmState> {
