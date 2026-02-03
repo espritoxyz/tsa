@@ -6,6 +6,7 @@ import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellBuildBbitsInst
 import org.ton.bytecode.TvmCellBuildBdepthInst
 import org.ton.bytecode.TvmCellBuildBrefsInst
+import org.ton.bytecode.TvmCellBuildBtosInst
 import org.ton.bytecode.TvmCellBuildEndcInst
 import org.ton.bytecode.TvmCellBuildInst
 import org.ton.bytecode.TvmCellBuildNewcInst
@@ -815,6 +816,13 @@ class TvmCellInterpreter(
 
             is TvmCellBuildBrefsInst -> visitCellBrefsInst(scope, stmt)
 
+            is TvmCellBuildBtosInst -> {
+                scope.consumeDefaultGas(stmt)
+
+                doEndc(scope)
+                doCellToSlice(scope, stmt)
+            }
+
             else -> TODO("$stmt")
         }
     }
@@ -1496,7 +1504,7 @@ class TvmCellInterpreter(
 
     private fun doCellToSlice(
         scope: TvmStepScopeManager,
-        stmt: TvmCellParseInst,
+        stmt: TvmRealInst,
         end: TvmStepScopeManager.() -> Unit = {},
     ) {
         val cell = scope.takeLastCell()
