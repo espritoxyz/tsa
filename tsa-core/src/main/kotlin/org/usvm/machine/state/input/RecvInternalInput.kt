@@ -162,11 +162,18 @@ class RecvInternalInput(
                         ),
                 )
 
-            val result = (
-                tlbMessageContent.constructMessageCellFromContent(scope)?.fullMsgCell
-                    ?: error("overflow during construction fo the full message in receive internal input")
-            )
+            var fullMsgCell: UConcreteHeapRef? = null
+            tlbMessageContent.constructMessageCellFromContent(scope) { constructedMessageCells ->
+                if (fullMsgCell != null) {
+                    error("Assumptions were wrong")
+                }
+                fullMsgCell = constructedMessageCells.fullMsgCell
+            }
+                ?: error("overflow during construction of the full message in receive internal input")
 
+            val result =
+                fullMsgCell
+                    ?: error("overflow during construction of")
             val stepResult = scope.stepResult()
             check(stepResult.originalStateAlive) {
                 "Original state died while building full message"
