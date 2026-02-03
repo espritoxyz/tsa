@@ -70,11 +70,11 @@ private typealias MutableTransformation =
 class TvmTransactionInterpreter(
     val ctx: TvmContext,
 ) {
-    sealed interface ParsedActionWithReceiver
+    sealed interface ResolvedAndParsedAction
 
-    data object ParsedReserveAction : ParsedActionWithReceiver
+    data object ParsedReserveAction : ResolvedAndParsedAction
 
-    sealed interface ParsedMessageWithResolvedReceiver : ParsedActionWithReceiver {
+    sealed interface ParsedMessageWithResolvedReceiver : ResolvedAndParsedAction {
         val receiver: ContractId?
         val content: TlbInternalMessageContent?
         val sendMessageMode: Int257Expr
@@ -106,10 +106,10 @@ class TvmTransactionInterpreter(
     ) : ParsedMessageWithResolvedReceiver
 
     /**
-     * @property parsedOrdereActions are ordered in the same way they were in the action list
+     * @property parsedOrderedActions are ordered in the same way they were in the action list
      */
     class ActionsParsingResult(
-        val parsedOrdereActions: List<ParsedActionWithReceiver>,
+        val parsedOrderedActions: List<ResolvedAndParsedAction>,
     )
 
     sealed interface MessageHandlingState {
@@ -205,11 +205,11 @@ class TvmTransactionInterpreter(
 
     fun handleMessageCosts(
         scope: TvmStepScopeManager,
-        actions: List<ParsedActionWithReceiver>,
+        actions: List<ResolvedAndParsedAction>,
         restActions: TvmStepScopeManager.(ActionHandlingResult) -> Unit?,
     ) {
         // TODO: consider [RESERVE] actions
-        val messages = actions.mapNotNull { it as? ParsedMessageWithResolvedReceiver }
+        val messages = actions.filterIsInstance<ParsedMessageWithResolvedReceiver>()
 
         val messageHandlingState =
             scope.calcOnState {
