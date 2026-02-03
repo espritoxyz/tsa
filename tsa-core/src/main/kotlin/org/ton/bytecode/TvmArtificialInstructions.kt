@@ -9,7 +9,7 @@ import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
 import org.usvm.machine.state.TvmComputePhase
 import org.usvm.machine.state.TvmResult
-import org.usvm.machine.state.messages.MessageActionParseResult
+import org.usvm.machine.state.messages.ActionParseResult
 import org.usvm.machine.types.SliceRef
 
 sealed interface TsaArtificialInst : TvmArtificialInst
@@ -70,7 +70,7 @@ data class TsaArtificialActionParseInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
     val yetUnparsedActions: List<SliceRef>,
-    val parsedAndPreprocessedActions: List<MessageActionParseResult>,
+    val parsedAndPreprocessedActions: List<ActionParseResult>,
     val destinationResolver: DestinationDescription?,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_action_parse_inst"

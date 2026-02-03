@@ -39,11 +39,13 @@ import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.getInboundMessageValue
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.makeCellToSliceNoFork
+import org.usvm.machine.state.messages.ActionParseResult
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
 import org.usvm.machine.state.messages.MessageMode
 import org.usvm.machine.state.messages.Ok
 import org.usvm.machine.state.messages.ParsingState
+import org.usvm.machine.state.messages.ReserveAction
 import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.messages.ValueOrDeadScope
 import org.usvm.machine.state.messages.bodySlice
@@ -68,7 +70,11 @@ private typealias MutableTransformation =
 class TvmTransactionInterpreter(
     val ctx: TvmContext,
 ) {
-    sealed interface ParsedMessageWithResolvedReceiver {
+    sealed interface ResolvedAndParsedAction
+
+    data object ParsedReserveAction : ResolvedAndParsedAction
+
+    sealed interface ParsedMessageWithResolvedReceiver : ResolvedAndParsedAction {
         val receiver: ContractId?
         val content: TlbInternalMessageContent?
         val sendMessageMode: Int257Expr
@@ -100,10 +106,10 @@ class TvmTransactionInterpreter(
     ) : ParsedMessageWithResolvedReceiver
 
     /**
-     * @property parsedOrderedMessages are ordered in the same way they were in the action list
+     * @property parsedOrderedActions are ordered in the same way they were in the action list
      */
     class ActionsParsingResult(
-        val parsedOrderedMessages: List<ParsedMessageWithResolvedReceiver>,
+        val parsedOrderedActions: List<ResolvedAndParsedAction>,
     )
 
     sealed interface MessageHandlingState {
@@ -199,9 +205,12 @@ class TvmTransactionInterpreter(
 
     fun handleMessageCosts(
         scope: TvmStepScopeManager,
-        messages: List<ParsedMessageWithResolvedReceiver>,
+        actions: List<ResolvedAndParsedAction>,
         restActions: TvmStepScopeManager.(ActionHandlingResult) -> Unit?,
     ) {
+        // TODO: consider [RESERVE] actions
+        val messages = actions.filterIsInstance<ParsedMessageWithResolvedReceiver>()
+
         val messageHandlingState =
             scope.calcOnState {
                 val balance = getBalance() ?: error("Balance not set")
@@ -624,7 +633,7 @@ class TvmTransactionInterpreter(
         scope: TvmStepScopeManager,
         actionSlice: SliceRef,
         originalStmt: TsaArtificialActionParseInst,
-    ): ValueOrDeadScope<List<Pair<MessageActionParseResult, UBoolExpr>>?> =
+    ): ValueOrDeadScope<List<Pair<ActionParseResult, UBoolExpr>>?> =
         with(scope.ctx) {
             val model = scope.calcOnState { models.first() }
             val resolver =
@@ -646,8 +655,7 @@ class TvmTransactionInterpreter(
                     scope.assert(isReserveAction)
                         ?: return scopeDied
 
-                    visitReserveAction()
-                    Ok(null)
+                    Ok(listOf(ReserveAction to trueExpr))
                 }
 
                 resolver.eval(isSendMsgAction).isTrue -> {
@@ -675,16 +683,22 @@ class TvmTransactionInterpreter(
 
     fun resolveMessageReceivers(
         scope: TvmStepScopeManager,
-        messages: List<MessageActionParseResult>,
+        actions: List<ActionParseResult>,
         restActions: TvmStepScopeManager.(ActionsParsingResult) -> Unit,
     ) {
         val actionsParsingResult =
             ActionsParsingResult(
-                messages.map {
-                    ParsedMessageWithResolvedReceiver.construct(
-                        it.resolvedReceiver,
-                        MessageActionParseResult(it.content, it.sendMessageMode, it.resolvedReceiver),
-                    )
+                actions.map {
+                    when (it) {
+                        is ReserveAction -> {
+                            ParsedReserveAction
+                        }
+                        is MessageActionParseResult ->
+                            ParsedMessageWithResolvedReceiver.construct(
+                                it.resolvedReceiver,
+                                MessageActionParseResult(it.content, it.sendMessageMode, it.resolvedReceiver),
+                            )
+                    }
                 },
             )
         return scope.restActions(actionsParsingResult)
@@ -880,11 +894,6 @@ class TvmTransactionInterpreter(
 
             return messageContent
         }
-
-    private fun visitReserveAction() {
-        // TODO no implementation, since we don't compute actions fees and balance
-        return
-    }
 
     private fun TvmStepScopeManager.checkCondition(cond: UBoolExpr): Boolean? =
         with(ctx) {
