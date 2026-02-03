@@ -14,7 +14,7 @@ class StdAddrTest {
     fun stStdAddrTests() {
         val fiftResourcePath = extractResource(cellStdAddrFiftPath)
 
-        val methodIds = (0..12).toSet()
+        val methodIds = (0..16).toSet()
         val symbolicResult =
             compileAndAnalyzeFift(
                 fiftResourcePath,

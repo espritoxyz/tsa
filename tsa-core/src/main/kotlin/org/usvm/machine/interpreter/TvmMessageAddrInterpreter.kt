@@ -1,19 +1,26 @@
 package org.usvm.machine.interpreter
 
+import org.ton.Endian
 import org.ton.bytecode.TvmAppAddrInst
 import org.ton.bytecode.TvmAppAddrLdmsgaddrInst
 import org.ton.bytecode.TvmAppAddrLdoptstdaddrInst
 import org.ton.bytecode.TvmAppAddrLdstdaddrInst
 import org.ton.bytecode.TvmAppAddrRewritestdaddrInst
+import org.ton.bytecode.TvmAppAddrStoptstdaddrInst
 import org.ton.bytecode.TvmAppAddrStstdaddrInst
+import org.ton.bytecode.TvmRealInst
+import org.usvm.UConcreteHeapRef
+import org.usvm.UHeapRef
 import org.usvm.logger
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.STD_WORKCHAIN_BITS
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.builderCopyFromBuilder
+import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.doWithStateCtx
@@ -49,6 +56,7 @@ class TvmMessageAddrInterpreter(
             is TvmAppAddrLdstdaddrInst -> visitLdStdAddr(scope, stmt)
             is TvmAppAddrStstdaddrInst -> visitStStdAddr(scope, stmt)
             is TvmAppAddrLdoptstdaddrInst -> visitLdOptStdAddr(scope, stmt)
+            is TvmAppAddrStoptstdaddrInst -> visitStOptStdAddr(scope, stmt)
             else -> TODO("$stmt")
         }
     }
@@ -161,44 +169,97 @@ class TvmMessageAddrInterpreter(
             val address =
                 scope.calcOnState { takeLastSlice() }
                     ?: return scope.doWithState(throwTypeCheckError)
-            val length = scope.calcOnState { readSliceLeftLength(address) }
 
-            val expectedStdAddLen =
-                TvmContext.ADDRESS_TAG_BITS.toInt() + 1 + STD_WORKCHAIN_BITS +
-                    ADDRESS_BITS
-            scope.fork(
-                length eq expectedStdAddLen.toSizeSort(),
-                falseStateIsExceptional = true,
-                blockOnFalseState = {
-                    throwIntAddressError(this)
-                },
-            ) ?: return null
+            doStStdAddr(scope, stmt, builder, address)
+        }
 
-            val prefix =
-                scope.slicePreloadInt(address, sizeBits = threeSizeExpr, isSigned = false)
-                    ?: return null
+    private fun visitStOptStdAddr(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppAddrStoptstdaddrInst,
+    ): Unit =
+        with(ctx) {
+            val builder =
+                scope.calcOnState { takeLastBuilder() }
+                    ?: return scope.doWithState(throwTypeCheckError)
 
-            scope.fork(
-                prefix eq 0b100.toBv257(), // 10 - std tag, 0 - no anycast
-                falseStateIsExceptional = true,
-                blockOnFalseState = {
-                    throwIntAddressError(this)
-                },
-            ) ?: return null
+            val addressEntry = scope.calcOnState { stack.takeLastEntry() }
 
-            val resultBuilder =
-                scope.calcOnState {
-                    memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
+            when (val address = addressEntry.cell(scope.calcOnState { stack })) {
+                is TvmStack.TvmStackNullValue -> {
+                    val resultBuilder =
+                        scope.calcOnState {
+                            memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
+                        }
+
+                    builderStoreIntTlb(
+                        scope,
+                        builder,
+                        resultBuilder,
+                        zeroValue,
+                        sizeBits = twoSizeExpr,
+                        isSigned = false,
+                        endian = Endian.BigEndian,
+                    )
+                        ?: return@with
+
+                    scope.doWithState {
+                        addOnStack(resultBuilder, TvmBuilderType)
+                        newStmt(stmt.nextStmt())
+                    }
                 }
-
-            builderStoreSliceTlb(scope, builder, resultBuilder, address)
-                ?: return@with
-
-            scope.doWithState {
-                addOnStack(resultBuilder, TvmBuilderType)
-                newStmt(stmt.nextStmt())
+                is TvmStack.TvmStackSliceValue -> {
+                    doStStdAddr(scope, stmt, builder, address.sliceValue)
+                }
+                else -> {
+                    return scope.doWithState(throwTypeCheckError)
+                }
             }
         }
+
+    private fun doStStdAddr(
+        scope: TvmStepScopeManager,
+        stmt: TvmRealInst,
+        builder: UConcreteHeapRef,
+        address: UHeapRef,
+    ) = with(ctx) {
+        val length = scope.calcOnState { readSliceLeftLength(address) }
+
+        val expectedStdAddLen =
+            TvmContext.ADDRESS_TAG_BITS.toInt() + 1 + STD_WORKCHAIN_BITS +
+                ADDRESS_BITS
+        scope.fork(
+            length eq expectedStdAddLen.toSizeSort(),
+            falseStateIsExceptional = true,
+            blockOnFalseState = {
+                throwIntAddressError(this)
+            },
+        ) ?: return
+
+        val prefix =
+            scope.slicePreloadInt(address, sizeBits = threeSizeExpr, isSigned = false)
+                ?: return
+
+        scope.fork(
+            prefix eq 0b100.toBv257(),
+            falseStateIsExceptional = true,
+            blockOnFalseState = {
+                throwIntAddressError(this)
+            },
+        ) ?: return
+
+        val resultBuilder =
+            scope.calcOnState {
+                memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
+            }
+
+        builderStoreSliceTlb(scope, builder, resultBuilder, address)
+            ?: return@with
+
+        scope.doWithState {
+            addOnStack(resultBuilder, TvmBuilderType)
+            newStmt(stmt.nextStmt())
+        }
+    }
 
     private fun visitParseStdAddr(
         scope: TvmStepScopeManager,
