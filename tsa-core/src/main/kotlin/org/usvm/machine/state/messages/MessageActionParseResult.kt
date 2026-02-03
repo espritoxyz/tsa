@@ -11,6 +11,8 @@ object MessageMode {
     const val SEND_FEES_SEPARATELY = 0
 }
 
+sealed interface ActionParseResult
+
 /**
  * @property content is `null` if there was an error during the parse of the content
  */
@@ -18,7 +20,10 @@ data class MessageActionParseResult(
     val content: TlbInternalMessageContent?,
     val sendMessageMode: Int257Expr,
     val resolvedReceiver: ContractId?,
-)
+) : ActionParseResult
+
+// TODO: support reserve properly
+data object ReserveAction : ActionParseResult
 
 /**
  * represents the arguments that are used in `recv_internal_message` / `recv_external_message`.

@@ -341,7 +341,7 @@ class TvmArtificialInstInterpreter(
         stmt: TsaArtificialHandleMessagesCostInst,
     ) = transactionInterpreter.handleMessageCosts(
         scope,
-        stmt.parsingResult.parsedOrderedMessages,
+        stmt.parsingResult.parsedOrderedActions,
     ) { actionsHandlingResult ->
         when (actionsHandlingResult) {
             is ActionHandlingResult.Success -> {
