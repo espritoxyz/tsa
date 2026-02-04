@@ -1,0 +1,24 @@
+#include "../imports/stdlib.fc";
+
+const int op::withdraw = 0x12345678;
+
+() recv_internal(cell full_msg, slice msg_body) {
+    slice cs = full_msg.begin_parse();
+    int flags = cs~load_uint(4);
+
+    ;; process bounced message
+    if (flags & 1) {
+        return ();
+    }
+
+    throw_if(1000, msg_body.slice_bits() < 32);
+
+    int opcode = msg_body~load_uint(32);
+    if (opcode == op::withdraw) {
+        int id = msg_body~load_uint(64);
+        throw_if(1001, id == 123);
+        return ();
+    }
+
+    throw(1002);
+}
