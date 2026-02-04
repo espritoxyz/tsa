@@ -4,7 +4,7 @@ GitHub CI builds, tests and performs linter checks on the project.
 
 ## How to build CLI tool
 
-1. Clone this repo (using `IntelliJ Idea` or `git clone https://github.com/explyt/tsa`).
+1. Clone this repo (using `IntelliJ Idea` or `git clone https://github.com/espritoxyz/tsa`).
 2. Make sure you have JDK installed (for running CLI tool you only need JRE): `javac --version`.
 3. Build the CLI tool, running `./gradlew :tsa-cli:shadowJar` (for Unix) or `./gradlew.bat :tsa-cli:shadowJar` (for Windows) from the root of the repo.
 The result will be located in `tsa-cli/build/libs/tsa-cli.jar`.
