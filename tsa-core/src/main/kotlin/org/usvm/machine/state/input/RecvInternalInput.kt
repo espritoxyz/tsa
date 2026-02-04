@@ -22,9 +22,12 @@ import org.usvm.machine.state.generateSymbolicAddressCell
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.messages.Flags
 import org.usvm.machine.state.messages.MessageAfterCommonMsgInfo
+import org.usvm.machine.state.messages.TlbBody
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.asSliceRef
 import org.usvm.sizeSort
 
 class RecvInternalInput(
@@ -156,8 +159,7 @@ class RecvInternalInput(
                         ),
                     messageAfterCommonMsgInfo =
                         MessageAfterCommonMsgInfo.ManuallyConstructed(
-                            bodyCellMaybeBounced,
-                            msgBodySliceMaybeBounced,
+                            TlbBody.OutOfLine(bodyCellMaybeBounced.asCellRef(), msgBodySliceMaybeBounced.asSliceRef()),
                         ),
                 )
 
@@ -166,7 +168,7 @@ class RecvInternalInput(
                 if (fullMsgCell != null) {
                     error("Assumptions were wrong")
                 }
-                fullMsgCell = constructedMessageCells.fullMsgCell
+                fullMsgCell = constructedMessageCells.fullMessage.value
             }
                 ?: error("overflow during construction of the full message in receive internal input")
 

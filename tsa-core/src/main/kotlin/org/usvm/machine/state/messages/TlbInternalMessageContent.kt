@@ -4,7 +4,6 @@ import io.ksmt.utils.uncheckedCast
 import org.ton.Endian
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.usvm.UBoolExpr
-import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.isFalse
@@ -15,6 +14,7 @@ import org.usvm.machine.TvmContext.Companion.NONE_ADDRESS_TAG
 import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.allocCellFromBuilder
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
@@ -34,6 +34,11 @@ import org.usvm.machine.state.sliceLoadAddrTlbNoFork
 import org.usvm.machine.state.sliceLoadGramsTlbNoFork
 import org.usvm.machine.state.sliceLoadIntTlbNoFork
 import org.usvm.machine.state.sliceLoadRefTransaction
+import org.usvm.machine.types.CellRef
+import org.usvm.machine.types.ConcreteCellRef
+import org.usvm.machine.types.SliceRef
+import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.asSliceRef
 import org.usvm.mkSizeExpr
 import org.usvm.test.resolver.TvmTestStateResolver
 
@@ -192,6 +197,32 @@ data class TlbCommonMessageInfo(
     }
 }
 
+sealed interface TlbBody {
+    data class Inline(
+        val slice: SliceRef,
+    ) : TlbBody
+
+    /**
+     * (Either X ^X).right
+     */
+    data class OutOfLine(
+        val originalRef: CellRef,
+        val originalRefAsSlice: SliceRef,
+    ) : TlbBody
+}
+
+fun TlbBody.originalRef(): CellRef? =
+    when (this) {
+        is TlbBody.Inline -> null
+        is TlbBody.OutOfLine -> originalRef
+    }
+
+fun TlbBody.asSlice(): SliceRef =
+    when (this) {
+        is TlbBody.Inline -> slice
+        is TlbBody.OutOfLine -> originalRefAsSlice
+    }
+
 /**
  * Contains the part of the message after the CommonMsgInfo
  */
@@ -199,21 +230,17 @@ sealed interface MessageAfterCommonMsgInfo {
     /**
      * Is the original cell where the body was contained (null if was an inlined slice)
      */
-    val bodyOriginalRef: UHeapRef?
+    val body: TlbBody
     val stateInitRef: UHeapRef?
 
     /**
-     * Contains empty state init and a body as a not-inline cell [bodyCell].
-     * @param bodySlice is a view on the [bodyCell]
+     * Contains empty state init and a body as an out-of-line cell
      */
     data class ManuallyConstructed(
         // init is assumed to be (Maybe (Either StateInit ^StateInit)).nothing (1 bit of zero)
-        val bodyCell: UHeapRef, // assume body is (Either X ^X).left, prefix is 1 bit of one
-        val bodySlice: UHeapRef,
+        override val body: TlbBody.OutOfLine,
     ) : MessageAfterCommonMsgInfo {
         override val stateInitRef: UHeapRef?
-            get() = null
-        override val bodyOriginalRef: UHeapRef?
             get() = null
     }
 
@@ -222,21 +249,20 @@ sealed interface MessageAfterCommonMsgInfo {
      */
     data class ConstructedBySomeContract(
         val tailSlice: UHeapRef,
-        val bodySlice: UConcreteHeapRef,
         override val stateInitRef: UHeapRef?,
-        override val bodyOriginalRef: UHeapRef?,
+        override val body: TlbBody,
     ) : MessageAfterCommonMsgInfo
 }
 
-fun MessageAfterCommonMsgInfo.bodySlice() =
+fun MessageAfterCommonMsgInfo.bodySlice(): SliceRef =
     when (this) {
-        is MessageAfterCommonMsgInfo.ManuallyConstructed -> this.bodySlice
-        is MessageAfterCommonMsgInfo.ConstructedBySomeContract -> this.bodySlice
+        is MessageAfterCommonMsgInfo.ManuallyConstructed -> this.body.asSlice()
+        is MessageAfterCommonMsgInfo.ConstructedBySomeContract -> this.body.asSlice()
     }
 
 data class ConstructedMessageCells(
-    val msgBodySlice: UHeapRef,
-    val fullMsgCell: UConcreteHeapRef,
+    val messageBody: SliceRef,
+    val fullMessage: ConcreteCellRef,
 )
 
 /**
@@ -247,7 +273,7 @@ data class TlbInternalMessageContent(
     val messageAfterCommonMsgInfo: MessageAfterCommonMsgInfo,
 ) {
     val bodyOriginalRef: UHeapRef?
-        get() = messageAfterCommonMsgInfo.bodyOriginalRef
+        get() = messageAfterCommonMsgInfo.body.originalRef()?.value
     val stateInitRef: UHeapRef?
         get() = messageAfterCommonMsgInfo.stateInitRef
 
@@ -367,9 +393,9 @@ data class TlbInternalMessageContent(
                         )
                             ?: error("Cannot store body")
                         scope.doWithState {
-                            builderStoreNextRefNoOverflowCheck(resultBuilder, tail.bodyCell)
+                            builderStoreNextRefNoOverflowCheck(resultBuilder, tail.body.originalRef.value)
                         }
-                        tail.bodySlice
+                        tail.body.asSlice()
                     }
 
                     is MessageAfterCommonMsgInfo.ConstructedBySomeContract -> {
@@ -380,12 +406,12 @@ data class TlbInternalMessageContent(
                             tail.tailSlice,
                             quietBlock,
                         ) ?: return@with null
-                        tail.bodySlice
+                        tail.body.asSlice()
                     }
                 }
 
-            val fullMessageCell = state.builderToCell(resultBuilder)
-            scope.restActions(ConstructedMessageCells(msgBodySlice = bodySlice, fullMsgCell = fullMessageCell))
+            val fullMessage = state.builderToCell(resultBuilder).asCellRef()
+            scope.restActions(ConstructedMessageCells(messageBody = bodySlice, fullMessage = fullMessage))
         }
     }
 
@@ -406,17 +432,15 @@ data class TlbInternalMessageContent(
                 val stateInitRef =
                     loadStateInit(scope, resolver, ptr, quietBlock).getOrElse { return@with null }
 
-                val (bodyCellOriginal, bodyCell) =
+                val body =
                     loadBody(scope, resolver, ptr, quietBlock)
                         .getOrElse { return@with null }
 
-                val bodySlice = scope.calcOnState { allocSliceFromCell(bodyCell) }
                 val messageAfterCommonMsgInfo =
                     MessageAfterCommonMsgInfo.ConstructedBySomeContract(
                         tailSlice,
-                        bodySlice,
                         stateInitRef,
-                        bodyCellOriginal,
+                        body,
                     )
 
                 val sliceFullyParsed = scope.calcOnState { createSliceIsEmptyConstraint(ptr.slice) }
@@ -436,21 +460,24 @@ data class TlbInternalMessageContent(
             resolver: TvmTestStateResolver,
             ptr: ParsingState,
             quietBlock: (TvmState.() -> Unit)?,
-        ): ValueOrDeadScope<Pair<UHeapRef?, UHeapRef>> {
+        ): ValueOrDeadScope<TlbBody> {
             val bodyBit =
                 sliceLoadIntTlbNoFork(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                     ?: return scopeDied
 
             val bodyBitIsInlined = bodyBit eq zeroValue
 
-            val (bodyCellOriginal, bodyCell) =
+            val body =
                 if (resolver.eval(bodyBitIsInlined).isFalse) {
                     scope.assert(bodyBitIsInlined.not())
                         ?: return scopeDied
 
                     sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)
                         ?.unwrap(ptr)
-                        ?.let { it to it }
+                        ?.let { bodyRef ->
+                            val slice = scope.calcOnState { allocSliceFromCell(bodyRef) }
+                            TlbBody.OutOfLine(bodyRef.asCellRef(), slice.asSliceRef())
+                        }
                         ?: return scopeDied
                 } else {
                     scope.assert(bodyBitIsInlined)
@@ -463,11 +490,14 @@ data class TlbInternalMessageContent(
                     builderStoreSliceTransaction(scope, bodyBuilder, ptr.slice)
                         ?: return scopeDied
                     ptr.slice = scope.calcOnState { allocSliceFromCell(allocEmptyCell()) }
-                    val newBody = scope.builderToCell(bodyBuilder)
+                    val newBody =
+                        scope
+                            .calcOnState { allocSliceFromCell(allocCellFromBuilder(bodyBuilder)) }
+                            .asSliceRef()
 
-                    null to newBody
+                    TlbBody.Inline(newBody)
                 }
-            return (bodyCellOriginal to bodyCell).ok()
+            return body.ok()
         }
 
         private fun TvmContext.loadStateInit(

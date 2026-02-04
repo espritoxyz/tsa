@@ -40,6 +40,7 @@ import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TlbStructureBuilder
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellDataCoinsRead
@@ -48,6 +49,7 @@ import org.usvm.machine.types.TvmCellDataMsgAddrRead
 import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.machine.types.storeCellDataTlbLabelInBuilder
@@ -498,43 +500,6 @@ private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
 
         (noneConstraint or externConstraint) to addrLength
     }
-
-fun TvmStepScopeManager.slicePreloadInternalAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? {
-    val (constraint, length) =
-        slicePreloadInternalAddrLengthConstraint(slice)
-            ?: return null
-
-    fork(
-        constraint,
-        falseStateIsExceptional = true,
-        blockOnFalseState = {
-            // TODO tl-b parsing failure
-            ctx.throwUnknownCellUnderflowError(this)
-        },
-    ) ?: return null
-
-    return length
-}
-
-fun TvmStepScopeManager.slicePreloadExternalAddrLength(
-    slice: UHeapRef,
-    mustProcessAllAddressFormats: Boolean = false,
-): UExpr<TvmSizeSort>? {
-    val (constraint, length) =
-        slicePreloadExternalAddrLengthConstraint(slice, mustProcessAllAddressFormats)
-            ?: return null
-
-    fork(
-        constraint,
-        falseStateIsExceptional = true,
-        blockOnFalseState = {
-            // TODO tl-b parsing failure
-            ctx.throwUnknownCellUnderflowError(this)
-        },
-    ) ?: return null
-
-    return length
-}
 
 fun TvmStepScopeManager.slicePreloadAddrLengthWithoutSetException(
     slice: UHeapRef,
@@ -1293,6 +1258,8 @@ fun TvmState.builderToCell(builder: UConcreteHeapRef): UConcreteHeapRef =
         dataCellInfoStorage.mapper.setCellInfoFromBuilder(builder, it, this)
     }
 
+fun TvmState.allocCellFromBuilder(builder: UConcreteHeapRef): UConcreteHeapRef = builderToCell(builder)
+
 fun sliceLoadIntTlb(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
@@ -1509,7 +1476,11 @@ fun builderStoreSliceTlb(
 
 fun TvmState.readSliceDataPos(slice: UHeapRef) = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
 
+fun TvmState.readSliceDataPos(slice: SliceRef): SizeExpr = readSliceDataPos(slice.value)
+
 fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellField, ctx.addressSort)
+
+fun TvmState.readSliceCell(slice: SliceRef) = readSliceCell(slice.value).asCellRef()
 
 fun TvmState.readSliceLeftLength(slice: UHeapRef): KExpr<TvmSizeSort> {
     val cell = readSliceCell(slice)

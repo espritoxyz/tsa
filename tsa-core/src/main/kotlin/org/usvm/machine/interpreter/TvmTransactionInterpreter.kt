@@ -693,11 +693,13 @@ class TvmTransactionInterpreter(
                         is ReserveAction -> {
                             ParsedReserveAction
                         }
-                        is MessageActionParseResult ->
+
+                        is MessageActionParseResult -> {
                             ParsedMessageWithResolvedReceiver.construct(
                                 it.resolvedReceiver,
                                 MessageActionParseResult(it.content, it.sendMessageMode, it.resolvedReceiver),
                             )
+                        }
                     }
                 },
             )
@@ -823,7 +825,7 @@ class TvmTransactionInterpreter(
                         run {
                             val (result, innerStatus) =
                                 chooseHandlerBasedOnOpcode(
-                                    messageContent.messageAfterCommonMsgInfo.bodySlice(),
+                                    messageContent.messageAfterCommonMsgInfo.bodySlice().value,
                                     handler.outOpcodeToDestination,
                                     handler.other,
                                     resolver,

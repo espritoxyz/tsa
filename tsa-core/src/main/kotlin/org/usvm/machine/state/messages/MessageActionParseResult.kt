@@ -3,6 +3,8 @@ package org.usvm.machine.state.messages
 import org.usvm.UHeapRef
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.types.CellRef
+import org.usvm.machine.types.SliceRef
 
 object MessageMode {
     const val SEND_REMAINING_BALANCE_BIT = 7
@@ -29,7 +31,7 @@ data object ReserveAction : ActionParseResult
  * represents the arguments that are used in `recv_internal_message` / `recv_external_message`.
  *
  * WARNING! Do not use it until the message is not supposed to be changed later!
- * The structure assumes that [fullMsgCell] contains the mentioned data (e.g. [msgValue]),
+ * The structure assumes that [fullMessage] contains the mentioned data (e.g. [msgValue]),
  * and the class will become inconsistent if you only change one thing.
  *
  * @param destAddrSlice is  an exception to the rule above and contains a destination address that
@@ -39,9 +41,9 @@ data object ReserveAction : ActionParseResult
  */
 data class MessageAsStackArguments(
     val msgValue: Int257Expr,
-    val fullMsgCell: UHeapRef,
-    val msgBodySlice: UHeapRef,
+    val fullMessage: CellRef,
+    val messageBody: SliceRef,
     val destAddrSlice: UHeapRef,
     val commonInfo: TlbCommonMessageInfo,
-    val stateInitCell: UHeapRef?,
+    val stateInitCell: UHeapRef?, // TODO store full tlb representation instead of commonInfo; erase stateInitCell
 )

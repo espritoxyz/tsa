@@ -15,8 +15,8 @@ data class DispatchedMessageContent(
         val constructedCells = messageCells
         return MessageAsStackArguments(
             tlbContent.commonMessageInfo.msgValue,
-            constructedCells.fullMsgCell,
-            constructedCells.msgBodySlice,
+            constructedCells.fullMessage,
+            constructedCells.messageBody,
             tlbContent.commonMessageInfo.dstAddressSlice,
             commonInfo = tlbContent.commonMessageInfo,
             stateInitCell = tlbContent.stateInitRef,
