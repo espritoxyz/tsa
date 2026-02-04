@@ -24,6 +24,7 @@ import org.usvm.UState
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
+import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
 import org.usvm.machine.interpreter.DispatchedMessageContent
@@ -87,6 +88,7 @@ class TvmState(
     var addressesToBeRandomized: PersistentSet<UHeapRef> = persistentSetOf(),
     var refsToBeIndependentFromRandomAddresses: PersistentSet<UHeapRef> = persistentSetOf(),
     var fixatedRandomAddresses: Set<UHeapRef> = emptySet(),
+    val additionalInputsConcreteData: Map<Int, MessageConcreteData>,
     var additionalInputs: PersistentMap<Int, ReceiverInput> = persistentMapOf(),
     var acceptedInputs: PersistentSet<ReceiverInput> = persistentSetOf(),
     var receivedMessage: ReceivedMessage? = null,
@@ -209,6 +211,7 @@ class TvmState(
             intercontractPath = intercontractPath,
             phase = phase,
             unprocessedMessages = unprocessedMessages,
+            additionalInputsConcreteData = additionalInputsConcreteData,
             additionalInputs = additionalInputs,
             acceptedInputs = acceptedInputs,
             receivedMessage = receivedMessage,

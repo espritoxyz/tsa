@@ -7,7 +7,10 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
-import org.usvm.machine.TvmConcreteGeneralData
+import org.usvm.machine.ConcreteOpcode
+import org.usvm.machine.ExcludedOpcodes
+import org.usvm.machine.MessageConcreteData
+import org.usvm.machine.NoOpcode
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.TvmInt257Sort
@@ -19,13 +22,13 @@ import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.getContractInfoParamOf
-import org.usvm.machine.state.slicePreloadDataBits
+import org.usvm.machine.state.sliceLoadIntTlbNoFork
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.mkSizeExpr
 
 sealed class ReceiverInput(
     private val receiverContractId: ContractId,
-    private val concreteGeneralData: TvmConcreteGeneralData,
+    private val messageConcreteData: MessageConcreteData,
     state: TvmState,
 ) : TvmInput {
     abstract val msgValue: UExpr<TvmInt257Sort>
@@ -61,6 +64,10 @@ sealed class ReceiverInput(
     ): Unit? {
         val constraint =
             scope.doWithCtx {
+                check(!scope.allowFailuresOnCurrentStep) {
+                    "Expected scope not to allow failures"
+                }
+
                 val msgValueConstraint =
                     mkAnd(
                         mkBvSignedLessOrEqualExpr(minMessageCurrencyValue, msgValue),
@@ -72,30 +79,42 @@ sealed class ReceiverInput(
 
                 val balanceConstraints = mkBalanceConstraints(scope, minMessageCurrencyValue)
 
+                val msgBodyCell =
+                    scope.calcOnState {
+                        memory.readField(msgBodySliceNonBounced, sliceCellField, addressSort)
+                    }
+                val msgBodyCellSize =
+                    scope.calcOnState {
+                        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, msgBodyCell)
+                    }
+
+                val opcodeLength = TvmContext.OP_BITS.toInt()
+
                 val opcodeConstraint =
-                    if (concreteGeneralData.initialOpcode != null) {
-                        val msgBodyCell =
-                            scope.calcOnState {
-                                memory.readField(msgBodySliceNonBounced, sliceCellField, addressSort)
+                    when (messageConcreteData.opcodeInfo) {
+                        is ExcludedOpcodes -> {
+                            val (_, opcode) =
+                                sliceLoadIntTlbNoFork(scope, msgBodySliceNonBounced, sizeBits = opcodeLength)
+                                    ?: return@doWithCtx null
+
+                            messageConcreteData.opcodeInfo.opcodes.fold(trueExpr as UBoolExpr) { acc, value ->
+                                acc and (opcode neq value.toBv257())
                             }
-                        val msgBodyCellSize =
-                            scope.calcOnState {
-                                fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, msgBodyCell)
-                            }
-                        val sizeConstraint =
-                            mkBvSignedGreaterOrEqualExpr(msgBodyCellSize, mkSizeExpr(TvmContext.OP_BITS.toInt()))
+                        }
+                        is ConcreteOpcode -> {
+                            val (_, opcode) =
+                                sliceLoadIntTlbNoFork(scope, msgBodySliceNonBounced, sizeBits = opcodeLength)
+                                    ?: return@doWithCtx null
 
-                        // TODO: use TL-B?
-                        val opcode =
-                            scope.slicePreloadDataBits(msgBodySliceNonBounced, TvmContext.OP_BITS.toInt())
-                                ?: error("Cannot read opcode from initial msgBody")
+                            opcode eq messageConcreteData.opcodeInfo.opcode.toBv257()
+                        }
+                        is NoOpcode -> {
+                            mkBvSignedLessExpr(msgBodyCellSize, mkSizeExpr(opcodeLength))
+                        }
 
-                        val opcodeConstraint =
-                            opcode eq mkBv(concreteGeneralData.initialOpcode.toLong(), TvmContext.OP_BITS)
-
-                        sizeConstraint and opcodeConstraint
-                    } else {
-                        trueExpr
+                        null -> {
+                            trueExpr
+                        }
                     }
 
                 val fwdFeeConstraint =
@@ -115,7 +134,7 @@ sealed class ReceiverInput(
                     opcodeConstraint,
                     fwdFeeConstraint,
                 )
-            }
+            } ?: return null
 
         return scope.assert(
             constraint,

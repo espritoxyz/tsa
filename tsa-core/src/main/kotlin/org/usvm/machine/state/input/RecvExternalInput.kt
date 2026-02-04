@@ -6,7 +6,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
-import org.usvm.machine.TvmConcreteGeneralData
+import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
@@ -19,9 +19,9 @@ import org.usvm.machine.state.builderToCell
 
 class RecvExternalInput(
     state: TvmState,
-    concreteGeneralData: TvmConcreteGeneralData,
+    messageConcreteData: MessageConcreteData,
     receiverContractId: ContractId,
-) : ReceiverInput(receiverContractId, concreteGeneralData, state) {
+) : ReceiverInput(receiverContractId, messageConcreteData, state) {
     private val ctx = state.ctx
 
     override val fwdFee: UExpr<TvmContext.TvmInt257Sort>?

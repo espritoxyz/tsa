@@ -575,8 +575,8 @@ fun sliceLoadGramsTlb(
         oldSlice,
         read,
         newSlice,
-        badCellSizeIsExceptional = true,
-        onBadCellSize = throwCellUnderflowErrorBasedOnContext,
+        badCellSizeIsExceptional = quietBlock == null,
+        onBadCellSize = if (quietBlock == null) throwCellUnderflowErrorBasedOnContext else { x, _ -> x.quietBlock() },
     ) { valueFromTlb ->
 
         val (length, grams) =
@@ -1306,8 +1306,8 @@ fun sliceLoadIntTlb(
         slice,
         TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.BigEndian),
         updatedSlice,
-        badCellSizeIsExceptional = true,
-        onBadCellSize = throwCellUnderflowErrorBasedOnContext,
+        badCellSizeIsExceptional = quietBlock == null,
+        onBadCellSize = if (quietBlock == null) throwCellUnderflowErrorBasedOnContext else { x, _ -> x.quietBlock() },
     ) { tlbValue ->
         val result =
             tlbValue?.expr ?: let {
@@ -1342,8 +1342,15 @@ fun sliceLoadAddrTlb(
         slice,
         TvmCellDataMsgAddrRead(ctx),
         updatedSlice,
-        badCellSizeIsExceptional = true,
-        onBadCellSize = ctx.throwCellUnderflowErrorBasedOnContext,
+        badCellSizeIsExceptional = quietBlock == null,
+        onBadCellSize =
+            if (quietBlock ==
+                null
+            ) {
+                ctx.throwCellUnderflowErrorBasedOnContext
+            } else {
+                { x, _ -> x.quietBlock() }
+            },
     ) { tlbValue ->
         calcOnStateCtx {
             val addrSlice =
