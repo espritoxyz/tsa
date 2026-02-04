@@ -12,6 +12,8 @@ import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
 import org.usvm.machine.state.TvmStack.TvmInputStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackTupleValue
 import org.usvm.machine.state.TvmStack.TvmStackValue
+import org.usvm.machine.types.CellRef
+import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmContinuationType
@@ -60,9 +62,13 @@ fun TvmStack.addCell(value: UHeapRef) {
     addStackEntry(TvmConcreteStackEntry(TvmStack.TvmStackCellValue(value)))
 }
 
+fun TvmStack.addCell(value: CellRef) = addCell(value.value)
+
 fun TvmStack.addSlice(value: UHeapRef) {
     addStackEntry(TvmConcreteStackEntry(TvmStack.TvmStackSliceValue(value)))
 }
+
+fun TvmStack.addSlice(value: SliceRef) = addSlice(value.value)
 
 fun TvmStack.addContinuation(value: TvmContinuation) {
     addStackEntry(TvmStack.TvmStackContinuationValue(value).toStackEntry())
@@ -134,7 +140,10 @@ fun TvmStepScopeManager.takeLastTuple(): TvmStackTupleValue? =
         val lastEntry = stack.takeLastEntry()
 
         when (lastEntry) {
-            is TvmConcreteStackEntry -> lastEntry.cell(stack) as? TvmStackTupleValue
+            is TvmConcreteStackEntry -> {
+                lastEntry.cell(stack) as? TvmStackTupleValue
+            }
+
             is TvmInputStackEntry -> {
                 val cell = lastEntry.cell(stack)
                 if (cell != null) {

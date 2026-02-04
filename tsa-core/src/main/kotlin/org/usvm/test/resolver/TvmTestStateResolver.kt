@@ -64,6 +64,8 @@ import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.tvmCellRefsRegion
+import org.usvm.machine.types.CellRef
+import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead
@@ -303,8 +305,8 @@ class TvmTestStateResolver(
     private fun resolveOutMessage(message: MessageAsStackArguments): TvmTestMessage =
         TvmTestMessage(
             value = resolveInt257(message.msgValue),
-            fullMessage = resolveCell(message.fullMsgCell),
-            bodySlice = resolveSlice(message.msgBodySlice),
+            fullMessage = resolveCell(message.fullMessage),
+            bodySlice = resolveSlice(message.messageBody),
         )
 
     fun resolveReceivedMessage(message: ReceivedMessage): TvmTestInput.ReceivedTestMessage =
@@ -518,6 +520,8 @@ class TvmTestStateResolver(
         return TvmTestBuilderValue(cell.data, cell.refs)
     }
 
+    private fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
+
     private fun resolveSlice(slice: UHeapRef): TvmTestSliceValue =
         with(ctx) {
             val cellValue = resolveCell(memory.readField(slice, TvmContext.sliceCellField, addressSort))
@@ -662,6 +666,8 @@ class TvmTestStateResolver(
                 defaultValue
             }
         }
+
+    private fun resolveCell(cell: CellRef): TvmTestCellValue = resolveCell(cell.value)
 
     private fun resolveCell(cell: UHeapRef): TvmTestCellValue =
         with(ctx) {

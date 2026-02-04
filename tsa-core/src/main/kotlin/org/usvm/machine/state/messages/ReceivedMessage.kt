@@ -1,6 +1,7 @@
 package org.usvm.machine.state.messages
 
 import kotlinx.serialization.Serializable
+import org.usvm.UHeapRef
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.EventId
@@ -24,10 +25,10 @@ sealed interface ReceivedMessage {
     ) : ReceivedMessage
 }
 
-fun ReceivedMessage.getMsgBodySlice() =
+fun ReceivedMessage.getMsgBodySlice(): UHeapRef =
     when (this) {
         is ReceivedMessage.InputMessage -> this.input.msgBodySliceMaybeBounced
-        is ReceivedMessage.MessageFromOtherContract -> this.message.msgBodySlice
+        is ReceivedMessage.MessageFromOtherContract -> this.message.messageBody.value
     }
 
 fun ReceivedMessage.getMsgValue() =
@@ -38,20 +39,28 @@ fun ReceivedMessage.getMsgValue() =
 
 fun ReceivedMessage.bounce() =
     when (this) {
-        is ReceivedMessage.InputMessage ->
+        is ReceivedMessage.InputMessage -> {
             input.bounce.let {
                 with(it.ctx.tctx()) { it.toBv257Bool() }
             }
-        is ReceivedMessage.MessageFromOtherContract -> message.commonInfo.flags.bounce
+        }
+
+        is ReceivedMessage.MessageFromOtherContract -> {
+            message.commonInfo.flags.bounce
+        }
     }
 
 fun ReceivedMessage.bounced() =
     when (this) {
-        is ReceivedMessage.InputMessage ->
+        is ReceivedMessage.InputMessage -> {
             input.bounced.let {
                 with(it.ctx.tctx()) { it.toBv257Bool() }
             }
-        is ReceivedMessage.MessageFromOtherContract -> message.commonInfo.flags.bounced
+        }
+
+        is ReceivedMessage.MessageFromOtherContract -> {
+            message.commonInfo.flags.bounced
+        }
     }
 
 fun ReceivedMessage.srcAddressSlice() =
