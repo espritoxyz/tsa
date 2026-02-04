@@ -6,6 +6,8 @@ import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
+import org.usvm.machine.ConcreteOpcode
+import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
@@ -178,7 +180,10 @@ class ArgsConstraintsTest {
         val result =
             funcCompileAndAnalyzeAllMethods(
                 path,
-                concreteGeneralData = TvmConcreteGeneralData(initialSenderBits = stonfiAddressBits),
+                concreteGeneralData =
+                    TvmConcreteGeneralData(
+                        initialInputConcreteData = MessageConcreteData(senderBits = stonfiAddressBits),
+                    ),
             )
 
         propertiesFound(
@@ -214,7 +219,13 @@ class ArgsConstraintsTest {
         val result =
             funcCompileAndAnalyzeAllMethods(
                 path,
-                concreteGeneralData = TvmConcreteGeneralData(initialOpcode = 0x12345678U),
+                concreteGeneralData =
+                    TvmConcreteGeneralData(
+                        initialInputConcreteData =
+                            MessageConcreteData(
+                                opcodeInfo = ConcreteOpcode(0x12345678L.toBigInteger()),
+                            ),
+                    ),
             )
 
         propertiesFound(

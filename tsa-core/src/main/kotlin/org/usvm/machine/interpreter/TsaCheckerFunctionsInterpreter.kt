@@ -9,7 +9,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.isStatic
-import org.usvm.machine.TvmConcreteGeneralData
+import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
 import org.usvm.machine.TvmStepScopeManager
@@ -240,20 +240,23 @@ class TsaCheckerFunctionsInterpreter(
         val receiverInput =
             if (stackOperations is NewReceiverInput) {
                 val additionalInputs = scope.calcOnState { additionalInputs }
+                val concreteData =
+                    scope.calcOnState { additionalInputsConcreteData[stackOperations.inputId] }
+                        ?: MessageConcreteData()
                 additionalInputs
                     .getOrElse(stackOperations.inputId) {
                         when (stackOperations.type) {
                             ReceiverType.Internal ->
                                 RecvInternalInput(
                                     scope.calcOnState { this },
-                                    TvmConcreteGeneralData(),
+                                    concreteData,
                                     nextContractId,
                                 )
 
                             ReceiverType.External ->
                                 RecvExternalInput(
                                     scope.calcOnState { this },
-                                    TvmConcreteGeneralData(),
+                                    concreteData,
                                     nextContractId,
                                 )
                         }

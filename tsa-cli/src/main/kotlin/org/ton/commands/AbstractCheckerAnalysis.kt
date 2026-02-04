@@ -10,6 +10,7 @@ import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.long
 import com.github.ajalt.clikt.parameters.types.path
 import org.slf4j.LoggerFactory
 import org.ton.CellAsFileContent
@@ -108,10 +109,16 @@ sealed class AbstractCheckerAnalysis(
         }.multiple()
 
     private val addresses: List<StringOption> by option("-a", "--address")
-        .help("Balances of contracts in nanotons. Use '-' for unconstrained balance. Only workchain_id=0 is supported")
-        .convert { value ->
+        .help(
+            "Addresses of contracts in raw format. Use '-' for unconstrained address. Only workchain_id=0 is supported",
+        ).convert { value ->
             value.parseAddress()
         }.multiple()
+
+    private val opcodes: List<Long> by option("--opcode")
+        .help("Specify opcodes for dividing analysis time between them. They apply to an input with id 0.")
+        .long()
+        .multiple()
 
     private val analysisOptions by AnalysisOptions()
 
@@ -196,6 +203,7 @@ sealed class AbstractCheckerAnalysis(
                 turnOnTLBParsingChecks = false,
                 useReceiverInput = false,
                 sarifOptions = sarifOptions,
+                opcodes = opcodes,
             )
 
         val sarifReport =

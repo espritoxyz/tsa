@@ -1,29 +1,13 @@
 package org.usvm.machine.state
 
-import org.ton.Endian
 import org.usvm.StateId
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.machine.TvmContext.TvmInt257Sort
-import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.makeCellToSlice
-
-fun builderStoreIntTransaction(
-    scope: TvmStepScopeManager,
-    builder: UConcreteHeapRef,
-    value: UExpr<TvmInt257Sort>,
-    sizeBits: UExpr<TvmSizeSort>,
-    isSigned: Boolean = false,
-): Unit? = builderStoreIntTlb(scope, builder, builder, value, sizeBits, isSigned, Endian.BigEndian)
-
-fun builderStoreGramsTransaction(
-    scope: TvmStepScopeManager,
-    builder: UConcreteHeapRef,
-    grams: UExpr<TvmInt257Sort>,
-): Unit? = builderStoreGramsTlb(scope, builder, builder, grams)
 
 fun builderStoreSliceTransaction(
     scope: TvmStepScopeManager,
@@ -47,7 +31,7 @@ fun makeCellToSliceNoFork(
     scope.doNotKillScopeOnDoWithConditions = false
 }
 
-fun sliceLoadIntTransaction(
+fun sliceLoadIntTlbNoFork(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     sizeBits: Int,
@@ -71,7 +55,7 @@ fun sliceLoadIntTransaction(
     return result?.let { updatedSliceAddress to it }
 }
 
-fun sliceLoadAddrTransaction(
+fun sliceLoadAddrTlbNoFork(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     quietBlock: (TvmState.() -> Unit)? = null,
@@ -97,7 +81,7 @@ fun sliceLoadAddrTransaction(
         result?.let { updatedSlice to it }
     }
 
-fun sliceLoadGramsTransaction(
+fun sliceLoadGramsTlbNoFork(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     quietBlock: (TvmState.() -> Unit)?,

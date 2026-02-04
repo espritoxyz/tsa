@@ -6,7 +6,7 @@ import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
-import org.usvm.machine.TvmConcreteGeneralData
+import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.asIntValue
@@ -29,21 +29,21 @@ import org.usvm.sizeSort
 
 class RecvInternalInput(
     state: TvmState,
-    concreteGeneralData: TvmConcreteGeneralData,
+    messageConcreteData: MessageConcreteData,
     receiverContractId: ContractId,
-) : ReceiverInput(receiverContractId, concreteGeneralData, state) {
+) : ReceiverInput(receiverContractId, messageConcreteData, state) {
     override val msgValue =
         with(state.ctx) {
             state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE)).zeroExtendToSort(int257sort)
         }
 
     override val srcAddressSlice =
-        if (concreteGeneralData.initialSenderBits == null) {
+        if (messageConcreteData.senderBits == null) {
             state.allocSliceFromCell(state.generateSymbolicAddressCell().first)
         } else {
             state.allocSliceFromData(
                 state.ctx.mkBv(
-                    concreteGeneralData.initialSenderBits,
+                    messageConcreteData.senderBits,
                     TvmContext.stdMsgAddrSize.toUInt(),
                 ),
             )

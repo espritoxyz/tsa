@@ -14,6 +14,7 @@ import org.ton.options.TlbCLIOptions
 import org.usvm.machine.ExploreExitCodesStopStrategy
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.NoAdditionalStopStrategy
+import org.usvm.machine.TimeDivisionBetweenOpcodes
 import org.usvm.machine.TvmAnalyzer
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
@@ -44,7 +45,15 @@ private fun createTvmOptions(
     turnOnTLBParsingChecks: Boolean,
     useReceiverInput: Boolean,
     enableOutMessageAnalysisIfSingleContract: Boolean,
+    opcodes: List<Long> = emptyList(),
 ): TvmOptions {
+    val divideTimeBetweenOpcodes =
+        if (opcodes.isEmpty()) {
+            null
+        } else {
+            TimeDivisionBetweenOpcodes(inputId = 0, opcodes.map { it.toBigInteger() }.toSet())
+        }
+
     val options =
         TvmOptions(
             quietMode = true,
@@ -56,6 +65,7 @@ private fun createTvmOptions(
             maxRecursionDepth = if (analysisOptions.noRecursionDepthLimit) null else analysisOptions.maxRecursionDepth,
             loopIterationLimit = if (analysisOptions.noIterationLimit) null else analysisOptions.iterationLimit,
             enableOutMessageAnalysis = enableOutMessageAnalysisIfSingleContract,
+            divideTimeBetweenOpcodes = divideTimeBetweenOpcodes,
         )
 
     if (interContractSchemePath != null) {
@@ -147,6 +157,7 @@ fun performAnalysisInterContract(
     turnOnTLBParsingChecks: Boolean,
     useReceiverInput: Boolean,
     sarifOptions: SarifOptions,
+    opcodes: List<Long> = emptyList(),
 ): TvmSymbolicTestSuite {
     val options =
         createTvmOptions(
@@ -155,6 +166,7 @@ fun performAnalysisInterContract(
             turnOnTLBParsingChecks,
             useReceiverInput,
             enableOutMessageAnalysisIfSingleContract = true,
+            opcodes,
         )
 
     val additionalStopStrategy =

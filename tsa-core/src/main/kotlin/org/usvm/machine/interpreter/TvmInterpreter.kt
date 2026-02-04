@@ -217,6 +217,7 @@ import org.usvm.api.writeField
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
@@ -368,6 +369,7 @@ class TvmInterpreter(
         concreteContractData: List<TvmConcreteContractData>,
         methodId: MethodId,
         targets: List<TvmTarget> = emptyList(),
+        additionalInputsConcreteData: Map<Int, MessageConcreteData> = emptyMap(),
     ): TvmState {
         require(concreteContractData.size == contractsCode.size) {
             "concreteContractData must be given for all analyzed contracts"
@@ -397,6 +399,7 @@ class TvmInterpreter(
                 currentContract = startContractId,
                 fieldManagers = fieldManagers,
                 intercontractPath = persistentListOf(startContractId),
+                additionalInputsConcreteData = additionalInputsConcreteData,
             )
 
         state.time = state.generateSymbolicTime()
@@ -425,17 +428,20 @@ class TvmInterpreter(
         val useRecvInternalInput = methodId == RECEIVE_INTERNAL_ID && ctx.tvmOptions.useReceiverInputs
         val useRecvExternalInput = methodId == RECEIVE_EXTERNAL_ID && ctx.tvmOptions.useReceiverInputs
         if (useRecvInternalInput) {
-            val input = RecvInternalInput(state, concreteGeneralData, startContractId)
+            val input = RecvInternalInput(state, concreteGeneralData.initialInputConcreteData, startContractId)
             state.initialInput = input
         } else if (useRecvExternalInput) {
-            val input = RecvExternalInput(state, concreteGeneralData, startContractId)
-            state.initialInput = input
-            check(concreteGeneralData.initialSenderBits == null) {
+            check(concreteGeneralData.initialInputConcreteData.senderBits == null) {
                 "Cannot take into account concrete sender if when using RecvExternal input"
             }
+            val input = RecvExternalInput(state, concreteGeneralData.initialInputConcreteData, startContractId)
+            state.initialInput = input
         } else {
             state.initialInput = TvmStackInput
-            check(concreteGeneralData.initialOpcode == null && concreteGeneralData.initialSenderBits == null) {
+            check(
+                concreteGeneralData.initialInputConcreteData.opcodeInfo == null &&
+                    concreteGeneralData.initialInputConcreteData.senderBits == null,
+            ) {
                 "Cannot take into account concrete initialOpcode or sender if not using RecvInternal input"
             }
         }

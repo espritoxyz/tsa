@@ -8,11 +8,13 @@ import org.ton.bytecode.TvmInst
 import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
 import org.usvm.UMachineOptions
+import org.usvm.UPathSelector
 import org.usvm.machine.interpreter.TvmInterpreter
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.statistics.StateHistoryGraph
 import org.usvm.machine.statistics.getTvmDebugProfileObserver
+import org.usvm.ps.ConstantTimeFairPathSelector
 import org.usvm.ps.createPathSelector
 import org.usvm.statistics.ApplicationGraph
 import org.usvm.statistics.CompositeUMachineObserver
@@ -24,7 +26,9 @@ import org.usvm.stopstrategies.GroupedStopStrategy
 import org.usvm.stopstrategies.StepLimitStopStrategy
 import org.usvm.stopstrategies.StopStrategy
 import org.usvm.stopstrategies.TimeoutStopStrategy
+import org.usvm.util.RealTimeStopwatch
 import java.math.BigInteger
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.INFINITE
 
 class TvmMachine(
@@ -83,59 +87,61 @@ class TvmMachine(
                 manualStateProcessor,
             )
         logger.debug("{}.analyze({})", this, contractsCode)
-        val initialState =
-            interpreter.getInitialState(
-                startContractId,
-                concreteGeneralData,
-                concreteContractData,
-                methodId,
-            )
 
-        val loopTracker = TvmLoopTracker()
+        val timeStatistics = TimeStatistics<TvmCodeBlock, TvmState>()
+
+        fun getRemainingTimeMs(): Duration {
+            val diff = options.timeout - timeStatistics.runningTime
+            return diff.coerceAtLeast(Duration.ZERO)
+        }
+
         val pathSelector =
-            createPathSelector(
-                initialState = initialState,
-                options = options,
-                loopStatisticFactory = { loopTracker },
-                applicationGraph =
-                    object : ApplicationGraph<TvmCodeBlock, TvmInst> {
-                        override fun callees(node: TvmInst): Sequence<TvmCodeBlock> {
-                            TODO("Not yet implemented")
-                        }
+            if (tvmOptions.divideTimeBetweenOpcodes == null) {
+                val initialState =
+                    interpreter.getInitialState(
+                        startContractId,
+                        concreteGeneralData,
+                        concreteContractData,
+                        methodId,
+                    )
+                createPathSelector(initialState)
+            } else {
+                val keys =
+                    tvmOptions.divideTimeBetweenOpcodes.opcodes.map { ConcreteOpcode(it) } +
+                        ExcludedOpcodes(tvmOptions.divideTimeBetweenOpcodes.opcodes) + NoOpcode
 
-                        override fun callers(method: TvmCodeBlock): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun entryPoints(method: TvmCodeBlock): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun exitPoints(method: TvmCodeBlock): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun methodOf(node: TvmInst): TvmCodeBlock {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun predecessors(node: TvmInst): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun statementsOf(method: TvmCodeBlock): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun successors(node: TvmInst): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
+                ConstantTimeFairPathSelector(
+                    initialKeys = keys.toSet(),
+                    stopwatch = RealTimeStopwatch(),
+                    ::getRemainingTimeMs,
+                    getKey = {
+                        it.additionalInputsConcreteData[tvmOptions.divideTimeBetweenOpcodes.inputId]?.opcodeInfo
+                            ?: error(
+                                "Concrete info about input ${tvmOptions.divideTimeBetweenOpcodes.inputId} not found",
+                            )
                     },
-            )
+                    getKeyPriority = { 0 },
+                    basePathSelectorFactory = {
+                        val initialState =
+                            interpreter.getInitialState(
+                                startContractId,
+                                concreteGeneralData,
+                                concreteContractData,
+                                methodId,
+                                additionalInputsConcreteData =
+                                    mapOf(
+                                        tvmOptions.divideTimeBetweenOpcodes.inputId to
+                                            MessageConcreteData(opcodeInfo = it),
+                                    ),
+                            )
+
+                        createPathSelector(initialState)
+                    },
+                )
+            }
 
         val stepLimit = options.stepLimit
         val stepsStatistics = StepsStatistics<TvmCodeBlock, TvmState>()
-        val timeStatistics = TimeStatistics<TvmCodeBlock, TvmState>()
         val stopStrategy =
             if (stepLimit != null) {
                 StepLimitStopStrategy(stepLimit, stepsStatistics)
@@ -191,6 +197,49 @@ class TvmMachine(
         )
 
         return statesCollector.collectedStates
+    }
+
+    private fun createPathSelector(state: TvmState): UPathSelector<TvmState> {
+        val loopTracker = TvmLoopTracker()
+        return createPathSelector(
+            initialState = state,
+            options = options,
+            loopStatisticFactory = { loopTracker },
+            applicationGraph =
+                object : ApplicationGraph<TvmCodeBlock, TvmInst> {
+                    override fun callees(node: TvmInst): Sequence<TvmCodeBlock> {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun callers(method: TvmCodeBlock): Sequence<TvmInst> {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun entryPoints(method: TvmCodeBlock): Sequence<TvmInst> {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun exitPoints(method: TvmCodeBlock): Sequence<TvmInst> {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun methodOf(node: TvmInst): TvmCodeBlock {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun predecessors(node: TvmInst): Sequence<TvmInst> {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun statementsOf(method: TvmCodeBlock): Sequence<TvmInst> {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun successors(node: TvmInst): Sequence<TvmInst> {
+                        TODO("Not yet implemented")
+                    }
+                },
+        )
     }
 
     private fun isStateTerminated(state: TvmState): Boolean = state.isTerminated

@@ -7,6 +7,7 @@ import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_CELL_DEPTH_FOR_DEFAULT_
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_RECURSION_DEPTH
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_TLB_DEPTH
 import org.usvm.machine.state.ContractId
+import java.math.BigInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -43,6 +44,7 @@ data class TvmOptions(
     val useIntBlasting: Boolean = false,
     val collectTlbMemoryStats: Boolean = false,
     val pathSelectionStrategies: List<PathSelectionStrategy> = listOf(PathSelectionStrategy.DFS),
+    val divideTimeBetweenOpcodes: TimeDivisionBetweenOpcodes? = null,
     val collectNonTerminatedState: Boolean = false,
 ) {
     init {
@@ -51,6 +53,11 @@ data class TvmOptions(
         }
     }
 }
+
+data class TimeDivisionBetweenOpcodes(
+    val inputId: Int,
+    val opcodes: Set<BigInteger>,
+)
 
 data class TlbOptions(
     val performTlbChecksOnAllocatedCells: Boolean = false,

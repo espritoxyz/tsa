@@ -5,13 +5,32 @@ import org.ton.cell.Cell
 import java.math.BigInteger
 
 data class TvmConcreteGeneralData(
-    val initialSenderBits: String? = null,
-    val initialOpcode: UInt? = null,
+    val initialInputConcreteData: MessageConcreteData = MessageConcreteData(),
+    // map key - additional input id
+    val inputData: Map<Int, MessageConcreteData> = emptyMap(),
+)
+
+data class MessageConcreteData(
+    val opcodeInfo: OpcodeInfo? = null,
+    val senderBits: String? = null,
 ) {
     init {
-        checkAddressBits(initialSenderBits)
+        checkAddressBits(senderBits)
     }
 }
+
+sealed interface OpcodeInfo
+
+data class ConcreteOpcode(
+    val opcode: BigInteger,
+) : OpcodeInfo
+
+data class ExcludedOpcodes(
+    val opcodes: Set<BigInteger>,
+) : OpcodeInfo
+
+// msg body is shorter than opcode length (32 bits)
+data object NoOpcode : OpcodeInfo
 
 data class TvmConcreteContractData(
     val contractC4: Cell? = null,
