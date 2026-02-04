@@ -217,6 +217,7 @@ import org.usvm.api.writeField
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
@@ -368,6 +369,7 @@ class TvmInterpreter(
         concreteContractData: List<TvmConcreteContractData>,
         methodId: MethodId,
         targets: List<TvmTarget> = emptyList(),
+        additionalInputsConcreteData: Map<Int, MessageConcreteData> = emptyMap(),
     ): TvmState {
         require(concreteContractData.size == contractsCode.size) {
             "concreteContractData must be given for all analyzed contracts"
@@ -397,7 +399,7 @@ class TvmInterpreter(
                 currentContract = startContractId,
                 fieldManagers = fieldManagers,
                 intercontractPath = persistentListOf(startContractId),
-                additionalInputsConcreteData = emptyMap(), // TODO
+                additionalInputsConcreteData = additionalInputsConcreteData,
             )
 
         state.time = state.generateSymbolicTime()
