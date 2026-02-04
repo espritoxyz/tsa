@@ -40,6 +40,7 @@ import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.types.CellRef
 import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TlbStructureBuilder
 import org.usvm.machine.types.TvmBuilderType
@@ -50,6 +51,7 @@ import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.machine.types.storeCellDataTlbLabelInBuilder
@@ -1117,6 +1119,8 @@ fun TvmState.allocEmptyCell() =
             fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(memory, cell, zeroSizeExpr)
         }
     }
+
+fun TvmState.allocSliceFromCell(cell: CellRef): SliceRef = allocSliceFromCell(cell.value).asSliceRef()
 
 fun TvmState.allocSliceFromCell(cell: UHeapRef) =
     with(ctx) {

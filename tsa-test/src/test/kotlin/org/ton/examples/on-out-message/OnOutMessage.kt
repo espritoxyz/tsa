@@ -1,5 +1,6 @@
 package org.ton.examples.outmsg
 
+import org.junit.jupiter.api.Tag
 import org.ton.cell.CellBuilder
 import org.ton.test.utils.assertInvariantsHold
 import org.ton.test.utils.assertPropertiesFound
@@ -15,6 +16,7 @@ import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 
+@Tag("intercontract")
 class OnOutMessageTest {
     private val checker = "/on-out-message/checker.fc"
     private val sender = "/on-out-message/sender.fc"
