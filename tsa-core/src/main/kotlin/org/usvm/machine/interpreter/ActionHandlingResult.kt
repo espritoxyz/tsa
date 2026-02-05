@@ -6,7 +6,6 @@ import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.messages.ConstructedMessageCells
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.TlbInternalMessageContent
-import org.usvm.machine.state.messages.asCellRefUnsafe
 
 data class DispatchedMessageContent(
     val tlbContent: TlbInternalMessageContent,
@@ -19,8 +18,7 @@ data class DispatchedMessageContent(
             constructedCells.fullMessage,
             constructedCells.messageBody,
             tlbContent.commonMessageInfo.dstAddressSlice,
-            commonInfo = tlbContent.commonMessageInfo,
-            stateInitCell = tlbContent.stateInit.asCellRefUnsafe()?.value,
+            tlbContent,
         )
     }
 }

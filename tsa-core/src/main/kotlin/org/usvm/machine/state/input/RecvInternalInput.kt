@@ -169,11 +169,10 @@ class RecvInternalInput(
                 }
                 fullMsgCell = constructedMessageCells.fullMessage.value
             }
-                ?: error("overflow during construction of the full message in receive internal input")
 
             val result =
                 fullMsgCell
-                    ?: error("overflow during construction of")
+                    ?: error("overflow during construction of internal input")
             val stepResult = scope.stepResult()
             check(stepResult.originalStateAlive) {
                 "Original state died while building full message"

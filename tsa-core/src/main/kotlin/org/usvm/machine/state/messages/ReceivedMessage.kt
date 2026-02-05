@@ -2,6 +2,7 @@ package org.usvm.machine.state.messages
 
 import kotlinx.serialization.Serializable
 import org.usvm.UHeapRef
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.EventId
@@ -37,7 +38,7 @@ fun ReceivedMessage.getMsgValue() =
         is ReceivedMessage.MessageFromOtherContract -> message.msgValue
     }
 
-fun ReceivedMessage.bounce() =
+fun ReceivedMessage.bounce(): Int257Expr =
     when (this) {
         is ReceivedMessage.InputMessage -> {
             input.bounce.let {
@@ -46,11 +47,11 @@ fun ReceivedMessage.bounce() =
         }
 
         is ReceivedMessage.MessageFromOtherContract -> {
-            message.commonInfo.flags.bounce
+            message.messageTlb.commonMessageInfo.flags.bounce
         }
     }
 
-fun ReceivedMessage.bounced() =
+fun ReceivedMessage.bounced(): Int257Expr =
     when (this) {
         is ReceivedMessage.InputMessage -> {
             input.bounced.let {
@@ -59,42 +60,49 @@ fun ReceivedMessage.bounced() =
         }
 
         is ReceivedMessage.MessageFromOtherContract -> {
-            message.commonInfo.flags.bounced
+            message.messageTlb.commonMessageInfo.flags.bounced
         }
     }
 
-fun ReceivedMessage.srcAddressSlice() =
+fun ReceivedMessage.srcAddressSlice(): UHeapRef? =
     when (this) {
         is ReceivedMessage.InputMessage -> input.srcAddressSlice
-        is ReceivedMessage.MessageFromOtherContract -> message.commonInfo.srcAddressSlice
+        is ReceivedMessage.MessageFromOtherContract -> message.messageTlb.commonMessageInfo.srcAddressSlice
     }
 
-fun ReceivedMessage.fwdFee() =
+fun ReceivedMessage.fwdFee(): Int257Expr? =
     when (this) {
         is ReceivedMessage.InputMessage -> input.fwdFee
-        is ReceivedMessage.MessageFromOtherContract -> message.commonInfo.fwdFee
+        is ReceivedMessage.MessageFromOtherContract -> message.messageTlb.commonMessageInfo.fwdFee
     }
 
-fun ReceivedMessage.createdLt() =
+fun ReceivedMessage.createdLt(): Int257Expr =
     when (this) {
         is ReceivedMessage.InputMessage -> input.createdLt
-        is ReceivedMessage.MessageFromOtherContract -> message.commonInfo.createdLt
+        is ReceivedMessage.MessageFromOtherContract -> message.messageTlb.commonMessageInfo.createdLt
     }
 
-fun ReceivedMessage.createdAt() =
+fun ReceivedMessage.createdAt(): Int257Expr =
     when (this) {
         is ReceivedMessage.InputMessage -> input.createdAt
-        is ReceivedMessage.MessageFromOtherContract -> message.commonInfo.createdAt
+        is ReceivedMessage.MessageFromOtherContract -> message.messageTlb.commonMessageInfo.createdAt
     }
 
-fun ReceivedMessage.msgValue() =
+fun ReceivedMessage.msgValue(): Int257Expr =
     when (this) {
         is ReceivedMessage.InputMessage -> input.msgValue
-        is ReceivedMessage.MessageFromOtherContract -> message.commonInfo.msgValue
+        is ReceivedMessage.MessageFromOtherContract -> message.messageTlb.commonMessageInfo.msgValue
     }
 
-fun ReceivedMessage.stateInit() =
+fun ReceivedMessage.stateInit(): UHeapRef? =
     when (this) {
-        is ReceivedMessage.InputMessage -> null
-        is ReceivedMessage.MessageFromOtherContract -> message.stateInitCell
+        is ReceivedMessage.InputMessage -> {
+            null
+        }
+
+        is ReceivedMessage.MessageFromOtherContract -> {
+            message.messageTlb.stateInit
+                .asCellRefUnsafe()
+                ?.value
+        }
     }
