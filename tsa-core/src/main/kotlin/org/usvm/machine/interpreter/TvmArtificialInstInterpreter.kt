@@ -340,8 +340,8 @@ class TvmArtificialInstInterpreter(
     private fun TvmStepScopeManager.constructMessageCells(
         msgs: List<DispatchedUnconstructedMessage>,
         acc: List<DispatchedMessage> = listOf(),
-        restActions: (List<DispatchedMessage>) -> Unit,
-    ): Unit? {
+        restActions: TvmStepScopeManager.(List<DispatchedMessage>) -> Unit,
+    ) {
         val (head, tail) =
             msgs.splitHeadTail()
                 ?: return restActions(acc)
@@ -357,8 +357,7 @@ class TvmArtificialInstInterpreter(
                 acc + msg,
                 restActions,
             )
-        } ?: return null
-        return Unit
+        }
     }
 
     private fun TvmStepScopeManager.visitHandleMessageCostsInst(stmt: TsaArtificialHandleMessagesCostInst): Unit =
@@ -726,7 +725,6 @@ class TvmArtificialInstInterpreter(
                 }
                 constructedMsgCells = constructedMsgCellsInt
             }
-                ?: error("Failed to construct bounced message of known length")
             constructedMsgCells?.let { constructedMsgCells ->
                 MessageAsStackArguments(
                     msgValue = oldMessage.msgValue,

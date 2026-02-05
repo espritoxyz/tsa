@@ -1,6 +1,5 @@
 package org.ton.examples.checkers
 
-import org.junit.jupiter.api.Disabled
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
@@ -124,7 +123,6 @@ class RandomSenderTest {
         )
     }
 
-    @Disabled("In-place body should be replaced with out-of-place; see issue #243")
     @Test
     fun testVulnerableWithCellOverflow() {
         val tests = runTest(vulnerableWithOverflow)

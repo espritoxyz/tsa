@@ -24,6 +24,7 @@ import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
+import org.usvm.machine.state.builderStoreSliceCps
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderStoreSliceTransaction
 import org.usvm.machine.state.builderToCell
@@ -317,13 +318,24 @@ data class TlbInternalMessageContent(
     private fun UConcreteHeapRef.storeEitherRightBit(scope: TvmStepScopeManager) = storeUint(scope, scope.ctx.oneValue)
 
     /**
-     * @return `null` iff the message failed to construct due to an overflow
+     * @param tryNum emulates the handling of overflows in TVM. On the first try, it tries to do the processing
+     * while preserving the original stateinit and body persisted from the corresponding action in C5.
+     * However, it might trigger an overflow (if in the message, the source was std_none, then after processing it
+     * turns into the std_addr of size 1 + 8 + 256), so on the second try, it forces the out-of-line storage of body.
+     * **Note**: technically, in TVM, the second try forces out-of-line storage for *init* and only the third try forces
+     * if for *body*, but we slightly diverge here. For the full story, see `transaction.cpp:try_action_send_msg` in TON
+     * monorepo (version 12), specifically, the `redoing` flag hanlding.
      */
     fun constructMessageCellFromContent(
         scope: TvmStepScopeManager,
         quietBlock: (TvmState.() -> Unit)? = null,
+        tryNum: Int = 0,
         restActions: TvmStepScopeManager.(ConstructedMessageCells) -> Unit,
-    ): Unit? {
+    ) {
+        if (tryNum >= 2) {
+            scope.calcOnState { quietBlock?.let { it() } }
+            return
+        }
         val state = scope.calcOnState { this }
         return with(state.ctx) {
             val resultBuilder = state.allocEmptyBuilder()
@@ -414,35 +426,72 @@ data class TlbInternalMessageContent(
                     }
                 }
             }
-            when (body) {
-                is TlbBody.Inline -> {
-                    resultBuilder.storeUint(scope, zeroValue)
-                        ?: error("cannot store init")
-                    builderStoreSliceTlb(
-                        scope,
-                        resultBuilder,
-                        resultBuilder,
-                        body.slice.value,
-                        quietBlock,
-                    ) ?: return@with null
-                }
+            scope.storeBody(
+                resultBuilder,
+                tryNum,
+                onOverflow = { constructMessageCellFromContent(this, quietBlock, tryNum + 1, restActions) },
+            ) { newBuilder ->
+                val bodySlice = body.asSlice()
+                val fullMessage = state.builderToCell(newBuilder).asCellRef()
+                restActions(ConstructedMessageCells(messageBody = bodySlice, fullMessage = fullMessage))
+            }
+        }
+    }
 
-                is TlbBody.OutOfLine -> {
-                    resultBuilder.storeUint(scope, oneValue)
-                        ?: error("cannot store init")
-                    scope.doWithState {
-                        // actually, there might be an overflow (when stateinit is stored inline)
-                        // careful here!
-                        builderStoreNextRefNoOverflowCheck(resultBuilder, body.originalRef.value)
+    /**
+     * @param restActions is an action with builder where the slice was stored
+     */
+    fun TvmStepScopeManager.storeBody(
+        resultBuilder: UConcreteHeapRef,
+        tryNum: Int,
+        onOverflow: TvmStepScopeManager.() -> Unit?,
+        restActions: TvmStepScopeManager.(UConcreteHeapRef) -> Unit,
+    ): Unit =
+        when (body) {
+            is TlbBody.Inline -> {
+                resultBuilder.storeEitherLeftBit(this)
+                    ?: error("cannot store init")
+                if (tryNum == 0) {
+                    builderStoreSliceCps(
+                        resultBuilder,
+                        resultBuilder,
+                        body.slice,
+                    ) { success ->
+                        if (success != null) {
+                            restActions(resultBuilder)
+                        } else {
+                            onOverflow()
+                        }
                     }
+                } else {
+                    // force out-of-line storage
+                    val builder = calcOnState { allocEmptyBuilder() }
+                    builderStoreSliceTlb(
+                        this,
+                        builder,
+                        builder,
+                        body.slice.value,
+                        quietBlock = { error("unreachable") },
+                    )
+                    val cell = calcOnState { allocCellFromBuilder(builder) }
+                    resultBuilder.storeEitherRightBit(this)
+                        ?: error("cannot store init")
+                    doWithState {
+                        builderStoreNextRefNoOverflowCheck(resultBuilder, cell)
+                    }
+                    restActions(resultBuilder)
                 }
             }
 
-            val bodySlice = body.asSlice()
-            val fullMessage = state.builderToCell(resultBuilder).asCellRef()
-            scope.restActions(ConstructedMessageCells(messageBody = bodySlice, fullMessage = fullMessage))
+            is TlbBody.OutOfLine -> {
+                resultBuilder.storeEitherRightBit(this)
+                    ?: error("cannot store init")
+                doWithState {
+                    builderStoreNextRefNoOverflowCheck(resultBuilder, body.originalRef.value)
+                }
+                restActions(resultBuilder)
+            }
         }
-    }
 
     companion object {
         fun extractFromSlice(

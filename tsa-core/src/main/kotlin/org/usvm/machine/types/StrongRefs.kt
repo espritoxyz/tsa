@@ -3,11 +3,17 @@ package org.usvm.machine.types
 import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 
+/**
+ * Strong type wrapper for refs that hold a value of **slice** type.
+ */
 @JvmInline
 value class SliceGeneralRef<out T : UHeapRef>(
     val value: T,
 )
 
+/**
+ * Strong type wrapper for refs that hold a value of **cell** type.
+ */
 @JvmInline
 value class CellGeneralRef<out T : UHeapRef>(
     val value: T,
