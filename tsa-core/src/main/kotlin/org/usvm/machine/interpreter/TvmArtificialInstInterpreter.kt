@@ -698,6 +698,8 @@ class TvmArtificialInstInterpreter(
                         bounced = 1.toBv257(),
                     )
                 val dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) }
+                // according to transaction.cpp:prepare_bounce_phase from tone monorepo,
+                // the stateinit does not exist in bounce message
                 val content =
                     TlbInternalMessageContent(
                         commonMessageInfo =
@@ -731,9 +733,7 @@ class TvmArtificialInstInterpreter(
                     fullMessage = constructedMsgCells.fullMessage,
                     messageBody = constructedMsgCells.messageBody,
                     destAddrSlice = dstAddressSlice,
-                    content.commonMessageInfo,
-                    stateInitCell = null, // according to transaction.cpp:prepare_bounce_phase from tone monorepo,
-                    // the stateinit does not exist in bounce message
+                    messageTlb = content,
                 )
             } ?: error("Failed to construct bounced message of known length")
         }

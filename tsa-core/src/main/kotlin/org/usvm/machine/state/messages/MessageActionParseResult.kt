@@ -44,6 +44,5 @@ data class MessageAsStackArguments(
     val fullMessage: CellRef,
     val messageBody: SliceRef,
     val destAddrSlice: UHeapRef,
-    val commonInfo: TlbCommonMessageInfo,
-    val stateInitCell: UHeapRef?, // TODO store full tlb representation instead of commonInfo; erase stateInitCell
+    val messageTlb: TlbInternalMessageContent,
 )
