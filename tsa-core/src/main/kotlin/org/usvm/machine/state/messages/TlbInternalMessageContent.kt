@@ -254,42 +254,6 @@ fun TlbStateInit.asCellRefUnsafe(): CellGeneralRef<UHeapRef>? =
         is TlbStateInit.OutOfLine -> originalRef
     }
 
-/**
- * Contains the part of the message after the CommonMsgInfo
- */
-sealed interface MessageAfterCommonMsgInfo {
-    /**
-     * Is the original cell where the body was contained (null if was an inlined slice)
-     */
-    val body: TlbBody
-    val stateInit: TlbStateInit
-
-    /**
-     * Contains empty state init and a body as an out-of-line cell
-     */
-    data class ManuallyConstructed(
-        // init is assumed to be (Maybe (Either StateInit ^StateInit)).nothing (1 bit of zero)
-        override val body: TlbBody.OutOfLine,
-    ) : MessageAfterCommonMsgInfo {
-        override val stateInit: TlbStateInit = TlbStateInit.None
-    }
-
-    /**
-     * @param tailSlice embodies the whole slice of the message that follows the CommonMsgInfo
-     */
-    data class ConstructedBySomeContract(
-        val tailSlice: UHeapRef,
-        override val stateInit: TlbStateInit,
-        override val body: TlbBody,
-    ) : MessageAfterCommonMsgInfo
-}
-
-fun MessageAfterCommonMsgInfo.bodySlice(): SliceRef =
-    when (this) {
-        is MessageAfterCommonMsgInfo.ManuallyConstructed -> this.body.asSlice()
-        is MessageAfterCommonMsgInfo.ConstructedBySomeContract -> this.body.asSlice()
-    }
-
 data class ConstructedMessageCells(
     val messageBody: SliceRef,
     val fullMessage: ConcreteCellRef,
@@ -300,11 +264,11 @@ data class ConstructedMessageCells(
  */
 data class TlbInternalMessageContent(
     val commonMessageInfo: TlbCommonMessageInfo,
-    val messageAfterCommonMsgInfo: MessageAfterCommonMsgInfo,
+    val stateInit: TlbStateInit,
+    val body: TlbBody,
 ) {
     val bodyOriginalRef: UHeapRef?
-        get() = messageAfterCommonMsgInfo.body.originalRef()?.value
-    val stateInit = messageAfterCommonMsgInfo.stateInit
+        get() = body.originalRef()?.value
 
     private fun UConcreteHeapRef.storeUint(
         scope: TvmStepScopeManager,
@@ -407,92 +371,74 @@ data class TlbInternalMessageContent(
             // created_at:uint32
             resultBuilder.storeUint(scope, commonMessageInfo.createdAt, sizeBits = 32)
                 ?: error("Cannot store created_at")
-
-            val tail = this@TlbInternalMessageContent.messageAfterCommonMsgInfo
-            when (tail) {
-                is MessageAfterCommonMsgInfo.ManuallyConstructed -> {
+            when (stateInit) {
+                TlbStateInit.None -> {
                     resultBuilder.storeNothingBit(scope)
-                        ?: error("cannot store init")
-
-                    // body:(Either X ^X).right
-                    // set prefix of Either.right
-                    resultBuilder.storeEitherRightBit(scope)
-
-                    scope.doWithState {
-                        builderStoreNextRefNoOverflowCheck(resultBuilder, tail.body.originalRef.value)
-                    }
+                        ?: error("Cannot store init")
                 }
 
-                is MessageAfterCommonMsgInfo.ConstructedBySomeContract -> {
-                    when (stateInit) {
-                        TlbStateInit.None -> {
-                            resultBuilder.storeNothingBit(scope)
-                                ?: error("Cannot store init")
-                        }
+                is TlbStateInit.Inline -> {
+                    resultBuilder.storeJustBit(scope)
+                        ?: error("cannot store init")
+                    resultBuilder.storeEitherLeftBit(scope)
+                        ?: error("cannot store init")
 
-                        is TlbStateInit.Inline -> {
-                            resultBuilder.storeJustBit(scope)
-                                ?: error("cannot store init")
-                            resultBuilder.storeEitherLeftBit(scope)
-                                ?: error("cannot store init")
-                            // fixed_prefix_length=special=Nothing
-                            resultBuilder.storeUint(scope, zeroValue, 2)
-                                ?: error("cannot store init")
-                            resultBuilder.storeMaybeRefNoOverflowChecks(
-                                scope,
-                                stateInit.code,
-                            )
-                                ?: error("cannot store init")
-                            resultBuilder.storeMaybeRefNoOverflowChecks(
-                                scope,
-                                stateInit.data,
-                            )
-                                ?: error("cannot store init")
+                    // fixed_prefix_length=special=Nothing
+                    resultBuilder.storeUint(scope, zeroValue, 2)
+                        ?: error("cannot store init")
+                    resultBuilder.storeMaybeRefNoOverflowChecks(
+                        scope,
+                        stateInit.code,
+                    )
+                        ?: error("cannot store init")
+                    resultBuilder.storeMaybeRefNoOverflowChecks(
+                        scope,
+                        stateInit.data,
+                    )
+                        ?: error("cannot store init")
 
-                            resultBuilder.storeMaybeRefNoOverflowChecks(
-                                scope,
-                                stateInit.library,
-                            )
-                                ?: error("cannot store init")
-                        }
+                    resultBuilder.storeMaybeRefNoOverflowChecks(
+                        scope,
+                        stateInit.library,
+                    )
+                        ?: error("cannot store init")
+                }
 
-                        is TlbStateInit.OutOfLine -> {
-                            // Maybe.just
-                            resultBuilder.storeUint(scope, oneValue)
-                                ?: error("Cannot store init")
-                            // Either.right
-                            resultBuilder.storeUint(scope, oneValue)
-                                ?: error("Cannot store init")
-                            scope.calcOnState {
-                                builderStoreNextRefNoOverflowCheck(resultBuilder, stateInit.originalRef.value)
-                            }
-                        }
+                is TlbStateInit.OutOfLine -> {
+                    resultBuilder.storeJustBit(scope)
+                        ?: error("cannot store init")
+                    resultBuilder.storeEitherRightBit(scope)
+                        ?: error("cannot store init")
+                    scope.calcOnState {
+                        builderStoreNextRefNoOverflowCheck(resultBuilder, stateInit.originalRef.value)
                     }
-                    when (val body = tail.body) {
-                        is TlbBody.Inline -> {
-                            resultBuilder.storeUint(scope, zeroValue)
-                            builderStoreSliceTlb(
-                                scope,
-                                resultBuilder,
-                                resultBuilder,
-                                body.slice.value,
-                                quietBlock,
-                            ) ?: return@with null
-                        }
+                }
+            }
+            when (body) {
+                is TlbBody.Inline -> {
+                    resultBuilder.storeUint(scope, zeroValue)
+                        ?: error("cannot store init")
+                    builderStoreSliceTlb(
+                        scope,
+                        resultBuilder,
+                        resultBuilder,
+                        body.slice.value,
+                        quietBlock,
+                    ) ?: return@with null
+                }
 
-                        is TlbBody.OutOfLine -> {
-                            resultBuilder.storeUint(scope, oneValue)
-                            scope.doWithState {
-                                // actually, there might be an overflow (when stateinit is stored inline)
-                                // careful here!
-                                builderStoreNextRefNoOverflowCheck(resultBuilder, tail.body.originalRef.value)
-                            }
-                        }
+                is TlbBody.OutOfLine -> {
+                    resultBuilder.storeUint(scope, oneValue)
+                        ?: error("cannot store init")
+                    scope.doWithState {
+                        // actually, there might be an overflow (when stateinit is stored inline)
+                        // careful here!
+                        builderStoreNextRefNoOverflowCheck(resultBuilder, body.originalRef.value)
                     }
                 }
             }
 
-            val bodySlice = tail.body.asSlice()
+            val bodySlice = body.asSlice()
             val fullMessage = state.builderToCell(resultBuilder).asCellRef()
             scope.restActions(ConstructedMessageCells(messageBody = bodySlice, fullMessage = fullMessage))
         }
@@ -510,21 +456,12 @@ data class TlbInternalMessageContent(
                     TlbCommonMessageInfo.extractFromSlice(scope, ptr, quietBlock)
                         ?: return null
 
-                val tailSlice = ptr.slice
-
                 val stateInitRef =
                     loadStateInit(scope, resolver, ptr, quietBlock).getOrElse { return@with null }
 
                 val body =
                     loadBody(scope, resolver, ptr, quietBlock)
                         .getOrElse { return@with null }
-
-                val messageAfterCommonMsgInfo =
-                    MessageAfterCommonMsgInfo.ConstructedBySomeContract(
-                        tailSlice,
-                        stateInitRef,
-                        body,
-                    )
 
                 val sliceFullyParsed = scope.calcOnState { createSliceIsEmptyConstraint(ptr.slice) }
                 scope.fork(
@@ -534,7 +471,8 @@ data class TlbInternalMessageContent(
                 ) ?: return@with null
                 TlbInternalMessageContent(
                     commonMessageInfo = commonMessageInfo,
-                    messageAfterCommonMsgInfo = messageAfterCommonMsgInfo,
+                    stateInit = stateInitRef,
+                    body = body,
                 )
             }
 

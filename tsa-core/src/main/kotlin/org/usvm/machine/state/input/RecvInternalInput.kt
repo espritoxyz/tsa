@@ -21,10 +21,10 @@ import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.generateSymbolicAddressCell
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.messages.Flags
-import org.usvm.machine.state.messages.MessageAfterCommonMsgInfo
 import org.usvm.machine.state.messages.TlbBody
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.messages.TlbStateInit
 import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.asSliceRef
@@ -158,10 +158,8 @@ class RecvInternalInput(
                             createdLt = createdLt,
                             createdAt = createdAt,
                         ),
-                    messageAfterCommonMsgInfo =
-                        MessageAfterCommonMsgInfo.ManuallyConstructed(
-                            TlbBody.OutOfLine(bodyCellMaybeBounced.asCellRef(), msgBodySliceMaybeBounced.asSliceRef()),
-                        ),
+                    stateInit = TlbStateInit.None,
+                    body = TlbBody.OutOfLine(bodyCellMaybeBounced.asCellRef(), msgBodySliceMaybeBounced.asSliceRef()),
                 )
 
             var fullMsgCell: UConcreteHeapRef? = null

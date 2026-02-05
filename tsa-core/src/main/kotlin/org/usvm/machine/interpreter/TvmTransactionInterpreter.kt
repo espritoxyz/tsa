@@ -49,7 +49,7 @@ import org.usvm.machine.state.messages.ReserveAction
 import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.messages.ValueOrDeadScope
 import org.usvm.machine.state.messages.asCellRefUnsafe
-import org.usvm.machine.state.messages.bodySlice
+import org.usvm.machine.state.messages.asSlice
 import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
 import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.newStmt
@@ -828,7 +828,7 @@ class TvmTransactionInterpreter(
                         run {
                             val (result, innerStatus) =
                                 chooseHandlerBasedOnOpcode(
-                                    messageContent.messageAfterCommonMsgInfo.bodySlice().value,
+                                    messageContent.body.asSlice().value,
                                     handler.outOpcodeToDestination,
                                     handler.other,
                                     resolver,
