@@ -53,10 +53,7 @@ class OnOutMessageTest {
 
     @Test
     fun onOutMessageTest6() {
-        onOutMessageBaseTest(
-            flag = 6,
-            expectedSoftFailure = true,
-        )
+        onOutMessageBaseTest(6)
     }
 
     private fun onOutMessageBaseTest(
