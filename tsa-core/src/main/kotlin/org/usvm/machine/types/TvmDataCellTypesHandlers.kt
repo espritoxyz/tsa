@@ -545,40 +545,41 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
     slice: UHeapRef,
-) = doWithCtx {
-    val cellRef = calcOnState { memory.readField(slice, TvmContext.sliceCellField, addressSort) }
-    val dataPos = calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
-    val cellLength =
-        calcOnState {
-            fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
-        }
-    val sliceLength = mkSizeSubExpr(cellLength, dataPos)
+): Unit =
+    with(ctx) {
+        val cellRef = calcOnState { memory.readField(slice, TvmContext.sliceCellField, addressSort) }
+        val dataPos = calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
+        val cellLength =
+            calcOnState {
+                fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
+            }
+        val sliceLength = mkSizeSubExpr(cellLength, dataPos)
 
-    val leafAddresses = flattenReferenceIte(slice, extractAllocated = true, extractStatic = true)
+        val leafAddresses = flattenReferenceIte(slice, extractAllocated = true, extractStatic = true)
 
-    val (label, resultSliceRef) =
-        if (calcOnState { leafAddresses.all { dataCellInfoStorage.mapper.sliceIsAddress(it.second) } }) {
-            // store TL-B address
-            TlbAddressByRef(sliceLength) to slice
-        } else {
-            val newSlice = calcOnState { memory.allocConcrete(TvmSliceType) }
-            doWithState {
-                memory.writeField(newSlice, TvmContext.sliceCellField, addressSort, cellRef, guard = trueExpr)
-                val refsInCell = fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cellRef)
-                memory.writeField(newSlice, TvmContext.sliceRefPosField, sizeSort, refsInCell, guard = trueExpr)
-                fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(memory, newSlice, dataPos)
+        val (label, resultSliceRef) =
+            if (calcOnState { leafAddresses.all { dataCellInfoStorage.mapper.sliceIsAddress(it.second) } }) {
+                // store TL-B address
+                TlbAddressByRef(sliceLength) to slice
+            } else {
+                val newSlice = calcOnState { memory.allocConcrete(TvmSliceType) }
+                doWithState {
+                    memory.writeField(newSlice, TvmContext.sliceCellField, addressSort, cellRef, guard = trueExpr)
+                    val refsInCell = fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cellRef)
+                    memory.writeField(newSlice, TvmContext.sliceRefPosField, sizeSort, refsInCell, guard = trueExpr)
+                    fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(memory, newSlice, dataPos)
+                }
+
+                TlbBitArrayByRef(sliceLength) to newSlice
             }
 
-            TlbBitArrayByRef(sliceLength) to newSlice
-        }
-
-    calcOnState {
-        addTlbLabelToBuilder(oldBuilder, newBuilder, label) { state, resultCellRef, structId ->
-            val field = SliceRefField(structId, persistentListOf())
-            state.memory.writeField(resultCellRef, field, field.getSort(ctx), resultSliceRef, guard = trueExpr)
+        calcOnState {
+            addTlbLabelToBuilder(oldBuilder, newBuilder, label) { state, resultCellRef, structId ->
+                val field = SliceRefField(structId, persistentListOf())
+                state.memory.writeField(resultCellRef, field, field.getSort(ctx), resultSliceRef, guard = trueExpr)
+            }
         }
     }
-}
 
 fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
     oldBuilder: UConcreteHeapRef,

@@ -21,10 +21,13 @@ import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.generateSymbolicAddressCell
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.messages.Flags
-import org.usvm.machine.state.messages.MessageAfterCommonMsgInfo
+import org.usvm.machine.state.messages.TlbBody
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.messages.TlbStateInit
 import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.asSliceRef
 import org.usvm.sizeSort
 
 class RecvInternalInput(
@@ -154,18 +157,21 @@ class RecvInternalInput(
                             createdLt = createdLt,
                             createdAt = createdAt,
                         ),
-                    messageAfterCommonMsgInfo =
-                        MessageAfterCommonMsgInfo.ManuallyConstructed(
-                            bodyCellMaybeBounced,
-                            msgBodySliceMaybeBounced,
-                        ),
+                    stateInit = TlbStateInit.None,
+                    body = TlbBody.OutOfLine(bodyCellMaybeBounced.asCellRef(), msgBodySliceMaybeBounced.asSliceRef()),
                 )
 
-            val result = (
-                tlbMessageContent.constructMessageCellFromContent(scope)?.fullMsgCell
-                    ?: error("overflow during construction fo the full message in receive internal input")
-            )
+            var fullMsgCell: UConcreteHeapRef? = null
+            tlbMessageContent.constructMessageCellFromContent(scope) { constructedMessageCells ->
+                if (fullMsgCell != null) {
+                    error("Assumptions were wrong")
+                }
+                fullMsgCell = constructedMessageCells.fullMessage.value
+            }
 
+            val result =
+                fullMsgCell
+                    ?: error("overflow during construction of internal input")
             val stepResult = scope.stepResult()
             check(stepResult.originalStateAlive) {
                 "Original state died while building full message"

@@ -1,5 +1,6 @@
 package org.ton.examples.checkers
 
+import org.junit.jupiter.api.Tag
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
@@ -33,6 +34,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
+@Tag("intercontract")
 class CheckersTest {
     private val internalCallChecker = "/checkers/send_internal.fc"
     private val internalCallCheckerWithCapture = "/checkers/send_internal_with_capture.fc"

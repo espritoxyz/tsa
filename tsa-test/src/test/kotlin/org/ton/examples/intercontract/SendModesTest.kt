@@ -1,5 +1,6 @@
 package org.ton.examples.intercontract
 
+import org.junit.jupiter.api.Tag
 import org.ton.cell.CellBuilder
 import org.ton.cell.buildCell
 import org.ton.test.utils.checkInvariants
@@ -28,6 +29,7 @@ import kotlin.test.assertTrue
 
 private infix fun Boolean.implies(other: Boolean) = this.not() || other
 
+@Tag("intercontract")
 class SendModesTest {
     private val remainingBalanceContract = "/intercontract/modes/send_remaining_balance.fc"
     private val remainingBalanceWithAnotherMessageContract =
