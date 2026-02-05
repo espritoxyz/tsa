@@ -62,12 +62,12 @@ import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ConstructedMessageCells
 import org.usvm.machine.state.messages.ContractSender
 import org.usvm.machine.state.messages.Flags
-import org.usvm.machine.state.messages.MessageAfterCommonMsgInfo
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.messages.TlbBody
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.messages.TlbStateInit
 import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.messages.getOrElse
 import org.usvm.machine.state.newStmt
@@ -701,17 +701,19 @@ class TvmArtificialInstInterpreter(
                 val dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) }
                 val content =
                     TlbInternalMessageContent(
-                        TlbCommonMessageInfo(
-                            flags = bouncedFlags,
-                            srcAddressSlice = oldMessage.destAddrSlice,
-                            dstAddressSlice = dstAddressSlice,
-                            msgValue = zeroValue,
-                            ihrFee = zeroValue,
-                            fwdFee = zeroValue,
-                            createdLt = zeroValue,
-                            createdAt = zeroValue,
-                        ),
-                        messageAfterCommonMsgInfo = MessageAfterCommonMsgInfo.ManuallyConstructed(body),
+                        commonMessageInfo =
+                            TlbCommonMessageInfo(
+                                flags = bouncedFlags,
+                                srcAddressSlice = oldMessage.destAddrSlice,
+                                dstAddressSlice = dstAddressSlice,
+                                msgValue = zeroValue,
+                                ihrFee = zeroValue,
+                                fwdFee = zeroValue,
+                                createdLt = zeroValue,
+                                createdAt = zeroValue,
+                            ),
+                        stateInit = TlbStateInit.None,
+                        body = body,
                     )
                 content to dstAddressSlice
             }
