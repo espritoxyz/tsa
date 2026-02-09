@@ -1027,11 +1027,11 @@ fun TvmStepScopeManager.builderStoreSlice(
     }
 
 /**
- * Used to handle the cases where we want to preserve the state where cell underflow actually happened.
+ * Used to handle the case where we want to fork on a state where overflow has occurred.
  * @param restActions is called on `Unit` when the [slice] was successfully stored to [builder], on null if overflow
  * occurred and not called otherwise (for instance, when the solver return UNKNOWN on any query)
  */
-fun TvmStepScopeManager.builderStoreSliceCps(
+fun TvmStepScopeManager.builderStoreSliceWithForkOnOverflow(
     oldBuilder: UConcreteHeapRef,
     builder: UConcreteHeapRef,
     slice: SliceRef,
@@ -1078,7 +1078,7 @@ fun TvmStepScopeManager.builderStoreSliceCps(
                     paramForDoForAllBlock = null,
                 ),
             )
-        return@builderStoreSliceCps doWithConditions(
+        return@builderStoreSliceWithForkOnOverflow doWithConditions(
             actions,
         ) { successfulCheck ->
             if (successfulCheck != null) {

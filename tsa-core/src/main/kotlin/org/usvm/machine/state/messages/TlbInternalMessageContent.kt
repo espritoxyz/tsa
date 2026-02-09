@@ -1,6 +1,7 @@
 package org.usvm.machine.state.messages
 
 import io.ksmt.utils.uncheckedCast
+import mu.KLogging
 import org.ton.Endian
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.usvm.UBoolExpr
@@ -9,7 +10,6 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.isFalse
 import org.usvm.isTrue
-import org.usvm.logger
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.INT_BITS
@@ -24,9 +24,9 @@ import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
-import org.usvm.machine.state.builderStoreSliceCps
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderStoreSliceTransaction
+import org.usvm.machine.state.builderStoreSliceWithForkOnOverflow
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.createSliceIsEmptyConstraint
 import org.usvm.machine.state.doWithCtx
@@ -325,6 +325,7 @@ data class TlbInternalMessageContent(
      * **Note**: technically, in TVM, the second try forces out-of-line storage for *init* and only the third try forces
      * if for *body*, but we slightly diverge here. For the full story, see `transaction.cpp:try_action_send_msg` in TON
      * monorepo (version 12), specifically, the `redoing` flag handling.
+     * @param restActions is called on the constructed cells if the result was successfully calculated.
      */
     fun constructMessageCellFromContent(
         scope: TvmStepScopeManager,
@@ -342,7 +343,7 @@ data class TlbInternalMessageContent(
 
             for (flag in commonMessageInfo.flags.asFlagsList()) {
                 resultBuilder.storeUint(scope, flag)
-                    ?: error("Cannot store flags")
+                    ?: return@with
             }
 
             // src:MsgAddressInt
@@ -352,7 +353,7 @@ data class TlbInternalMessageContent(
                 resultBuilder,
                 commonMessageInfo.srcAddressSlice ?: error("null slice"),
             )
-                ?: error("Cannot store src address")
+                ?: return@with
 
             // dest:MsgAddressInt
             builderStoreSliceTlb(
@@ -361,7 +362,7 @@ data class TlbInternalMessageContent(
                 resultBuilder,
                 commonMessageInfo.dstAddressSlice,
             )
-                ?: error("Cannot store dest address")
+                ?: return@with
 
             // value:CurrencyCollection
             // store message value
@@ -371,11 +372,11 @@ data class TlbInternalMessageContent(
                 resultBuilder,
                 commonMessageInfo.msgValue,
             )
-                ?: error("Cannot store message value")
+                ?: return@with
 
             // extra currency collection --- an empty dict (a bit of zero)
             resultBuilder.storeUint(scope, zeroValue)
-                ?: error("Cannot store extra currency collection")
+                ?: return@with
 
             // ihr_fee:Grams
             builderStoreGramsTlb(
@@ -384,7 +385,7 @@ data class TlbInternalMessageContent(
                 resultBuilder,
                 commonMessageInfo.ihrFee,
             )
-                ?: error("Cannot store ihr fee")
+                ?: return@with
 
             // fwd_fee:Gram
             builderStoreGramsTlb(
@@ -393,53 +394,53 @@ data class TlbInternalMessageContent(
                 resultBuilder,
                 commonMessageInfo.fwdFee,
             )
-                ?: error("Cannot store fwd fee")
+                ?: return@with
 
             // created_lt:uint64
             resultBuilder.storeUint(scope, commonMessageInfo.createdLt, sizeBits = 64)
-                ?: error("Cannot store created_lt")
+                ?: return@with
 
             // created_at:uint32
             resultBuilder.storeUint(scope, commonMessageInfo.createdAt, sizeBits = 32)
-                ?: error("Cannot store created_at")
+                ?: return@with
             when (stateInit) {
                 TlbStateInit.None -> {
                     resultBuilder.storeNothingBit(scope)
-                        ?: error("Cannot store init")
+                        ?: return@with
                 }
 
                 is TlbStateInit.Inline -> {
                     resultBuilder.storeJustBit(scope)
-                        ?: error("cannot store init")
+                        ?: return@with
                     resultBuilder.storeEitherLeftBit(scope)
-                        ?: error("cannot store init")
+                        ?: return@with
 
                     // fixed_prefix_length=special=Nothing
                     resultBuilder.storeUint(scope, zeroValue, 2)
-                        ?: error("cannot store init")
+                        ?: return@with
                     resultBuilder.storeMaybeRefNoOverflowChecks(
                         scope,
                         stateInit.code,
                     )
-                        ?: error("cannot store init")
+                        ?: return@with
                     resultBuilder.storeMaybeRefNoOverflowChecks(
                         scope,
                         stateInit.data,
                     )
-                        ?: error("cannot store init")
+                        ?: return@with
 
                     resultBuilder.storeMaybeRefNoOverflowChecks(
                         scope,
                         stateInit.library,
                     )
-                        ?: error("cannot store init")
+                        ?: return@with
                 }
 
                 is TlbStateInit.OutOfLine -> {
                     resultBuilder.storeJustBit(scope)
-                        ?: error("cannot store init")
+                        ?: return@with
                     resultBuilder.storeEitherRightBit(scope)
-                        ?: error("cannot store init")
+                        ?: return@with
                     scope.calcOnState {
                         builderStoreNextRefNoOverflowCheck(resultBuilder, stateInit.originalRef.value)
                     }
@@ -471,7 +472,7 @@ data class TlbInternalMessageContent(
                 resultBuilder.storeEitherLeftBit(this)
                     ?: error("cannot store init")
                 if (tryNum == 0) {
-                    builderStoreSliceCps(
+                    builderStoreSliceWithForkOnOverflow(
                         resultBuilder,
                         resultBuilder,
                         body.slice,
@@ -513,6 +514,8 @@ data class TlbInternalMessageContent(
         }
 
     companion object {
+        private val logger = object : KLogging() {}.logger
+
         fun extractFromSlice(
             scope: TvmStepScopeManager,
             ptr: ParsingState,
