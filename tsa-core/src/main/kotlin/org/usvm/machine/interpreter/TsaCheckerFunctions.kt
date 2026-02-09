@@ -12,6 +12,7 @@ const val GET_BALANCE_METHOD_ID = 9
 const val SET_C4_METHOD_ID = 10
 const val MAKE_ADDRESS_RANDOM_METHOD_ID = 11
 const val MAKE_SLICE_INDEPENDENT_METHOD_ID = 12
+const val INPUT_WAS_ACCEPTED_METHOD_ID = 13
 
 /**
  * Were calculated using python script:

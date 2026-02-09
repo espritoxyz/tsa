@@ -1,0 +1,17 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+() main() impure {
+    tsa_forbid_failures();
+
+    tsa_send_external_message(1, 0);
+
+    tsa_allow_failures();
+
+    int was_accepted = tsa_input_was_accepted(0);
+    if (was_accepted) {
+        throw(1000);
+    } else {
+        throw(1001);
+    }
+}
