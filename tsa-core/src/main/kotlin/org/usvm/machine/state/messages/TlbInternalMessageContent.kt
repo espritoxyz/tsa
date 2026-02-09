@@ -66,7 +66,7 @@ data class TlbCommonMessageInfo(
             with(scope.ctx) {
                 // int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
                 val tlbFlags =
-                    (0 until 4).map {
+                    (0..<4).map {
                         val curFlag =
                             sliceLoadIntTlbNoFork(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                                 ?: return@with null
@@ -81,7 +81,7 @@ data class TlbCommonMessageInfo(
 
                 val addrCell =
                     scope.getCellContractInfoParam(ADDRESS_PARAMETER_IDX)
-                        ?: return null
+                        ?: return@extractFromSlice null
                 val tlbAddrSlice = scope.calcOnState { allocSliceFromCell(addrCell) }
                 scope.calcOnState {
                     dataCellInfoStorage.mapper.addAddressSlice(tlbAddrSlice)
@@ -102,7 +102,7 @@ data class TlbCommonMessageInfo(
                     condition = with(scope.ctx) { destSliceSize bvUgt 2.toSizeSort() },
                     falseStateIsExceptional = false, // soft failure
                     blockOnFalseState = { throwBadDestinationAddress(this) },
-                ) ?: return null
+                ) ?: return@extractFromSlice null
 
                 // value:CurrencyCollection
                 val tlbSymbolicMsgValue =
@@ -152,25 +152,25 @@ data class TlbCommonMessageInfo(
             slice: UHeapRef,
             quietBlock: (TvmState.() -> Unit)?,
         ): Pair<UHeapRef, UHeapRef?>? =
-            scope.doWithCtx {
+            with(scope.ctx) {
                 val (afterTagSlice, tag) =
                     sliceLoadIntTlbNoFork(scope, slice, 2)
-                        ?: return@doWithCtx null
+                        ?: return@sliceSkipNoneOrStdAddr null
 
                 val noneTag = mkBv(NONE_ADDRESS_TAG, INT_BITS)
                 val isTagNone =
                     scope.checkCondition(tag eq noneTag.uncheckedCast())
-                        ?: return@doWithCtx null
+                        ?: return@sliceSkipNoneOrStdAddr null
 
                 if (isTagNone) {
-                    return@doWithCtx afterTagSlice to null
+                    return@sliceSkipNoneOrStdAddr afterTagSlice to null
                 }
 
                 // TODO not fallback to old memory
                 val stdTag = mkBv(STD_ADDRESS_TAG, INT_BITS)
                 val isTagStd =
                     scope.checkCondition(tag eq stdTag.uncheckedCast())
-                        ?: return@doWithCtx null
+                        ?: return@sliceSkipNoneOrStdAddr null
 
                 require(isTagStd) {
                     "Only none and std source addresses are supported"
@@ -178,7 +178,7 @@ data class TlbCommonMessageInfo(
 
                 val (nextSlice, addr) =
                     sliceLoadAddrTlbNoFork(scope, slice, quietBlock = quietBlock)
-                        ?: return@doWithCtx null
+                        ?: return@sliceSkipNoneOrStdAddr null
 
                 nextSlice to addr
             }
@@ -193,7 +193,7 @@ data class TlbCommonMessageInfo(
                 }
 
                 if (checkRes == null && invertedRes == null) {
-                    return null
+                    return@checkCondition null
                 }
 
                 checkRes != null
@@ -324,7 +324,7 @@ data class TlbInternalMessageContent(
      * turns into the std_addr of size 1 + 8 + 256), so on the second try, it forces the out-of-line storage of body.
      * **Note**: technically, in TVM, the second try forces out-of-line storage for *init* and only the third try forces
      * if for *body*, but we slightly diverge here. For the full story, see `transaction.cpp:try_action_send_msg` in TON
-     * monorepo (version 12), specifically, the `redoing` flag hanlding.
+     * monorepo (version 12), specifically, the `redoing` flag handling.
      */
     fun constructMessageCellFromContent(
         scope: TvmStepScopeManager,
@@ -340,7 +340,6 @@ data class TlbInternalMessageContent(
         return with(state.ctx) {
             val resultBuilder = state.allocEmptyBuilder()
 
-            val commonMessageInfo = this@TlbInternalMessageContent.commonMessageInfo
             for (flag in commonMessageInfo.flags.asFlagsList()) {
                 resultBuilder.storeUint(scope, flag)
                     ?: error("Cannot store flags")
@@ -356,12 +355,22 @@ data class TlbInternalMessageContent(
                 ?: error("Cannot store src address")
 
             // dest:MsgAddressInt
-            builderStoreSliceTlb(scope, resultBuilder, resultBuilder, commonMessageInfo.dstAddressSlice)
+            builderStoreSliceTlb(
+                scope,
+                resultBuilder,
+                resultBuilder,
+                commonMessageInfo.dstAddressSlice,
+            )
                 ?: error("Cannot store dest address")
 
             // value:CurrencyCollection
             // store message value
-            builderStoreGramsTlb(scope, resultBuilder, resultBuilder, commonMessageInfo.msgValue)
+            builderStoreGramsTlb(
+                scope,
+                resultBuilder,
+                resultBuilder,
+                commonMessageInfo.msgValue,
+            )
                 ?: error("Cannot store message value")
 
             // extra currency collection --- an empty dict (a bit of zero)
@@ -369,11 +378,21 @@ data class TlbInternalMessageContent(
                 ?: error("Cannot store extra currency collection")
 
             // ihr_fee:Grams
-            builderStoreGramsTlb(scope, resultBuilder, resultBuilder, commonMessageInfo.ihrFee)
+            builderStoreGramsTlb(
+                scope,
+                resultBuilder,
+                resultBuilder,
+                commonMessageInfo.ihrFee,
+            )
                 ?: error("Cannot store ihr fee")
 
             // fwd_fee:Gram
-            builderStoreGramsTlb(scope, resultBuilder, resultBuilder, commonMessageInfo.fwdFee)
+            builderStoreGramsTlb(
+                scope,
+                resultBuilder,
+                resultBuilder,
+                commonMessageInfo.fwdFee,
+            )
                 ?: error("Cannot store fwd fee")
 
             // created_lt:uint64
@@ -441,7 +460,7 @@ data class TlbInternalMessageContent(
     /**
      * @param restActions is an action with builder where the slice was stored
      */
-    fun TvmStepScopeManager.storeBody(
+    private fun TvmStepScopeManager.storeBody(
         resultBuilder: UConcreteHeapRef,
         tryNum: Int,
         onOverflow: TvmStepScopeManager.() -> Unit?,
@@ -503,7 +522,7 @@ data class TlbInternalMessageContent(
             with(scope.ctx) {
                 val commonMessageInfo =
                     TlbCommonMessageInfo.extractFromSlice(scope, ptr, quietBlock)
-                        ?: return null
+                        ?: return@extractFromSlice null
 
                 val stateInitRef =
                     loadStateInit(scope, resolver, ptr, quietBlock).getOrElse { return@with null }
@@ -616,23 +635,23 @@ data class TlbInternalMessageContent(
                         scope.assert(stateInitPrefix eq zeroValue)
                             ?: run {
                                 logger.warn("Only StateInits with empty fixed_prefix_length and special are supported")
-                                return scopeDied
+                                return@loadStateInit scopeDied
                             }
 
                         // code:(Maybe ^Cell)
                         val code =
                             loadMaybeRef(scope, ptr, resolver, quietBlock)
-                                .getOrElse { return scopeDied }
+                                .getOrElse { return@loadStateInit scopeDied }
 
                         // data:(Maybe ^Cell)
                         val data =
                             loadMaybeRef(scope, ptr, resolver, quietBlock)
-                                .getOrElse { return scopeDied }
+                                .getOrElse { return@loadStateInit scopeDied }
 
                         // library:(Maybe ^Cell)
                         val library =
                             loadMaybeRef(scope, ptr, resolver, quietBlock)
-                                .getOrElse { return scopeDied }
+                                .getOrElse { return@loadStateInit scopeDied }
 
                         TlbStateInit.Inline(code, data, library)
                     }

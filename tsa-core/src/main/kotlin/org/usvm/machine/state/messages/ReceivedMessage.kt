@@ -32,7 +32,7 @@ fun ReceivedMessage.getMsgBodySlice(): UHeapRef =
         is ReceivedMessage.MessageFromOtherContract -> this.message.messageBody.value
     }
 
-fun ReceivedMessage.getMsgValue() =
+fun ReceivedMessage.getMsgValue(): Int257Expr =
     when (this) {
         is ReceivedMessage.InputMessage -> input.msgValue
         is ReceivedMessage.MessageFromOtherContract -> message.msgValue

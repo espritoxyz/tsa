@@ -59,7 +59,6 @@ import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.isExceptional
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
-import org.usvm.machine.state.messages.ConstructedMessageCells
 import org.usvm.machine.state.messages.ContractSender
 import org.usvm.machine.state.messages.Flags
 import org.usvm.machine.state.messages.MessageAsStackArguments
@@ -598,39 +597,38 @@ class TvmArtificialInstInterpreter(
                             mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort()),
                         )
 
-                    val bouncedMessage =
-                        constructBouncedMessage(scope, receivedMsgData, sender.contractId)
-                            ?: return@with
-                    scope.fork(
-                        isBounceable.neq(zeroCellValue),
-                        falseStateIsExceptional = false,
-                        blockOnTrueState = {
-                            messageQueue =
-                                messageQueue.add(
-                                    ReceivedMessage.MessageFromOtherContract(
-                                        sender = ContractSender(currentContract, currentEventId),
-                                        receiver = sender.contractId,
-                                        message = bouncedMessage,
+                    constructBouncedMessage(scope, receivedMsgData, sender.contractId) { bouncedMessage ->
+                        fork(
+                            isBounceable.neq(zeroCellValue),
+                            falseStateIsExceptional = false,
+                            blockOnTrueState = {
+                                messageQueue =
+                                    messageQueue.add(
+                                        ReceivedMessage.MessageFromOtherContract(
+                                            sender = ContractSender(currentContract, currentEventId),
+                                            receiver = sender.contractId,
+                                            message = bouncedMessage,
+                                        ),
+                                    )
+                                newStmt(
+                                    TsaArtificialExitInst(
+                                        stmt.computePhaseResult,
+                                        stmt.actionPhaseResult,
+                                        lastStmt.location,
                                     ),
                                 )
-                            newStmt(
-                                TsaArtificialExitInst(
-                                    stmt.computePhaseResult,
-                                    stmt.actionPhaseResult,
-                                    lastStmt.location,
-                                ),
-                            )
-                        },
-                        blockOnFalseState = {
-                            newStmt(
-                                TsaArtificialExitInst(
-                                    stmt.computePhaseResult,
-                                    stmt.actionPhaseResult,
-                                    lastStmt.location,
-                                ),
-                            )
-                        },
-                    )
+                            },
+                            blockOnFalseState = {
+                                newStmt(
+                                    TsaArtificialExitInst(
+                                        stmt.computePhaseResult,
+                                        stmt.actionPhaseResult,
+                                        lastStmt.location,
+                                    ),
+                                )
+                            },
+                        )
+                    }
                 } else {
                     scope.doWithState {
                         newStmt(
@@ -650,7 +648,8 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         oldMessage: MessageAsStackArguments,
         oldMessageSender: ContractId,
-    ): MessageAsStackArguments? {
+        restActions: TvmStepScopeManager.(MessageAsStackArguments) -> Unit,
+    ) {
         val msgCellAndBodySliceOrNull =
             with(ctx) {
                 val builder = scope.calcOnState { allocEmptyBuilder() }
@@ -699,7 +698,7 @@ class TvmArtificialInstInterpreter(
                     )
                 val dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) }
                 // according to transaction.cpp:prepare_bounce_phase from tone monorepo,
-                // the stateinit does not exist in bounce message
+                // the stateinit does not exist in bounce message (in the old format, pre TVM 12)
                 val content =
                     TlbInternalMessageContent(
                         commonMessageInfo =
@@ -718,24 +717,18 @@ class TvmArtificialInstInterpreter(
                     )
                 content to dstAddressSlice
             }
-        return msgCellAndBodySliceOrNull?.let { (content, dstAddressSlice) ->
-            // here we abuse the fact that bounced message are of fixed width and thus definitely does not overflow
-            var constructedMsgCells: ConstructedMessageCells? = null
-            content.constructMessageCellFromContent(scope) { constructedMsgCellsInt ->
-                if (constructedMsgCells != null) {
-                    error("Assumptions were wrong")
-                }
-                constructedMsgCells = constructedMsgCellsInt
-            }
-            constructedMsgCells?.let { constructedMsgCells ->
-                MessageAsStackArguments(
-                    msgValue = oldMessage.msgValue,
-                    fullMessage = constructedMsgCells.fullMessage,
-                    messageBody = constructedMsgCells.messageBody,
-                    destAddrSlice = dstAddressSlice,
-                    messageTlb = content,
+        msgCellAndBodySliceOrNull?.let { (content, dstAddressSlice) ->
+            content.constructMessageCellFromContent(scope) { (messageBody, fullMessage) ->
+                scope.restActions(
+                    MessageAsStackArguments(
+                        msgValue = oldMessage.msgValue,
+                        fullMessage = fullMessage,
+                        messageBody = messageBody,
+                        destAddrSlice = dstAddressSlice,
+                        messageTlb = content,
+                    ),
                 )
-            } ?: error("Failed to construct bounced message of known length")
+            }
         }
     }
 
