@@ -158,6 +158,7 @@ fun performAnalysisInterContract(
     useReceiverInput: Boolean,
     sarifOptions: SarifOptions,
     opcodes: List<Long> = emptyList(),
+    disableOutMessageAnalysis: Boolean = false,
 ): TvmSymbolicTestSuite {
     val options =
         createTvmOptions(
@@ -165,7 +166,7 @@ fun performAnalysisInterContract(
             interContractSchemePath,
             turnOnTLBParsingChecks,
             useReceiverInput,
-            enableOutMessageAnalysisIfSingleContract = true,
+            enableOutMessageAnalysisIfSingleContract = !disableOutMessageAnalysis,
             opcodes,
         )
 
