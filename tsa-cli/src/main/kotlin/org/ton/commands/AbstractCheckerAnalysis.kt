@@ -35,7 +35,6 @@ import org.ton.toCellAsFileContent
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.test.resolver.TvmSymbolicTestSuite
-import org.usvm.test.resolver.TvmTestInput
 import org.usvm.test.resolver.truncateSliceCell
 import java.nio.file.Path
 import kotlin.io.path.div
@@ -272,17 +271,13 @@ sealed class AbstractCheckerAnalysis(
             val messageBodies =
                 test.additionalInputs
                     .toList()
-                    .mapNotNull { (contractId, testInput) ->
-                        if (testInput is TvmTestInput.RecvInternalInput) {
-                            contractId to
-                                truncateSliceCell(
-                                    testInput.msgBody,
-                                ).copy(knownTypes = testInput.msgBody.cell.knownTypes)
-                                    .toCellAsFileContent()
-                        } else {
-                            null
-                        }
-                    }.toMap()
+                    .associate { (contractId, testInput) ->
+                        contractId to
+                            truncateSliceCell(
+                                testInput.msgBody,
+                            ).copy(knownTypes = testInput.msgBody.cell.knownTypes)
+                                .toCellAsFileContent()
+                    }
             ExportedInputs(index, c4s, messageBodies)
         }
 

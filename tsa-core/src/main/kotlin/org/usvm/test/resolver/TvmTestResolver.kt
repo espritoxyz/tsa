@@ -146,7 +146,7 @@ data class TvmSymbolicTest(
 //    val contractStatesAfter: Map<ContractId, TvmContractState>,
     val initialData: Map<ContractId, TvmTestCellValue>,
     val input: TvmTestInput,
-    val additionalInputs: Map<Int, TvmTestInput>,
+    val additionalInputs: Map<Int, TvmTestInput.ReceiverInput>,
     val fetchedValues: Map<Int, TvmTestValue>,
     val result: TvmTestResult,
     val lastStmt: TvmRealInst?, // null if the body is empty

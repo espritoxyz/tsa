@@ -349,7 +349,7 @@ class TvmTestStateResolver(
             result
         }
 
-    fun resolveAdditionalInputs(): Map<Int, TvmTestInput> =
+    fun resolveAdditionalInputs(): Map<Int, TvmTestInput.ReceiverInput> =
         state.additionalInputs.entries.associate { (inputId, symbolicInput) ->
             val resolvedInput =
                 when (symbolicInput) {

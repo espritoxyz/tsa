@@ -18,10 +18,15 @@ sealed interface TvmTestInput {
     ) : TvmTestInput
 
     @Serializable
+    sealed interface ReceiverInput : TvmTestInput {
+        val msgBody: TvmTestSliceValue
+    }
+
+    @Serializable
     @SerialName("recvInternalInput")
     data class RecvInternalInput(
         val srcAddress: TvmTestSliceValue,
-        val msgBody: TvmTestSliceValue,
+        override val msgBody: TvmTestSliceValue,
         val msgValue: TvmTestIntegerValue,
         val bounce: Boolean,
         val bounced: Boolean,
@@ -30,7 +35,7 @@ sealed interface TvmTestInput {
         val fwdFee: TvmTestIntegerValue,
         val createdLt: TvmTestIntegerValue,
         val createdAt: TvmTestIntegerValue,
-    ) : TvmTestInput {
+    ) : ReceiverInput {
         override val usedParameters: List<TvmTestValue>
             get() =
                 listOf(
@@ -50,9 +55,9 @@ sealed interface TvmTestInput {
     @Serializable
     @SerialName("recvExternalInput")
     data class RecvExternalInput(
-        val msgBody: TvmTestSliceValue,
+        override val msgBody: TvmTestSliceValue,
         val wasAccepted: Boolean,
-    ) : TvmTestInput {
+    ) : ReceiverInput {
         override val usedParameters: List<TvmTestValue>
             get() = listOf(msgBody)
     }
