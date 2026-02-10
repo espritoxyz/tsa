@@ -130,6 +130,15 @@ sealed class AbstractCheckerAnalysis(
         .flag(default = false)
         .help("Enable verbose mode (sets log level to debug)")
 
+    private val disableOutMessageAnalysis by option("--disable-out-message-analysis")
+        .flag()
+        .help("Disable out message analysis (do not perform action phase)")
+        .validate {
+            require(!it || interContractSchemePath == null) {
+                "Cannot skip action phase in inter-contract scheme is given."
+            }
+        }
+
     override fun run() {
         if (verbose) {
             setLogLevelToDebug()
@@ -204,6 +213,7 @@ sealed class AbstractCheckerAnalysis(
                 useReceiverInput = false,
                 sarifOptions = sarifOptions,
                 opcodes = opcodes,
+                disableOutMessageAnalysis,
             )
 
         val sarifReport =
