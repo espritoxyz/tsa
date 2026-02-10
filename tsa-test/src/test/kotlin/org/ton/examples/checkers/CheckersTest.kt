@@ -95,6 +95,16 @@ class CheckersTest {
         const val CONTRACT = "/checkers/accept/contract_with_external.fc"
     }
 
+    private object SendWithBodyExternalTestData {
+        const val CHECKER = "/checkers/send-with-body/checker_external.fc"
+        const val CONTRACT = "/checkers/send-with-body/contract_with_external.fc"
+    }
+
+    private object SendWithBodyInternalTestData {
+        const val CHECKER = "/checkers/send-with-body/checker_internal.fc"
+        const val CONTRACT = "/checkers/send-with-body/contract_with_internal.fc"
+    }
+
     @Test
     fun testConsistentBalanceThroughChecker() {
         runTestConsistentBalanceThroughChecker(internalCallChecker, fetchedKeys = emptySet(), balancePath)
@@ -599,6 +609,68 @@ class CheckersTest {
                 { test -> test.exitCode() == 1000 },
                 { test -> test.exitCode() == 1001 },
             ),
+        )
+    }
+
+    @Test
+    fun testSendWithBodyExternal() {
+        val checkerContract = extractCheckerContractFromResource(SendWithBodyExternalTestData.CHECKER)
+        val contract = extractFuncContractFromResource(SendWithBodyExternalTestData.CONTRACT)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, contract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options =
+                    TvmOptions(
+                        enableOutMessageAnalysis = false,
+                        stopOnFirstError = true,
+                    ),
+            )
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> test.exitCode() == 1001 },
+                { test -> test.exitCode() == 1002 },
+            ),
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() != 1000 },
+        )
+    }
+
+    @Test
+    fun testSendWithBodyInternal() {
+        val checkerContract = extractCheckerContractFromResource(SendWithBodyInternalTestData.CHECKER)
+        val contract = extractFuncContractFromResource(SendWithBodyInternalTestData.CONTRACT)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, contract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options =
+                    TvmOptions(
+                        enableOutMessageAnalysis = false,
+                        stopOnFirstError = true,
+                    ),
+            )
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> test.exitCode() == 1001 },
+                { test -> test.exitCode() == 1002 },
+            ),
+        )
+
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() != 1000 },
         )
     }
 }

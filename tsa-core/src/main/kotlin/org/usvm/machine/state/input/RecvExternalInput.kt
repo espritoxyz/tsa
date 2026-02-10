@@ -21,7 +21,8 @@ class RecvExternalInput(
     state: TvmState,
     messageConcreteData: MessageConcreteData,
     receiverContractId: ContractId,
-) : ReceiverInput(receiverContractId, messageConcreteData, state) {
+    givenMsgBody: UConcreteHeapRef? = null,
+) : ReceiverInput(receiverContractId, messageConcreteData, givenMsgBody, state) {
     private val ctx = state.ctx
 
     override val fwdFee: UExpr<TvmContext.TvmInt257Sort>?

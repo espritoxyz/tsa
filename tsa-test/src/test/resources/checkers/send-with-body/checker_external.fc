@@ -1,0 +1,21 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+global slice first_body;
+
+() on_external_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    if (input_id == 0) {
+        first_body = msg_body;
+    }
+    throw_if(1001, (input_id == 1) & (balance == 12345678));
+}
+
+() main() impure {
+    tsa_forbid_failures();
+    tsa_send_external_message(1, 0);
+    tsa_allow_failures();
+
+    tsa_send_external_message_with_body(first_body, 1, 1);
+
+    throw(1002);
+}
