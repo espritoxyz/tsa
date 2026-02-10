@@ -45,6 +45,7 @@ import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrNull
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastSlice
+import org.usvm.machine.state.takeLastSliceOrThrowTypeError
 import org.usvm.machine.toMethodId
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmIntegerType
@@ -175,6 +176,14 @@ class TsaCheckerFunctionsInterpreter(
                 performWasAccepted(scope, stmt)
             }
 
+            SEND_INTERNAL_MESSAGE_WITH_BODY_METHOD_ID -> {
+                performRecvInternalCallWithBody(scope, stmt)
+            }
+
+            SEND_EXTERNAL_MESSAGE_WITH_BODY_METHOD_ID -> {
+                performRecvExternalCallWithBody(scope, stmt)
+            }
+
             else -> {
                 return Unit
             }
@@ -217,6 +226,78 @@ class TsaCheckerFunctionsInterpreter(
         performTsaCall(scope, NewReceiverInput(newInputId, ReceiverType.External), stmt, nextMethodId, nextContractId)
     }
 
+    private fun performRecvExternalCallWithBody(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val newInputId =
+            scope.calcOnState {
+                getConcreteIntFromStack(
+                    parameterName = "input_id",
+                    functionName = "tsa_send_external_message_with_body",
+                )
+            }
+        val nextContractId =
+            scope.calcOnState {
+                getConcreteIntFromStack(
+                    parameterName = "contract_id",
+                    functionName = "tsa_send_external_message_with_body",
+                )
+            }
+        val nextMethodId = TvmContext.RECEIVE_EXTERNAL_ID.toInt()
+
+        val body =
+            scope.getConcreteSliceFromStack(
+                parameterName = "body",
+                functionName = "tsa_send_external_message_with_body",
+            )
+                ?: return
+
+        performTsaCall(
+            scope,
+            NewReceiverInput(newInputId, ReceiverType.External, body),
+            stmt,
+            nextMethodId,
+            nextContractId,
+        )
+    }
+
+    private fun performRecvInternalCallWithBody(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val newInputId =
+            scope.calcOnState {
+                getConcreteIntFromStack(
+                    parameterName = "input_id",
+                    functionName = "tsa_send_internal_message_with_body",
+                )
+            }
+        val nextContractId =
+            scope.calcOnState {
+                getConcreteIntFromStack(
+                    parameterName = "contract_id",
+                    functionName = "tsa_send_internal_message_with_body",
+                )
+            }
+        val nextMethodId = TvmContext.RECEIVE_INTERNAL_ID.toInt()
+
+        val body =
+            scope.getConcreteSliceFromStack(
+                parameterName = "body",
+                functionName = "tsa_send_internal_message_with_body",
+            )
+                ?: return
+
+        performTsaCall(
+            scope,
+            NewReceiverInput(newInputId, ReceiverType.Internal, body),
+            stmt,
+            nextMethodId,
+            nextContractId,
+        )
+    }
+
     private fun performOrdinaryTsaCall(
         scope: TvmStepScopeManager,
         stackOperations: StackOperations,
@@ -255,6 +336,7 @@ class TsaCheckerFunctionsInterpreter(
                                     scope.calcOnState { this },
                                     concreteData,
                                     nextContractId,
+                                    stackOperations.body,
                                 )
 
                             ReceiverType.External ->
@@ -262,6 +344,7 @@ class TsaCheckerFunctionsInterpreter(
                                     scope.calcOnState { this },
                                     concreteData,
                                     nextContractId,
+                                    stackOperations.body,
                                 )
                         }
                     }.also {
@@ -276,7 +359,8 @@ class TsaCheckerFunctionsInterpreter(
                                 memory.readField(it.msgBodySliceNonBounced, TvmContext.sliceCellField, addressSort)
                             } as UConcreteHeapRef
 
-                        if (msgBodyCell.isStatic) {
+                        if (msgBodyCell.isStatic && stackOperations.body == null) {
+                            // generated new message body
                             dataCellInfoStorage.mapper.addLabel(
                                 scope,
                                 msgBodyCell,
@@ -704,5 +788,18 @@ class TsaCheckerFunctionsInterpreter(
         val valueIdSymbolic = takeLastIntOrNull()
         return valueIdSymbolic?.intValueOrNull
             ?: error("Parameter $parameterName for $functionName must be concrete integer, but found $valueIdSymbolic")
+    }
+
+    private fun TvmStepScopeManager.getConcreteSliceFromStack(
+        parameterName: String,
+        functionName: String,
+    ): UConcreteHeapRef? {
+        val valueIdSymbolic =
+            takeLastSliceOrThrowTypeError()
+                ?: return null
+        return valueIdSymbolic as? UConcreteHeapRef
+            ?: error(
+                "Parameter $parameterName for $functionName must be concrete slice ref, but found $valueIdSymbolic",
+            )
     }
 }

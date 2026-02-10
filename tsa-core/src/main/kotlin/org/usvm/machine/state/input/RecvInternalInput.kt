@@ -31,7 +31,8 @@ class RecvInternalInput(
     state: TvmState,
     messageConcreteData: MessageConcreteData,
     receiverContractId: ContractId,
-) : ReceiverInput(receiverContractId, messageConcreteData, state) {
+    givenMsgBody: UConcreteHeapRef? = null,
+) : ReceiverInput(receiverContractId, messageConcreteData, givenMsgBody, state) {
     override val msgValue =
         with(state.ctx) {
             state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE)).zeroExtendToSort(int257sort)

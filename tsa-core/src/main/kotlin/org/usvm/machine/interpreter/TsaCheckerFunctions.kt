@@ -1,5 +1,7 @@
 package org.usvm.machine.interpreter
 
+import org.usvm.UConcreteHeapRef
+
 const val FORBID_FAILURES_METHOD_ID = 1
 const val ALLOW_FAILURES_METHOD_ID = 2
 const val ASSERT_METHOD_ID = 3
@@ -13,6 +15,8 @@ const val SET_C4_METHOD_ID = 10
 const val MAKE_ADDRESS_RANDOM_METHOD_ID = 11
 const val MAKE_SLICE_INDEPENDENT_METHOD_ID = 12
 const val INPUT_WAS_ACCEPTED_METHOD_ID = 13
+const val SEND_INTERNAL_MESSAGE_WITH_BODY_METHOD_ID = 14
+const val SEND_EXTERNAL_MESSAGE_WITH_BODY_METHOD_ID = 15
 
 /**
  * Were calculated using python script:
@@ -63,6 +67,7 @@ data class SimpleStackOperations(
 data class NewReceiverInput(
     val inputId: Int,
     val type: ReceiverType,
+    val body: UConcreteHeapRef? = null,
 ) : StackOperations
 
 enum class ReceiverType {

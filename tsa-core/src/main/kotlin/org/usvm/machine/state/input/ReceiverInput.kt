@@ -29,6 +29,7 @@ import org.usvm.mkSizeExpr
 sealed class ReceiverInput(
     private val receiverContractId: ContractId,
     private val messageConcreteData: MessageConcreteData,
+    givenMsgBody: UConcreteHeapRef? = null,
     state: TvmState,
 ) : TvmInput {
     abstract val msgValue: UExpr<TvmInt257Sort>
@@ -40,7 +41,7 @@ sealed class ReceiverInput(
 
     abstract fun constructFullMessage(state: TvmState): UConcreteHeapRef
 
-    val msgBodySliceNonBounced = state.generateSymbolicSlice()
+    val msgBodySliceNonBounced = givenMsgBody ?: state.generateSymbolicSlice()
 
     val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_lt:uint64
     val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32

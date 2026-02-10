@@ -88,6 +88,14 @@ fun main() {
         int tsa_input_was_accepted(int input_id) impure method_id(13) {
             return return_1();
         }
+        
+        () tsa_send_internal_message_with_body(slice body, int contract_id, int input_id) impure method_id(14) {
+            ;; do nothing
+        }
+        
+        () tsa_send_external_message_with_body(slice body, int contract_id, int input_id) impure method_id(15) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =
