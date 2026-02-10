@@ -171,6 +171,10 @@ class TsaCheckerFunctionsInterpreter(
                 performMakeSliceIndependent(scope, stmt)
             }
 
+            INPUT_WAS_ACCEPTED_METHOD_ID -> {
+                performWasAccepted(scope, stmt)
+            }
+
             else -> {
                 return Unit
             }
@@ -658,6 +662,37 @@ class TsaCheckerFunctionsInterpreter(
 
         scope.doWithState {
             refsToBeIndependentFromRandomAddresses = refsToBeIndependentFromRandomAddresses.add(independentSlice)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performWasAccepted(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) = with(scope.ctx) {
+        val inputId =
+            scope.calcOnState {
+                getConcreteIntFromStack(parameterName = "input_id", functionName = "tsa_input_was_accepted")
+            }
+
+        val wasAccepted =
+            scope.calcOnState {
+                val input =
+                    additionalInputs[inputId]
+                        ?: error("Input with id $inputId not found.")
+
+                input in acceptedInputs
+            }
+
+        val result =
+            if (wasAccepted) {
+                trueValue
+            } else {
+                falseValue
+            }
+
+        scope.doWithState {
+            addOnStack(result, TvmIntegerType)
             newStmt(stmt.nextStmt())
         }
     }

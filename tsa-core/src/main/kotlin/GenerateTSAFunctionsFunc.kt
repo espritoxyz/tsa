@@ -84,6 +84,10 @@ fun main() {
         () tsa_make_slice_independent_from_random_addresses(slice independent_slice) impure method_id(12) {
             ;; do nothing
         }
+        
+        int tsa_input_was_accepted(int input_id) impure method_id(13) {
+            return return_1();
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

@@ -64,6 +64,10 @@ int tsa_get_balance(int contract_id) impure method_id(9) {
     ;; do nothing
 }
 
+int tsa_input_was_accepted(int input_id) impure method_id(13) {
+    return return_1();
+}
+
 ;; making symbolic values API functions
 
 int tsa_mk_int(int bits, int signed) impure method_id(100) {

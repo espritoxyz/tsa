@@ -90,6 +90,11 @@ class CheckersTest {
         const val CONTRACT = "/checkers/time/time_dependant_contract.fc"
     }
 
+    private object AcceptTestData {
+        const val CHECKER = "/checkers/accept/checker.fc"
+        const val CONTRACT = "/checkers/accept/contract_with_external.fc"
+    }
+
     @Test
     fun testConsistentBalanceThroughChecker() {
         runTestConsistentBalanceThroughChecker(internalCallChecker, fetchedKeys = emptySet(), balancePath)
@@ -568,6 +573,32 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf { test -> test.exitCode() == 12345 },
+        )
+    }
+
+    @Test
+    fun testAccept() {
+        val checkerContract = extractCheckerContractFromResource(AcceptTestData.CHECKER)
+        val contract = extractFuncContractFromResource(AcceptTestData.CONTRACT)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, contract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options =
+                    TvmOptions(
+                        enableOutMessageAnalysis = false,
+                        stopOnFirstError = false,
+                    ),
+            )
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> test.exitCode() == 1000 },
+                { test -> test.exitCode() == 1001 },
+            ),
         )
     }
 }
