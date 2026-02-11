@@ -24,11 +24,12 @@ class TvmStructuralConstraintsHolder(
         constraints.forEach {
             // we want to apply structural constraints to forked states (with erroneous paths)
             // (hack for this)
-            val newStepScope = TvmStepScopeManager(
-                stepScope.getOriginalStateWithoutDeathCheck(),
-                UForkBlackList.createDefault(),
-                allowFailuresOnCurrentStep = true,
-            )
+            val newStepScope =
+                TvmStepScopeManager(
+                    stepScope.getOriginalStateWithoutDeathCheck(),
+                    UForkBlackList.createDefault(),
+                    allowFailuresOnCurrentStep = true,
+                )
             newStepScope.assert(it) ?: run {
                 stepScope.assert(stepScope.ctx.falseExpr)
                 result = null
