@@ -37,7 +37,7 @@ import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.setExit
-import org.usvm.machine.state.slicePreloadInt
+import org.usvm.machine.state.slicePreloadIntWithoutChecks
 import org.usvm.machine.types.memory.ConcreteSizeBlockField
 import org.usvm.machine.types.memory.SliceRefField
 import org.usvm.machine.types.memory.SymbolicSizeBlockField
@@ -266,12 +266,11 @@ private fun <ReadResult> retryWithBitvectorRead(
             val expr =
                 value?.expr ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null)
             val result =
-                scope.slicePreloadInt(
+                scope.slicePreloadIntWithoutChecks(
                     expr,
                     type.sizeBits,
                     type.isSigned,
-                )
-                    ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null)
+                ) ?: return null
             // the `uncheckedCast` solution is fragile and will cause errors as more types will be used
             // todo add runtime checks (additional fields must be added)
             TlbStack.GuardedResult(
