@@ -1,11 +1,14 @@
 package org.usvm.machine.state.input
 
+import io.ksmt.expr.KTrue
 import org.ton.Endian
+import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
@@ -36,12 +39,12 @@ class RecvInternalInput(
     receiverContractId: ContractId,
     givenMsgBody: UConcreteHeapRef? = null,
 ) : ReceiverInput(receiverContractId, messageConcreteData, givenMsgBody, state) {
-    override val msgValue =
+    override val msgValue: Int257Expr =
         with(state.ctx) {
             state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE)).zeroExtendToSort(int257sort)
         }
 
-    override val srcAddressSlice =
+    override val srcAddressSlice: UConcreteHeapRef =
         if (messageConcreteData.senderBits == null) {
             state.allocSliceFromCell(state.generateSymbolicAddressCell().first)
         } else {
@@ -61,7 +64,7 @@ class RecvInternalInput(
         }
 
     // bounced:Bool
-    override val bounced = state.ctx.mkEq(bouncedFlag, state.ctx.mkBv(1, 1u))
+    override val bounced: UBoolExpr = state.ctx.mkEq(bouncedFlag, state.ctx.mkBv(1, 1u))
 
     private val msgBodyCellBounced: UConcreteHeapRef by lazy {
         with(state.ctx) {
@@ -120,16 +123,16 @@ class RecvInternalInput(
 
     // bounce:Bool
     // If bounced=true, then bounce must be false
-    override val bounce =
+    override val bounce: UBoolExpr =
         with(state.ctx) {
             bounced.not() and state.makeSymbolicPrimitive(state.ctx.boolSort)
         }
 
-    val ihrDisabled = state.ctx.trueExpr // ihr_disabled:Bool
-    val ihrFee = state.ctx.zeroValue // ihr_fee:Grams
+    val ihrDisabled: KTrue = state.ctx.trueExpr // ihr_disabled:Bool
+    val ihrFee: Int257Expr = state.ctx.zeroValue // ihr_fee:Grams
 
     // fwd_fee:Grams
-    override val fwdFee =
+    override val fwdFee: Int257Expr =
         with(state.ctx) {
             state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
         }
@@ -163,16 +166,16 @@ class RecvInternalInput(
                 )
 
             var fullMsgCell: UConcreteHeapRef? = null
-            tlbMessageContent.constructMessageCellFromContent(scope) { constructedMessageCells ->
+            tlbMessageContent.constructMessageCellFromContent(scope) { (_, fullMessage) ->
                 if (fullMsgCell != null) {
-                    error("Assumptions were wrong")
+                    error("Overflow has occurred during the construction of RecvInternalInput")
                 }
-                fullMsgCell = constructedMessageCells.fullMessage.value
+                fullMsgCell = fullMessage.value
             }
 
             val result =
                 fullMsgCell
-                    ?: error("overflow during construction of internal input")
+                    ?: error("failure of construction of internal input")
             val stepResult = scope.stepResult()
             check(stepResult.originalStateAlive) {
                 "Original state died while building full message"
@@ -180,14 +183,14 @@ class RecvInternalInput(
             check(stepResult.forkedStates.none()) {
                 "Unexpected forks while building full message"
             }
-            return@with result
+            result
         }
 
     private fun generateFlagsStruct(ctx: TvmContext): Flags =
         with(ctx) {
             Flags(
                 intMsgInfo = zeroValue,
-                ihrDisabled = this@RecvInternalInput.ihrDisabled.asIntValue(),
+                ihrDisabled = ihrDisabled.asIntValue(),
                 bounce = bounce.asIntValue(),
                 bounced = bouncedFlag.zeroExtendToSort(int257sort),
             )
