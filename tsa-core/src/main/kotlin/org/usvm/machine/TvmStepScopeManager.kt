@@ -442,7 +442,9 @@ class TvmStepScopeManager(
 
         /**
          * @param registerForkPoint register a fork point if assert was successful.
-         * */
+         * @return `null` iff the assertion failed with `UNSAT` or `UNKNOWN`.
+         * In this case, the original state is not alive and `this` is marked as `DEAD`.
+         */
         @Suppress("MoveVariableDeclarationIntoWhen")
         private fun assert(
             constraint: UBoolExpr,

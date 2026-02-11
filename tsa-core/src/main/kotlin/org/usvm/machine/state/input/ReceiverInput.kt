@@ -39,7 +39,7 @@ sealed class ReceiverInput(
     abstract val bounce: UBoolExpr
     abstract val bounced: UBoolExpr
 
-    abstract fun constructFullMessage(state: TvmState): UConcreteHeapRef
+    abstract fun constructFullMessage(state: TvmState): UConcreteHeapRef?
 
     val msgBodySliceNonBounced = givenMsgBody ?: state.generateSymbolicSlice()
 
@@ -102,6 +102,7 @@ sealed class ReceiverInput(
                                 acc and (opcode neq value.toBv257())
                             }
                         }
+
                         is ConcreteOpcode -> {
                             val (_, opcode) =
                                 sliceLoadIntTlbNoFork(scope, msgBodySliceNonBounced, sizeBits = opcodeLength)
@@ -109,6 +110,7 @@ sealed class ReceiverInput(
 
                             opcode eq messageConcreteData.opcodeInfo.opcode.toBv257()
                         }
+
                         is NoOpcode -> {
                             mkBvSignedLessExpr(msgBodyCellSize, mkSizeExpr(opcodeLength))
                         }

@@ -42,7 +42,6 @@ import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
-import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.addSlice
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
@@ -62,11 +61,12 @@ import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ContractSender
 import org.usvm.machine.state.messages.Flags
-import org.usvm.machine.state.messages.MessageAfterCommonMsgInfo
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.ReceivedMessage
+import org.usvm.machine.state.messages.TlbBody
 import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
+import org.usvm.machine.state.messages.TlbStateInit
 import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.messages.getOrElse
 import org.usvm.machine.state.newStmt
@@ -78,8 +78,8 @@ import org.usvm.machine.state.setBalance
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
-import org.usvm.machine.types.TvmCellType
-import org.usvm.machine.types.TvmSliceType
+import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.asSliceRef
 import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestStateResolver
 
@@ -157,7 +157,7 @@ class TvmArtificialInstInterpreter(
             is TsaArtificialHandleMessagesCostInst -> {
                 scope.consumeDefaultGas(stmt)
 
-                visitHandleMessageCostsInst(scope, stmt)
+                scope.visitHandleMessageCostsInst(stmt)
             }
 
             is TsaArtificialBouncePhaseInst -> {
@@ -201,8 +201,8 @@ class TvmArtificialInstInterpreter(
                 val messageCounter = stmt.messageOrderNumber
                 with(ctx) {
                     stack.addInt(messageCounter.toBv257())
-                    stack.addCell(constructedMessageCells.fullMsgCell)
-                    stack.addSlice(constructedMessageCells.msgBodySlice)
+                    stack.addCell(constructedMessageCells.fullMessage)
+                    stack.addSlice(constructedMessageCells.messageBody)
                     stack.addInt((head.receiver ?: -1).toBv257()) // receiver
                     stack.addInt(currentContractToPush.toBv257()) // sender
                 }
@@ -336,77 +336,88 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun visitHandleMessageCostsInst(
-        scope: TvmStepScopeManager,
-        stmt: TsaArtificialHandleMessagesCostInst,
-    ) = transactionInterpreter.handleMessageCosts(
-        scope,
-        stmt.parsingResult.parsedOrderedActions,
-    ) { actionsHandlingResult ->
-        when (actionsHandlingResult) {
-            is ActionHandlingResult.Success -> {
-                val sentMessages =
-                    actionsHandlingResult.messagesDispatched.map { msg ->
-                        val msgCells =
-                            msg.content.constructMessageCellFromContent(
-                                this,
-                                quietBlock = {
-                                    setExit(TvmResult.TvmSoftFailure(TvmConstructedMessageCellOverflow, phase))
-                                },
+    private fun TvmStepScopeManager.constructMessageCells(
+        msgs: List<DispatchedUnconstructedMessage>,
+        acc: List<DispatchedMessage> = listOf(),
+        restActions: TvmStepScopeManager.(List<DispatchedMessage>) -> Unit,
+    ) {
+        val (head, tail) =
+            msgs.splitHeadTail()
+                ?: return restActions(acc)
+        head.content.constructMessageCellFromContent(
+            this,
+            quietBlock = {
+                setExit(TvmResult.TvmSoftFailure(TvmConstructedMessageCellOverflow, phase))
+            },
+        ) { msgCells ->
+            val msg = DispatchedMessage(head.receiver, DispatchedMessageContent(head.content, msgCells))
+            constructMessageCells(
+                tail,
+                acc + msg,
+                restActions,
+            )
+        }
+    }
+
+    private fun TvmStepScopeManager.visitHandleMessageCostsInst(stmt: TsaArtificialHandleMessagesCostInst): Unit =
+        transactionInterpreter.handleMessageCosts(
+            this,
+            stmt.parsingResult.parsedOrderedActions,
+        ) { actionsHandlingResult ->
+            when (actionsHandlingResult) {
+                is ActionHandlingResult.Success -> {
+                    constructMessageCells(actionsHandlingResult.messagesDispatched) { sentMessages ->
+                        calcOnState { registerActionPhaseEffect(sentMessages, actionsHandlingResult.balanceLeft) }
+                        doWithState {
+                            // Workaround, so that on_out_message has access to the balance.
+                            // It is ok to make a commit here as the action phase has essentially ended by this point and
+                            // the left execution of the current contract consists of calling handlers and returning
+                            // control to scheduler.
+                            contractIdToFirstElementOfC7 =
+                                contractIdToFirstElementOfC7.put(
+                                    currentContract,
+                                    registersOfCurrentContract.c7.value[0, stack].cell(
+                                        stack,
+                                    ) as TvmStack.TvmStackTupleValueConcreteNew,
+                                )
+                            newStmt(
+                                TsaArtificialOnOutMessageHandlerCallInst(
+                                    computePhaseResult = stmt.computePhaseResult,
+                                    actionPhaseResult = TvmResult.TvmActionPhaseSuccess(stmt.computePhaseResult),
+                                    location = lastStmt.location,
+                                    sentMessages = sentMessages,
+                                    messageOrderNumber = 0,
+                                ),
                             )
-                                ?: return@handleMessageCosts null
-                        DispatchedMessage(msg.receiver, DispatchedMessageContent(msg.content, msgCells))
+                        }
                     }
-                this.calcOnState { registerActionPhaseEffect(sentMessages, actionsHandlingResult.balanceLeft) }
-                doWithState {
-                    // Workaround, so that on_out_message has access to the balance.
-                    // It is ok to make a commit here as the action phase has essentially ended by this point and
-                    // the left execution of the current contract consists of calling handlers and returning
-                    // control to scheduler.
-                    contractIdToFirstElementOfC7 =
-                        contractIdToFirstElementOfC7.put(
-                            currentContract,
-                            registersOfCurrentContract.c7.value[0, stack].cell(
-                                stack,
-                            ) as TvmStack.TvmStackTupleValueConcreteNew,
-                        )
-                    newStmt(
-                        TsaArtificialOnOutMessageHandlerCallInst(
-                            computePhaseResult = stmt.computePhaseResult,
-                            actionPhaseResult = TvmResult.TvmActionPhaseSuccess(stmt.computePhaseResult),
-                            location = lastStmt.location,
-                            sentMessages = sentMessages,
-                            messageOrderNumber = 0,
-                        ),
-                    )
                 }
-            }
 
-            is ActionHandlingResult.RealFailure -> {
-                this.calcOnState {
-                    val failure =
-                        TvmFailure(
-                            actionsHandlingResult.failure,
-                            TvmFailureType.UnknownError,
-                            phase,
-                            pathNode,
-                        )
-                    newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
+                is ActionHandlingResult.RealFailure -> {
+                    calcOnState {
+                        val failure =
+                            TvmFailure(
+                                actionsHandlingResult.failure,
+                                TvmFailureType.UnknownError,
+                                phase,
+                                pathNode,
+                            )
+                        newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
+                    }
                 }
-            }
 
-            is ActionHandlingResult.SoftFailure -> {
-                this.calcOnState {
-                    val failure =
-                        TvmResult.TvmSoftFailure(
-                            actionsHandlingResult.failure,
-                            phase,
-                        )
-                    newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
+                is ActionHandlingResult.SoftFailure -> {
+                    calcOnState {
+                        val failure =
+                            TvmResult.TvmSoftFailure(
+                                actionsHandlingResult.failure,
+                                phase,
+                            )
+                        newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
+                    }
                 }
             }
         }
-    }
 
     private fun visitParseActionInst(
         scope: TvmStepScopeManager,
@@ -578,7 +589,7 @@ class TvmArtificialInstInterpreter(
                             }
                     // if is bounceable, bounce back to sender
                     val fullMsgData =
-                        fieldManagers.cellDataFieldManager.readCellData(scope, receivedMsgData.fullMsgCell)
+                        fieldManagers.cellDataFieldManager.readCellData(scope, receivedMsgData.fullMessage.value)
                             ?: return@calcOnState
                     val isBounceable =
                         mkBvAndExpr(
@@ -586,39 +597,38 @@ class TvmArtificialInstInterpreter(
                             mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort()),
                         )
 
-                    val bouncedMessage =
-                        constructBouncedMessage(scope, receivedMsgData, sender.contractId)
-                            ?: return@with
-                    scope.fork(
-                        isBounceable.neq(zeroCellValue),
-                        falseStateIsExceptional = false,
-                        blockOnTrueState = {
-                            messageQueue =
-                                messageQueue.add(
-                                    ReceivedMessage.MessageFromOtherContract(
-                                        sender = ContractSender(currentContract, currentEventId),
-                                        receiver = sender.contractId,
-                                        message = bouncedMessage,
+                    constructBouncedMessage(scope, receivedMsgData, sender.contractId) { bouncedMessage ->
+                        fork(
+                            isBounceable.neq(zeroCellValue),
+                            falseStateIsExceptional = false,
+                            blockOnTrueState = {
+                                messageQueue =
+                                    messageQueue.add(
+                                        ReceivedMessage.MessageFromOtherContract(
+                                            sender = ContractSender(currentContract, currentEventId),
+                                            receiver = sender.contractId,
+                                            message = bouncedMessage,
+                                        ),
+                                    )
+                                newStmt(
+                                    TsaArtificialExitInst(
+                                        stmt.computePhaseResult,
+                                        stmt.actionPhaseResult,
+                                        lastStmt.location,
                                     ),
                                 )
-                            newStmt(
-                                TsaArtificialExitInst(
-                                    stmt.computePhaseResult,
-                                    stmt.actionPhaseResult,
-                                    lastStmt.location,
-                                ),
-                            )
-                        },
-                        blockOnFalseState = {
-                            newStmt(
-                                TsaArtificialExitInst(
-                                    stmt.computePhaseResult,
-                                    stmt.actionPhaseResult,
-                                    lastStmt.location,
-                                ),
-                            )
-                        },
-                    )
+                            },
+                            blockOnFalseState = {
+                                newStmt(
+                                    TsaArtificialExitInst(
+                                        stmt.computePhaseResult,
+                                        stmt.actionPhaseResult,
+                                        lastStmt.location,
+                                    ),
+                                )
+                            },
+                        )
+                    }
                 } else {
                     scope.doWithState {
                         newStmt(
@@ -638,7 +648,8 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         oldMessage: MessageAsStackArguments,
         oldMessageSender: ContractId,
-    ): MessageAsStackArguments? {
+        restActions: TvmStepScopeManager.(MessageAsStackArguments) -> Unit,
+    ) {
         val msgCellAndBodySliceOrNull =
             with(ctx) {
                 val builder = scope.calcOnState { allocEmptyBuilder() }
@@ -646,13 +657,13 @@ class TvmArtificialInstInterpreter(
                     ?: error("Unexpected cell overflow")
                 val dataPos =
                     scope.calcOnState {
-                        readSliceDataPos(oldMessage.msgBodySlice)
+                        readSliceDataPos(oldMessage.messageBody)
                     }
                 val cellLength =
                     scope.calcOnState {
                         fieldManagers.cellDataLengthFieldManager.readCellDataLength(
                             this,
-                            readSliceCell(oldMessage.msgBodySlice),
+                            readSliceCell(oldMessage.messageBody).value,
                         )
                     }
                 val length = mkBvSubExpr(cellLength, dataPos)
@@ -663,14 +674,14 @@ class TvmArtificialInstInterpreter(
                         length,
                     )
                 val leftData =
-                    scope.slicePreloadDataBits(oldMessage.msgBodySlice, leftLength)
+                    scope.slicePreloadDataBits(oldMessage.messageBody.value, leftLength)
                         ?: return@with null
                 scope.builderStoreDataBits(builder, builder, leftData, leftLength, null)
-                val (bodyCell, bodySlice) =
+                val body =
                     scope.calcOnState {
                         val cell = builderToCell(builder)
                         val slice = allocSliceFromCell(cell)
-                        cell to slice
+                        TlbBody.OutOfLine(cell.asCellRef(), slice.asSliceRef())
                     }
                 val destinationAddressCell =
                     scope.calcOnState {
@@ -686,34 +697,38 @@ class TvmArtificialInstInterpreter(
                         bounced = 1.toBv257(),
                     )
                 val dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) }
+                // according to transaction.cpp:prepare_bounce_phase from tone monorepo,
+                // the stateinit does not exist in bounce message (in the old format, pre TVM 12)
                 val content =
                     TlbInternalMessageContent(
-                        TlbCommonMessageInfo(
-                            flags = bouncedFlags,
-                            srcAddressSlice = oldMessage.destAddrSlice,
-                            dstAddressSlice = dstAddressSlice,
-                            msgValue = zeroValue,
-                            ihrFee = zeroValue,
-                            fwdFee = zeroValue,
-                            createdLt = zeroValue,
-                            createdAt = zeroValue,
-                        ),
-                        messageAfterCommonMsgInfo = MessageAfterCommonMsgInfo.ManuallyConstructed(bodyCell, bodySlice),
+                        commonMessageInfo =
+                            TlbCommonMessageInfo(
+                                flags = bouncedFlags,
+                                srcAddressSlice = oldMessage.destAddrSlice,
+                                dstAddressSlice = dstAddressSlice,
+                                msgValue = zeroValue,
+                                ihrFee = zeroValue,
+                                fwdFee = zeroValue,
+                                createdLt = zeroValue,
+                                createdAt = zeroValue,
+                            ),
+                        stateInit = TlbStateInit.None,
+                        body = body,
                     )
                 content to dstAddressSlice
             }
-        return msgCellAndBodySliceOrNull?.let { (content, dstAddressSlice) ->
-            val constructedMsgCells =
-                content.constructMessageCellFromContent(scope)
-                    ?: error("Failed to construct bounced message of known length")
-            MessageAsStackArguments(
-                msgValue = oldMessage.msgValue,
-                fullMsgCell = constructedMsgCells.fullMsgCell,
-                msgBodySlice = constructedMsgCells.msgBodySlice,
-                destAddrSlice = dstAddressSlice,
-                content.commonMessageInfo,
-                stateInitCell = null, // TODO: can bounced messages carry state init?
-            )
+        msgCellAndBodySliceOrNull?.let { (content, dstAddressSlice) ->
+            content.constructMessageCellFromContent(scope) { (messageBody, fullMessage) ->
+                scope.restActions(
+                    MessageAsStackArguments(
+                        msgValue = oldMessage.msgValue,
+                        fullMessage = fullMessage,
+                        messageBody = messageBody,
+                        destAddrSlice = dstAddressSlice,
+                        messageTlb = content,
+                    ),
+                )
+            }
         }
     }
 
@@ -862,8 +877,8 @@ class TvmArtificialInstInterpreter(
 
         stack.addInt(balance)
         stack.addInt(message.msgValue)
-        addOnStack(message.fullMsgCell, TvmCellType)
-        addOnStack(message.msgBodySlice, TvmSliceType)
+        stack.addCell(message.fullMessage)
+        stack.addSlice(message.messageBody)
         receivedMessage = wrappedMessage
         phase = TvmComputePhase
         switchToFirstMethodInContract(nextContractCode, RECEIVE_INTERNAL_ID)

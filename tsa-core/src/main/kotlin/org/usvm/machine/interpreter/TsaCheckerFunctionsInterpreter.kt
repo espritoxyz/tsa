@@ -69,7 +69,10 @@ class TsaCheckerFunctionsInterpreter(
             stackOperations = stmt.checkerMemorySavelist.stackOperations,
             newInput = stmt.checkerMemorySavelist.newInput,
             nextContractId = stmt.checkerMemorySavelist.nextContractId,
-        )
+        ) ?: run {
+            scope.assert(scope.ctx.falseExpr)
+            return@checkerReturn
+        }
 
         val registers =
             scope.calcOnState {
@@ -116,17 +119,19 @@ class TsaCheckerFunctionsInterpreter(
             return null
         }
         when (methodId) {
-            FORBID_FAILURES_METHOD_ID ->
+            FORBID_FAILURES_METHOD_ID -> {
                 scope.doWithState {
                     allowFailures = false
                     newStmt(stmt.nextStmt())
                 }
+            }
 
-            ALLOW_FAILURES_METHOD_ID ->
+            ALLOW_FAILURES_METHOD_ID -> {
                 scope.doWithState {
                     allowFailures = true
                     newStmt(stmt.nextStmt())
                 }
+            }
 
             ASSERT_METHOD_ID -> {
                 performTsaAssert(scope, stmt, invert = false)
@@ -331,21 +336,23 @@ class TsaCheckerFunctionsInterpreter(
                 additionalInputs
                     .getOrElse(stackOperations.inputId) {
                         when (stackOperations.type) {
-                            ReceiverType.Internal ->
+                            ReceiverType.Internal -> {
                                 RecvInternalInput(
                                     scope.calcOnState { this },
                                     concreteData,
                                     nextContractId,
                                     stackOperations.body,
                                 )
+                            }
 
-                            ReceiverType.External ->
+                            ReceiverType.External -> {
                                 RecvExternalInput(
                                     scope.calcOnState { this },
                                     concreteData,
                                     nextContractId,
                                     stackOperations.body,
                                 )
+                            }
                         }
                     }.also {
                         scope.doWithState {
@@ -549,47 +556,46 @@ class TsaCheckerFunctionsInterpreter(
         stackOperations: StackOperations,
         newInput: ReceiverInput?,
         nextContractId: Int,
-    ): Unit =
-        with(scope.ctx) {
-            when (stackOperations) {
-                is SimpleStackOperations -> {
-                    scope.doWithState {
-                        stack.takeValuesFromOtherStack(oldStack, stackOperations.putOnNewStack)
+    ): Unit? {
+        when (stackOperations) {
+            is SimpleStackOperations -> {
+                scope.doWithState {
+                    stack.takeValuesFromOtherStack(oldStack, stackOperations.putOnNewStack)
+                }
+            }
+
+            is NewReceiverInput -> {
+                check(newInput != null) {
+                    "RecvInternalInput must be generated at this point"
+                }
+
+                newInput.addressSlices.forEach {
+                    scope.calcOnState {
+                        dataCellInfoStorage.mapper.addAddressSlice(it)
                     }
                 }
 
-                is NewReceiverInput -> {
-                    check(newInput != null) {
-                        "RecvInternalInput must be generated at this point"
-                    }
+                val fullMessage =
+                    scope.calcOnState {
+                        newInput.constructFullMessage(this)
+                    } ?: return null
 
-                    newInput.addressSlices.forEach {
-                        scope.calcOnState {
-                            dataCellInfoStorage.mapper.addAddressSlice(it)
-                        }
-                    }
+                scope.doWithState {
+                    val configBalance =
+                        getBalanceOf(nextContractId)
+                            ?: error("Unexpected incorrect config balance value")
 
-                    scope.doWithState {
-                        val configBalance =
-                            getBalanceOf(nextContractId)
-                                ?: error("Unexpected incorrect config balance value")
-
-                        stack.addInt(configBalance)
-                        stack.addInt(newInput.msgValue)
-                        stack.addStackEntry(
-                            TvmConcreteStackEntry(
-                                TvmStackCellValue(
-                                    newInput.constructFullMessage(this),
-                                ),
-                            ),
-                        )
-                        stack.addStackEntry(
-                            TvmConcreteStackEntry(TvmStackSliceValue(newInput.msgBodySliceMaybeBounced)),
-                        )
-                    }
+                    stack.addInt(configBalance)
+                    stack.addInt(newInput.msgValue)
+                    stack.addStackEntry(TvmConcreteStackEntry(TvmStackCellValue(fullMessage)))
+                    stack.addStackEntry(
+                        TvmConcreteStackEntry(TvmStackSliceValue(newInput.msgBodySliceMaybeBounced)),
+                    )
                 }
             }
         }
+        return Unit
+    }
 
     private fun performTsaAssert(
         scope: TvmStepScopeManager,

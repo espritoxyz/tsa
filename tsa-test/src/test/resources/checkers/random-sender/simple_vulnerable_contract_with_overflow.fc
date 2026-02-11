@@ -1,0 +1,20 @@
+#include "../../imports/stdlib.fc";
+
+() recv_internal(cell full_msg, slice msg_body) {
+    slice cs = full_msg.begin_parse();
+    cs~load_uint(4); ;; flags
+
+    slice sender_address = cs~load_msg_addr();
+
+    var msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(sender_address)
+        .store_coins(0)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(0, 64)
+        .store_uint(0, 256); ;; padding here causes cell overflow during cell construction
+    ;; (the value fee is large as we constrain the value of message sent by checker to be
+    ;; at least 100_000_000
+
+    send_raw_message(msg.end_cell(), 128);
+}

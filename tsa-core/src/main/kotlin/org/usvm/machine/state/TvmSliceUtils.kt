@@ -40,6 +40,8 @@ import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.types.CellRef
+import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TlbStructureBuilder
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellDataCoinsRead
@@ -48,6 +50,8 @@ import org.usvm.machine.types.TvmCellDataMsgAddrRead
 import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
 import org.usvm.machine.types.storeCellDataTlbLabelInBuilder
@@ -498,43 +502,6 @@ private fun TvmStepScopeManager.slicePreloadExternalAddrLengthConstraint(
 
         (noneConstraint or externConstraint) to addrLength
     }
-
-fun TvmStepScopeManager.slicePreloadInternalAddrLength(slice: UHeapRef): UExpr<TvmSizeSort>? {
-    val (constraint, length) =
-        slicePreloadInternalAddrLengthConstraint(slice)
-            ?: return null
-
-    fork(
-        constraint,
-        falseStateIsExceptional = true,
-        blockOnFalseState = {
-            // TODO tl-b parsing failure
-            ctx.throwUnknownCellUnderflowError(this)
-        },
-    ) ?: return null
-
-    return length
-}
-
-fun TvmStepScopeManager.slicePreloadExternalAddrLength(
-    slice: UHeapRef,
-    mustProcessAllAddressFormats: Boolean = false,
-): UExpr<TvmSizeSort>? {
-    val (constraint, length) =
-        slicePreloadExternalAddrLengthConstraint(slice, mustProcessAllAddressFormats)
-            ?: return null
-
-    fork(
-        constraint,
-        falseStateIsExceptional = true,
-        blockOnFalseState = {
-            // TODO tl-b parsing failure
-            ctx.throwUnknownCellUnderflowError(this)
-        },
-    ) ?: return null
-
-    return length
-}
 
 fun TvmStepScopeManager.slicePreloadAddrLengthWithoutSetException(
     slice: UHeapRef,
@@ -1059,6 +1026,83 @@ fun TvmStepScopeManager.builderStoreSlice(
         return cellData
     }
 
+/**
+ * Used to handle the case where we want to fork on a state where overflow has occurred.
+ * @param restActions is called on `Unit` when the [slice] was successfully stored to [builder], on null if overflow
+ * occurred and not called otherwise (for instance, when the solver return UNKNOWN on any query)
+ */
+fun TvmStepScopeManager.builderStoreSliceWithForkOnOverflow(
+    oldBuilder: UConcreteHeapRef,
+    builder: UConcreteHeapRef,
+    slice: SliceRef,
+    restActions: TvmStepScopeManager.(Unit?) -> Unit,
+): Unit =
+    with(ctx) {
+        val cell = calcOnState { readSliceCell(slice) }
+        val cellDataLength = calcOnState { readCellDataLength(cell) }
+        val dataPosition = calcOnState { readSliceDataPos(slice) }
+
+        val bitsLeftInSlice = mkSizeSubExpr(cellDataLength, dataPosition)
+
+        val cellRefsSize = calcOnState { readCellRefsCount(cell) }
+        val refsPosition = calcOnState { readSliceRefPos(slice) }
+        val oldBuilderRefsSize =
+            calcOnState {
+                fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, oldBuilder)
+            }
+
+        val refsToWriteSize = cellRefsSize bvSub refsPosition
+        val resultingRefsSize = oldBuilderRefsSize bvAdd refsToWriteSize
+        val canWriteRefsConstraint = resultingRefsSize bvUle maxRefsLengthSizeExpr
+
+        val oldBuilderDataLength =
+            calcOnState {
+                fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, oldBuilder)
+            }
+        val newBuilderLength = mkSizeAddExpr(oldBuilderDataLength, bitsLeftInSlice)
+        val canWriteBitsConstraint = mkSizeLeExpr(newBuilderLength, MAX_DATA_LENGTH.toSizeSort())
+
+        val noOverflowCs = canWriteRefsConstraint and canWriteBitsConstraint
+        val actions =
+            listOf(
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {},
+                    caseIsExceptional = false,
+                    condition = noOverflowCs,
+                    paramForDoForAllBlock = Unit,
+                ),
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {},
+                    caseIsExceptional = false,
+                    condition = noOverflowCs.not(),
+                    paramForDoForAllBlock = null,
+                ),
+            )
+        return@builderStoreSliceWithForkOnOverflow doWithConditions(
+            actions,
+        ) { successfulCheck ->
+            if (successfulCheck != null) {
+                // conventionally, quietBlock is only called on false states (and not called on UNKNOWN solver result)
+                // so, since we read the clearly available number of bits, we should never call a quiet block
+                val unreachableQuietBlock: TvmState.() -> Unit = { error("unreachable") }
+                builderStoreSliceTlb(this, oldBuilder, builder, slice.value, unreachableQuietBlock)
+                    ?: return@doWithConditions
+
+                doWithState {
+                    for (i in 0..<TvmContext.MAX_REFS_NUMBER) {
+                        val sliceRef = readCellRef(cell.value, mkSizeAddExpr(refsPosition, mkSizeExpr(i)))
+                        writeCellRef(builder, mkSizeAddExpr(oldBuilderRefsSize, mkSizeExpr(i)), sliceRef)
+                    }
+
+                    fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(memory, builder, resultingRefsSize)
+                }
+                restActions(successfulCheck)
+            } else {
+                restActions(successfulCheck)
+            }
+        }
+    }
+
 fun TvmState.allocDataCellFromData(data: UExpr<UBvSort>): UConcreteHeapRef {
     check(data.sort.sizeBits <= CELL_DATA_BITS) { "Unexpected data: $data" }
 
@@ -1152,6 +1196,8 @@ fun TvmState.allocEmptyCell() =
             fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(memory, cell, zeroSizeExpr)
         }
     }
+
+fun TvmState.allocSliceFromCell(cell: CellRef): SliceRef = allocSliceFromCell(cell.value).asSliceRef()
 
 fun TvmState.allocSliceFromCell(cell: UHeapRef) =
     with(ctx) {
@@ -1292,6 +1338,8 @@ fun TvmState.builderToCell(builder: UConcreteHeapRef): UConcreteHeapRef =
         builderCopyFromBuilder(builder, it)
         dataCellInfoStorage.mapper.setCellInfoFromBuilder(builder, it, this)
     }
+
+fun TvmState.allocCellFromBuilder(builder: UConcreteHeapRef): UConcreteHeapRef = builderToCell(builder)
 
 fun sliceLoadIntTlb(
     scope: TvmStepScopeManager,
@@ -1507,14 +1555,19 @@ fun builderStoreSliceTlb(
         storeSliceTlbLabelInBuilder(builder, updatedBuilder, slice)
     }
 
-fun TvmState.readSliceDataPos(slice: UHeapRef) = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
+fun TvmState.readSliceDataPos(slice: UHeapRef): SizeExpr = readSliceDataPos(slice.asSliceRef())
 
-fun TvmState.readSliceCell(slice: UHeapRef) = memory.readField(slice, sliceCellField, ctx.addressSort)
+fun TvmState.readSliceDataPos(slice: SliceRef): SizeExpr =
+    fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice.value)
+
+fun TvmState.readSliceCell(slice: UHeapRef): UHeapRef = memory.readField(slice, sliceCellField, ctx.addressSort)
+
+fun TvmState.readSliceCell(slice: SliceRef): CellRef = readSliceCell(slice.value).asCellRef()
 
 fun TvmState.readSliceLeftLength(slice: UHeapRef): KExpr<TvmSizeSort> {
     val cell = readSliceCell(slice)
     val cellLength =
-        this.fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
+        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
     val slicePos = readSliceDataPos(slice)
     val length = with(ctx) { mkBvSubExpr(cellLength, slicePos) }
     return length
@@ -1524,10 +1577,17 @@ fun TvmState.readSliceLeftLength(slice: UHeapRef): KExpr<TvmSizeSort> {
 fun TvmStepScopeManager.readCellData(cell: UHeapRef): UExpr<TvmCellDataSort>? =
     calcOnState { fieldManagers.cellDataFieldManager.readCellData(this@readCellData, cell) }
 
-fun TvmState.readCellDataLength(cell: UHeapRef): UExpr<TvmSizeSort> =
-    this.fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell)
+fun TvmState.readCellDataLength(cell: CellRef): SizeExpr =
+    fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cell.value)
 
-fun TvmState.readSliceRefPos(slice: UHeapRef) = memory.readField(slice, sliceRefPosField, ctx.sizeSort)
+fun TvmState.readCellDataLength(cell: UHeapRef): SizeExpr = readCellDataLength(cell.asCellRef())
+
+fun TvmState.readCellRefsCount(cell: CellRef): SizeExpr =
+    fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell.value)
+
+fun TvmState.readSliceRefPos(slice: SliceRef): SizeExpr = memory.readField(slice.value, sliceRefPosField, ctx.sizeSort)
+
+fun TvmState.readSliceRefPos(slice: UHeapRef): SizeExpr = readSliceRefPos(slice.asSliceRef())
 
 data class SliceReadData(
     val dataPos: SizeExpr,

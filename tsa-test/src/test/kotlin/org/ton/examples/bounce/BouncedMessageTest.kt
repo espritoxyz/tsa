@@ -1,5 +1,6 @@
 package org.ton.examples.bounce
 
+import org.junit.jupiter.api.Tag
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
@@ -24,6 +25,7 @@ import org.usvm.test.resolver.TvmTestInput
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
+@Tag("intercontract")
 class BouncedMessageTest {
     private val bounceAssertsPath = "/bounce/bounce_asserts.fc"
     private val bounceCheckerPath = "/bounce/bounce.fc"

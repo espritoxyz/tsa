@@ -48,7 +48,8 @@ import org.usvm.machine.state.messages.ParsingState
 import org.usvm.machine.state.messages.ReserveAction
 import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.messages.ValueOrDeadScope
-import org.usvm.machine.state.messages.bodySlice
+import org.usvm.machine.state.messages.asCellRefUnsafe
+import org.usvm.machine.state.messages.asSlice
 import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
 import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.newStmt
@@ -57,6 +58,8 @@ import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.SliceRef
+import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.asSliceRef
 import org.usvm.mkSizeExpr
 import org.usvm.test.resolver.TvmTestStateResolver
 
@@ -591,7 +594,7 @@ class TvmTransactionInterpreter(
         val fwdFeeInfo =
             FwdFeeInfo(
                 fwdFeeSymbolic,
-                content.stateInitRef,
+                content.stateInit.asCellRefUnsafe()?.value,
                 content.bodyOriginalRef,
             )
         scope.doWithState {
@@ -693,11 +696,13 @@ class TvmTransactionInterpreter(
                         is ReserveAction -> {
                             ParsedReserveAction
                         }
-                        is MessageActionParseResult ->
+
+                        is MessageActionParseResult -> {
                             ParsedMessageWithResolvedReceiver.construct(
                                 it.resolvedReceiver,
                                 MessageActionParseResult(it.content, it.sendMessageMode, it.resolvedReceiver),
                             )
+                        }
                     }
                 },
             )
@@ -726,12 +731,12 @@ class TvmTransactionInterpreter(
         actionsCell: UHeapRef,
     ): List<SliceRef>? =
         with(ctx) {
-            var cur = actionsCell
+            var cur = actionsCell.asCellRef()
             val actionList = mutableListOf<SliceRef>()
 
             while (true) {
                 val slice = scope.calcOnState { allocSliceFromCell(cur) }
-                val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice) }
+                val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice.value) }
 
                 val isEnd =
                     scope.checkCondition(remainingRefs eq zeroSizeExpr)
@@ -742,12 +747,12 @@ class TvmTransactionInterpreter(
                 }
 
                 val action =
-                    sliceLoadRefTransaction(scope, slice)?.let {
+                    sliceLoadRefTransaction(scope, slice.value)?.let {
                         cur = it.second
                         it.first
                     }
                         ?: return null
-                actionList.add(SliceRef(action))
+                actionList.add(action.asSliceRef())
 
                 if (actionList.size > TvmContext.MAX_ACTIONS) {
                     // TODO set error code
@@ -823,7 +828,7 @@ class TvmTransactionInterpreter(
                         run {
                             val (result, innerStatus) =
                                 chooseHandlerBasedOnOpcode(
-                                    messageContent.messageAfterCommonMsgInfo.bodySlice(),
+                                    messageContent.body.asSlice().value,
                                     handler.outOpcodeToDestination,
                                     handler.other,
                                     resolver,
