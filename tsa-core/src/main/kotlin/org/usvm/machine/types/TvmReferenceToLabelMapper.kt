@@ -253,7 +253,7 @@ class TvmReferenceToLabelMapper private constructor(
                         TvmParameterInfo.UnknownCellInfo -> compositeLabelOfUnknown
                     }
 
-                if (label.internalStructure is TlbStructure.Unknown && fillUnknownBlockField) {
+                if (label.internalStructure is TlbStructure.Unknown && fillUnknownBlockField && guard.isTrue) {
                     val blockField = UnknownBlockField(TlbStructure.Unknown.id, persistentListOf())
                     val cellData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, ref)
                     state.memory.writeField(ref, blockField, blockField.getSort(this), cellData, guard = trueExpr)

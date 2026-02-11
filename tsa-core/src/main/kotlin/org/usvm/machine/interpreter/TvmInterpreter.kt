@@ -748,7 +748,6 @@ class TvmInterpreter(
                 structuralConstraintsHolder.applyTo(scope)
                     ?: run {
                         logger.warn { "Could not apply structural constraints" }
-                        scope.killCurrentState()
                     }
             },
             exceptionHandler = {

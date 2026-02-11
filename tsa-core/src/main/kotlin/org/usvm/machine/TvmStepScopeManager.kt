@@ -35,12 +35,11 @@ class TvmStepScopeManager(
 
     fun <T> calcOnState(block: TvmState.() -> T) = scope.calcOnState(block)
 
-    val canBeProcessed
-        get() = scope.canBeProcessed
-
     fun filterForkedStatesOnCondition(constraint: UBoolExpr) = scope.filterForkedStatesOnCondition(constraint)
 
     fun checkSat(condition: UBoolExpr) = scope.checkSat(condition)
+
+    fun getOriginalStateWithoutDeathCheck() = originalState
 
     fun killForkedState(state: TvmState) {
         require(state != originalState) {
