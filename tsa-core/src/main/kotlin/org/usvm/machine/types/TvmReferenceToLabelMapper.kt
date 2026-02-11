@@ -189,9 +189,7 @@ class TvmReferenceToLabelMapper private constructor(
                 // generate grandchildren of [ref]
                 generateLabelInfoForChildren(state, childAddress)
 
-                acc and generateProactiveStructuralConstraints(state, childAddress).also {
-                    println(it)
-                }
+                acc and generateProactiveStructuralConstraints(state, childAddress)
             }
 
         state.structuralConstraintsHolder = state.structuralConstraintsHolder.add(structuralConstraints)
