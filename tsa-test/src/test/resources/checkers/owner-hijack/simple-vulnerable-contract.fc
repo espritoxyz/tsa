@@ -1,0 +1,20 @@
+#include "../../imports/stdlib.fc";
+
+const int op::change_owner = 0;
+
+slice get_owner() method_id {
+    return get_data().begin_parse();
+}
+
+() set_owner(slice new_owner) impure {
+    cell new_data = begin_cell().store_slice(new_owner).end_cell();
+    set_data(new_data);
+}
+
+
+() recv_internal(cell full_msg, slice msg_body) {
+    int opcode = msg_body~load_uint(32);
+    if (opcode == op::change_owner) {
+        set_owner(msg_body);
+    }
+}

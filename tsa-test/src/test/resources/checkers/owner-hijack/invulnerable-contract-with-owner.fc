@@ -1,0 +1,25 @@
+#include "../../imports/stdlib.fc";
+
+const int op::change_owner = 0;
+
+slice get_owner() method_id (25) {
+    return get_data().begin_parse();
+}
+
+() set_owner(slice new_owner) impure {
+    cell new_data = begin_cell().store_slice(new_owner).end_cell();
+    set_data(new_data);
+}
+
+
+() recv_internal(cell full_msg, slice msg_body) {
+    int opcode = msg_body~load_uint(32);
+    if (opcode == op::change_owner) {
+        var msg = full_msg.begin_parse();
+        msg~load_int(4);
+        var sender = msg~load_msg_addr();
+        if (equal_slice_bits(sender, get_owner())) {
+            set_owner(msg_body);
+        }
+    }
+}

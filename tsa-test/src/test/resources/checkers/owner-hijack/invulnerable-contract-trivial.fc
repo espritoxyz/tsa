@@ -1,0 +1,12 @@
+#include "../../imports/stdlib.fc";
+
+
+
+
+slice get_owner() impure method_id (25) {
+    slice ds = get_data().begin_parse();
+    return ds~load_msg_addr();
+}
+
+() recv_internal(cell full_msg, slice msg_body) {
+}
