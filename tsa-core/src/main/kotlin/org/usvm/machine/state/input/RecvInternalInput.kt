@@ -137,7 +137,7 @@ class RecvInternalInput(
             state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
         }
 
-    override fun constructFullMessage(state: TvmState): UConcreteHeapRef =
+    override fun constructFullMessage(state: TvmState): UConcreteHeapRef? =
         with(state.ctx) {
             // hack for using builder operations
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
@@ -175,7 +175,7 @@ class RecvInternalInput(
 
             val result =
                 fullMsgCell
-                    ?: error("failure of construction of internal input")
+                    ?: return@with null
             val stepResult = scope.stepResult()
             check(stepResult.originalStateAlive) {
                 "Original state died while building full message"

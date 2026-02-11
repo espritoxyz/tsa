@@ -465,6 +465,7 @@ class TvmInterpreter(
         state.checkerC7 = null
 
         prepareMemoryForInitialState(state, startContractId)
+            ?: error("failed to construct initial state memory")
 
         state.callStack.push(contractCode.mainMethod, returnSite = null)
         state.switchToFirstMethodInContract(contractCode, methodId)
@@ -476,7 +477,7 @@ class TvmInterpreter(
     private fun prepareMemoryForInitialState(
         state: TvmState,
         startContractId: ContractId,
-    ) {
+    ): Unit? {
         val allowInputStackValues = ctx.tvmOptions.enableInputValues && (state.initialInput is TvmStackInput)
         val executionMemory =
             initializeContractExecutionMemory(
@@ -536,8 +537,9 @@ class TvmInterpreter(
                 // prepare stack
                 executionMemory.stack.addInt(configBalance)
                 executionMemory.stack.addInt(input.msgValue)
+                val fullMessage = TvmStackCellValue(input.constructFullMessage(state) ?: return null)
                 executionMemory.stack.addStackEntry(
-                    TvmConcreteStackEntry(TvmStackCellValue(input.constructFullMessage(state))),
+                    TvmConcreteStackEntry(fullMessage),
                 )
                 executionMemory.stack.addStackEntry(
                     TvmConcreteStackEntry(TvmStackSliceValue(input.msgBodySliceMaybeBounced)),
@@ -556,6 +558,7 @@ class TvmInterpreter(
                 setDataCellInfoStorageAndSetModel(state, dataCellInfoStorage)
             }
         }
+        return Unit
     }
 
     private fun setDataCellInfoStorageAndSetModel(
