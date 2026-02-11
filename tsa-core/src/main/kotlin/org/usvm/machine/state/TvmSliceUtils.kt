@@ -318,6 +318,21 @@ fun TvmStepScopeManager.slicePreloadDataBitsWithoutChecks(
     return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
 }
 
+fun TvmStepScopeManager.slicePreloadDataBitsWithoutChecks(
+    slice: UHeapRef,
+    sizeBits: UExpr<TvmSizeSort>,
+): UExpr<TvmCellDataSort>? {
+    val cell =
+        calcOnStateCtx {
+            memory.readField(slice, sliceCellField, addressSort)
+        }
+    val dataPosition =
+        calcOnState {
+            fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
+        }
+    return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
+}
+
 /**
  * @return bv 1023 with undefined high-order bits
  */
@@ -378,6 +393,23 @@ fun TvmStepScopeManager.slicePreloadInt(
 ): UExpr<TvmInt257Sort>? {
     val shiftedData =
         calcOnStateCtx { slicePreloadDataBits(slice, sizeBits.extractToSizeSort(), quietBlock) }
+            ?: return null
+
+    return calcOnStateCtx {
+        extractIntFromShiftedData(shiftedData, sizeBits, isSigned)
+    }
+}
+
+/**
+ * 0 <= bits <= 257
+ */
+fun TvmStepScopeManager.slicePreloadIntWithoutChecks(
+    slice: UHeapRef,
+    sizeBits: UExpr<TvmSizeSort>,
+    isSigned: Boolean,
+): UExpr<TvmInt257Sort>? {
+    val shiftedData =
+        calcOnStateCtx { slicePreloadDataBitsWithoutChecks(slice, sizeBits.extractToSizeSort()) }
             ?: return null
 
     return calcOnStateCtx {

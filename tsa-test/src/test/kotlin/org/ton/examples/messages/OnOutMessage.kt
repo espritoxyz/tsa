@@ -1,4 +1,4 @@
-package org.ton.examples.outmsg
+package org.ton.examples.messages
 
 import org.junit.jupiter.api.Tag
 import org.ton.cell.CellBuilder

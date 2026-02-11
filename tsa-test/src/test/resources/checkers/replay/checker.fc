@@ -1,0 +1,24 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+global slice first_body;
+
+() on_external_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    first_body = msg_body;
+}
+
+() main() impure {
+    tsa_forbid_failures();
+
+    tsa_send_external_message(1, 0);
+
+    int was_accepted_1 = tsa_input_was_accepted(0);
+    tsa_assert(was_accepted_1);
+
+    tsa_send_external_message_with_body(first_body, 1, 1);
+
+    tsa_allow_failures();
+
+    int was_accepted_2 = tsa_input_was_accepted(1);
+    throw_if(1000, was_accepted_2);
+}
