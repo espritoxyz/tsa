@@ -3,7 +3,7 @@
 
 
 
-slice get_owner() impure method_id (25) {
+slice get_owner() impure method_id (37) {
     slice ds = get_data().begin_parse();
     return ds~load_msg_addr();
 }

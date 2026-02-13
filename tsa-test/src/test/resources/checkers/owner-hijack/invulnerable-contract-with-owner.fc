@@ -2,7 +2,7 @@
 
 const int op::change_owner = 0;
 
-slice get_owner() method_id (25) {
+slice get_owner() method_id (37) {
     return get_data().begin_parse();
 }
 
