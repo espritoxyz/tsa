@@ -24,7 +24,8 @@ class CalculatedTlbLabelInfo(
     givenCompositeLabels: Collection<TlbCompositeLabel>,
 ) {
     private val compositeLabels =
-        calculateClosure(givenCompositeLabels) + TlbCoinsLabel + defaultTlbMaybeRefLabel + TlbBasicMsgAddrLabel
+        calculateClosure(givenCompositeLabels) +
+            TlbCoinsLabel + defaultTlbMaybeRefLabel + TlbBasicMsgAddrLabel + compositeLabelOfUnknown
 
     private val maxTlbDepth: Int
         get() = ctx.tvmOptions.tlbOptions.maxTlbDepth
