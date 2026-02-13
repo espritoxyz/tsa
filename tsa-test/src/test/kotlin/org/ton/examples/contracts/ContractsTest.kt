@@ -39,6 +39,7 @@ class ContractsTest {
     private val storagePath: String = "/contracts/storage/storage-contract.fc"
     private val storageProviderPath: String = "/contracts/storage/storage-provider.fc"
     private val vestingPath: String = "/contracts/vesting/vesting_wallet.fc"
+    private val vestingTolkPath: String = "/contracts/vesting-contract/vesting-with-internal.fif"
     private val singleNominatorPath: String = "/contracts/single-nominator/single-nominator.fc"
     private val nominatorPoolPath: String = "/contracts/nominator-pool/pool.fc"
     private val stocksPath: String = "/contracts/stocks/stock_options.fc"
@@ -204,6 +205,16 @@ class ContractsTest {
     @Test
     fun vesting() {
         analyzeFuncContract(vestingPath, methodsNumber = 9, enableTestGeneration = true)
+    }
+
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    @Test
+    fun vestingTolk() {
+        // based on tolk-benchmark
+        // see https://github.com/ton-blockchain/tolk-bench/blob/master/contracts_Tolk/06_vesting/vesting-contract.tolk
+        // or permalink:
+        // https://github.com/ton-blockchain/tolk-bench/blob/cb9648bdf936f88eb9d773d9058405f74a1e24d9/contracts_Tolk/06_vesting/vesting-contract.tolk
+        analyzeSpecificMethodFift(vestingTolkPath, methodId = 0.toMethodId(), enableTestGeneration = true)
     }
 
     @Ignore("PFXDICTGETQ is not supported")
