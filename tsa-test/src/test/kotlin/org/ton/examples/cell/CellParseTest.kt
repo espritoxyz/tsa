@@ -8,7 +8,6 @@ class CellParseTest {
     private val cellParseFiftFailurePath: String = "/cell/CellParseFailure.fif"
     private val slicePushFiftPath: String = "/cell/SlicePush.fif"
     private val loadGramsFiftPath: String = "/cell/load_grams.fif"
-    private val sdppfxrevFiftPath: String = "/cell/sdppfxrev.fif"
 
     @Test
     fun cellParseTest() {
@@ -28,10 +27,5 @@ class CellParseTest {
     @Test
     fun loadGramsTest() {
         compareSymbolicAndConcreteResultsFift(loadGramsFiftPath, 1)
-    }
-
-    @Test
-    fun `isPrefix test`() {
-        compareSymbolicAndConcreteResultsFift(sdppfxrevFiftPath, 1)
     }
 }

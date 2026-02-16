@@ -286,7 +286,7 @@ internal fun compareSymbolicAndConcreteResultsFunc(
     methods: Set<Int>,
 ) {
     val contractPath = extractResource(resourcePath)
-    val tmpFiftFile = kotlin.io.path.createTempFile(suffix = ".boc")
+    val tmpFiftFile = kotlin.io.path.createTempFile(suffix = ".fif")
 
     try {
         compileFuncToFift(contractPath, tmpFiftFile)

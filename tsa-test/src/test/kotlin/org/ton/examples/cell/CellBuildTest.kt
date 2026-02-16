@@ -14,6 +14,7 @@ class CellBuildTest {
     private val storeSliceConstFif: String = "/cell/cell-build/CellBuild.fif"
     private val storeOnesFunc: String = "/cell/cell-build/StonesSymbolicSize.fc"
     private val sdppfxFunc: String = "/cell/sdppfx.fc"
+    private val sdppfxrevFunc: String = "/cell/sdppfxrev.fc"
 
     @Test
     fun cellBuildTest() {
@@ -38,5 +39,10 @@ class CellBuildTest {
     @Test
     fun `test prefix functions`() {
         compareSymbolicAndConcreteResultsFunc(sdppfxFunc, (0..3).toSet())
+    }
+
+    @Test
+    fun `test prefix rev functions`() {
+        compareSymbolicAndConcreteResultsFunc(sdppfxrevFunc, (0..3).toSet())
     }
 }

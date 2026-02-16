@@ -21,7 +21,7 @@ const val SEND_EXTERNAL_MESSAGE_WITH_BODY_METHOD_ID = 15
 /**
  * Were calculated using python script:
  * ```
- * int(pytoniq_core.crc.crc16(b"<method_name>").hex(), base=16) | 65536
+ * binascii.crc_hqx(method_name, 0) | 0x10000
  * ```
  * Represent the method id of the same-named method in FunC.
  * See [TON docs](https://docs.ton.org/v3/documentation/smart-contracts/func/docs/functions)

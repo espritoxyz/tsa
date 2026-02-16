@@ -81,6 +81,7 @@ import org.ton.bytecode.TvmCompareOtherSdcnttrail0Inst
 import org.ton.bytecode.TvmCompareOtherSdemptyInst
 import org.ton.bytecode.TvmCompareOtherSdeqInst
 import org.ton.bytecode.TvmCompareOtherSdpfxInst
+import org.ton.bytecode.TvmCompareOtherSdpfxrevInst
 import org.ton.bytecode.TvmCompareOtherSemptyInst
 import org.ton.bytecode.TvmCompareOtherSremptyInst
 import org.ton.bytecode.TvmConstDataInst
@@ -1991,6 +1992,10 @@ class TvmInterpreter(
                 visitIsPrefixInstruction(scope, stmt)
             }
 
+            is TvmCompareOtherSdpfxrevInst -> {
+                visitIsPrefixInstruction(scope, stmt, isReverse = true)
+            }
+
             else -> {
                 TODO("$stmt")
             }
@@ -1999,16 +2004,23 @@ class TvmInterpreter(
 
     private fun TvmContext.visitIsPrefixInstruction(
         scope: TvmStepScopeManager,
-        stmt: TvmCompareOtherSdpfxInst,
+        stmt: TvmCompareOtherInst,
+        isReverse: Boolean = false,
     ) {
         scope.consumeDefaultGas(stmt)
-        val greaterSlice = scope.calcOnState { takeLastSlice() }
-        val sliceLesser = scope.calcOnState { takeLastSlice() }
-        if (sliceLesser == null || greaterSlice == null) {
+        val topSlice = scope.calcOnState { takeLastSlice() }
+        val botSlice = scope.calcOnState { takeLastSlice() }
+        val (greaterSlice, lesserSlice) =
+            if (!isReverse) {
+                topSlice to botSlice
+            } else {
+                botSlice to topSlice
+            }
+        if (lesserSlice == null || greaterSlice == null) {
             scope.doWithState(throwTypeCheckError)
             return
         }
-        val lesserSliceLength = scope.calcOnState { readSliceLeftLength(sliceLesser) }
+        val lesserSliceLength = scope.calcOnState { readSliceLeftLength(lesserSlice) }
         val greaterSliceLength = scope.calcOnState { readSliceLeftLength(greaterSlice) }
         scope.fork(
             with(ctx) { lesserSliceLength bvUle greaterSliceLength },
@@ -2020,7 +2032,7 @@ class TvmInterpreter(
         ) ?: return
 
         val lesserSliceData =
-            scope.readCellData(scope.calcOnState { readSliceCell(sliceLesser) })
+            scope.readCellData(scope.calcOnState { readSliceCell(lesserSlice) })
                 ?: return
         val greaterSliceData =
             scope.readCellData(scope.calcOnState { readSliceCell(greaterSlice) })
@@ -2029,7 +2041,7 @@ class TvmInterpreter(
             mkBvXorExpr(
                 mkBvLogicalShiftRightExpr(
                     lesserSliceData,
-                    scope.calcOnState { readSliceDataPos(sliceLesser).zeroExtendToSort(ctx.cellDataSort) },
+                    scope.calcOnState { readSliceDataPos(lesserSlice).zeroExtendToSort(ctx.cellDataSort) },
                 ),
                 mkBvLogicalShiftRightExpr(
                     greaterSliceData,
