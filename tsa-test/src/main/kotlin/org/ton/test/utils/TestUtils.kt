@@ -306,6 +306,24 @@ internal fun compareSymbolicAndConcreteResultsFunc(
     }
 }
 
+internal fun compareSymbolicAndConcreteResultsFift(
+    fiftPath: String,
+    lastIndex: Int,
+) {
+    val fiftResourcePath = extractResource(fiftPath)
+
+    val symbolicResult =
+        compileAndAnalyzeFift(
+            fiftResourcePath,
+            tvmOptions = testConcreteOptions,
+        )
+    val methodIds = (0..lastIndex).toSet()
+
+    compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
+        runFiftMethod(fiftResourcePath, methodId)
+    }
+}
+
 private fun parseFiftStack(
     entries: List<String>,
     result: MutableList<TvmTestValue>,

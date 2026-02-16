@@ -80,6 +80,7 @@ import org.ton.bytecode.TvmCompareOtherInst
 import org.ton.bytecode.TvmCompareOtherSdcnttrail0Inst
 import org.ton.bytecode.TvmCompareOtherSdemptyInst
 import org.ton.bytecode.TvmCompareOtherSdeqInst
+import org.ton.bytecode.TvmCompareOtherSdpfxInst
 import org.ton.bytecode.TvmCompareOtherSemptyInst
 import org.ton.bytecode.TvmCompareOtherSremptyInst
 import org.ton.bytecode.TvmConstDataInst
@@ -301,6 +302,10 @@ import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
+import org.usvm.machine.state.readCellData
+import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.state.readSliceDataPos
+import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.signedIntegerFitsBits
@@ -1982,9 +1987,58 @@ class TvmInterpreter(
                 }
             }
 
+            is TvmCompareOtherSdpfxInst -> {
+                visitIsPrefixInstruction(scope, stmt)
+            }
+
             else -> {
                 TODO("$stmt")
             }
+        }
+    }
+
+    private fun TvmContext.visitIsPrefixInstruction(
+        scope: TvmStepScopeManager,
+        stmt: TvmCompareOtherSdpfxInst,
+    ) {
+        scope.consumeDefaultGas(stmt)
+        val greaterSlice = scope.calcOnState { takeLastSlice() }
+        val sliceLesser = scope.calcOnState { takeLastSlice() }
+        if (sliceLesser == null || greaterSlice == null) {
+            scope.doWithState(throwTypeCheckError)
+            return
+        }
+        val lesserSliceLength = scope.calcOnState { readSliceLeftLength(sliceLesser) }
+        val greaterSliceLength = scope.calcOnState { readSliceLeftLength(greaterSlice) }
+        scope.fork(
+            with(ctx) { lesserSliceLength bvUle greaterSliceLength },
+            falseStateIsExceptional = false,
+            blockOnFalseState = {
+                stack.addInt(falseExpr.toBv257Bool())
+                newStmt(stmt.nextStmt())
+            },
+        ) ?: return
+
+        val lesserSliceData =
+            scope.readCellData(scope.calcOnState { readSliceCell(sliceLesser) })
+                ?: return
+        val greaterSliceData =
+            scope.readCellData(scope.calcOnState { readSliceCell(greaterSlice) })
+                ?: return
+        val isPrefix =
+            mkBvXorExpr(
+                mkBvLogicalShiftRightExpr(
+                    lesserSliceData,
+                    scope.calcOnState { readSliceDataPos(sliceLesser).zeroExtendToSort(ctx.cellDataSort) },
+                ),
+                mkBvLogicalShiftRightExpr(
+                    greaterSliceData,
+                    scope.calcOnState { readSliceDataPos(greaterSlice).zeroExtendToSort(ctx.cellDataSort) },
+                ),
+            ) bvEq zeroCellValue
+        scope.calcOnState {
+            stack.addInt(isPrefix.toBv257Bool())
+            newStmt(stmt.nextStmt())
         }
     }
 
