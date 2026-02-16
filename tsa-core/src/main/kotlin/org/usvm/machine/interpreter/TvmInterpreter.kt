@@ -139,6 +139,7 @@ import org.ton.bytecode.TvmContRegistersSamealtInst
 import org.ton.bytecode.TvmContRegistersSamealtsaveInst
 import org.ton.bytecode.TvmContRegistersSaveInst
 import org.ton.bytecode.TvmContRegistersSetcontctrInst
+import org.ton.bytecode.TvmContRegistersSetcontctrmanyInst
 import org.ton.bytecode.TvmContStackInst
 import org.ton.bytecode.TvmContinuation
 import org.ton.bytecode.TvmDebugInst
@@ -2102,6 +2103,10 @@ class TvmInterpreter(
                 }
             }
 
+            is TvmContRegistersSetcontctrmanyInst -> {
+                visitSetContCtrMany(scope, stmt)
+            }
+
             else -> {
                 TODO("$stmt")
             }
@@ -2239,6 +2244,45 @@ class TvmInterpreter(
             }
 
         stack.addContinuation(updatedCont)
+        newStmt(stmt.nextStmt())
+    }
+
+    private fun visitSetContCtrMany(
+        scope: TvmStepScopeManager,
+        stmt: TvmContRegistersSetcontctrmanyInst,
+    ) = scope.calcOnState {
+        scope.consumeDefaultGas(stmt)
+
+        var cont =
+            stack.takeLastContinuation()
+                ?: return@calcOnState ctx.throwTypeCheckError(this)
+
+        val isBitSet = { i: Int -> stmt.mask.shr(i).and(1) == 1 }
+        val regs = registersOfCurrentContract
+        if (isBitSet(0)) {
+            cont = cont.defineC0(regs.c0.value)
+        }
+        if (isBitSet(1)) {
+            cont = cont.defineC1(regs.c1.value)
+        }
+        if (isBitSet(2)) {
+            cont = cont.defineC2(regs.c2.value)
+        }
+        if (isBitSet(3)) {
+            cont = cont.defineC3(regs.c3)
+        }
+        if (isBitSet(4)) {
+            cont = cont.defineC4(regs.c4.value.value)
+        }
+        if (isBitSet(5)) {
+            cont = cont.defineC5(regs.c5.value.value)
+        }
+        // there is no 6th register
+        if (isBitSet(7)) {
+            cont = cont.defineC7(regs.c7.value)
+        }
+
+        stack.addContinuation(cont)
         newStmt(stmt.nextStmt())
     }
 

@@ -1,0 +1,396 @@
+"Asm.fif" include
+// automatically generated from vesting-contract.tolk, storage.tolk, message-validation.tolk, errors.tolk, messages.tolk
+PROGRAM{
+  DECLPROC VestingParameters.getLockedAmount()
+  DECLPROC AttachedMessage.validateIfLockedAmount()
+  0 DECLMETHOD onInternalMessage()
+  85143 DECLMETHOD seqno()
+  81467 DECLMETHOD get_subwallet_id()
+  78748 DECLMETHOD get_public_key()
+  107618 DECLMETHOD get_vesting_data()
+  82536 DECLMETHOD get_whitelist()
+  120902 DECLMETHOD get_locked_amount()
+  // 10 functions inlined in-place:
+  // - Storage.load (8 calls)
+  // - Storage.save (1 call)
+  // - WhitelistDict.isWhitelisted (2 calls)
+  // - address.matchesAddressFromConfig (2 calls)
+  // - MessageCellContentsStart.isBounceable (1 call)
+  // - MessageCellContentsRest.hasStateInit (1 call)
+  // - MessageCellContentsRest.getBodySlice (1 call)
+  // - validateMessageToElectorContract (1 call)
+  // - validateMessageToConfigContract (1 call)
+  // - MapEntry<address,()>.getKey (1 call)
+  VestingParameters.getLockedAmount() PROCREF:<{
+    2 1 BLKDROP2
+    s5 s4 PUSH2
+    ADD
+    OVER
+    LESS
+    IFJMP:<{
+      6 BLKDROP
+      0 PUSHINT
+    }>
+    s5 s2 PUXC
+    ADD
+    s2 PUSH
+    GREATER
+    IFJMP:<{
+      4 1 BLKDROP2
+    }>
+    s0 s4 XCHG
+    SUB
+    OVER
+    DIV
+    -ROT
+    DIV
+    s2 PUSH
+    -ROT
+    MULDIV
+    SUB
+  }>
+  AttachedMessage.validateIfLockedAmount() PROCREF:<{
+    s0 s4 XCHG
+    3 EQINT
+    100 THROWIFNOT
+    s0 s2 XCHG
+    CTOS
+    4 LDU
+    LDMSGADDR
+    NIP
+    LDSTDADDR
+    s1 s5 PUXC
+    SDEQ
+    IFJMP:<{
+      5 BLKDROP
+    }>
+    s0 s2 PUXC
+    267 PUSHINT
+    DICTGET NULLSWAPIFNOT
+    NIP
+    IFNOTJMP:<{
+      s2 s3 XCHG
+      3 BLKDROP
+      2 PUSHINT
+      RAWRESERVE
+    }>
+    1 2 BLKDROP2
+    2 PUSHINT
+    AND
+    2 EQINT
+    101 THROWIFNOT
+    SWAP
+    LDGRAMS
+    NIP
+    1 LDU
+    NIP
+    LDGRAMS
+    NIP
+    LDGRAMS
+    NIP
+    96 LDU
+    NIP
+    1 LDI
+    1 LDI
+    s0 s2 XCHG
+    102 THROWIF
+    IF:<{
+      PLDREF
+      CTOS
+    }>ELSE<{
+    }>
+    1 PUSHINT
+    s2 PUSH
+    REWRITESTDADDR
+    FALSE
+    s0 s2 XCHG
+    -1 EQINT
+    IF:<{
+      NIP
+      SWAP
+      CONFIGOPTPARAM
+      CTOS
+      256 PLDU
+      EQUAL
+    }>ELSE<{
+      DROP
+      NIP
+    }>
+    IFJMP:<{
+      NIP
+      x{4e73744b} SDBEGINSQ
+      IFJMP:<{
+        DROP
+      }>
+      x{47657424} SDBEGINSQ
+      IFJMP:<{
+        DROP
+      }>
+      x{56744370} SDBEGINSQ
+      IFJMP:<{
+        DROP
+      }>
+      x{566f7465} SDBEGINSQ
+      NIP
+      IFJMP:<{
+      }>
+      103 THROW
+    }>
+    0 PUSHINT
+    s0 s2 XCHG
+    REWRITESTDADDR
+    FALSE
+    s0 s2 XCHG
+    -1 EQINT
+    IF:<{
+      NIP
+      s0 s2 XCHG
+      CONFIGOPTPARAM
+      CTOS
+      256 PLDU
+      s1 s2 XCHG
+      EQUAL
+      SWAP
+    }>ELSE<{
+      DROP
+      s2 POP
+    }>
+    SWAP
+    IFJMP:<{
+      x{566f7465} SDBEGINSQ
+      NIP
+      IFJMP:<{
+      }>
+      103 THROW
+    }>
+    DUP
+    SEMPTY
+    IFJMP:<{
+      DROP
+    }>
+    x{00000000} SDBEGINSQ
+    IFJMP:<{
+      DUP
+      SBITS
+      IFJMP:<{
+        x{64} SDBEGINSQ
+        IFJMP:<{
+          DROP
+        }>
+        x{77} SDBEGINSQ
+        IFJMP:<{
+          DROP
+        }>
+        x{44} SDBEGINSQ
+        IFJMP:<{
+          DROP
+        }>
+        x{57} SDBEGINSQ
+        NIP
+        IFJMP:<{
+        }>
+        104 THROW
+      }>
+      DROP
+    }>
+    x{00001000} SDBEGINSQ
+    IFJMP:<{
+      DROP
+    }>
+    x{00001001} SDBEGINSQ
+    IFJMP:<{
+      DROP
+    }>
+    x{47d54391} SDBEGINSQ
+    IFJMP:<{
+      DROP
+    }>
+    x{595f07bc} SDBEGINSQ
+    IFJMP:<{
+      DROP
+    }>
+    x{69fb306c} SDBEGINSQ
+    IFJMP:<{
+      DROP
+    }>
+    x{56744370} SDBEGINSQ
+    IFJMP:<{
+      DROP
+    }>
+    x{566f7465} SDBEGINSQ
+    NIP
+    IFJMP:<{
+    }>
+    103 THROW
+  }>
+  onInternalMessage() PROC:<{
+    9 PUSHPOW2
+    LDSLICEX
+    DUP
+    HASHSU
+    SWAP
+    32 LDU
+    32 LDU
+    32 LDU
+    s0 s2 XCHG
+    NOW
+    GREATER
+    36 THROWIFNOT
+    c4 PUSH
+    CTOS
+    32 LDU
+    DUP
+    32 LDU
+    256 LDU
+    LDOPTREF
+    PLDREF
+    s6 s5 XCPU
+    EQUAL
+    33 THROWIFNOT
+    s7 s2 XCHG2
+    EQUAL
+    34 THROWIFNOT
+    s6 s7 s5 XCHG3
+    CHKSIGNU
+    35 THROWIFNOT
+    s3 s4 PUSH2
+    <{
+      2DROP
+    }>CONT
+    0b10111010 SETCONTMANY
+    2 PUSHINT
+    -1 PUSHINT
+    SETCONTVARARGS
+    <{
+      SWAP
+      8 LDU
+      LDREF
+      ENDS
+      s0 s2 XCHG
+      CTOS
+      64 LDU
+      32 LDU
+      32 LDU
+      32 LDU
+      LDGRAMS
+      LDSTDADDR
+      LDSTDADDR
+      ENDS
+      s1 s6 XCHG
+      s1 s5 XCHG
+      s1 s4 XCHG
+      s3 s3 s0 XCHG3
+      s6 s(-1) PUXC
+      NOW
+      VestingParameters.getLockedAmount() INLINECALLDICT
+      DUP
+      0 GTINT
+      IF:<{
+        s2 s3 PUSH2
+        s6 s6 s3 XCHG3
+        AttachedMessage.validateIfLockedAmount() INLINECALLDICT
+      }>ELSE<{
+        2DROP
+        s2 POP
+      }>
+      SWAP
+      SENDRAWMSG
+      SWAP
+    }>CONT
+    c1 PUSH
+    COMPOSALT
+    SWAP
+    TRY
+    SWAP
+    INC
+    NEWC
+    32 STU
+    STSLICE
+    ENDC
+    c4 POP
+  }>
+  seqno() PROC:<{
+    c4 PUSH
+    CTOS
+    32 PLDU
+  }>
+  get_subwallet_id() PROC:<{
+    c4 PUSH
+    CTOS
+    32 LDU
+    NIP
+    32 PLDU
+  }>
+  get_public_key() PROC:<{
+    c4 PUSH
+    CTOS
+    64 LDU
+    NIP
+    256 PLDU
+  }>
+  get_vesting_data() PROC:<{
+    c4 PUSH
+    CTOS
+    320 PUSHINT
+    SDSKIPFIRST
+    LDOPTREF
+    PLDREF
+    CTOS
+    64 LDU
+    32 LDU
+    32 LDU
+    32 LDU
+    LDGRAMS
+    LDSTDADDR
+    LDSTDADDR
+    ENDS
+    7 ROLL
+  }>
+  get_whitelist() PROC:<{
+    c4 PUSH
+    CTOS
+    PUSHNULL
+    SWAP
+    320 PUSHINT
+    SDSKIPFIRST
+    PLDOPTREF
+    DUP
+    267 PUSHINT
+    DICTMIN NULLSWAPIFNOT2
+    s2 POP
+    WHILE:<{
+      SWAP
+    }>DO<{
+      DUP
+      REWRITESTDADDR
+      PAIR
+      s0 s3 XCHG2
+      CONS
+      s2 s1 XCPU
+      267 PUSHINT
+      DICTGETNEXT NULLSWAPIFNOT2
+      s2 POP
+    }>
+    2DROP
+  }>
+  get_locked_amount() PROC:<{
+    c4 PUSH
+    CTOS
+    320 PUSHINT
+    SDSKIPFIRST
+    SKIPOPTREF
+    PLDREF
+    CTOS
+    64 LDU
+    32 LDU
+    32 LDU
+    32 LDU
+    LDGRAMS
+    LDSTDADDR
+    LDSTDADDR
+    ENDS
+    7 ROLL
+    VestingParameters.getLockedAmount() INLINECALLDICT
+  }>
+}END>c
+

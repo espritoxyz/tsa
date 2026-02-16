@@ -63,6 +63,7 @@ class GasTest {
                     "fift-with-input",
                     "hash",
                     "continuations",
+                    "contracts",
                     -> FileVisitResult.SKIP_SUBTREE
 
                     else -> FileVisitResult.CONTINUE
