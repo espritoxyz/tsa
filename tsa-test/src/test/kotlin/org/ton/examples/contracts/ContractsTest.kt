@@ -39,7 +39,7 @@ class ContractsTest {
     private val storagePath: String = "/contracts/storage/storage-contract.fc"
     private val storageProviderPath: String = "/contracts/storage/storage-provider.fc"
     private val vestingPath: String = "/contracts/vesting/vesting_wallet.fc"
-    private val vestingTolkPath: String = "/contracts/vesting-contract/vesting-with-internal.fif"
+    private val vestingTolkPath: String = "/contracts/vesting-contract/vesting-with-internal-send.fif"
     private val singleNominatorPath: String = "/contracts/single-nominator/single-nominator.fc"
     private val nominatorPoolPath: String = "/contracts/nominator-pool/pool.fc"
     private val stocksPath: String = "/contracts/stocks/stock_options.fc"

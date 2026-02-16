@@ -8,7 +8,6 @@ PROGRAM{
   81467 DECLMETHOD get_subwallet_id()
   78748 DECLMETHOD get_public_key()
   107618 DECLMETHOD get_vesting_data()
-  85425 DECLMETHOD is_whitelisted()
   82536 DECLMETHOD get_whitelist()
   120902 DECLMETHOD get_locked_amount()
   // 10 functions inlined in-place:
@@ -346,16 +345,6 @@ PROGRAM{
     LDSTDADDR
     ENDS
     7 ROLL
-  }>
-  is_whitelisted() PROC:<{
-    c4 PUSH
-    CTOS
-    320 PUSHINT
-    SDSKIPFIRST
-    PLDOPTREF
-    267 PUSHINT
-    DICTGET NULLSWAPIFNOT
-    NIP
   }>
   get_whitelist() PROC:<{
     c4 PUSH
