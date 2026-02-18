@@ -255,6 +255,7 @@ import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.addTuple
+import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocateCell
 import org.usvm.machine.state.bvMaxValueSignedExtended
@@ -305,11 +306,11 @@ import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readCellData
 import org.usvm.machine.state.readSliceCell
-import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.signedIntegerFitsBits
+import org.usvm.machine.state.sliceLoadBitArray
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.state.takeLastCell
@@ -2020,6 +2021,7 @@ class TvmInterpreter(
             scope.doWithState(throwTypeCheckError)
             return
         }
+
         val lesserSliceLength = scope.calcOnState { readSliceLeftLength(lesserSlice) }
         val greaterSliceLength = scope.calcOnState { readSliceLeftLength(greaterSlice) }
         scope.fork(
@@ -2031,26 +2033,29 @@ class TvmInterpreter(
             },
         ) ?: return
 
-        val lesserSliceData =
-            scope.readCellData(scope.calcOnState { readSliceCell(lesserSlice) })
-                ?: return
-        val greaterSliceData =
-            scope.readCellData(scope.calcOnState { readSliceCell(greaterSlice) })
-                ?: return
-        val isPrefix =
-            mkBvXorExpr(
-                mkBvLogicalShiftRightExpr(
-                    lesserSliceData,
-                    scope.calcOnState { readSliceDataPos(lesserSlice).zeroExtendToSort(ctx.cellDataSort) },
-                ),
-                mkBvLogicalShiftRightExpr(
-                    greaterSliceData,
-                    scope.calcOnState { readSliceDataPos(greaterSlice).zeroExtendToSort(ctx.cellDataSort) },
-                ),
-            ) bvEq zeroCellValue
-        scope.calcOnState {
-            stack.addInt(isPrefix.toBv257Bool())
-            newStmt(stmt.nextStmt())
+        scope.sliceLoadBitArray(
+            lesserSlice,
+            scope.calcOnState { allocSliceFromCell(allocEmptyCell()) },
+            lesserSliceLength,
+        ) { lesserSliceRelevantPart ->
+            sliceLoadBitArray(
+                greaterSlice,
+                calcOnState { allocSliceFromCell(allocEmptyCell()) },
+                lesserSliceLength,
+            ) { greaterSliceRelevantPart ->
+                val lesserSliceData =
+                    readCellData(calcOnState { readSliceCell(lesserSliceRelevantPart) })
+                        ?: return@sliceLoadBitArray
+                val greaterSliceData =
+                    readCellData(calcOnState { readSliceCell(greaterSliceRelevantPart) })
+                        ?: return@sliceLoadBitArray
+                val isPrefix = lesserSliceData bvEq greaterSliceData
+
+                calcOnState {
+                    stack.addInt(isPrefix.toBv257Bool())
+                    newStmt(stmt.nextStmt())
+                }
+            }
         }
     }
 

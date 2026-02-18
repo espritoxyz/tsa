@@ -27,7 +27,3 @@
     slice b = begin_cell().store_uint(0, 8).end_cell().begin_parse();
     return is_prefix(a, b);
 }
-
-
-
-

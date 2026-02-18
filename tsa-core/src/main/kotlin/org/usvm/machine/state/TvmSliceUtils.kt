@@ -44,6 +44,7 @@ import org.usvm.machine.types.CellRef
 import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TlbStructureBuilder
 import org.usvm.machine.types.TvmBuilderType
+import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead
 import org.usvm.machine.types.TvmCellDataIntegerRead
 import org.usvm.machine.types.TvmCellDataMsgAddrRead
@@ -1407,6 +1408,33 @@ fun sliceLoadIntTlb(
         }
 
         action(result)
+    }
+}
+
+fun TvmStepScopeManager.sliceLoadBitArray(
+    slice: UHeapRef,
+    newSlice: UConcreteHeapRef,
+    sizeBits: SizeExpr,
+    restActions: TvmStepScopeManager.(UHeapRef) -> Unit,
+) {
+    makeSliceTypeLoad(
+        slice,
+        TvmCellDataBitArrayRead(sizeBits),
+        newSlice,
+        badCellSizeIsExceptional = true, // TODO: quiet version
+        onBadCellSize = ctx.throwCellUnderflowErrorBasedOnContext,
+    ) { valueFromTlb ->
+        val result =
+            valueFromTlb?.expr ?: let {
+                val bits = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
+                val cell = calcOnState { allocEmptyCell() }
+
+                builderStoreDataBits(cell, cell, bits, ctx.mkSizeExpr(bits.sort.sizeBits.toInt()))
+                    ?: return@makeSliceTypeLoad
+
+                calcOnState { allocSliceFromCell(cell) }
+            }
+        restActions(result)
     }
 }
 
