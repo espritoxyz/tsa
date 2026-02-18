@@ -25,6 +25,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.machine.getResourcePath
+import org.usvm.machine.getTolkContract
 import org.usvm.machine.intValue
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
@@ -464,9 +465,21 @@ internal fun extractCheckerContractFromResource(checkerResourcePath: String): Ts
     return checkerContract
 }
 
+internal fun extractTolkCheckerContractFromResource(checkerResourcePath: String): TsaContractCode {
+    val checkerPath = extractResource(checkerResourcePath)
+    val checkerContract = getTolkContract(checkerPath, FIFT_STDLIB_RESOURCE, TOLK_STDLIB_RESOURCE, isTSAChecker = true)
+    return checkerContract
+}
+
 internal fun extractFuncContractFromResource(contractResourcePath: String): TsaContractCode {
     val contractPath = extractResource(contractResourcePath)
     val checkerContract = getFuncContract(contractPath, FIFT_STDLIB_RESOURCE)
+    return checkerContract
+}
+
+internal fun extractTolkContractFromResource(contractResourcePath: String): TsaContractCode {
+    val contractPath = extractResource(contractResourcePath)
+    val checkerContract = getTolkContract(contractPath, FIFT_STDLIB_RESOURCE, TOLK_STDLIB_RESOURCE)
     return checkerContract
 }
 
