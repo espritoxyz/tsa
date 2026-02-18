@@ -14,13 +14,15 @@ import java.math.BigInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
+const val DEFAULT_OPCODE_EXTRACTION_TIMEOUT_SECONDS = 20
+
 class TvmOpcodeExtractor(
     val opcodeLength: Int = 32,
 ) {
     fun extractOpcodes(
         code: TsaContractCode,
         methodId: MethodId = TvmContext.RECEIVE_INTERNAL_ID,
-        timeout: Duration = 5.seconds,
+        timeout: Duration = DEFAULT_OPCODE_EXTRACTION_TIMEOUT_SECONDS.seconds,
     ): Set<BigInteger> {
         val machine =
             TvmMachine(
