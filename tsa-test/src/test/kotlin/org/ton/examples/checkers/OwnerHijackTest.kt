@@ -13,6 +13,9 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import kotlin.test.Test
 
+private const val HIJACK_FOUND = 1000
+private const val HIJACK_NOT_FOUND = 500
+
 class OwnerHijackTest {
     private val ownerHijackSymbolicChecker = "/checkers/owner-hijack/owner-hijack-check-symbolic.fc"
     private val ownerHijackConcreteChecker = "/checkers/owner-hijack/owner-hijack-check-concrete.fc"
@@ -80,7 +83,7 @@ class OwnerHijackTest {
     fun testVulnerable() {
         val tests = runSymbolicTest(vulnerableContract)
         tests.assertPropertiesFound(
-            { test -> test.exitCode() == 1000 },
+            { test -> test.exitCode() == HIJACK_FOUND },
         )
     }
 
@@ -88,7 +91,7 @@ class OwnerHijackTest {
     fun testVulnerableConcrete() {
         val tests = runConcreteTest(vulnerableContract)
         tests.assertPropertiesFound(
-            { test -> test.exitCode() == 1000 },
+            { test -> test.exitCode() == HIJACK_FOUND },
         )
     }
 
@@ -96,15 +99,22 @@ class OwnerHijackTest {
     fun testInVulnerableTrivial() {
         val tests = runSymbolicTest(invulnerableContractTrivial)
         tests.assertInvariantsHold(
-            { test -> test.exitCode() != 1000 },
+            { test -> test.exitCode() != HIJACK_FOUND },
+        )
+        tests.assertPropertiesFound(
+            { test -> test.exitCode() == HIJACK_NOT_FOUND },
         )
     }
 
     @Test
     fun testInVulnerableWithOwner() {
         val tests = runSymbolicTest(invulnerableContractWithOwner)
+        assert(tests.isNotEmpty())
         tests.assertInvariantsHold(
-            { test -> test.exitCode() != 500 },
+            { test -> test.exitCode() != HIJACK_FOUND },
+        )
+        tests.assertPropertiesFound(
+            { test -> test.exitCode() == HIJACK_NOT_FOUND },
         )
     }
 }

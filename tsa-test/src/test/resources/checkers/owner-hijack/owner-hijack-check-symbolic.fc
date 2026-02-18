@@ -28,5 +28,7 @@ global slice contract_address;
     var methodId = ds~load_int(32);
     var contract_owner = tsa_call_1_0(1, methodId);
 
-    throw_if(1000, slice_data_equal?(contract_owner, initial_sender));
+    var are_equal = slice_data_equal?(contract_owner, initial_sender);
+    throw_if(1000, are_equal);
+    throw_if(500, ~ are_equal);
 }
