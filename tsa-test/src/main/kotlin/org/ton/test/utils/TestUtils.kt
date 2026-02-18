@@ -438,9 +438,15 @@ internal fun checkInvariants(
     assertTrue(failedInvariants.isEmpty(), "Invariants $failedInvariants were violated")
 }
 
+internal fun List<TvmSymbolicTest>.assertNotEmpty() = assert(isNotEmpty())
+
 internal fun List<TvmSymbolicTest>.assertInvariantsHold(vararg properties: (TvmSymbolicTest) -> Boolean) {
     checkInvariants(this, properties.toList())
 }
+
+fun doesNotEndWithExitCode(exitCode: Int) = { test: TvmSymbolicTest -> test.exitCode() != exitCode }
+
+fun hasExitCode(exitCode: Int) = { test: TvmSymbolicTest -> test.exitCode() == exitCode }
 
 internal val TvmSymbolicTest.softFailure: TvmResult.TvmSoftFailureExit?
     get() = (result as? TvmExecutionWithSoftFailure)?.failure?.exit

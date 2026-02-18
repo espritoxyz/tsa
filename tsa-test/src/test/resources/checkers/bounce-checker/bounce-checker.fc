@@ -1,0 +1,37 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+const int error::failed_to_handle_bounce = 1000;
+const int error::sent_messages_on_bounce = 1001;
+
+global int counter;
+
+() on_compute_phase_exit(cell c5, int exit_code, int compute_fee, int contract_id) impure method_id {
+    if (contract_id != 1) {
+        return ();
+    }
+    ;; on the first entrance, we are ending the execution triggered by checker
+    ;; on the consecutive entrance, we are ending the execution triggered by bounced message
+    if (counter > 0) {
+        ;;  <0 are soft failures, =0 are good executions
+        throw_if(error::failed_to_handle_bounce, exit_code > 0);
+        int sent_messages_on_bounce = c5.begin_parse().slice_refs() > 0;
+        throw_if(error::sent_messages_on_bounce, sent_messages_on_bounce);
+    }
+    counter += 1;
+}
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    counter = 0;
+    tsa_forbid_failures();
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    tsa_assert_not(flags & 1);
+
+    tsa_allow_failures();
+}
+
+() main() impure {
+    tsa_send_internal_message(1, 0);
+    throw(401);
+}
