@@ -6,6 +6,7 @@ import org.ton.bitstring.BitString
 import org.ton.cell.Cell
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
+import org.ton.test.utils.assertPropertiesFound
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
@@ -71,6 +72,11 @@ class CheckersTest {
     private object BodyAsRefTest {
         const val CHECKER = "/checkers/body-as-ref-test/checker.fc"
         const val SENDER = "/checkers/body-as-ref-test/sender.fc"
+    }
+
+    private object GetC5 {
+        const val CHECKER = "/checkers/get-c5/checker.fc"
+        const val SENDER = "/checkers/get-c5/sender.fc"
     }
 
     private object OnComputePhaseExitTestData {
@@ -383,6 +389,29 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf { test -> test.exitCode() == 500 },
+        )
+    }
+
+    @Test
+    fun `get c5 test`() {
+        val checkerContract = extractCheckerContractFromResource(GetC5.CHECKER)
+        val senderContract = extractFuncContractFromResource(GetC5.SENDER)
+        val options =
+            TvmOptions(
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        tests.assertPropertiesFound(
+            { test -> test.exitCode() == 601 },
         )
     }
 

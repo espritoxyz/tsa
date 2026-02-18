@@ -40,6 +40,7 @@ import org.usvm.machine.state.TvmResult.TvmAbstractSoftFailure
 import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addSlice
@@ -245,6 +246,15 @@ class TvmArtificialInstInterpreter(
         }
     }
 
+    private fun TvmResult.TvmTerminalResult.getExitCode(): Int =
+        when (this) {
+            is TvmResult.TvmSoftFailure -> -1
+            is TvmStructuralError -> -1
+            is TvmResult.TvmActionPhaseSuccess -> 0
+            is TvmResult.TvmComputePhaseSuccess -> 0
+            is TvmFailure -> this.exit.exitCode
+        }
+
     private fun TvmStepScopeManager.doCallOnComputeExitIfNecessary(
         stmt: TsaArtificialOnComputePhaseExitInst,
     ): CheckerCallResult =
@@ -256,8 +266,11 @@ class TvmArtificialInstInterpreter(
                 currentComputeFeeUsed
                     ?: error("Current compute_fee should be non-null here")
             val calleeContract = currentContract
+            val c5 = registersOfCurrentContract.c5.value.value
             val pushArgsOnStack: TvmState.() -> Unit = {
                 with(ctx) {
+                    stack.addCell(c5)
+                    stack.addInt(stmt.computePhaseResult.getExitCode().toBv257())
                     stack.addInt(correspondingSymbol)
                     stack.addInt(calleeContract.toBv257())
                 }
