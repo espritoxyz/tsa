@@ -1,0 +1,34 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+(int) slice_data_equal?(slice s1, slice s2) asm "SDEQ";
+
+global slice initial_sender;
+global slice contract_address;
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    slice cs = in_msg_full.begin_parse();
+    cs~load_uint(4); ;; flags
+    initial_sender = cs~load_msg_addr(); ;; src
+    contract_address = cs~load_msg_addr(); ;; dst
+
+    cell c4 = tsa_get_c4(1);
+    tsa_make_address_random(initial_sender);
+    tsa_make_slice_independent_from_random_addresses(c4.begin_parse());
+    tsa_make_slice_independent_from_random_addresses(contract_address);
+}
+
+
+() main() impure {
+    tsa_forbid_failures();
+    tsa_send_internal_message(1, 0);
+    tsa_allow_failures();
+
+    slice ds = get_data().begin_parse();
+    var methodId = ds~load_int(32);
+    var contract_owner = tsa_call_1_0(1, methodId);
+
+    var are_equal = slice_data_equal?(contract_owner, initial_sender);
+    throw_if(1000, are_equal);
+    throw_if(500, ~ are_equal);
+}

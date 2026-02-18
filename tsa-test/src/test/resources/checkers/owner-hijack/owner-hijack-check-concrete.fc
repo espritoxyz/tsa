@@ -1,0 +1,37 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+(int) slice_data_equal?(slice s1, slice s2) asm "SDEQ";
+
+global slice concrete_sender;
+global int max_msg_value;
+global slice contract_address;
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    slice cs = in_msg_full.begin_parse();
+    cs~load_uint(4); ;; flags
+    slice sender = cs~load_msg_addr(); ;; src
+    cs~load_msg_addr(); ;; dst
+    int msg_value = cs~load_coins();
+
+    tsa_assert(equal_slice_bits(sender, concrete_sender));
+    tsa_assert(msg_value < max_msg_value);
+
+}
+
+
+() main() impure {
+    tsa_forbid_failures();
+
+    slice ds = get_data().begin_parse();
+    var methodId = ds~load_int(32);
+    concrete_sender = ds~load_msg_addr();
+    max_msg_value = ds~load_coins();
+    tsa_send_internal_message(1, 0);
+
+    tsa_allow_failures();
+
+    var contract_owner = tsa_call_1_0(1, methodId);
+
+    throw_if(1000, slice_data_equal?(contract_owner, concrete_sender));
+}
