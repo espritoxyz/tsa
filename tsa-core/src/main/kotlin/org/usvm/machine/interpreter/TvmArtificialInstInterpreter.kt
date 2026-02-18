@@ -396,7 +396,7 @@ class TvmArtificialInstInterpreter(
 
                 is ActionHandlingResult.RealFailure -> {
                     calcOnState {
-                        ctx.setFailure(actionsHandlingResult.failure, level = TvmFailureType.RealError)(this)
+                        ctx.setFailure(actionsHandlingResult.failure, level = TvmFailureType.UnknownError)(this)
                     }
                 }
 
