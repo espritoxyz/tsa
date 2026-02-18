@@ -12,7 +12,10 @@
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
-    var msg = construct_message();
-    send_raw_message(msg, 0);
-    return();
+    var msg_count = msg_body.preload_int(32);
+    repeat (msg_count) {
+        var msg = construct_message();
+        send_raw_message(msg, 0);
+    }
+    return ();
 }

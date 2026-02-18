@@ -3,6 +3,7 @@
 
 
 () on_compute_phase_exit(cell c5, int exit_code, int compute_fee, int contract_id) impure method_id {
+    throw_if(400, exit_code != 0);
     var actions = c5.begin_parse();
     var count = 0;
     var i = 0;
@@ -19,11 +20,12 @@
 () on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
     tsa_forbid_failures();
 
+    int msg_count = get_data().begin_parse().preload_int(32);
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     tsa_assert_not(flags & 1);
     int op = msg_body~load_uint(32);
-    tsa_assert(op == 100);
+    tsa_assert(op == msg_count);
     tsa_allow_failures();
 }
 

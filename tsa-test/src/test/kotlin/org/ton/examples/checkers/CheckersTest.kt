@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Tag
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
+import org.ton.cell.CellBuilder
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.assertPropertiesFound
@@ -393,7 +394,21 @@ class CheckersTest {
     }
 
     @Test
-    fun `get c5 test`() {
+    fun `get c5 test 0 message`() {
+        runMultipleMessageSend(0)
+    }
+
+    @Test
+    fun `get c5 test 1 message`() {
+        runMultipleMessageSend(1)
+    }
+
+    @Test
+    fun `get c5 test 2 message`() {
+        runMultipleMessageSend(2)
+    }
+
+    private fun runMultipleMessageSend(msgCount: Int) {
         val checkerContract = extractCheckerContractFromResource(GetC5.CHECKER)
         val senderContract = extractFuncContractFromResource(GetC5.SENDER)
         val options =
@@ -408,10 +423,16 @@ class CheckersTest {
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder().storeUInt(msgCount, 32).endCell()),
+                        TvmConcreteContractData(),
+                    ),
             )
 
+        val expectedCode = 600 + msgCount
         tests.assertPropertiesFound(
-            { test -> test.exitCode() == 601 },
+            { test -> test.exitCode() == expectedCode },
         )
     }
 
