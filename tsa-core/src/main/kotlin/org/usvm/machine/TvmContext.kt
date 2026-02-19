@@ -25,7 +25,6 @@ import io.ksmt.sort.KBoolSort
 import io.ksmt.sort.KBvCustomSizeSort
 import io.ksmt.sort.KBvSort
 import io.ksmt.sort.KSort
-import io.ksmt.utils.BvUtils.bvMaxValueUnsigned
 import io.ksmt.utils.BvUtils.shiftLeft
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.asExpr
@@ -109,7 +108,6 @@ class TvmContext(
     val unixTimeMaxValue: KBitVecValue<TvmInt257Sort> = UNIX_TIME_MAX.toBv257()
     val min257BitValue: KExpr<TvmInt257Sort> = bvMinValueSignedExtended(intBitsValue)
     val max257BitValue: KExpr<TvmInt257Sort> = bvMaxValueSignedExtended(intBitsValue)
-    val maxGramsValue: KExpr<TvmInt257Sort> = bvMaxValueUnsigned<UBvSort>(MAX_GRAMS_BITS).unsignedExtendToInteger()
     val maxLogicalTimeValue = mkBvShiftLeftExpr(oneValue, 64.toBv257())
 
     val masterchain: KBitVecValue<TvmInt257Sort> = minusOneValue
@@ -120,7 +118,6 @@ class TvmContext(
     val twoSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(2)
     val threeSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(3)
     val fourSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(4)
-    val sixSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(6)
     val eightSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(8)
     val sizeExpr32: UExpr<TvmSizeSort> = mkSizeExpr(32)
     val maxDataLengthSizeExpr: UExpr<TvmSizeSort> = mkSizeExpr(MAX_DATA_LENGTH)
@@ -615,6 +612,8 @@ class TvmContext(
     class TvmInt257Ext256Sort(
         ctx: KContext,
     ) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
+
+    infix fun <T : KBvSort> KExpr<T>.bvEq(other: KExpr<T>): UBoolExpr = mkEq(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvAdd(other: KExpr<T>): KExpr<T> = mkBvAddExpr(this, other)
 

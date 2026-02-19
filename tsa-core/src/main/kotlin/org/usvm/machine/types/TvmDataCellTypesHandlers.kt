@@ -89,6 +89,9 @@ private fun TlbStack.Error.ignore(
         fromMutableTlb ||
         (cellRef.isAllocated && !ctx.tvmOptions.tlbOptions.performTlbChecksOnAllocatedCells)
 
+/**
+ * @param newSlice contains the data left after the loading of [type] from [oldSlice]
+ */
 fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     oldSlice: UHeapRef,
     type: TvmCellDataTypeRead<ReadResult>,

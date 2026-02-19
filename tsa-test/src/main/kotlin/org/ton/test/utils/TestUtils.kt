@@ -286,7 +286,7 @@ internal fun compareSymbolicAndConcreteResultsFunc(
     methods: Set<Int>,
 ) {
     val contractPath = extractResource(resourcePath)
-    val tmpFiftFile = kotlin.io.path.createTempFile(suffix = ".boc")
+    val tmpFiftFile = kotlin.io.path.createTempFile(suffix = ".fif")
 
     try {
         compileFuncToFift(contractPath, tmpFiftFile)
@@ -303,6 +303,24 @@ internal fun compareSymbolicAndConcreteResultsFunc(
         }
     } finally {
         tmpFiftFile.deleteIfExists()
+    }
+}
+
+internal fun compareSymbolicAndConcreteResultsFift(
+    fiftPath: String,
+    lastIndex: Int,
+) {
+    val fiftResourcePath = extractResource(fiftPath)
+
+    val symbolicResult =
+        compileAndAnalyzeFift(
+            fiftResourcePath,
+            tvmOptions = testConcreteOptions,
+        )
+    val methodIds = (0..lastIndex).toSet()
+
+    compareSymbolicAndConcreteResults(methodIds, symbolicResult) { methodId ->
+        runFiftMethod(fiftResourcePath, methodId)
     }
 }
 

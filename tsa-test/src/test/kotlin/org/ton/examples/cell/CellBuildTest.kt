@@ -3,6 +3,7 @@ package org.ton.examples.cell
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.compareSymbolicAndConcreteFromResource
+import org.ton.test.utils.compareSymbolicAndConcreteResultsFunc
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
@@ -12,6 +13,8 @@ import kotlin.test.Test
 class CellBuildTest {
     private val storeSliceConstFif: String = "/cell/cell-build/CellBuild.fif"
     private val storeOnesFunc: String = "/cell/cell-build/StonesSymbolicSize.fc"
+    private val sdppfxFunc: String = "/cell/sdppfx.fc"
+    private val sdppfxrevFunc: String = "/cell/sdppfxrev.fc"
 
     @Test
     fun cellBuildTest() {
@@ -31,5 +34,15 @@ class CellBuildTest {
             ),
         )
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
+    }
+
+    @Test
+    fun `test prefix functions`() {
+        compareSymbolicAndConcreteResultsFunc(sdppfxFunc, (0..3).toSet())
+    }
+
+    @Test
+    fun `test prefix rev functions`() {
+        compareSymbolicAndConcreteResultsFunc(sdppfxrevFunc, (0..3).toSet())
     }
 }

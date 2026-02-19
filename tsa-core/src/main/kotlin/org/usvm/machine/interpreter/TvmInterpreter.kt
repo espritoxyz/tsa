@@ -80,6 +80,8 @@ import org.ton.bytecode.TvmCompareOtherInst
 import org.ton.bytecode.TvmCompareOtherSdcnttrail0Inst
 import org.ton.bytecode.TvmCompareOtherSdemptyInst
 import org.ton.bytecode.TvmCompareOtherSdeqInst
+import org.ton.bytecode.TvmCompareOtherSdpfxInst
+import org.ton.bytecode.TvmCompareOtherSdpfxrevInst
 import org.ton.bytecode.TvmCompareOtherSemptyInst
 import org.ton.bytecode.TvmCompareOtherSremptyInst
 import org.ton.bytecode.TvmConstDataInst
@@ -253,6 +255,7 @@ import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.addTuple
+import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocateCell
 import org.usvm.machine.state.bvMaxValueSignedExtended
@@ -301,9 +304,11 @@ import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
+import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.signedIntegerFitsBits
+import org.usvm.machine.state.sliceLoadBitArrayTlb
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.state.takeLastCell
@@ -1982,8 +1987,68 @@ class TvmInterpreter(
                 }
             }
 
+            is TvmCompareOtherSdpfxInst -> {
+                visitIsPrefixInstruction(scope, stmt)
+            }
+
+            is TvmCompareOtherSdpfxrevInst -> {
+                visitIsPrefixInstruction(scope, stmt, isReverse = true)
+            }
+
             else -> {
                 TODO("$stmt")
+            }
+        }
+    }
+
+    private fun TvmContext.visitIsPrefixInstruction(
+        scope: TvmStepScopeManager,
+        stmt: TvmCompareOtherInst,
+        isReverse: Boolean = false,
+    ) {
+        scope.consumeDefaultGas(stmt)
+        val topSlice = scope.calcOnState { takeLastSlice() }
+        val botSlice = scope.calcOnState { takeLastSlice() }
+        val (greaterSlice, lesserSlice) =
+            if (!isReverse) {
+                topSlice to botSlice
+            } else {
+                botSlice to topSlice
+            }
+        if (lesserSlice == null || greaterSlice == null) {
+            scope.doWithState(throwTypeCheckError)
+            return
+        }
+
+        val lesserSliceLength = scope.calcOnState { readSliceLeftLength(lesserSlice) }
+        val greaterSliceLength = scope.calcOnState { readSliceLeftLength(greaterSlice) }
+        scope.fork(
+            with(ctx) { lesserSliceLength bvUle greaterSliceLength },
+            falseStateIsExceptional = false,
+            blockOnFalseState = {
+                stack.addInt(falseExpr.toBv257Bool())
+                newStmt(stmt.nextStmt())
+            },
+        ) ?: return
+
+        scope.sliceLoadBitArrayTlb(
+            lesserSlice,
+            scope.calcOnState { allocSliceFromCell(allocEmptyCell()) },
+            lesserSliceLength,
+        ) { lesserSliceRelevantPart ->
+            sliceLoadBitArrayTlb(
+                greaterSlice,
+                calcOnState { allocSliceFromCell(allocEmptyCell()) },
+                lesserSliceLength,
+            ) { greaterSliceRelevantPart ->
+                val isPrefix =
+                    slicesAreEqual(lesserSliceRelevantPart, greaterSliceRelevantPart)
+                        ?: return@sliceLoadBitArrayTlb
+
+                calcOnState {
+                    stack.addInt(isPrefix.toBv257Bool())
+                    newStmt(stmt.nextStmt())
+                }
             }
         }
     }
