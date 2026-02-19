@@ -3,14 +3,21 @@ package org.ton.examples.checkers
 import org.junit.jupiter.api.Tag
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
+import org.ton.bytecode.TsaContractCode
 import org.ton.cell.Cell
+import org.ton.cell.CellBuilder
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
+import org.ton.test.utils.assertInvariantsHold
+import org.ton.test.utils.assertNotEmpty
+import org.ton.test.utils.assertPropertiesFound
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.doesNotEndWithExitCode
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
+import org.ton.test.utils.hasExitCode
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.ExploreExitCodesStopStrategy
 import org.usvm.machine.IntercontractOptions
@@ -26,6 +33,7 @@ import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput
 import org.usvm.test.resolver.TvmTestResult
@@ -71,6 +79,23 @@ class CheckersTest {
     private object BodyAsRefTest {
         const val CHECKER = "/checkers/body-as-ref-test/checker.fc"
         const val SENDER = "/checkers/body-as-ref-test/sender.fc"
+    }
+
+    private object GetC5 {
+        const val CHECKER = "/checkers/get-c5/checker.fc"
+        const val SENDER = "/checkers/get-c5/sender.fc"
+    }
+
+    private object BounceChecker {
+        const val BOUNCE_CHECKER = "/checkers/bounce-checker/bounce-checker.fc"
+        const val SCHEME = "/checkers/bounce-checker/bounce-checker-scheme.json"
+        const val NAIVE_SENDER = "/checkers/bounce-checker/naive-sender.fc"
+        const val NOT_NAIVE_SENDER = "/checkers/bounce-checker/not-naive-sender.fc"
+        const val THROWER = "/checkers/bounce-checker/always-thrower.fc"
+        const val BAD_BOUNCED_HANDLER = "/checkers/bounce-checker/sender-with-bad-bounced-handling.fc"
+
+        const val FAILURE_DURING_BOUNCE_HANDLING_EXIT_CODE = 1000
+        const val SENT_MSG_ON_BOUNCE_EXIT_CODE = 1001
     }
 
     private object OnComputePhaseExitTestData {
@@ -384,6 +409,99 @@ class CheckersTest {
             tests,
             listOf { test -> test.exitCode() == 500 },
         )
+    }
+
+    @Test
+    fun `get c5 test 0 message`() {
+        runMultipleMessageSend(0)
+    }
+
+    @Test
+    fun `get c5 test 1 message`() {
+        runMultipleMessageSend(1)
+    }
+
+    @Test
+    fun `get c5 test 2 message`() {
+        runMultipleMessageSend(2)
+    }
+
+    private fun runMultipleMessageSend(msgCount: Int) {
+        val checkerContract = extractCheckerContractFromResource(GetC5.CHECKER)
+        val senderContract = extractFuncContractFromResource(GetC5.SENDER)
+        val options =
+            TvmOptions(
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+            )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder().storeUInt(msgCount, 32).endCell()),
+                        TvmConcreteContractData(),
+                    ),
+            )
+
+        val expectedCode = 600 + msgCount
+        tests.assertPropertiesFound(
+            hasExitCode(expectedCode),
+        )
+    }
+
+    @Test
+    fun `bounce naive sender`() {
+        val naiveSender = extractFuncContractFromResource(BounceChecker.NAIVE_SENDER)
+        val tests = bounceCheckerBase(naiveSender)
+        tests.assertPropertiesFound(
+            hasExitCode(BounceChecker.SENT_MSG_ON_BOUNCE_EXIT_CODE),
+        )
+    }
+
+    @Test
+    fun `bounce non-naive sender`() {
+        val nonNaiveSender = extractFuncContractFromResource(BounceChecker.NOT_NAIVE_SENDER)
+        val tests = bounceCheckerBase(nonNaiveSender)
+        tests.assertNotEmpty()
+        tests.assertInvariantsHold(
+            doesNotEndWithExitCode(BounceChecker.SENT_MSG_ON_BOUNCE_EXIT_CODE),
+            doesNotEndWithExitCode(BounceChecker.FAILURE_DURING_BOUNCE_HANDLING_EXIT_CODE),
+        )
+    }
+
+    @Test
+    fun `bounce with bad handler`() {
+        val badHandler = extractFuncContractFromResource(BounceChecker.BAD_BOUNCED_HANDLER)
+        val tests = bounceCheckerBase(badHandler)
+        tests.assertPropertiesFound(
+            hasExitCode(BounceChecker.FAILURE_DURING_BOUNCE_HANDLING_EXIT_CODE),
+        )
+    }
+
+    private fun bounceCheckerBase(naiveSender: TsaContractCode): TvmSymbolicTestSuite {
+        val bounceChecker = extractCheckerContractFromResource(BounceChecker.BOUNCE_CHECKER)
+        val thrower = extractFuncContractFromResource(BounceChecker.THROWER)
+        val scheme = extractCommunicationSchemeFromResource(BounceChecker.SCHEME)
+        val options =
+            TvmOptions(
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+                intercontractOptions = IntercontractOptions(communicationScheme = scheme),
+            )
+        val tests =
+            analyzeInterContract(
+                listOf(bounceChecker, naiveSender, thrower),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+        return tests
     }
 
     @Test
