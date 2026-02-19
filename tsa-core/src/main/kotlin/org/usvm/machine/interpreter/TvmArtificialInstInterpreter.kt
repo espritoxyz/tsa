@@ -76,6 +76,7 @@ import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setBalance
 import org.usvm.machine.state.setExit
+import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.types.asCellRef
@@ -395,14 +396,7 @@ class TvmArtificialInstInterpreter(
 
                 is ActionHandlingResult.RealFailure -> {
                     calcOnState {
-                        val failure =
-                            TvmFailure(
-                                actionsHandlingResult.failure,
-                                TvmFailureType.UnknownError,
-                                phase,
-                                pathNode,
-                            )
-                        newStmt(TsaArtificialExitInst(stmt.computePhaseResult, failure, lastStmt.location))
+                        ctx.setFailure(actionsHandlingResult.failure, level = TvmFailureType.UnknownError)(this)
                     }
                 }
 
