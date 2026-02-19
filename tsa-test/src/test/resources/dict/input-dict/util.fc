@@ -13,3 +13,7 @@
     throw_if(402, ~ found);
     return result.preload_dict();
 }
+
+(cell, slice, int) udict_set_get(cell dict, int key_length, int key, slice value) asm (value key dict  key_length) "DICTUSETGET" "NULLSWAPIFNOT";
+(cell, slice, int) udict_add_get(cell dict, int key_length, int key, slice value) asm (value key dict  key_length) "DICTUADDGET" "NULLSWAPIF";
+(cell, slice, int) udict_replace_get(cell dict, int key_length, int key, slice value) asm (value key dict  key_length) "DICTUREPLACEGET" "NULLSWAPIFNOT";
