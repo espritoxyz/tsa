@@ -304,13 +304,11 @@ import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
-import org.usvm.machine.state.readCellData
-import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.signedIntegerFitsBits
-import org.usvm.machine.state.sliceLoadBitArray
+import org.usvm.machine.state.sliceLoadBitArrayTlb
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.state.takeLastCell
@@ -2033,23 +2031,19 @@ class TvmInterpreter(
             },
         ) ?: return
 
-        scope.sliceLoadBitArray(
+        scope.sliceLoadBitArrayTlb(
             lesserSlice,
             scope.calcOnState { allocSliceFromCell(allocEmptyCell()) },
             lesserSliceLength,
         ) { lesserSliceRelevantPart ->
-            sliceLoadBitArray(
+            sliceLoadBitArrayTlb(
                 greaterSlice,
                 calcOnState { allocSliceFromCell(allocEmptyCell()) },
                 lesserSliceLength,
             ) { greaterSliceRelevantPart ->
-                val lesserSliceData =
-                    readCellData(calcOnState { readSliceCell(lesserSliceRelevantPart) })
-                        ?: return@sliceLoadBitArray
-                val greaterSliceData =
-                    readCellData(calcOnState { readSliceCell(greaterSliceRelevantPart) })
-                        ?: return@sliceLoadBitArray
-                val isPrefix = lesserSliceData bvEq greaterSliceData
+                val isPrefix =
+                    slicesAreEqual(lesserSliceRelevantPart, greaterSliceRelevantPart)
+                        ?: return@sliceLoadBitArrayTlb
 
                 calcOnState {
                     stack.addInt(isPrefix.toBv257Bool())

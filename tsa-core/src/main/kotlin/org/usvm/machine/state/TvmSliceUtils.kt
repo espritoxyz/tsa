@@ -1411,7 +1411,7 @@ fun sliceLoadIntTlb(
     }
 }
 
-fun TvmStepScopeManager.sliceLoadBitArray(
+fun TvmStepScopeManager.sliceLoadBitArrayTlb(
     slice: UHeapRef,
     newSlice: UConcreteHeapRef,
     sizeBits: SizeExpr,
