@@ -332,6 +332,8 @@ import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
 import org.usvm.memory.UWritableMemory
 import org.usvm.mkSizeExpr
+import org.usvm.mkSizeLeExpr
+import org.usvm.mkSizeLtExpr
 import org.usvm.sizeSort
 import org.usvm.solver.USatResult
 import org.usvm.targets.UTargetsSet
@@ -2036,9 +2038,9 @@ class TvmInterpreter(
         val lengthCs =
             with(ctx) {
                 if (allowEq) {
-                    lesserSliceLength bvUle greaterSliceLength
+                    mkSizeLeExpr(lesserSliceLength, greaterSliceLength)
                 } else {
-                    lesserSliceLength bvUlt greaterSliceLength
+                    mkSizeLtExpr(lesserSliceLength, greaterSliceLength)
                 }
             }
         scope.fork(
