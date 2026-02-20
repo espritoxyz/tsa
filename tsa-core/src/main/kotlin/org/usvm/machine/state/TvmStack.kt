@@ -388,7 +388,10 @@ class TvmStack(
 
         val cell =
             when (entry) {
-                is TvmConcreteStackEntry -> entry.concreteCell
+                is TvmConcreteStackEntry -> {
+                    entry.concreteCell
+                }
+
                 is TvmInputStackEntry -> {
                     entry.cell(this) ?: run {
                         val stackValue = createEntry(entry.id)

@@ -245,7 +245,7 @@ class TvmDictOperationInterpreter(
         inst: TvmDictSetInst,
     ) {
         when (inst) {
-            is TvmDictSetDictaddInst ->
+            is TvmDictSetDictaddInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -254,8 +254,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictaddgetInst ->
+            is TvmDictSetDictaddgetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -264,8 +265,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictaddrefInst ->
+            is TvmDictSetDictaddrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -274,8 +276,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictaddgetrefInst ->
+            is TvmDictSetDictaddgetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -284,8 +287,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictreplaceInst ->
+            is TvmDictSetDictreplaceInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -294,8 +298,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictreplacegetInst ->
+            is TvmDictSetDictreplacegetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -304,8 +309,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictreplacerefInst ->
+            is TvmDictSetDictreplacerefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -314,8 +320,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictreplacegetrefInst ->
+            is TvmDictSetDictreplacegetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -324,8 +331,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictsetInst ->
+            is TvmDictSetDictsetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -334,8 +342,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictsetgetInst ->
+            is TvmDictSetDictsetgetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -344,8 +353,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictsetrefInst ->
+            is TvmDictSetDictsetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -354,8 +364,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictsetgetrefInst ->
+            is TvmDictSetDictsetgetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -364,8 +375,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictiaddInst ->
+            is TvmDictSetDictiaddInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -374,8 +386,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictiaddgetInst ->
+            is TvmDictSetDictiaddgetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -384,8 +397,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictiaddrefInst ->
+            is TvmDictSetDictiaddrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -394,8 +408,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictiaddgetrefInst ->
+            is TvmDictSetDictiaddgetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -404,8 +419,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictireplaceInst ->
+            is TvmDictSetDictireplaceInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -414,8 +430,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictireplacegetInst ->
+            is TvmDictSetDictireplacegetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -424,8 +441,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictireplacerefInst ->
+            is TvmDictSetDictireplacerefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -434,8 +452,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictireplacegetrefInst ->
+            is TvmDictSetDictireplacegetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -444,8 +463,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictisetInst ->
+            is TvmDictSetDictisetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -454,8 +474,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictisetgetInst ->
+            is TvmDictSetDictisetgetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -464,8 +485,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictisetrefInst ->
+            is TvmDictSetDictisetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -474,8 +496,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictisetgetrefInst ->
+            is TvmDictSetDictisetgetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -484,8 +507,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictuaddInst ->
+            is TvmDictSetDictuaddInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -494,8 +518,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictuaddgetInst ->
+            is TvmDictSetDictuaddgetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -504,8 +529,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictuaddrefInst ->
+            is TvmDictSetDictuaddrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -514,8 +540,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictuaddgetrefInst ->
+            is TvmDictSetDictuaddgetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -524,8 +551,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetDictureplaceInst ->
+            is TvmDictSetDictureplaceInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -534,8 +562,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictureplacegetInst ->
+            is TvmDictSetDictureplacegetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -544,8 +573,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictureplacerefInst ->
+            is TvmDictSetDictureplacerefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -554,8 +584,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictureplacegetrefInst ->
+            is TvmDictSetDictureplacegetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -564,8 +595,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetDictusetInst ->
+            is TvmDictSetDictusetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -574,8 +606,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictusetgetInst ->
+            is TvmDictSetDictusetgetInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -584,8 +617,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictusetrefInst ->
+            is TvmDictSetDictusetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -594,8 +628,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetDictusetgetrefInst ->
+            is TvmDictSetDictusetgetrefInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -604,6 +639,7 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
         }
     }
 
@@ -612,7 +648,7 @@ class TvmDictOperationInterpreter(
         inst: TvmDictSetBuilderInst,
     ) {
         when (inst) {
-            is TvmDictSetBuilderDictaddbInst ->
+            is TvmDictSetBuilderDictaddbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -621,8 +657,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetBuilderDictaddgetbInst ->
+            is TvmDictSetBuilderDictaddgetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -631,8 +668,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetBuilderDictreplacebInst ->
+            is TvmDictSetBuilderDictreplacebInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -641,8 +679,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetBuilderDictreplacegetbInst ->
+            is TvmDictSetBuilderDictreplacegetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -651,8 +690,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetBuilderDictsetbInst ->
+            is TvmDictSetBuilderDictsetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -661,8 +701,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetBuilderDictsetgetbInst ->
+            is TvmDictSetBuilderDictsetgetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -671,8 +712,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetBuilderDictiaddbInst ->
+            is TvmDictSetBuilderDictiaddbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -681,8 +723,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetBuilderDictiaddgetbInst ->
+            is TvmDictSetBuilderDictiaddgetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -691,8 +734,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetBuilderDictireplacebInst ->
+            is TvmDictSetBuilderDictireplacebInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -701,8 +745,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetBuilderDictireplacegetbInst ->
+            is TvmDictSetBuilderDictireplacegetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -711,8 +756,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetBuilderDictisetbInst ->
+            is TvmDictSetBuilderDictisetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -721,8 +767,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetBuilderDictisetgetbInst ->
+            is TvmDictSetBuilderDictisetgetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -731,8 +778,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetBuilderDictuaddbInst ->
+            is TvmDictSetBuilderDictuaddbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -741,8 +789,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetBuilderDictuaddgetbInst ->
+            is TvmDictSetBuilderDictuaddgetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -751,8 +800,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.ADD,
                 )
+            }
 
-            is TvmDictSetBuilderDictureplacebInst ->
+            is TvmDictSetBuilderDictureplacebInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -761,8 +811,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetBuilderDictureplacegetbInst ->
+            is TvmDictSetBuilderDictureplacegetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -771,8 +822,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.REPLACE,
                 )
+            }
 
-            is TvmDictSetBuilderDictusetbInst ->
+            is TvmDictSetBuilderDictusetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -781,8 +833,9 @@ class TvmDictOperationInterpreter(
                     getOldValue = false,
                     DictSetMode.SET,
                 )
+            }
 
-            is TvmDictSetBuilderDictusetgetbInst ->
+            is TvmDictSetBuilderDictusetgetbInst -> {
                 doDictSet(
                     inst,
                     scope,
@@ -791,6 +844,7 @@ class TvmDictOperationInterpreter(
                     getOldValue = true,
                     DictSetMode.SET,
                 )
+            }
         }
     }
 
@@ -799,7 +853,7 @@ class TvmDictOperationInterpreter(
         inst: TvmDictGetInst,
     ) {
         when (inst) {
-            is TvmDictGetDictgetInst ->
+            is TvmDictGetDictgetInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -807,8 +861,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     nullDefaultValue = false,
                 )
+            }
 
-            is TvmDictGetDictgetrefInst ->
+            is TvmDictGetDictgetrefInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -816,8 +871,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     nullDefaultValue = false,
                 )
+            }
 
-            is TvmDictGetDictigetInst ->
+            is TvmDictGetDictigetInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -825,8 +881,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     nullDefaultValue = false,
                 )
+            }
 
-            is TvmDictGetDictigetrefInst ->
+            is TvmDictGetDictigetrefInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -834,8 +891,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     nullDefaultValue = false,
                 )
+            }
 
-            is TvmDictGetDictugetInst ->
+            is TvmDictGetDictugetInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -843,8 +901,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     nullDefaultValue = false,
                 )
+            }
 
-            is TvmDictGetDictugetrefInst ->
+            is TvmDictGetDictugetrefInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -852,6 +911,7 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     nullDefaultValue = false,
                 )
+            }
         }
     }
 
@@ -860,7 +920,7 @@ class TvmDictOperationInterpreter(
         inst: TvmDictMayberefInst,
     ) {
         when (inst) {
-            is TvmDictMayberefDictgetoptrefInst ->
+            is TvmDictMayberefDictgetoptrefInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -868,8 +928,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     nullDefaultValue = true,
                 )
+            }
 
-            is TvmDictMayberefDictigetoptrefInst ->
+            is TvmDictMayberefDictigetoptrefInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -877,8 +938,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     nullDefaultValue = true,
                 )
+            }
 
-            is TvmDictMayberefDictugetoptrefInst ->
+            is TvmDictMayberefDictugetoptrefInst -> {
                 doDictGet(
                     inst,
                     scope,
@@ -886,8 +948,11 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     nullDefaultValue = true,
                 )
+            }
 
-            else -> TODO("Unknown stmt: $inst")
+            else -> {
+                TODO("Unknown stmt: $inst")
+            }
         }
     }
 
@@ -896,7 +961,7 @@ class TvmDictOperationInterpreter(
         inst: TvmDictDeleteInst,
     ) {
         when (inst) {
-            is TvmDictDeleteDictdelInst ->
+            is TvmDictDeleteDictdelInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -904,8 +969,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     getOldValue = false,
                 )
+            }
 
-            is TvmDictDeleteDictdelgetInst ->
+            is TvmDictDeleteDictdelgetInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -913,8 +979,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     getOldValue = true,
                 )
+            }
 
-            is TvmDictDeleteDictdelgetrefInst ->
+            is TvmDictDeleteDictdelgetrefInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -922,8 +989,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     getOldValue = true,
                 )
+            }
 
-            is TvmDictDeleteDictidelInst ->
+            is TvmDictDeleteDictidelInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -931,8 +999,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     getOldValue = false,
                 )
+            }
 
-            is TvmDictDeleteDictidelgetInst ->
+            is TvmDictDeleteDictidelgetInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -940,8 +1009,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     getOldValue = true,
                 )
+            }
 
-            is TvmDictDeleteDictidelgetrefInst ->
+            is TvmDictDeleteDictidelgetrefInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -949,8 +1019,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     getOldValue = true,
                 )
+            }
 
-            is TvmDictDeleteDictudelInst ->
+            is TvmDictDeleteDictudelInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -958,8 +1029,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     getOldValue = false,
                 )
+            }
 
-            is TvmDictDeleteDictudelgetInst ->
+            is TvmDictDeleteDictudelgetInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -967,8 +1039,9 @@ class TvmDictOperationInterpreter(
                     DictValueType.SLICE,
                     getOldValue = true,
                 )
+            }
 
-            is TvmDictDeleteDictudelgetrefInst ->
+            is TvmDictDeleteDictudelgetrefInst -> {
                 doDictDelete(
                     inst,
                     scope,
@@ -976,6 +1049,7 @@ class TvmDictOperationInterpreter(
                     DictValueType.CELL,
                     getOldValue = true,
                 )
+            }
         }
     }
 
@@ -1000,7 +1074,7 @@ class TvmDictOperationInterpreter(
         inst: TvmDictMinInst,
     ) {
         when (inst) {
-            is TvmDictMinDictimaxInst ->
+            is TvmDictMinDictimaxInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1009,8 +1083,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictimaxrefInst ->
+            is TvmDictMinDictimaxrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1019,8 +1094,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictiminInst ->
+            is TvmDictMinDictiminInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1029,8 +1105,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictiminrefInst ->
+            is TvmDictMinDictiminrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1039,8 +1116,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictiremmaxInst ->
+            is TvmDictMinDictiremmaxInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1049,8 +1127,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDictiremmaxrefInst ->
+            is TvmDictMinDictiremmaxrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1059,8 +1138,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDictiremminInst ->
+            is TvmDictMinDictiremminInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1069,8 +1149,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDictiremminrefInst ->
+            is TvmDictMinDictiremminrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1079,8 +1160,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDictmaxInst ->
+            is TvmDictMinDictmaxInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1089,8 +1171,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictmaxrefInst ->
+            is TvmDictMinDictmaxrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1099,8 +1182,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictminInst ->
+            is TvmDictMinDictminInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1109,8 +1193,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictminrefInst ->
+            is TvmDictMinDictminrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1119,8 +1204,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictremmaxInst ->
+            is TvmDictMinDictremmaxInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1129,8 +1215,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDictremmaxrefInst ->
+            is TvmDictMinDictremmaxrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1139,8 +1226,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDictremminInst ->
+            is TvmDictMinDictremminInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1149,8 +1237,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDictremminrefInst ->
+            is TvmDictMinDictremminrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1159,8 +1248,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDictumaxInst ->
+            is TvmDictMinDictumaxInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1169,8 +1259,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictumaxrefInst ->
+            is TvmDictMinDictumaxrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1179,8 +1270,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictuminInst ->
+            is TvmDictMinDictuminInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1189,8 +1281,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDictuminrefInst ->
+            is TvmDictMinDictuminrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1199,8 +1292,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = false,
                 )
+            }
 
-            is TvmDictMinDicturemmaxInst ->
+            is TvmDictMinDicturemmaxInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1209,8 +1303,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDicturemmaxrefInst ->
+            is TvmDictMinDicturemmaxrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1219,8 +1314,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MAX,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDicturemminInst ->
+            is TvmDictMinDicturemminInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1229,8 +1325,9 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = true,
                 )
+            }
 
-            is TvmDictMinDicturemminrefInst ->
+            is TvmDictMinDicturemminrefInst -> {
                 doDictMinMax(
                     inst,
                     scope,
@@ -1239,6 +1336,7 @@ class TvmDictOperationInterpreter(
                     DictMinMaxMode.MIN,
                     removeKey = true,
                 )
+            }
         }
     }
 
@@ -1247,7 +1345,7 @@ class TvmDictOperationInterpreter(
         inst: TvmDictNextInst,
     ) {
         when (inst) {
-            is TvmDictNextDictgetnextInst ->
+            is TvmDictNextDictgetnextInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1256,8 +1354,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.NEXT,
                     allowEq = false,
                 )
+            }
 
-            is TvmDictNextDictgetnexteqInst ->
+            is TvmDictNextDictgetnexteqInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1266,8 +1365,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.NEXT,
                     allowEq = true,
                 )
+            }
 
-            is TvmDictNextDictgetprevInst ->
+            is TvmDictNextDictgetprevInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1276,8 +1376,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.PREV,
                     allowEq = false,
                 )
+            }
 
-            is TvmDictNextDictgetpreveqInst ->
+            is TvmDictNextDictgetpreveqInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1286,8 +1387,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.PREV,
                     allowEq = true,
                 )
+            }
 
-            is TvmDictNextDictigetnextInst ->
+            is TvmDictNextDictigetnextInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1296,8 +1398,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.NEXT,
                     allowEq = false,
                 )
+            }
 
-            is TvmDictNextDictigetnexteqInst ->
+            is TvmDictNextDictigetnexteqInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1306,8 +1409,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.NEXT,
                     allowEq = true,
                 )
+            }
 
-            is TvmDictNextDictigetprevInst ->
+            is TvmDictNextDictigetprevInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1316,8 +1420,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.PREV,
                     allowEq = false,
                 )
+            }
 
-            is TvmDictNextDictigetpreveqInst ->
+            is TvmDictNextDictigetpreveqInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1326,8 +1431,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.PREV,
                     allowEq = true,
                 )
+            }
 
-            is TvmDictNextDictugetnextInst ->
+            is TvmDictNextDictugetnextInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1336,8 +1442,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.NEXT,
                     allowEq = false,
                 )
+            }
 
-            is TvmDictNextDictugetnexteqInst ->
+            is TvmDictNextDictugetnexteqInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1346,8 +1453,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.NEXT,
                     allowEq = true,
                 )
+            }
 
-            is TvmDictNextDictugetprevInst ->
+            is TvmDictNextDictugetprevInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1356,8 +1464,9 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.PREV,
                     allowEq = false,
                 )
+            }
 
-            is TvmDictNextDictugetpreveqInst ->
+            is TvmDictNextDictugetpreveqInst -> {
                 doDictNextPrev(
                     inst,
                     scope,
@@ -1366,6 +1475,7 @@ class TvmDictOperationInterpreter(
                     DictNextPrevMode.PREV,
                     allowEq = true,
                 )
+            }
         }
     }
 
@@ -1518,6 +1628,7 @@ class TvmDictOperationInterpreter(
                 keyLength = keyLength,
                 value = value,
                 inst = inst,
+                valueType,
             )
             return
         }
@@ -1629,12 +1740,10 @@ class TvmDictOperationInterpreter(
         keyLength: Int,
         value: KExpr<UAddressSort>,
         inst: TvmDictInst,
+        valueType: DictValueType,
     ) {
         val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
         val dictId = keyLength.asDictId()
-        if (getOldValue) {
-            TODO("unsupported getting old value in input dicts `set` operation")
-        }
         val dictOriginalConcrete =
             dictCellRef as? UConcreteHeapRef
                 ?: TODO("ites are not supported yet")
@@ -1642,14 +1751,21 @@ class TvmDictOperationInterpreter(
             scope.calcOnState {
                 readInputDictionary(dictOriginalConcrete, keySort, keyKind)
             }
-        val conditionToStore =
-            createStoreConditionFromMode(scope, mode, keyKind, baseInputDict, key)
+        val keyExists =
+            doInputDictHasKey(scope, baseInputDict, TypedDictKey(key, keyKind))?.exists
                 ?: return
+
+        val conditionToStore = createStoreConditionFromMode(mode, keyExists)
         val appliedModification = Modification.Store(TypedDictKey(key, keyKind), conditionToStore)
         val newInputDict = baseInputDict.withModification(appliedModification)
         scope.calcOnState {
             inputDictionaryStorage = inputDictionaryStorage.createDictEntry(resultDict, newInputDict)
         }
+
+        val oldValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
+
+        assertDictValueDoesNotOverflow(scope, dictId, oldValue)
+            ?: return
 
         scope.calcOnStateCtx {
             val dictKeyLength = memory.readField(dictOriginalConcrete, dictKeyLengthField, sizeSort)
@@ -1665,33 +1781,62 @@ class TvmDictOperationInterpreter(
                     .writeRefValue(resultDict, key, value.asExpr(ctx.addressSort), guard = conditionToStore)
             memory.setRegion(dictValueRegionId, updatedValues)
         }
-        scope.calcOnStateCtx {
+        scope.calcOnState {
             addOnStack(resultDict, TvmCellType)
-            if (mode != DictSetMode.SET) {
-                val status = ctx.mkIte(conditionToStore, ctx.trueValue, ctx.falseValue)
-                addOnStack(status, TvmIntegerType)
+        }
+        if (getOldValue) {
+            val shouldPushValue =
+                when (mode) {
+                    DictSetMode.SET -> keyExists
+
+                    DictSetMode.REPLACE -> conditionToStore
+
+                    // because we only have an old value if we failed the ADD operation
+                    DictSetMode.ADD -> with(ctx) { conditionToStore.not() }
+                }
+            scope.concretizeBySplit(shouldPushValue) { shouldPushValue ->
+                if (shouldPushValue) {
+                    val unwrappedValue =
+                        unwrapDictValue(this, oldValue, valueType)
+                            ?: return@concretizeBySplit
+                    calcOnState {
+                        addValueOnStack(unwrappedValue, valueType)
+                    }
+                }
+                calcOnState {
+                    if (mode != DictSetMode.SET || getOldValue) {
+                        val status =
+                            when (mode) {
+                                DictSetMode.SET -> keyExists
+                                DictSetMode.ADD -> with(ctx) { mkNot(keyExists) }
+                                DictSetMode.REPLACE -> keyExists
+                            }
+                        stack.addInt(with(ctx) { status.toBv257Bool() })
+                    }
+
+                    newStmt(inst.nextStmt())
+                }
             }
-            newStmt(inst.nextStmt())
+        } else {
+            scope.calcOnState {
+                if (mode != DictSetMode.SET) {
+                    val status = with(ctx) { conditionToStore.toBv257Bool() }
+                    addOnStack(status, TvmIntegerType)
+                }
+                newStmt(inst.nextStmt())
+            }
         }
         return
     }
 
-    /**
-     * @return null if scope is dead
-     */
     private fun createStoreConditionFromMode(
-        scope: TvmStepScopeManager,
         mode: DictSetMode,
-        keyKind: DictKeyKind,
-        baseInputDict: InputDict,
-        key: UExpr<UBvSort>,
-    ): UBoolExpr? =
+        keyExists: UBoolExpr,
+    ): UBoolExpr =
         with(ctx) {
             if (mode == DictSetMode.SET) {
                 trueExpr
             } else {
-                val keyExists =
-                    doInputDictHasKey(scope, baseInputDict, TypedDictKey(key, keyKind))?.exists ?: return null
                 if (mode == DictSetMode.REPLACE) {
                     keyExists
                 } else {
@@ -2168,7 +2313,8 @@ class TvmDictOperationInterpreter(
         val storedKeys =
             scope.calcOnState {
                 allSetEntries.entries.map { entry ->
-                    val setContainsEntry = allocatedDictContainsKey(dictCellRef, keyLength.asDictId(), entry.setElement)
+                    val setContainsEntry =
+                        allocatedDictContainsKey(dictCellRef, keyLength.asDictId(), entry.setElement)
                     entry.setElement to setContainsEntry
                 }
             }
@@ -2464,7 +2610,8 @@ class TvmDictOperationInterpreter(
                                 DictNextPrevMode.NEXT -> false
                                 DictNextPrevMode.PREV -> true
                             }
-                        val storedKeyRelevant = compareKeys(keyKind, compareLessThan, allowEq, storeKeyExtended, key)
+                        val storedKeyRelevant =
+                            compareKeys(keyKind, compareLessThan, allowEq, storeKeyExtended, key)
 
                         val compareClosestLessThan =
                             when (mode) {
@@ -2618,21 +2765,23 @@ class TvmDictOperationInterpreter(
         when (keyType) {
             DictKeyKind.UNSIGNED_INT,
             DictKeyKind.SIGNED_INT,
-            ->
+            -> {
                 when {
                     compareLessThan && allowEq -> mkBvSignedLessOrEqualExpr(left, right)
                     compareLessThan && !allowEq -> mkBvSignedLessExpr(left, right)
                     !compareLessThan && allowEq -> mkBvSignedGreaterOrEqualExpr(left, right)
                     else -> mkBvSignedGreaterExpr(left, right)
                 }
+            }
 
-            DictKeyKind.SLICE ->
+            DictKeyKind.SLICE -> {
                 when {
                     compareLessThan && allowEq -> mkBvUnsignedLessOrEqualExpr(left, right)
                     compareLessThan && !allowEq -> mkBvUnsignedLessExpr(left, right)
                     !compareLessThan && allowEq -> mkBvUnsignedGreaterOrEqualExpr(left, right)
                     else -> mkBvUnsignedGreaterExpr(left, right)
                 }
+            }
         }
 
     private fun assertDictKeyLength(
@@ -2747,15 +2896,17 @@ class TvmDictOperationInterpreter(
         with(ctx) {
             // todo: handle keyLength errors
             when (keyType) {
-                DictKeyKind.SIGNED_INT ->
+                DictKeyKind.SIGNED_INT -> {
                     scope
                         .takeLastIntOrThrowTypeError()
                         ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
+                }
 
-                DictKeyKind.UNSIGNED_INT ->
+                DictKeyKind.UNSIGNED_INT -> {
                     scope
                         .takeLastIntOrThrowTypeError()
                         ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
+                }
 
                 DictKeyKind.SLICE -> {
                     val slice = scope.calcOnState { takeLastSlice() }
@@ -2796,7 +2947,10 @@ class TvmDictOperationInterpreter(
         valueType: DictValueType,
     ) = scope.calcOnState {
         when (valueType) {
-            DictValueType.SLICE -> takeLastSlice()
+            DictValueType.SLICE -> {
+                takeLastSlice()
+            }
+
             DictValueType.CELL -> {
                 val cell = takeLastCell() ?: return@calcOnState null
                 val builder = allocEmptyCell()
@@ -2822,7 +2976,7 @@ class TvmDictOperationInterpreter(
         when (valueType) {
             DictValueType.SLICE -> sliceValue
             DictValueType.CELL -> scope.slicePreloadNextRef(sliceValue)
-            DictValueType.BUILDER -> error("Unexpected dict value type: $valueType")
+            DictValueType.BUILDER -> sliceValue
         }
 
     private fun TvmState.addValueOnStack(
@@ -2832,7 +2986,7 @@ class TvmDictOperationInterpreter(
         when (valueType) {
             DictValueType.SLICE -> addOnStack(value, TvmSliceType)
             DictValueType.CELL -> addOnStack(value, TvmCellType)
-            DictValueType.BUILDER -> error("Unexpected value type to store: $valueType")
+            DictValueType.BUILDER -> addOnStack(value, TvmBuilderType)
         }
     }
 

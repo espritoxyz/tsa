@@ -1,0 +1,24 @@
+#include "../util.fc";
+#include "../../../imports/stdlib.fc";
+
+const int c::key = 13;
+const int c::init_value = 100;
+const int c::new_value = 200;
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    (slice init_value, int found) = init_dict.udict_get?(64, c::key);
+    throw_unless(300, ~ found);
+
+    var empty_slice = begin_cell().end_cell().begin_parse();
+    (cell newdict, slice old_value, int success) = udict_replace_get(init_dict, 64, c::key, empty_slice);
+    throw_unless(400, ~ success);
+
+    throw(500);
+}
+
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

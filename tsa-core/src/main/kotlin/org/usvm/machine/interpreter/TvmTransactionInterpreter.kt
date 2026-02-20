@@ -295,28 +295,6 @@ class TvmTransactionInterpreter(
             }
         }
 
-    private fun TvmStepScopeManager.concretizeBySplit(
-        flag: UBoolExpr,
-        restActions: TvmStepScopeManager.(Boolean) -> Unit,
-    ) {
-        val actions =
-            listOf(
-                TvmStepScopeManager.ActionOnCondition(
-                    action = {},
-                    caseIsExceptional = false,
-                    condition = flag,
-                    paramForDoForAllBlock = true,
-                ),
-                TvmStepScopeManager.ActionOnCondition(
-                    action = {},
-                    caseIsExceptional = false,
-                    condition = with(ctx) { flag.not() },
-                    paramForDoForAllBlock = false,
-                ),
-            )
-        doWithConditions(actions, restActions)
-    }
-
     private fun TvmStepScopeManager.handleSuccessfullyParsedMessage(
         content: TlbInternalMessageContent,
         sendRemainingValue: UBoolExpr,
@@ -968,3 +946,25 @@ fun <T> chooseHandlerBasedOnOpcode(
 
         return handler to Unit
     }
+
+fun TvmStepScopeManager.concretizeBySplit(
+    flag: UBoolExpr,
+    restActions: TvmStepScopeManager.(Boolean) -> Unit,
+) {
+    val actions =
+        listOf(
+            TvmStepScopeManager.ActionOnCondition(
+                action = {},
+                caseIsExceptional = false,
+                condition = flag,
+                paramForDoForAllBlock = true,
+            ),
+            TvmStepScopeManager.ActionOnCondition(
+                action = {},
+                caseIsExceptional = false,
+                condition = with(ctx) { flag.not() },
+                paramForDoForAllBlock = false,
+            ),
+        )
+    doWithConditions(actions, restActions)
+}

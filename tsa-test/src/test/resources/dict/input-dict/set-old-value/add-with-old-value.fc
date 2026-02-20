@@ -1,0 +1,35 @@
+#include "../util.fc";
+#include "../../../imports/stdlib.fc";
+
+
+const int c::key = 13;
+const int c::init_value = 100;
+
+() test(slice in_msg) impure method_id (1) {
+    int use_root_input_dict = in_msg~load_uint(1);
+    cell init_dict = in_msg~load_dict();
+    if (use_root_input_dict == 1) {
+        (slice init_value, int found) = init_dict.udict_get?(64, c::key);
+        throw_unless(300, found);
+        throw_unless(301, init_value.preload_int(64) == c::init_value);
+    } else {
+        init_dict = init_dict.udict_set(64, c::key, wrap_in_cell(c::init_value));
+    }
+
+    var empty_slice = begin_cell().end_cell().begin_parse();
+    (_, slice old_value, int success) = udict_add_get(init_dict, 64, c::key, empty_slice);
+    throw_unless(400, ~ success);
+    throw_unless(401, old_value.preload_int(64) == c::init_value);
+
+    if (use_root_input_dict) {
+        throw(501);
+    } else {
+        throw(500);
+    }
+}
+
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}
