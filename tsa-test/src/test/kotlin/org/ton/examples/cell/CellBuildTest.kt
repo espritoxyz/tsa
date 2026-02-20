@@ -13,6 +13,12 @@ import kotlin.test.Test
 class CellBuildTest {
     private val storeSliceConstFif: String = "/cell/cell-build/CellBuild.fif"
     private val storeOnesFunc: String = "/cell/cell-build/StonesSymbolicSize.fc"
+    private val sdpfxFunc: String = "/cell/sdpfx.fc"
+    private val sdpfxrevFunc: String = "/cell/sdpfxrev.fc"
+
+    /**
+     * pp = proper prefix
+     */
     private val sdppfxFunc: String = "/cell/sdppfx.fc"
     private val sdppfxrevFunc: String = "/cell/sdppfxrev.fc"
 
@@ -38,11 +44,21 @@ class CellBuildTest {
 
     @Test
     fun `test prefix functions`() {
-        compareSymbolicAndConcreteResultsFunc(sdppfxFunc, (0..3).toSet())
+        compareSymbolicAndConcreteResultsFunc(sdpfxFunc, (0..4).toSet())
     }
 
     @Test
     fun `test prefix rev functions`() {
-        compareSymbolicAndConcreteResultsFunc(sdppfxrevFunc, (0..3).toSet())
+        compareSymbolicAndConcreteResultsFunc(sdpfxrevFunc, (0..4).toSet())
+    }
+
+    @Test
+    fun `test proper prefix functions`() {
+        compareSymbolicAndConcreteResultsFunc(sdppfxFunc, (0..4).toSet())
+    }
+
+    @Test
+    fun `test proper prefix rev functions`() {
+        compareSymbolicAndConcreteResultsFunc(sdppfxrevFunc, (0..4).toSet())
     }
 }

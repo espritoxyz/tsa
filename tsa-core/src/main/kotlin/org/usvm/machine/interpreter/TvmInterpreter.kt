@@ -82,6 +82,8 @@ import org.ton.bytecode.TvmCompareOtherSdemptyInst
 import org.ton.bytecode.TvmCompareOtherSdeqInst
 import org.ton.bytecode.TvmCompareOtherSdpfxInst
 import org.ton.bytecode.TvmCompareOtherSdpfxrevInst
+import org.ton.bytecode.TvmCompareOtherSdppfxInst
+import org.ton.bytecode.TvmCompareOtherSdppfxrevInst
 import org.ton.bytecode.TvmCompareOtherSemptyInst
 import org.ton.bytecode.TvmCompareOtherSremptyInst
 import org.ton.bytecode.TvmConstDataInst
@@ -330,6 +332,8 @@ import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
 import org.usvm.memory.UWritableMemory
 import org.usvm.mkSizeExpr
+import org.usvm.mkSizeLeExpr
+import org.usvm.mkSizeLtExpr
 import org.usvm.sizeSort
 import org.usvm.solver.USatResult
 import org.usvm.targets.UTargetsSet
@@ -1995,6 +1999,14 @@ class TvmInterpreter(
                 visitIsPrefixInstruction(scope, stmt, isReverse = true)
             }
 
+            is TvmCompareOtherSdppfxInst -> {
+                visitIsPrefixInstruction(scope, stmt, allowEq = false)
+            }
+
+            is TvmCompareOtherSdppfxrevInst -> {
+                visitIsPrefixInstruction(scope, stmt, isReverse = true, allowEq = false)
+            }
+
             else -> {
                 TODO("$stmt")
             }
@@ -2005,6 +2017,7 @@ class TvmInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmCompareOtherInst,
         isReverse: Boolean = false,
+        allowEq: Boolean = true,
     ) {
         scope.consumeDefaultGas(stmt)
         val topSlice = scope.calcOnState { takeLastSlice() }
@@ -2022,8 +2035,16 @@ class TvmInterpreter(
 
         val lesserSliceLength = scope.calcOnState { readSliceLeftLength(lesserSlice) }
         val greaterSliceLength = scope.calcOnState { readSliceLeftLength(greaterSlice) }
+        val lengthCs =
+            with(ctx) {
+                if (allowEq) {
+                    mkSizeLeExpr(lesserSliceLength, greaterSliceLength)
+                } else {
+                    mkSizeLtExpr(lesserSliceLength, greaterSliceLength)
+                }
+            }
         scope.fork(
-            with(ctx) { lesserSliceLength bvUle greaterSliceLength },
+            lengthCs,
             falseStateIsExceptional = false,
             blockOnFalseState = {
                 stack.addInt(falseExpr.toBv257Bool())
