@@ -613,8 +613,6 @@ class TvmContext(
         ctx: KContext,
     ) : KBvCustomSizeSort(ctx, INT_EXT256_BITS)
 
-    infix fun <T : KBvSort> KExpr<T>.bvEq(other: KExpr<T>): UBoolExpr = mkEq(this, other)
-
     infix fun <T : KBvSort> KExpr<T>.bvAdd(other: KExpr<T>): KExpr<T> = mkBvAddExpr(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvMul(other: KExpr<T>): KExpr<T> = mkBvMulExpr(this, other)
@@ -624,6 +622,8 @@ class TvmContext(
     infix fun <T : KBvSort> KExpr<T>.bvUge(other: KExpr<T>): UBoolExpr = mkBvUnsignedGreaterOrEqualExpr(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvUle(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessOrEqualExpr(this, other)
+
+    infix fun <T : KBvSort> KExpr<T>.bvUlt(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessExpr(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvUgt(other: KExpr<T>): UBoolExpr = mkBvUnsignedGreaterExpr(this, other)
 

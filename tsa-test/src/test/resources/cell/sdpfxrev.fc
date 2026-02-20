@@ -1,37 +1,39 @@
 #include "../imports/stdlib.fc";
 
-(int) is_proper_prefix(slice, slice) asm "SDPPFX";
+(int) is_prefix_rev(slice, slice) impure method_id (100) asm "SDPFXREV";
 
+(int) is_prefix(slice a, slice b) impure method_id (101) {
+    return is_prefix_rev(b, a);
+}
 
-
-(int) sddppfx_zeroes() impure method_id (0) {
+(int) is_pfx_zeroes() impure method_id (0) {
     slice a = begin_cell().store_uint(0, 4).end_cell().begin_parse();
     slice b = begin_cell().store_uint(0, 8).end_cell().begin_parse();
-    return is_proper_prefix(a, b);
+    return is_prefix(a, b);
 }
 
 
-(int) sddppfx_zeroes_2() impure method_id (1) {
+(int) is_pfx_zeroestwo() impure method_id (1) {
     slice a = begin_cell().store_uint(0, 4).end_cell().begin_parse();
     slice b = begin_cell().store_uint(0, 8).end_cell().begin_parse();
-    return is_proper_prefix(b, a);
+    return is_prefix(b, a);
 }
 
-(int) sddppfx_one() impure method_id (2) {
+(int) is_pfx_one() impure method_id (2) {
     slice a = begin_cell().store_uint(1, 4).end_cell().begin_parse();
     slice b = begin_cell().store_uint(1 + 32, 8).end_cell().begin_parse();
-    return is_proper_prefix(a, b);
+    return is_prefix(a, b);
 }
 
 
-(int) sddppfx_one_not_prefix() impure method_id (3) {
+(int) is_pfx_one_not_prefix() impure method_id (3) {
     slice a = begin_cell().store_uint(1, 4).end_cell().begin_parse();
     slice b = begin_cell().store_uint(0, 8).end_cell().begin_parse();
-    return is_proper_prefix(a, b);
+    return is_prefix(a, b);
 }
 
-(int) sdppfx_equals() impure method_id (4) {
+(int) sdpfxrev_equals() impure method_id (4) {
     slice a = begin_cell().store_uint(0, 4).end_cell().begin_parse();
     slice b = begin_cell().store_uint(0, 4).end_cell().begin_parse();
-    return is_proper_prefix(a, b);
+    return is_prefix(a, b);
 }
