@@ -90,6 +90,7 @@ class CheckersTest {
         const val BOUNCE_CHECKER = "/checkers/bounce-checker/bounce-checker.fc"
         const val SCHEME = "/checkers/bounce-checker/bounce-checker-scheme.json"
         const val NAIVE_SENDER = "/checkers/bounce-checker/naive-sender.fc"
+        const val NAIVE_SENDER_WITH_CHILDREN = "/checkers/bounce-checker/naive-sender-with-4-children.fc"
         const val NOT_NAIVE_SENDER = "/checkers/bounce-checker/not-naive-sender.fc"
         const val THROWER = "/checkers/bounce-checker/always-thrower.fc"
         const val BAD_BOUNCED_HANDLER = "/checkers/bounce-checker/sender-with-bad-bounced-handling.fc"
@@ -434,6 +435,7 @@ class CheckersTest {
                 turnOnTLBParsingChecks = false,
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
+                loopIterationLimit = 10, // >= 2
             )
         val tests =
             analyzeInterContract(
@@ -457,6 +459,15 @@ class CheckersTest {
     @Test
     fun `bounce naive sender`() {
         val naiveSender = extractFuncContractFromResource(BounceChecker.NAIVE_SENDER)
+        val tests = bounceCheckerBase(naiveSender)
+        tests.assertPropertiesFound(
+            hasExitCode(BounceChecker.SENT_MSG_ON_BOUNCE_EXIT_CODE),
+        )
+    }
+
+    @Test
+    fun `bounce naive sender with a body with many children`() {
+        val naiveSender = extractFuncContractFromResource(BounceChecker.NAIVE_SENDER_WITH_CHILDREN)
         val tests = bounceCheckerBase(naiveSender)
         tests.assertPropertiesFound(
             hasExitCode(BounceChecker.SENT_MSG_ON_BOUNCE_EXIT_CODE),
