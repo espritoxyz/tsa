@@ -301,7 +301,10 @@ class TvmArtificialInstInterpreter(
                 registerEventIfNeeded(stmt.computePhaseResult)
             }
 
-            val shouldNotCallExitHandler = (scope.ctx.tvmOptions.stopOnFirstError && isExceptional) || isTsaChecker
+            val shouldNotCallExitHandler =
+                (scope.ctx.tvmOptions.stopOnFirstError && isExceptional) ||
+                    isTsaChecker ||
+                    stmt.computePhaseResult is TvmAbstractSoftFailure
             if (!shouldNotCallExitHandler) {
                 val wasCalled = scope.doCallOnComputeExitIfNecessary(stmt)
                 when (wasCalled) {

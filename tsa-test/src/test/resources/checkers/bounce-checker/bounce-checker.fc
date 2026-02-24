@@ -13,7 +13,6 @@ global int counter;
     ;; on the first entrance, we are ending the execution triggered by checker
     ;; on the consecutive entrance, we are ending the execution triggered by bounced message
     if (counter > 0) {
-        ;;  <0 are soft failures, =0 are good executions
         throw_if(error::failed_to_handle_bounce, exit_code > 0);
         int sent_messages_on_bounce = c5.begin_parse().slice_refs() > 0;
         throw_if(error::sent_messages_on_bounce, sent_messages_on_bounce);
