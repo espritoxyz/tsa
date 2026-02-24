@@ -4,13 +4,16 @@ import org.junit.jupiter.api.Tag
 import org.ton.TvmContractHandlers
 import org.ton.bitstring.BitString
 import org.ton.cell.Cell
+import org.ton.cell.CellBuilder
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
+import org.ton.test.utils.assertPropertiesFound
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
+import org.ton.test.utils.hasExitCode
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.ExploreExitCodesStopStrategy
 import org.usvm.machine.IntercontractOptions
@@ -71,6 +74,11 @@ class CheckersTest {
     private object BodyAsRefTest {
         const val CHECKER = "/checkers/body-as-ref-test/checker.fc"
         const val SENDER = "/checkers/body-as-ref-test/sender.fc"
+    }
+
+    private object GetC5 {
+        const val CHECKER = "/checkers/get-c5/checker.fc"
+        const val SENDER = "/checkers/get-c5/sender.fc"
     }
 
     private object OnComputePhaseExitTestData {
@@ -383,6 +391,50 @@ class CheckersTest {
         propertiesFound(
             tests,
             listOf { test -> test.exitCode() == 500 },
+        )
+    }
+
+    @Test
+    fun `get c5 test 0 message`() {
+        runMultipleMessageSend(0)
+    }
+
+    @Test
+    fun `get c5 test 1 message`() {
+        runMultipleMessageSend(1)
+    }
+
+    @Test
+    fun `get c5 test 2 message`() {
+        runMultipleMessageSend(2)
+    }
+
+    private fun runMultipleMessageSend(msgCount: Int) {
+        val checkerContract = extractCheckerContractFromResource(GetC5.CHECKER)
+        val senderContract = extractFuncContractFromResource(GetC5.SENDER)
+        val options =
+            TvmOptions(
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+                loopIterationLimit = 10, // >= 2
+            )
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, senderContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(contractC4 = CellBuilder().storeUInt(msgCount, 32).endCell()),
+                        TvmConcreteContractData(),
+                    ),
+            )
+
+        val expectedCode = 600 + msgCount
+        tests.assertPropertiesFound(
+            hasExitCode(expectedCode),
         )
     }
 

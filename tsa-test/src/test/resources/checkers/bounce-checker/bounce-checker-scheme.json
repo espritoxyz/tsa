@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "inOpcodeToDestination": {},
+    "other": {
+      "type": "out_opcodes",
+      "outOpcodeToDestination": {},
+      "other": [2]
+    }
+  },
+  {
+    "id": 2,
+    "inOpcodeToDestination": {},
+    "other": {
+      "type": "out_opcodes",
+      "outOpcodeToDestination": {},
+      "other": [1]
+    }
+  }
+]
