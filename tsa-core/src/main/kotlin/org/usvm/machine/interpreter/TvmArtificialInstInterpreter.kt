@@ -251,7 +251,7 @@ class TvmArtificialInstInterpreter(
             is TvmResult.TvmSoftFailure -> -1
             is TvmStructuralError -> -1
             is TvmResult.TvmActionPhaseSuccess -> 0
-            is TvmResult.TvmComputePhaseSuccess -> 0
+            is TvmResult.TvmComputePhaseSuccess -> exit.exitCode
             is TvmFailure -> this.exit.exitCode
         }
 
