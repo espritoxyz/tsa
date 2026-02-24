@@ -246,10 +246,10 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun TvmResult.TvmTerminalResult.getExitCode(): Int =
+    private fun TvmResult.TvmTerminalResult.getExitCode(): Int? =
         when (this) {
-            is TvmResult.TvmSoftFailure -> -1
-            is TvmStructuralError -> -1
+            is TvmResult.TvmSoftFailure -> null
+            is TvmStructuralError -> null
             is TvmResult.TvmActionPhaseSuccess -> 0
             is TvmResult.TvmComputePhaseSuccess -> exit.exitCode
             is TvmFailure -> this.exit.exitCode
@@ -270,7 +270,10 @@ class TvmArtificialInstInterpreter(
             val pushArgsOnStack: TvmState.() -> Unit = {
                 with(ctx) {
                     stack.addCell(c5)
-                    stack.addInt(stmt.computePhaseResult.getExitCode().toBv257())
+                    val exitCode =
+                        stmt.computePhaseResult.getExitCode()?.toBv257()
+                            ?: error("unexpected soft failure") // should be unreachable
+                    stack.addInt(exitCode)
                     stack.addInt(correspondingSymbol)
                     stack.addInt(calleeContract.toBv257())
                 }
