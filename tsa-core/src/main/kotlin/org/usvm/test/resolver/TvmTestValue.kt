@@ -217,7 +217,7 @@ sealed interface TvmTestCellElement {
     }
 }
 
-private fun String.strictSubstring(
+private fun String.substringSafe(
     begin: Int,
     end: Int,
 ): String? =
@@ -232,16 +232,16 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
         when (type) {
             is TvmTestCellDataBitArrayRead -> {
                 val width = type.bitSize
-                val data = cell.data.strictSubstring(offset, offset + width) ?: return@mapNotNull null
+                val data = cell.data.substringSafe(offset, offset + width) ?: return@mapNotNull null
                 TvmTestCellElement.BitArray(data, width, offset)
             }
 
             TvmTestCellDataCoinsRead -> {
                 val actualGramsBegin = offset + 4
-                val width = cell.data.strictSubstring(offset, actualGramsBegin)?.toInt(2) ?: return@mapNotNull null
+                val width = cell.data.substringSafe(offset, actualGramsBegin)?.toInt(2) ?: return@mapNotNull null
                 val value =
                     if (width > 0) {
-                        cell.data.strictSubstring(actualGramsBegin, actualGramsBegin + width * 8)?.toBigInteger(2)
+                        cell.data.substringSafe(actualGramsBegin, actualGramsBegin + width * 8)?.toBigInteger(2)
                             ?: return@mapNotNull null
                     } else {
                         BigInteger.ZERO
@@ -254,7 +254,7 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
                 val data =
                     if (width > 0) {
                         cell.data
-                            .strictSubstring(offset, offset + width)
+                            .substringSafe(offset, offset + width)
                             ?.let {
                                 if (type.endian == Endian.LittleEndian) it.reversed() else it
                             }?.toBigInteger(2) ?: return@mapNotNull null
@@ -273,7 +273,7 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
             }
 
             TvmTestCellDataMsgAddrRead -> {
-                when (val tag = cell.data.substring(offset, offset + 2)) {
+                when (val tag = cell.data.substringSafe(offset, offset + 2)) {
                     "00" -> {
                         if (offset + 2 <= cell.data.length) {
                             TvmTestCellElement.AddressRead.None(offset)
@@ -285,11 +285,15 @@ fun getElements(cell: TvmTestDataCellValue): List<TvmTestCellElement> =
                     "10" -> {
                         TvmTestCellElement.AddressRead.Std(
                             offset,
-                            cell.data.strictSubstring(
+                            cell.data.substringSafe(
                                 offset,
                                 offset + TvmTestCellElement.AddressRead.Std.LENGTH_WITH_TAG,
                             ) ?: return@mapNotNull null,
                         )
+                    }
+
+                    null -> {
+                        null
                     }
 
                     else -> {

@@ -55,6 +55,19 @@ class CellParserTest {
     }
 
     @Test
+    fun `empty address`() {
+        baseTestWithFullCellCoverage(
+            cellUnderTest = CellBuilder().endCell(),
+            knownTypes =
+                listOf(
+                    TvmCellDataTypeLoad(TvmTestCellDataMsgAddrRead, 0),
+                ),
+            expected =
+                listOf<TvmTestCellElement>(),
+        )
+    }
+
+    @Test
     fun `single integer underflow`() {
         baseTestWithFullCellCoverage(
             cellUnderTest = CellBuilder().storeInt(3, 5).endCell(),
