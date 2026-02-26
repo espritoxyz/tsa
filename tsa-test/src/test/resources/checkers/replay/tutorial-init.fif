@@ -1,0 +1,50 @@
+"Asm.fif" include
+// automatically generated from tutorial-init.tolk
+PROGRAM{
+  0 DECLMETHOD main()
+  -1 DECLMETHOD onExternalMessage()
+  // 1 functions inlined in-place:
+  // - Storage.load (1 call)
+  // /home/metametamoon/workspace/tsa/tsa-repo/tsa-test/src/test/resources/checkers/replay/tutorial-init.tolk:9
+  main() PROC:<{              	// 
+  }>
+  // /home/metametamoon/workspace/tsa/tsa-repo/tsa-test/src/test/resources/checkers/replay/tutorial-init.tolk:11
+  onExternalMessage() PROC:<{ 	//  inMsg
+    // 12: var signature = inMsg.loadBits(512)
+    9 PUSHPOW2              	//  inMsg '2=512
+    LDSLICEX                	//  signature inMsg
+    // 7: fun Storage.load() { return Storage.fromCell(contract.getData()); }
+    c4 PUSH                 	//  signature inMsg '8
+    CTOS                    	//  signature inMsg s
+    256 LDU                 	//  signature inMsg '13 s
+    ENDS                    	//  signature inMsg publicKey
+    // 14: assert(isSignatureValid(inMsg.hash(), signature, publicKey)) throw 35
+    SWAP                    	//  signature publicKey inMsg
+    HASHSU                  	//  signature publicKey '15
+    -ROT                    	//  '15 signature publicKey
+    CHKSIGNU                	//  '16
+    35 THROWIFNOT           	// 
+    // 15: acceptExternalMessage()
+    ACCEPT                  	// 
+    // 18: value: ton("0.05")
+    50000000 PUSHINT        	//  '20=50000000
+    // 20: dest: address("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"), // some address
+    x{801FA71A130A2388602BC059A30B9F95877DFFF513454FE41ACA880C71528EB73B7_} PUSHSLICE	//  '20=50000000 '23
+    // 19: body: beginCell().endCell()
+    <b b> PUSHREF           	//  '20=50000000 '23 '32
+    // 16: val reply = createMessage(
+    NEWC                    	//  '20=50000000 '23 '32 b
+    b{010000} STSLICECONST  	//  '20=50000000 '23 '32 b
+    s1 s2 XCHG              	//  '20=50000000 '32 '23 b
+    STSTDADDR               	//  '20=50000000 '32 b
+    ROT                     	//  '32 b '20=50000000
+    STGRAMS                 	//  '32 b
+    1 PUSHINT
+    107 STUR                	//  '32 b
+    STREF                   	//  b
+    ENDC                    	//  reply
+    // 22: reply.send(SEND_MODE_REGULAR)
+    0 PUSHINT               	//  reply '97=0
+    SENDRAWMSG              	// 
+  }>
+}END>c

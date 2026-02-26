@@ -1,0 +1,80 @@
+"Asm.fif" include
+// automatically generated from tutorial-partial-fix.tolk
+PROGRAM{
+  100099 DECLMETHOD getSeqno()
+  0 DECLMETHOD main()
+  -1 DECLMETHOD onExternalMessage()
+  // 2 functions inlined in-place:
+  // - Storage.load (2 calls)
+  // - Storage.save (1 call)
+  // /home/metametamoon/workspace/tsa/tsa-repo/tsa-test/src/test/resources/checkers/replay/tutorial-partial-fix.tolk:16
+  getSeqno() PROC:<{          	// 
+    // 9: return Storage.fromCell(contract.getData())
+    c4 PUSH                 	//  '2
+    CTOS                    	//  s
+    256 LDU                 	//  '7 s
+    NIP                     	//  s
+    32 LDI                  	//  '9 s
+    ENDS                    	//  '1
+  }>
+  // /home/metametamoon/workspace/tsa/tsa-repo/tsa-test/src/test/resources/checkers/replay/tutorial-partial-fix.tolk:20
+  main() PROC:<{              	// 
+  }>
+  // /home/metametamoon/workspace/tsa/tsa-repo/tsa-test/src/test/resources/checkers/replay/tutorial-partial-fix.tolk:23
+  onExternalMessage() PROC:<{ 	//  inMsg
+    // 24: var signature = inMsg.loadBits(512)
+    9 PUSHPOW2              	//  inMsg '2=512
+    LDSLICEX                	//  signature inMsg
+    // 9: return Storage.fromCell(contract.getData())
+    c4 PUSH                 	//  signature inMsg '10
+    CTOS                    	//  signature inMsg s
+    256 LDU                 	//  signature inMsg '15 s
+    32 LDI                  	//  signature inMsg '15 '17 s
+    ENDS                    	//  signature inMsg publicKey storage.seqno
+    // 27: assert (isSignatureValid(inMsg.hash(), signature, publicKey)) throw 35
+    s2 PUSH                 	//  signature inMsg publicKey storage.seqno inMsg
+    HASHSU                  	//  signature inMsg publicKey storage.seqno '20
+    s0 s4 s2 XC2PU          	//  storage.seqno inMsg publicKey '20 signature publicKey
+    CHKSIGNU                	//  storage.seqno inMsg publicKey '21
+    35 THROWIFNOT           	//  storage.seqno inMsg publicKey
+    // 29: var msgSeqno = inMsg.loadUint(32)
+    SWAP                    	//  storage.seqno publicKey inMsg
+    32 PLDU                 	//  storedSeqno publicKey msgSeqno
+    // 31: assert (msgSeqno == storedSeqno) throw 36
+    s2 PUSH                 	//  storedSeqno publicKey msgSeqno storedSeqno
+    EQUAL                   	//  storedSeqno publicKey '29
+    36 THROWIFNOT           	//  storedSeqno publicKey
+    // 33: acceptExternalMessage()
+    ACCEPT                  	//  storedSeqno publicKey
+    // 35: publicKey: publicKey, seqno: storedSeqno + 1
+    SWAP                    	//  publicKey storedSeqno
+    INC                     	//  publicKey '31
+    // 13: contract.setData(self.toCell())
+    SWAP
+    NEWC                    	//  '31 publicKey b
+    256 STU                 	//  '31 b
+    32 STI                  	//  b
+    ENDC                    	//  '36
+    c4 POP                  	// 
+    // 40: value: ton("0.05")
+    50000000 PUSHINT        	//  '40=50000000
+    // 42: dest: address("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"), // some address
+    x{801FA71A130A2388602BC059A30B9F95877DFFF513454FE41ACA880C71528EB73B7_} PUSHSLICE	//  '40=50000000 '43
+    // 41: body: beginCell().endCell()
+    <b b> PUSHREF           	//  '40=50000000 '43 '52
+    // 38: val reply = createMessage(
+    NEWC                    	//  '40=50000000 '43 '52 b
+    b{010000} STSLICECONST  	//  '40=50000000 '43 '52 b
+    s1 s2 XCHG              	//  '40=50000000 '52 '43 b
+    STSTDADDR               	//  '40=50000000 '52 b
+    ROT                     	//  '52 b '40=50000000
+    STGRAMS                 	//  '52 b
+    1 PUSHINT
+    107 STUR                	//  '52 b
+    STREF                   	//  b
+    ENDC                    	//  reply
+    // 44: reply.send(SEND_MODE_REGULAR)
+    0 PUSHINT               	//  reply '117=0
+    SENDRAWMSG              	// 
+  }>
+}END>c
