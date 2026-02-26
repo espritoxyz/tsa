@@ -8,17 +8,20 @@ global slice first_body;
 }
 
 () main() impure {
-    tsa_forbid_failures();
-
+    slice ds = get_data().begin_parse();
+    if (ds~load_uint(1) == 1) {
+        int seqno_getter = ds~load_uint(32);
+        int restriction = ds~load_uint(128);
+        int seqno = tsa_call_1_0(1, seqno_getter);
+        tsa_assert(0 <= seqno);
+        tsa_assert(seqno < restriction);
+    }
     tsa_send_external_message(1, 0);
 
     int was_accepted_1 = tsa_input_was_accepted(0);
     tsa_assert(was_accepted_1);
 
     tsa_send_external_message_with_body(first_body, 1, 1);
-
-    tsa_allow_failures();
-
     int was_accepted_2 = tsa_input_was_accepted(1);
     throw_if(1000, was_accepted_2);
 }
