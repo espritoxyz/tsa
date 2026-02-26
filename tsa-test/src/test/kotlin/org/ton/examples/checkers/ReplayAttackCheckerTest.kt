@@ -22,6 +22,8 @@ import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import kotlin.test.Test
 
+private const val REPLAY_FOUND = 1000
+
 class ReplayAttackCheckerTest {
     private val checkerPath = "/checkers/replay/checker.fc"
     private val trivialVulnerableContract = "/checkers/replay/simple-vulnerable-replay.fc"
@@ -32,6 +34,7 @@ class ReplayAttackCheckerTest {
 
     private val tutorialInit = "/checkers/replay/tutorial-init.fif" // TODO make first-class tolk tests
     private val tutorialIntermediate = "/checkers/replay/tutorial-partial-fix.fif"
+    private val tutorialFull = "/checkers/replay/tutorial-full-fix.fif"
 
     /**
      * `python -c "import binascii; print(binascii.crc_hqx(b'getSeqno', 0) | 0x10000)"`
@@ -78,7 +81,7 @@ class ReplayAttackCheckerTest {
             startContractId = 0,
             methodId = TvmContext.RECEIVE_INTERNAL_ID,
             options = options,
-            additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(1000)),
+            additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(REPLAY_FOUND)),
             concreteContractData =
                 listOf(
                     TvmConcreteContractData(
@@ -89,7 +92,7 @@ class ReplayAttackCheckerTest {
                                 CellBuilder()
                                     .storeUInt(1, 1)
                                     .storeUInt(methodId ?: 37, 32)
-                                    .storeUInt(seqnoRestriction, 128)
+                                    .storeUInt(seqnoRestriction, 255)
                                     .endCell()
                             },
                     ),
@@ -102,7 +105,7 @@ class ReplayAttackCheckerTest {
     fun `tutorial init`() {
         val tests = runTest(tutorialInit)
         tests.assertPropertiesFound(
-            hasExitCode(1000),
+            hasExitCode(REPLAY_FOUND),
         )
     }
 
@@ -110,16 +113,23 @@ class ReplayAttackCheckerTest {
     fun `tutorial intermediate`() {
         val tests = runTest(tutorialIntermediate)
         tests.assertPropertiesFound(
-            hasExitCode(1000),
+            hasExitCode(REPLAY_FOUND),
         )
     }
 
     @Test
-    fun `tutorial intermediate with fix`() {
+    fun `tutorial intermediate with partial fix`() {
         val tests = runTest(tutorialIntermediate, 20, seqnoMethodId)
+        tests.assertPropertiesFound(
+            hasExitCode(REPLAY_FOUND),
+        )
+    }
+
+    @Test
+    fun `tutorial intermediate with full fix`() {
+        val tests = runTest(tutorialFull, 20, seqnoMethodId)
         tests.assertInvariantsHold(
-            doesNotEndWithExitCode(11),
-            doesNotEndWithExitCode(1000),
+            doesNotEndWithExitCode(REPLAY_FOUND),
         )
     }
 
@@ -127,7 +137,7 @@ class ReplayAttackCheckerTest {
     fun `simple vulnerable`() {
         val tests = runTest(trivialVulnerableContract)
         tests.assertPropertiesFound(
-            hasExitCode(1000),
+            hasExitCode(REPLAY_FOUND),
         )
     }
 
@@ -137,7 +147,7 @@ class ReplayAttackCheckerTest {
         tests.assertNotEmpty()
         tests.assertInvariantsHold(
             doesNotEndWithExitCode(11),
-            doesNotEndWithExitCode(1000),
+            doesNotEndWithExitCode(REPLAY_FOUND),
         )
     }
 
@@ -147,7 +157,7 @@ class ReplayAttackCheckerTest {
 
         checkInvariants(
             tests,
-            listOf { test -> test.exitCode() != 1000 },
+            listOf { test -> test.exitCode() != REPLAY_FOUND },
         )
     }
 
@@ -157,7 +167,7 @@ class ReplayAttackCheckerTest {
 
         propertiesFound(
             tests,
-            listOf { test -> test.exitCode() == 1000 },
+            listOf { test -> test.exitCode() == REPLAY_FOUND },
         )
     }
 
@@ -167,7 +177,7 @@ class ReplayAttackCheckerTest {
 
         propertiesFound(
             tests,
-            listOf { test -> test.exitCode() == 1000 },
+            listOf { test -> test.exitCode() == REPLAY_FOUND },
         )
     }
 }

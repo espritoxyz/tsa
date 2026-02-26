@@ -5,6 +5,10 @@ struct Storage {
     seqno: int32,
 }
 
+struct GetMoney {
+    amount: int32,
+}
+
 fun Storage.load() {
     return Storage.fromCell(contract.getData());
 }
@@ -38,7 +42,9 @@ fun onExternalMessage(inMsg: slice) {
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: ton("0.05"),
-        body: beginCell().endCell(),
+        body: GetMoney {
+            amount: inMsg.loadUint(32)
+        },
         dest: address("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"), // some address
     });
     reply.send(SEND_MODE_REGULAR);

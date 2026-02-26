@@ -11,7 +11,7 @@ global slice first_body;
     slice ds = get_data().begin_parse();
     if (ds~load_uint(1) == 1) {
         int seqno_getter = ds~load_uint(32);
-        int restriction = ds~load_uint(128);
+        int restriction = ds~load_uint(255);
         int seqno = tsa_call_1_0(1, seqno_getter);
         tsa_assert(0 <= seqno);
         tsa_assert(seqno < restriction);
