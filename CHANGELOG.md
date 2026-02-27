@@ -1,5 +1,25 @@
 # TSA Changelog
 
+## v0.4.28-dev - v0.5.0
+
+* Several new checker functions:
+  -  `tsa_get_balance` in #150
+  - `tsa_set_c4` in #198
+  - `tsa_input_was_accepted` in #261
+  -  `tsa_send_internal_message_with_body`, `tsa_send_external_message_with_body` in #264
+  - New parameters in `on_out_message` in #163
+  - Random addresses in #208
+* New implementation of input dicts in #117, #280
+* Fixes in #152, #147, #168, #183, #187, #177, #196, #202, #221, #227, #228, #223, #214, #237, #238, #242, #249, #252, #257, #248, #268, #269, #271, #276, #284
+* Optimizations in #151, #258
+* New instructions in #185, #232, #244, #245, #250, #251, #272, #275, #281
+* CLI updates in #206, #211, #213, #217, #218, #222, #229, #235, #263, #277
+* Supported  `SendIgnoreError` mode in #179
+* Typed cell data in #212, #224
+* Updated `tvm-spec` in #225
+
+**Full Changelog**: https://github.com/espritoxyz/tsa/compare/v0.4.28-dev...v0.5.0
+
 ## v0.4.27-dev - v0.4.28-dev
 
 * Strategy for stopping analysis right after executions with required exit codes are found in https://github.com/espritoxyz/tsa/pull/134
