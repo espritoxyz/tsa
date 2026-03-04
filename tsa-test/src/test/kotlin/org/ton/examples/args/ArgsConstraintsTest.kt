@@ -3,6 +3,7 @@ package org.ton.examples.args
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
@@ -13,6 +14,7 @@ import org.usvm.machine.TvmConcreteGeneralData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
+import org.usvm.machine.state.input.ReceiverInput.Companion.NANOTONS_BOUND_2
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmTestFailure
 import java.math.BigInteger
@@ -129,12 +131,22 @@ class ArgsConstraintsTest {
             listOf(
                 { test -> test.result is TvmSuccessfulExecution },
                 { test -> (test.result as? TvmTestFailure)?.exitCode == 1001 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1002 },
             ),
         )
 
         checkInvariants(
             tests,
-            listOf { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
+            listOf(
+                { test -> (test.result as? TvmTestFailure)?.exitCode != 1000 },
+                { test ->
+                    // soft constraint test
+                    if (test.exitCode() != 1002) {
+                        return@listOf true
+                    }
+                    test.contractStatesBefore[0]!!.balance.value <= NANOTONS_BOUND_2.toBigInteger()
+                },
+            ),
         )
 
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
