@@ -220,7 +220,6 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.collections.immutable.internal.MutabilityOwnership
-import org.usvm.constraints.UPathConstraints
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmConcreteContractData
@@ -246,6 +245,7 @@ import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.C7Register
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmInitialStateData
+import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackCellValue
@@ -390,7 +390,7 @@ class TvmInterpreter(
                 ?: error("Contract $startContractId not found.")
 
         val initOwnership = MutabilityOwnership()
-        val pathConstraints = UPathConstraints<TvmType>(ctx, initOwnership)
+        val pathConstraints = TvmPathConstraints(ctx, initOwnership)
         val memory = UMemory<TvmType, TvmCodeBlock>(ctx, initOwnership, pathConstraints.typeConstraints)
         val fieldManagers = TvmFieldManagers(ctx)
         val refEmptyValue = memory.initializeEmptyRefValues(fieldManagers)

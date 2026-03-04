@@ -169,6 +169,10 @@ class TvmState(
         }
 
     override fun clone(newConstraints: UPathConstraints<TvmType>?): TvmState {
+        check(newConstraints is TvmPathConstraints?) {
+            "Unexpected constraints: $newConstraints"
+        }
+
         val newThisOwnership = MutabilityOwnership()
         val cloneOwnership = MutabilityOwnership()
         val newPathConstraints =

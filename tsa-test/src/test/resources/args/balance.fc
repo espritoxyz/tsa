@@ -5,4 +5,5 @@
 
     throw_unless(1000, balance_from_params == balance);
     throw_if(1001, balance - msg_value == 12345);
+    throw_if(1002, balance - msg_value > 1000000000);
 }

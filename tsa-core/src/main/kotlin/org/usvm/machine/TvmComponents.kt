@@ -14,11 +14,17 @@ import org.usvm.UBv32SizeExprProvider
 import org.usvm.UComponents
 import org.usvm.UContext
 import org.usvm.USizeExprProvider
+import org.usvm.constraints.UPathConstraints
 import org.usvm.machine.intblast.Bv2IntExprFilter
 import org.usvm.machine.intblast.Bv2IntSolverWrapper
+import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
+import org.usvm.model.UModelBase
+import org.usvm.model.UModelDecoder
+import org.usvm.solver.UExprTranslator
 import org.usvm.solver.USolverBase
+import org.usvm.solver.USolverResult
 import org.usvm.solver.UTypeSolver
 import org.usvm.types.UTypeSystem
 import kotlin.time.Duration
@@ -80,7 +86,7 @@ class TvmComponents(
         closeableResources += solver
 
         val typeSolver = UTypeSolver(typeSystem)
-        return USolverBase(ctx, wrappedSolver, typeSolver, translator, decoder, options.solverTimeout)
+        return TvmSolver(ctx, wrappedSolver, typeSolver, translator, decoder, options.solverTimeout)
     }
 
     override fun mkTypeSystem(ctx: UContext<TvmSizeSort>): UTypeSystem<TvmType> = typeSystem
@@ -96,6 +102,30 @@ class TvmComponents(
             internalSolver.check(timeout).also { status ->
                 logger.debug("Forked with status: {}", status)
             }
+    }
+
+    class TvmSolver(
+        ctx: UContext<*>,
+        smtSolver: KSolver<*>,
+        typeSolver: UTypeSolver<TvmType>,
+        translator: UExprTranslator<TvmType, *>,
+        decoder: UModelDecoder<UModelBase<TvmType>>,
+        timeout: Duration,
+    ) : USolverBase<TvmType>(
+            ctx,
+            smtSolver,
+            typeSolver,
+            translator,
+            decoder,
+            timeout,
+        ) {
+        override fun check(query: UPathConstraints<TvmType>): USolverResult<UModelBase<TvmType>> {
+            require(query is TvmPathConstraints) {
+                "Unexpected path constraints: $query"
+            }
+            val softConstraints = query.tvmSoftConstraints
+            return super.checkWithSoftConstraints(query, softConstraints)
+        }
     }
 
     companion object {

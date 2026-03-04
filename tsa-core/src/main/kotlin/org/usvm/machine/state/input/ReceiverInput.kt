@@ -17,7 +17,9 @@ import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.addSoftConstraints
 import org.usvm.machine.state.allocSliceFromCell
+import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getBalanceOf
@@ -139,6 +141,8 @@ sealed class ReceiverInput(
                 )
             } ?: return null
 
+        addBalanceSoftConstraints(scope)
+
         return scope.assert(
             constraint,
             unsatBlock = {
@@ -146,6 +150,26 @@ sealed class ReceiverInput(
             },
             unknownBlock = { error("Unknown result while asserting recv_internal constraints") },
         )
+    }
+
+    private fun addBalanceSoftConstraints(scope: TvmStepScopeManager) {
+        val balance =
+            scope.calcOnState { getBalanceOf(receiverContractId) }
+                ?: error("Unexpected incorrect config balance value")
+
+        scope.calcOnStateCtx {
+            addBalanceSoftConstraints(this, balance)
+            addBalanceSoftConstraints(this, msgValue)
+        }
+    }
+
+    private fun TvmContext.addBalanceSoftConstraints(
+        state: TvmState,
+        money: UExpr<TvmInt257Sort>,
+    ) {
+        state.addSoftConstraints(mkBvSignedLessExpr(money, NANOTONS_BOUND_1.toBv257()))
+        state.addSoftConstraints(mkBvSignedLessExpr(money, NANOTONS_BOUND_2.toBv257()))
+        state.addSoftConstraints(mkBvSignedLessExpr(money, NANOTONS_BOUND_3.toBv257()))
     }
 
     private fun TvmContext.mkBalanceConstraints(
@@ -164,5 +188,11 @@ sealed class ReceiverInput(
             )
 
         return balanceConstraints
+    }
+
+    companion object {
+        const val NANOTONS_BOUND_1 = 1_000_000_000
+        const val NANOTONS_BOUND_2 = 100_000_000_000
+        const val NANOTONS_BOUND_3 = 10000_000_000_000
     }
 }
