@@ -36,7 +36,7 @@ import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.sliceLoadAddrTlbNoFork
 import org.usvm.machine.state.sliceLoadGramsTlbNoFork
-import org.usvm.machine.state.sliceLoadIntTlbNoFork
+import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
 import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.types.CellGeneralRef
 import org.usvm.machine.types.CellRef
@@ -68,7 +68,12 @@ data class TlbCommonMessageInfo(
                 val tlbFlags =
                     (0..<4).map {
                         val curFlag =
-                            sliceLoadIntTlbNoFork(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
+                            sliceLoadIntTlbNoForkAndNoRegister(
+                                scope,
+                                ptr.slice,
+                                1,
+                                quietBlock = quietBlock,
+                            )?.unwrap(ptr)
                                 ?: return@with null
                         curFlag
                     }
@@ -110,7 +115,7 @@ data class TlbCommonMessageInfo(
                         ?: return@with null
 
                 val tlbExtraCurrenciesBit =
-                    sliceLoadIntTlbNoFork(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
+                    sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                         ?: return@with null
 
                 val extraCurrenciesEmptyConstraint = tlbExtraCurrenciesBit eq zeroValue
@@ -129,10 +134,10 @@ data class TlbCommonMessageInfo(
 
                 // created_lt:uint64 created_at:uint32
                 val createdLt =
-                    sliceLoadIntTlbNoFork(scope, ptr.slice, 64, quietBlock = quietBlock)?.unwrap(ptr)
+                    sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 64, quietBlock = quietBlock)?.unwrap(ptr)
                         ?: return@with null
                 val createdAt =
-                    sliceLoadIntTlbNoFork(scope, ptr.slice, 32)?.unwrap(ptr)
+                    sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 32)?.unwrap(ptr)
                         ?: return@with null
 
                 TlbCommonMessageInfo(
@@ -154,7 +159,7 @@ data class TlbCommonMessageInfo(
         ): Pair<UHeapRef, UHeapRef?>? =
             with(scope.ctx) {
                 val (afterTagSlice, tag) =
-                    sliceLoadIntTlbNoFork(scope, slice, 2)
+                    sliceLoadIntTlbNoForkAndNoRegister(scope, slice, 2)
                         ?: return@sliceSkipNoneOrStdAddr null
 
                 val noneTag = mkBv(NONE_ADDRESS_TAG, INT_BITS)
@@ -554,7 +559,7 @@ data class TlbInternalMessageContent(
             quietBlock: (TvmState.() -> Unit)?,
         ): ValueOrDeadScope<TlbBody> {
             val bodyBit =
-                sliceLoadIntTlbNoFork(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
+                sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                     ?: return scopeDied
 
             val bodyBitIsInlined = bodyBit eq zeroValue
@@ -599,7 +604,7 @@ data class TlbInternalMessageContent(
             quietBlock: (TvmState.() -> Unit)?,
         ): ValueOrDeadScope<TlbStateInit> {
             val stateInitBit =
-                sliceLoadIntTlbNoFork(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
+                sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                     ?: return scopeDied
             val stateInitIsMissing = stateInitBit eq zeroValue
 
@@ -614,7 +619,7 @@ data class TlbInternalMessageContent(
                         ?: return scopeDied
 
                     val stateInitInlineBit =
-                        sliceLoadIntTlbNoFork(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
+                        sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                             ?: return scopeDied
 
                     val stateInitIsInlined = stateInitInlineBit eq zeroValue
@@ -633,7 +638,12 @@ data class TlbInternalMessageContent(
 
                         // fixed_prefix_length:(Maybe (## 5)) special:(Maybe TickTock)
                         val stateInitPrefix =
-                            sliceLoadIntTlbNoFork(scope, ptr.slice, 2, quietBlock = quietBlock)?.unwrap(ptr)
+                            sliceLoadIntTlbNoForkAndNoRegister(
+                                scope,
+                                ptr.slice,
+                                2,
+                                quietBlock = quietBlock,
+                            )?.unwrap(ptr)
                                 ?: return scopeDied
                         scope.assert(stateInitPrefix eq zeroValue)
                             ?: run {
@@ -670,7 +680,7 @@ data class TlbInternalMessageContent(
         ): ValueOrDeadScope<CellRef?> =
             scope.doWithCtx {
                 val maybeBit =
-                    sliceLoadIntTlbNoFork(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
+                    sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
                         ?: return@doWithCtx scopeDied
 
                 val refIsMissing = maybeBit eq zeroValue

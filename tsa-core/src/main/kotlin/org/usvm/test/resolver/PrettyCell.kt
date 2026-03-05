@@ -1,58 +1,59 @@
 package org.usvm.test.resolver
 
+import com.charleskorn.kaml.PolymorphismStyle
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.math.BigInteger
 
 @Serializable
-sealed interface ReadData {
+sealed interface CellElement {
+    val length: Int
+
     @Serializable
-    @SerialName("Integer")
-    data class Integer(
+    @SerialName("int")
+    data class SignedInteger(
         val value: String,
-    ) : ReadData
+        override val length: Int,
+    ) : CellElement
 
     @Serializable
-    @SerialName("MaybeConstructor")
-    data class MaybeCtorBit(
-        val isJust: Boolean,
-    ) : ReadData
+    @SerialName("uint")
+    data class UnsignedInteger(
+        val value: String,
+        override val length: Int,
+    ) : CellElement
 
     @Serializable
-    @SerialName("AddressRead")
-    data class AddressRead(
+    @SerialName("address")
+    data class Address(
         val rawValue: String,
-    ) : ReadData
+        override val length: Int,
+    ) : CellElement
 
     @Serializable
-    @SerialName("Coin")
-    data class Coin(
+    @SerialName("coins")
+    data class Coins(
         val grams: String,
-    ) : ReadData
+        override val length: Int,
+    ) : CellElement
 
     @Serializable
-    @SerialName("BitArray")
-    data object BitArray : ReadData
-
-    @Serializable
-    data object Untyped : ReadData
+    @SerialName("bits")
+    data class BitArray(
+        override val length: Int,
+        val data: String,
+    ) : CellElement
 }
-
-@Serializable
-data class Read(
-    val range: CellRange, // = listOf(begin, end)
-    val rawBits: String,
-    val readData: ReadData,
-)
 
 @Serializable
 sealed interface PrettyCell {
     @Serializable
     @SerialName("DataCell")
     data class DataCell(
-        val reads: List<Read>,
-        val otherCells: List<PrettyCell>,
+        val elements: List<CellElement>,
+        val refs: List<PrettyCell>,
     ) : PrettyCell
 
     @Serializable
@@ -82,59 +83,60 @@ private fun stdAddressBitsToRawAddress(rawAddress: String): String {
 
 fun TvmTestDataCellValue.toPrettyCell(): PrettyCell {
     val reads =
-        getElements(this)
+        getCellReads(this)
+            .sortedBy { it.cellRange.begin }
             .map {
-                val readData: ReadData =
+                val length = it.cellRange.end - it.cellRange.begin
+
+                val readData: CellElement =
                     when (it) {
-                        is TvmTestCellElement.AddressRead.None -> {
-                            ReadData.AddressRead("none")
+                        is TvmTestCellRead.AddressRead.None -> {
+                            CellElement.Address("none", length)
                         }
 
-                        is TvmTestCellElement.AddressRead.Std -> {
-                            ReadData.AddressRead(
+                        is TvmTestCellRead.AddressRead.Std -> {
+                            CellElement.Address(
                                 stdAddressBitsToRawAddress(
                                     this@toPrettyCell.data.substring(
                                         it.cellRange.begin,
                                         it.cellRange.end,
                                     ),
                                 ),
+                                length,
                             )
                         }
 
-                        is TvmTestCellElement.BitArray -> {
-                            ReadData.BitArray
+                        is TvmTestCellRead.BitArray -> {
+                            CellElement.BitArray(length, it.data)
                         }
 
-                        is TvmTestCellElement.Coin -> {
-                            ReadData.Coin(it.gramsValue.toString())
+                        is TvmTestCellRead.Coin -> {
+                            CellElement.Coins(it.gramsValue.toString(), length)
                         }
 
-                        is TvmTestCellElement.Integer -> {
-                            ReadData.Integer(it.value.toString())
+                        is TvmTestCellRead.Integer -> {
+                            if (it.isSigned) {
+                                CellElement.SignedInteger(it.value.toString(), length)
+                            } else {
+                                check(it.value >= BigInteger.ZERO) {
+                                    "Unexpected unsigned int: ${it.value}"
+                                }
+                                CellElement.UnsignedInteger(it.value.toString(), length)
+                            }
                         }
 
-                        is TvmTestCellElement.MaybeConstructor -> {
-                            ReadData.MaybeCtorBit(it.isJust)
+                        is TvmTestCellRead.MaybeConstructor -> {
+                            CellElement.UnsignedInteger(if (it.isJust) "1" else "0", length)
                         }
                     }
-                Read(
-                    it.cellRange,
-                    data.substring(it.cellRange.begin, it.cellRange.end),
-                    readData,
-                )
-            }.sortedBy {
-                // put untyped data in the end
-                when (it.readData) {
-                    ReadData.BitArray -> 1
-                    ReadData.Untyped -> 1
-                    else -> 0
-                }
-            }.sortedBy { it.range.begin }
+
+                readData
+            }
     return PrettyCell.DataCell(reads, refs.map { it.toPrettyCell() })
 }
 
 fun TvmTestCellValue.toPrettyYaml(): String =
     Yaml(
         configuration =
-            YamlConfiguration(),
+            YamlConfiguration(polymorphismStyle = PolymorphismStyle.Property),
     ).encodeToString(PrettyCell.serializer(), toPrettyCell())

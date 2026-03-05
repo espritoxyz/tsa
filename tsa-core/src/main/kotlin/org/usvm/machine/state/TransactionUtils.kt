@@ -33,7 +33,7 @@ fun makeCellToSliceNoFork(
     scope.doNotKillScopeOnDoWithConditions = false
 }
 
-fun sliceLoadIntTlbNoFork(
+fun sliceLoadIntTlbNoForkAndNoRegister(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     sizeBits: Int,
@@ -46,7 +46,15 @@ fun sliceLoadIntTlbNoFork(
 
     scope.doNotKillScopeOnDoWithConditions = true
 
-    sliceLoadIntTlb(scope, slice, updatedSliceAddress, sizeBits, isSigned, quietBlock = quietBlock) { value ->
+    sliceLoadIntTlb(
+        scope,
+        slice,
+        updatedSliceAddress,
+        sizeBits,
+        isSigned,
+        quietBlock = quietBlock,
+        noRegister = true,
+    ) { value ->
         validateSliceLoadState(originalStateId)
 
         result = value

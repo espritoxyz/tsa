@@ -53,7 +53,7 @@ import org.usvm.machine.state.messages.asSlice
 import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
 import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.newStmt
-import org.usvm.machine.state.sliceLoadIntTlbNoFork
+import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
 import org.usvm.machine.state.sliceLoadRefTransaction
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
@@ -625,7 +625,7 @@ class TvmTransactionInterpreter(
                     ctx.tvmOptions.performAdditionalChecksWhileResolving,
                 )
             val (actionBody, tag) =
-                sliceLoadIntTlbNoFork(scope, actionSlice.value, 32)
+                sliceLoadIntTlbNoForkAndNoRegister(scope, actionSlice.value, 32)
                     ?: return scopeDied
 
             val isSendMsgAction = tag eq sendMsgActionTag.unsignedExtendToInteger()
@@ -749,7 +749,7 @@ class TvmTransactionInterpreter(
         handler: DestinationDescription?,
     ): List<Pair<MessageActionParseResult, UBoolExpr>>? {
         val (_, sendMsgMode) =
-            sliceLoadIntTlbNoFork(scope, slice, 8, false)
+            sliceLoadIntTlbNoForkAndNoRegister(scope, slice, 8, false)
                 ?: return null
         val msg =
             scope.slicePreloadNextRef(slice)
@@ -866,7 +866,7 @@ class TvmTransactionInterpreter(
         with(ctx) {
             val ptr = ParsingState(msgSlice)
             val tag =
-                sliceLoadIntTlbNoFork(scope, ptr.slice, 1)?.second
+                sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 1)?.second
                     ?: return@with null
             val isInternalCond = tag eq zeroValue
             scope.assert(isInternalCond)
@@ -924,7 +924,7 @@ fun <T> chooseHandlerBasedOnOpcode(
                     ?: return null to null
 
                 val inOpcode =
-                    sliceLoadIntTlbNoFork(scope, msgBodySlice, OP_BITS.toInt())?.second
+                    sliceLoadIntTlbNoForkAndNoRegister(scope, msgBodySlice, OP_BITS.toInt())?.second
                         ?: return null to null
 
                 val concreteOp = resolver.eval(inOpcode)

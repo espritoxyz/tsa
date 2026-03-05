@@ -462,7 +462,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
                 var falseState: TvmState? = null
                 fork(
                     assumeConstraint,
-                    falseStateIsExceptional = true,
+                    falseStateIsExceptional = false,
                     blockOnFalseState = {
                         falseState = this
                         setExit(TvmResult.TvmSoftFailure(failure, phase))
@@ -1380,6 +1380,7 @@ fun sliceLoadIntTlb(
     updatedSlice: UConcreteHeapRef,
     sizeBits: Int,
     isSigned: Boolean,
+    noRegister: Boolean = false,
     quietBlock: (TvmState.() -> Unit)? = null,
     action: TvmStepScopeManager.(UExpr<TvmInt257Sort>) -> Unit,
 ) = scope.doWithCtx {
@@ -1387,6 +1388,7 @@ fun sliceLoadIntTlb(
         slice,
         TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.BigEndian),
         updatedSlice,
+        noRegister = noRegister,
         badCellSizeIsExceptional = quietBlock == null,
         onBadCellSize = if (quietBlock == null) throwCellUnderflowErrorBasedOnContext else { x, _ -> x.quietBlock() },
     ) { tlbValue ->

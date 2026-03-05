@@ -97,6 +97,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     type: TvmCellDataTypeRead<ReadResult>,
     newSlice: UConcreteHeapRef,
     badCellSizeIsExceptional: Boolean,
+    noRegister: Boolean = false,
     onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     restActions: TvmStepScopeManager.(ReadResult?) -> Unit,
 ) = doWithCtx {
@@ -109,7 +110,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
         }
     val loadList =
         calcOnState {
-            dataCellLoadedTypeInfo.loadData(this, offset, type, oldSlice)
+            dataCellLoadedTypeInfo.loadData(this, offset, type, oldSlice, noRegister)
         }
 
     var died = false
