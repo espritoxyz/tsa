@@ -8,6 +8,7 @@ import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.setTSACheckerFunctions
 import org.usvm.machine.FuncAnalyzer.Companion.FIFT_EXECUTABLE
+import org.usvm.machine.FuncAnalyzer.Companion.FUNC_EXECUTABLE
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
@@ -24,6 +25,7 @@ import kotlin.io.path.createTempFile
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.div
 import kotlin.io.path.exists
+import kotlin.io.path.pathString
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -453,7 +455,55 @@ class FiftAnalyzer(
     }
 }
 
-data object BocAnalyzer : TvmAnalyzer<Path> {
+class TolkAnalyzer(
+    val tolkStdlibPath: Path,
+    val fiftStdlibPath: Path,
+) : TvmAnalyzer<Path> {
+    private val tolkExecutablePath: Path = Paths.get("tolk")
+
+    private val fiftAnalyzer = FiftAnalyzer(fiftStdlibPath)
+
+    override fun convertToTvmContractCode(sources: Path): TsaContractCode {
+        val tolkCommand = "$tolkExecutablePath ${sources.absolutePathString()}"
+
+        val (exitValue, completedInTime, output, errors) =
+            executeCommandWithTimeout(
+                tolkCommand,
+                COMPILER_TIMEOUT,
+                processWorkingDirectory = sources.getParentNonNullAbsolutePath().toFile(),
+                additionalEnvironment = mapOf("TOLK_STDLIB" to tolkStdlibPath.pathString),
+            )
+
+        check(completedInTime) {
+            "Tolk compilation to Fift has not finished in $COMPILER_TIMEOUT seconds"
+        }
+
+        check(exitValue == 0 && errors.isEmpty()) {
+            """
+            Tolk compilation to Fift failed with an error, exit code $exitValue, errors: 
+            ${errors.toText()}
+            Command:
+            $tolkCommand
+            """.trimIndent()
+        }
+
+        val fiftCode = output.joinToString("\n")
+
+        val tmpFiftFile = createTempFile(suffix = ".fif")
+
+        val bocFilePath = createTempFile(suffix = ".boc")
+        try {
+            tmpFiftFile.writeText(fiftCode)
+            fiftAnalyzer.compileFiftToBoc(tmpFiftFile, bocFilePath)
+        } finally {
+            tmpFiftFile.deleteIfExists()
+        }
+
+        return BocAnalyzer.loadContractFromBoc(bocFilePath)
+    }
+}
+
+object BocAnalyzer : TvmAnalyzer<Path> {
     override fun convertToTvmContractCode(sources: Path): TsaContractCode = loadContractFromBoc(sources)
 
     fun loadContractFromBoc(bocFilePath: Path): TsaContractCode = TsaContractCode.construct(bocFilePath)
@@ -602,6 +652,18 @@ fun getFuncContract(
     isTSAChecker: Boolean = false,
 ): TsaContractCode =
     FuncAnalyzer(fiftStdlibPath).convertToTvmContractCode(path).also {
+        if (isTSAChecker) {
+            setTSACheckerFunctions(it)
+        }
+    }
+
+fun getTolkContract(
+    path: Path,
+    fiftStdlibPath: Path,
+    tolkStdlibPath: Path,
+    isTSAChecker: Boolean = false,
+): TsaContractCode =
+    TolkAnalyzer(tolkStdlibPath, fiftStdlibPath).convertToTvmContractCode(path).also {
         if (isTSAChecker) {
             setTSACheckerFunctions(it)
         }
