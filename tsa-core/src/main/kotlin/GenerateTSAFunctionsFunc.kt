@@ -1,23 +1,25 @@
-import kotlin.io.path.Path
-import kotlin.io.path.bufferedWriter
+import org.usvm.machine.interpreter.ALLOW_FAILURES_METHOD_ID
+import org.usvm.machine.interpreter.ASSERT_METHOD_ID
+import org.usvm.machine.interpreter.ASSERT_NOT_METHOD_ID
+import org.usvm.machine.interpreter.FETCH_VALUE_METHOD_ID
+import org.usvm.machine.interpreter.FORBID_FAILURES_METHOD_ID
+import org.usvm.machine.interpreter.GET_BALANCE_METHOD_ID
+import org.usvm.machine.interpreter.GET_C4_METHOD_ID
+import org.usvm.machine.interpreter.INPUT_WAS_ACCEPTED_METHOD_ID
+import org.usvm.machine.interpreter.MAKE_ADDRESS_RANDOM_METHOD_ID
+import org.usvm.machine.interpreter.MAKE_SLICE_INDEPENDENT_METHOD_ID
+import org.usvm.machine.interpreter.MK_SYMBOLIC_INT_METHOD_ID
+import org.usvm.machine.interpreter.SEND_EXTERNAL_MESSAGE_METHOD_ID
+import org.usvm.machine.interpreter.SEND_EXTERNAL_MESSAGE_WITH_BODY_METHOD_ID
+import org.usvm.machine.interpreter.SEND_INTERNAL_MESSAGE_METHOD_ID
+import org.usvm.machine.interpreter.SEND_INTERNAL_MESSAGE_WITH_BODY_METHOD_ID
+import org.usvm.machine.interpreter.SET_C4_METHOD_ID
 import kotlin.math.max
 
-private const val PATH_IN_JETTON_RESOURCES = "tsa-jettons/src/main/resources/imports/tsa_functions.fc"
-private const val PATH_IN_TEST_RESOURCES = "tsa-test/src/test/resources/imports/tsa_functions.fc"
-private const val PATH_IN_SAFETY_PROPERTIES_EXAMPLES_TEST_RESOURCES =
-    "tsa-safety-properties-examples/src/test/resources/imports/tsa_functions.fc"
-private val pathsForTsaFunctions =
-    listOf(
-        PATH_IN_JETTON_RESOURCES,
-        PATH_IN_SAFETY_PROPERTIES_EXAMPLES_TEST_RESOURCES,
-        PATH_IN_TEST_RESOURCES,
-        PATH_IN_SAFETY_PROPERTIES_EXAMPLES_TEST_RESOURCES,
-    ).map(::Path)
-
-private const val MAX_PARAMETERS = 10
+internal const val MAX_PARAMETERS = 10
 private const val DOUBLE_SEPARATOR = "\n\n"
 
-fun main() {
+internal fun generateFuncCheckerFile(): String {
     val prefix =
         """
         ;; generated
@@ -36,64 +38,64 @@ fun main() {
         """
         ;; API functions
 
-        () tsa_forbid_failures() impure method_id(1) {
+        () tsa_forbid_failures() impure method_id($FORBID_FAILURES_METHOD_ID) {
             ;; do nothing
         }
 
-        () tsa_allow_failures() impure method_id(2) {
+        () tsa_allow_failures() impure method_id($ALLOW_FAILURES_METHOD_ID) {
             ;; do nothing
         }
 
-        () tsa_assert(int condition) impure method_id(3) {
+        () tsa_assert(int condition) impure method_id($ASSERT_METHOD_ID) {
             ;; do nothing
         }
 
-        () tsa_assert_not(int condition) impure method_id(4) {
+        () tsa_assert_not(int condition) impure method_id($ASSERT_NOT_METHOD_ID) {
             ;; do nothing
         }
 
-        forall A -> () tsa_fetch_value(A value, int value_id) impure method_id(5) {
+        forall A -> () tsa_fetch_value(A value, int value_id) impure method_id($FETCH_VALUE_METHOD_ID) {
             ;; do nothing
         }
 
-        () tsa_send_internal_message(int contract_id, int input_id) impure method_id(6) {
+        () tsa_send_internal_message(int contract_id, int input_id) impure method_id($SEND_INTERNAL_MESSAGE_METHOD_ID) {
             ;; do nothing
         }
 
-        cell tsa_get_c4(int contract_id) impure method_id(7) {
+        cell tsa_get_c4(int contract_id) impure method_id($GET_C4_METHOD_ID) {
             return return_1();
         }
 
-        () tsa_send_external_message(int contract_id, int input_id) impure method_id(8) {
+        () tsa_send_external_message(int contract_id, int input_id) impure method_id($SEND_EXTERNAL_MESSAGE_METHOD_ID) {
             ;; do nothing
         }
 
-        int tsa_get_balance(int contract_id) impure method_id(9) {
+        int tsa_get_balance(int contract_id) impure method_id($GET_BALANCE_METHOD_ID) {
             return return_1();
         }
 
         ;; this function shouldn't be used while executing contract [contract_id] (inside checker handlers)
-        () tsa_set_c4(int contract_id, cell value) impure method_id(10) {
+        () tsa_set_c4(int contract_id, cell value) impure method_id($SET_C4_METHOD_ID) {
             ;; do nothing
         }
 
-        () tsa_make_address_random(slice address) impure method_id(11) {
+        () tsa_make_address_random(slice address) impure method_id($MAKE_ADDRESS_RANDOM_METHOD_ID) {
             ;; do nothing
         }
         
-        () tsa_make_slice_independent_from_random_addresses(slice independent_slice) impure method_id(12) {
+        () tsa_make_slice_independent_from_random_addresses(slice independent_slice) impure method_id($MAKE_SLICE_INDEPENDENT_METHOD_ID) {
             ;; do nothing
         }
         
-        int tsa_input_was_accepted(int input_id) impure method_id(13) {
+        int tsa_input_was_accepted(int input_id) impure method_id($INPUT_WAS_ACCEPTED_METHOD_ID) {
             return return_1();
         }
         
-        () tsa_send_internal_message_with_body(slice body, int contract_id, int input_id) impure method_id(14) {
+        () tsa_send_internal_message_with_body(slice body, int contract_id, int input_id) impure method_id($SEND_INTERNAL_MESSAGE_WITH_BODY_METHOD_ID) {
             ;; do nothing
         }
         
-        () tsa_send_external_message_with_body(slice body, int contract_id, int input_id) impure method_id(15) {
+        () tsa_send_external_message_with_body(slice body, int contract_id, int input_id) impure method_id($SEND_EXTERNAL_MESSAGE_WITH_BODY_METHOD_ID) {
             ;; do nothing
         }
         """.trimIndent()
@@ -102,7 +104,7 @@ fun main() {
         """
         ;; making symbolic values API functions
 
-        int tsa_mk_int(int bits, int signed) impure method_id(100) {
+        int tsa_mk_int(int bits, int signed) impure method_id($MK_SYMBOLIC_INT_METHOD_ID) {
             return return_1();
         }
         """.trimIndent()
@@ -133,18 +135,11 @@ fun main() {
             }
         }.flatten().joinToString(prefix = ";; calling methods functions$DOUBLE_SEPARATOR", separator = DOUBLE_SEPARATOR)
 
-    val code =
-        listOf(
-            prefix,
-            auxiliaryFunctions,
-            firstApiFunctions,
-            mkSymbolicApiFunctions,
-            callFunctions,
-        ).joinToString(separator = DOUBLE_SEPARATOR)
-
-    pathsForTsaFunctions.forEach { path ->
-        path.bufferedWriter().use {
-            it.append(code)
-        }
-    }
+    return listOf(
+        prefix,
+        auxiliaryFunctions,
+        firstApiFunctions,
+        mkSymbolicApiFunctions,
+        callFunctions,
+    ).joinToString(separator = DOUBLE_SEPARATOR)
 }
