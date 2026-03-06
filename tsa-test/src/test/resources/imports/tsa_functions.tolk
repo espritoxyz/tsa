@@ -241,7 +241,7 @@ fun tsaCallGetterIn1Ret1Impl(p0: TsaAny, idContract: int, idMethod: int): (TsaAn
 
 fun tsaCallGetterIn1Ret1<A, B>(p0: B, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn1Ret1Impl(wrap(p0), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -252,7 +252,7 @@ fun tsaCallGetterIn2Ret1Impl(p0: TsaAny, p1: TsaAny, idContract: int, idMethod: 
 
 fun tsaCallGetterIn2Ret1<A, B, C>(p0: B, p1: C, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn2Ret1Impl(wrap(p0), wrap(p1), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -263,7 +263,7 @@ fun tsaCallGetterIn3Ret1Impl(p0: TsaAny, p1: TsaAny, p2: TsaAny, idContract: int
 
 fun tsaCallGetterIn3Ret1<A, B, C, D>(p0: B, p1: C, p2: D, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn3Ret1Impl(wrap(p0), wrap(p1), wrap(p2), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -274,7 +274,7 @@ fun tsaCallGetterIn4Ret1Impl(p0: TsaAny, p1: TsaAny, p2: TsaAny, p3: TsaAny, idC
 
 fun tsaCallGetterIn4Ret1<A, B, C, D, E>(p0: B, p1: C, p2: D, p3: E, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn4Ret1Impl(wrap(p0), wrap(p1), wrap(p2), wrap(p3), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -285,7 +285,7 @@ fun tsaCallGetterIn5Ret1Impl(p0: TsaAny, p1: TsaAny, p2: TsaAny, p3: TsaAny, p4:
 
 fun tsaCallGetterIn5Ret1<A, B, C, D, E, F>(p0: B, p1: C, p2: D, p3: E, p4: F, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn5Ret1Impl(wrap(p0), wrap(p1), wrap(p2), wrap(p3), wrap(p4), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -296,7 +296,7 @@ fun tsaCallGetterIn6Ret1Impl(p0: TsaAny, p1: TsaAny, p2: TsaAny, p3: TsaAny, p4:
 
 fun tsaCallGetterIn6Ret1<A, B, C, D, E, F, G>(p0: B, p1: C, p2: D, p3: E, p4: F, p5: G, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn6Ret1Impl(wrap(p0), wrap(p1), wrap(p2), wrap(p3), wrap(p4), wrap(p5), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -307,7 +307,7 @@ fun tsaCallGetterIn7Ret1Impl(p0: TsaAny, p1: TsaAny, p2: TsaAny, p3: TsaAny, p4:
 
 fun tsaCallGetterIn7Ret1<A, B, C, D, E, F, G, H>(p0: B, p1: C, p2: D, p3: E, p4: F, p5: G, p6: H, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn7Ret1Impl(wrap(p0), wrap(p1), wrap(p2), wrap(p3), wrap(p4), wrap(p5), wrap(p6), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -318,7 +318,7 @@ fun tsaCallGetterIn8Ret1Impl(p0: TsaAny, p1: TsaAny, p2: TsaAny, p3: TsaAny, p4:
 
 fun tsaCallGetterIn8Ret1<A, B, C, D, E, F, G, H, I>(p0: B, p1: C, p2: D, p3: E, p4: F, p5: G, p6: H, p7: I, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn8Ret1Impl(wrap(p0), wrap(p1), wrap(p2), wrap(p3), wrap(p4), wrap(p5), wrap(p6), wrap(p7), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -329,7 +329,7 @@ fun tsaCallGetterIn9Ret1Impl(p0: TsaAny, p1: TsaAny, p2: TsaAny, p3: TsaAny, p4:
 
 fun tsaCallGetterIn9Ret1<A, B, C, D, E, F, G, H, I, J>(p0: B, p1: C, p2: D, p3: E, p4: F, p5: G, p6: H, p7: I, p8: J, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn9Ret1Impl(wrap(p0), wrap(p1), wrap(p2), wrap(p3), wrap(p4), wrap(p5), wrap(p6), wrap(p7), wrap(p8), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
@@ -340,7 +340,7 @@ fun tsaCallGetterIn10Ret1Impl(p0: TsaAny, p1: TsaAny, p2: TsaAny, p3: TsaAny, p4
 
 fun tsaCallGetterIn10Ret1<A, B, C, D, E, F, G, H, I, J, K>(p0: B, p1: C, p2: D, p3: E, p4: F, p5: G, p6: H, p7: I, p8: J, p9: K, idContract: int, idMethod: int): (A) {
     val result = tsaCallGetterIn10Ret1Impl(wrap(p0), wrap(p1), wrap(p2), wrap(p3), wrap(p4), wrap(p5), wrap(p6), wrap(p7), wrap(p8), wrap(p9), idContract, idMethod);
-    return (unwrap<A>(result.0));
+    return (unwrap<A>(result));
 
 }
 
