@@ -52,7 +52,7 @@ class TvmDataCellLoadedTypeInfo(
     private fun <ConcreteAction : Action> registerAction(
         reference: UHeapRef,
         actionList: MutableList<ConcreteAction>,
-        noRegister: Boolean,
+        noRegister: Boolean, // if set, the load won't occur in cell reads (useful for artificial TSA loads)
         action: (GuardedExpr<UConcreteHeapRef>) -> ConcreteAction?,
     ) = with(reference.ctx as TvmContext) {
         val cellLeaves = flattenReferenceIteSpecialized(reference, extractAllocated = true, extractStatic = true)
