@@ -24,7 +24,7 @@ import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.getContractInfoParamOf
-import org.usvm.machine.state.sliceLoadIntTlbNoFork
+import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.mkSizeExpr
 
@@ -97,7 +97,11 @@ sealed class ReceiverInput(
                     when (messageConcreteData.opcodeInfo) {
                         is ExcludedOpcodes -> {
                             val (_, opcode) =
-                                sliceLoadIntTlbNoFork(scope, msgBodySliceNonBounced, sizeBits = opcodeLength)
+                                sliceLoadIntTlbNoForkAndNoRegister(
+                                    scope,
+                                    msgBodySliceNonBounced,
+                                    sizeBits = opcodeLength,
+                                )
                                     ?: return@doWithCtx null
 
                             messageConcreteData.opcodeInfo.opcodes.fold(trueExpr as UBoolExpr) { acc, value ->
@@ -107,7 +111,11 @@ sealed class ReceiverInput(
 
                         is ConcreteOpcode -> {
                             val (_, opcode) =
-                                sliceLoadIntTlbNoFork(scope, msgBodySliceNonBounced, sizeBits = opcodeLength)
+                                sliceLoadIntTlbNoForkAndNoRegister(
+                                    scope,
+                                    msgBodySliceNonBounced,
+                                    sizeBits = opcodeLength,
+                                )
                                     ?: return@doWithCtx null
 
                             opcode eq messageConcreteData.opcodeInfo.opcode.toBv257()

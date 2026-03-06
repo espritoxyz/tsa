@@ -52,6 +52,7 @@ class TvmDataCellLoadedTypeInfo(
     private fun <ConcreteAction : Action> registerAction(
         reference: UHeapRef,
         actionList: MutableList<ConcreteAction>,
+        noRegister: Boolean, // if set, the load won't occur in cell reads (useful for artificial TSA loads)
         action: (GuardedExpr<UConcreteHeapRef>) -> ConcreteAction?,
     ) = with(reference.ctx as TvmContext) {
         val cellLeaves = flattenReferenceIteSpecialized(reference, extractAllocated = true, extractStatic = true)
@@ -69,7 +70,9 @@ class TvmDataCellLoadedTypeInfo(
                 }
             }
 
-        referenceToActions = newMap
+        if (!noRegister) {
+            referenceToActions = newMap
+        }
     }
 
     fun <ReadResult> loadData(
@@ -77,6 +80,7 @@ class TvmDataCellLoadedTypeInfo(
         offset: UExpr<TvmSizeSort>,
         type: TvmCellDataTypeRead<ReadResult>,
         slice: UHeapRef,
+        noRegister: Boolean,
     ): List<LoadData<ReadResult>> =
         with(state.ctx) {
             val staticSliceReferences =
@@ -85,7 +89,7 @@ class TvmDataCellLoadedTypeInfo(
             val result = mutableListOf<LoadData<ReadResult>>()
             staticSliceReferences.forEach { (sliceRefGuard, sliceRef) ->
                 val cellRef = state.memory.readField(sliceRef, TvmContext.sliceCellField, addressSort)
-                registerAction(cellRef, result) { ref ->
+                registerAction(cellRef, result, noRegister) { ref ->
                     val guard = (ref.guard and sliceRefGuard)
                     if (guard.isFalse) {
                         null
@@ -103,7 +107,7 @@ class TvmDataCellLoadedTypeInfo(
         refPos: UExpr<TvmSizeSort>,
     ): List<LoadRef> {
         val result = mutableListOf<LoadRef>()
-        registerAction(cellAddress, result) { ref ->
+        registerAction(cellAddress, result, noRegister = false) { ref ->
             LoadRef(ref.guard, ref.expr, refPos)
         }
         return result
@@ -115,7 +119,7 @@ class TvmDataCellLoadedTypeInfo(
         refNumber: UExpr<TvmSizeSort>,
     ): List<EndOfCell> {
         val result = mutableListOf<EndOfCell>()
-        registerAction(cellAddress, result) { ref ->
+        registerAction(cellAddress, result, noRegister = false) { ref ->
             EndOfCell(ref.guard, ref.expr, offset, refNumber)
         }
         return result
