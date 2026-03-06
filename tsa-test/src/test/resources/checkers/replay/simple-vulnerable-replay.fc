@@ -1,0 +1,8 @@
+#include "vulnerable-highload-1/imports/stdlib.fc";
+
+() main() { }
+
+() recv_external(slice in_msg) impure {
+    accept_message();
+}
+
