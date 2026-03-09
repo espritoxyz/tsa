@@ -15,6 +15,7 @@ class CellBuildTest {
     private val storeOnesFunc: String = "/cell/cell-build/StonesSymbolicSize.fc"
     private val sdpfxFunc: String = "/cell/sdpfx.fc"
     private val sdpfxrevFunc: String = "/cell/sdpfxrev.fc"
+    private val splitFuncs: String = "/cell/split.fc"
 
     /**
      * pp = proper prefix
@@ -60,5 +61,10 @@ class CellBuildTest {
     @Test
     fun `test proper prefix rev functions`() {
         compareSymbolicAndConcreteResultsFunc(sdppfxrevFunc, (0..4).toSet())
+    }
+
+    @Test
+    fun `test split functions`() {
+        compareSymbolicAndConcreteResultsFunc(splitFuncs, (0..5).toSet())
     }
 }

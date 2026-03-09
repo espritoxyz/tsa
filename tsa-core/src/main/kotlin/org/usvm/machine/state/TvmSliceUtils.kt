@@ -1413,6 +1413,10 @@ fun sliceLoadIntTlb(
     }
 }
 
+/**
+ * @param newSlice is the slice left after a read
+ * @param restActions takes in a read slice
+ */
 fun TvmStepScopeManager.sliceLoadBitArrayTlb(
     slice: UHeapRef,
     newSlice: UConcreteHeapRef,
@@ -1648,6 +1652,21 @@ fun TvmState.readCellRefsCount(cell: CellRef): SizeExpr =
     fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell.value)
 
 fun TvmState.readSliceRefPos(slice: SliceRef): SizeExpr = memory.readField(slice.value, sliceRefPosField, ctx.sizeSort)
+
+fun TvmState.writeSliceRefPos(
+    slice: SliceRef,
+    newRefPos: SizeExpr,
+) = memory.writeField(slice.value, sliceRefPosField, ctx.sizeSort, newRefPos, ctx.trueExpr)
+
+fun TvmState.writeSliceCell(
+    slice: SliceRef,
+    newRefPos: UHeapRef,
+) = memory.writeField(slice.value, sliceCellField, ctx.addressSort, newRefPos, ctx.trueExpr)
+
+fun TvmState.writeSliceDataPos(
+    slice: SliceRef,
+    newDataPos: SizeExpr,
+) = memory.writeField(slice.value, sliceRefPosField, ctx.sizeSort, newDataPos, ctx.trueExpr)
 
 fun TvmState.readSliceRefPos(slice: UHeapRef): SizeExpr = readSliceRefPos(slice.asSliceRef())
 
