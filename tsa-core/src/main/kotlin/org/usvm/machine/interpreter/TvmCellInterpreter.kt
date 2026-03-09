@@ -94,6 +94,7 @@ import org.ton.bytecode.TvmCellParseSdepthInst
 import org.ton.bytecode.TvmCellParseSdskipfirstInst
 import org.ton.bytecode.TvmCellParseSdskiplastInst
 import org.ton.bytecode.TvmCellParseSdsubstrInst
+import org.ton.bytecode.TvmCellParseSplitInst
 import org.ton.bytecode.TvmCellParseSrefsInst
 import org.ton.bytecode.TvmCellParseSskiplastInst
 import org.ton.bytecode.TvmCellParseXctosInst
@@ -112,6 +113,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.addSlice
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.assertDataCellType
@@ -138,8 +140,12 @@ import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.mockCellDepth
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
+import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.state.readSliceDataPos
+import org.usvm.machine.state.readSliceRefPos
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceCopy
+import org.usvm.machine.state.sliceLoadBitArrayTlb
 import org.usvm.machine.state.sliceLoadIntTlb
 import org.usvm.machine.state.sliceLoadRefTlb
 import org.usvm.machine.state.sliceMoveDataPtr
@@ -155,6 +161,8 @@ import org.usvm.machine.state.takeLastRef
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.state.takeLastSliceOrThrowTypeError
 import org.usvm.machine.state.unsignedIntegerFitsBits
+import org.usvm.machine.state.writeSliceCell
+import org.usvm.machine.state.writeSliceRefPos
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataIntegerRead
@@ -163,6 +171,7 @@ import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.TvmSliceType
+import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.assertEndOfCell
 import org.usvm.machine.types.copyTlbToNewBuilder
 import org.usvm.machine.types.makeCellToSlice
@@ -183,17 +192,32 @@ class TvmCellInterpreter(
     ): Unit =
         with(ctx) {
             when (stmt) {
-                is TvmCellParseCtosInst -> visitCellToSliceInst(scope, stmt)
-                is TvmCellParseXctosInst -> visitExoticCellToSliceInst(scope, stmt)
-                is TvmCellParseEndsInst -> visitEndSliceInst(scope, stmt)
-                is TvmCellParseLdrefInst -> visitLoadRefInst(scope, stmt)
-                is TvmCellParsePldrefidxInst -> doPreloadRef(scope, stmt, refIdx = mkSizeExpr(stmt.n))
+                is TvmCellParseCtosInst -> {
+                    visitCellToSliceInst(scope, stmt)
+                }
+
+                is TvmCellParseXctosInst -> {
+                    visitExoticCellToSliceInst(scope, stmt)
+                }
+
+                is TvmCellParseEndsInst -> {
+                    visitEndSliceInst(scope, stmt)
+                }
+
+                is TvmCellParseLdrefInst -> {
+                    visitLoadRefInst(scope, stmt)
+                }
+
+                is TvmCellParsePldrefidxInst -> {
+                    doPreloadRef(scope, stmt, refIdx = mkSizeExpr(stmt.n))
+                }
+
                 is TvmCellParsePldrefvarInst -> {
                     val refIdx = scope.calcOnState { takeLastIntOrThrowTypeError() } ?: return
                     doPreloadRef(scope, stmt, refIdx = refIdx.extractToSizeSort())
                 }
 
-                is TvmCellParseLduInst ->
+                is TvmCellParseLduInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -202,8 +226,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLduqInst ->
+                is TvmCellParseLduqInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -212,8 +237,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParseLduAltInst ->
+                is TvmCellParseLduAltInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -222,8 +248,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLdiInst ->
+                is TvmCellParseLdiInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -232,8 +259,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLdiqInst ->
+                is TvmCellParseLdiqInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -242,8 +270,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParseLdiAltInst ->
+                is TvmCellParseLdiAltInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -252,8 +281,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePlduInst ->
+                is TvmCellParsePlduInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -262,8 +292,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePlduqInst ->
+                is TvmCellParsePlduqInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -272,8 +303,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParsePldiInst ->
+                is TvmCellParsePldiInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -282,8 +314,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldiqInst ->
+                is TvmCellParsePldiqInst -> {
                     visitLoadIntInst(
                         scope,
                         stmt,
@@ -292,8 +325,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParseLdule4Inst ->
+                is TvmCellParseLdule4Inst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -302,8 +336,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLdule4qInst ->
+                is TvmCellParseLdule4qInst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -312,8 +347,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParseLdile4Inst ->
+                is TvmCellParseLdile4Inst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -322,8 +358,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLdule8Inst ->
+                is TvmCellParseLdule8Inst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -332,8 +369,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLdile8Inst ->
+                is TvmCellParseLdile8Inst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -342,8 +380,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldule4Inst ->
+                is TvmCellParsePldule4Inst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -352,8 +391,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldule4qInst ->
+                is TvmCellParsePldule4qInst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -362,8 +402,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParsePldile4Inst ->
+                is TvmCellParsePldile4Inst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -372,8 +413,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldile4qInst ->
+                is TvmCellParsePldile4qInst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -382,8 +424,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParsePldule8Inst ->
+                is TvmCellParsePldule8Inst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -392,8 +435,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldule8qInst ->
+                is TvmCellParsePldule8qInst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -402,8 +446,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParsePldile8Inst ->
+                is TvmCellParsePldile8Inst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -412,8 +457,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldile8qInst ->
+                is TvmCellParsePldile8qInst -> {
                     visitLoadIntLEInst(
                         scope,
                         stmt,
@@ -422,8 +468,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParseLduxInst ->
+                is TvmCellParseLduxInst -> {
                     visitLoadIntXInst(
                         scope,
                         stmt,
@@ -431,8 +478,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLduxqInst ->
+                is TvmCellParseLduxqInst -> {
                     visitLoadIntXInst(
                         scope,
                         stmt,
@@ -440,8 +488,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParseLdixInst ->
+                is TvmCellParseLdixInst -> {
                     visitLoadIntXInst(
                         scope,
                         stmt,
@@ -449,8 +498,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLdixqInst ->
+                is TvmCellParseLdixqInst -> {
                     visitLoadIntXInst(
                         scope,
                         stmt,
@@ -458,8 +508,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParsePlduxInst ->
+                is TvmCellParsePlduxInst -> {
                     visitLoadIntXInst(
                         scope,
                         stmt,
@@ -467,8 +518,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePlduxqInst ->
+                is TvmCellParsePlduxqInst -> {
                     visitLoadIntXInst(
                         scope,
                         stmt,
@@ -476,8 +528,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParsePldixInst ->
+                is TvmCellParsePldixInst -> {
                     visitLoadIntXInst(
                         scope,
                         stmt,
@@ -485,8 +538,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldixqInst ->
+                is TvmCellParsePldixqInst -> {
                     visitLoadIntXInst(
                         scope,
                         stmt,
@@ -494,8 +548,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParseLdsliceInst ->
+                is TvmCellParseLdsliceInst -> {
                     visitLoadSliceInst(
                         scope,
                         stmt,
@@ -503,8 +558,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParseLdsliceqInst ->
+                is TvmCellParseLdsliceqInst -> {
                     visitLoadSliceInst(
                         scope,
                         stmt,
@@ -512,8 +568,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = true,
                     )
+                }
 
-                is TvmCellParseLdsliceAltInst ->
+                is TvmCellParseLdsliceAltInst -> {
                     visitLoadSliceInst(
                         scope,
                         stmt,
@@ -521,8 +578,9 @@ class TvmCellInterpreter(
                         preload = false,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldsliceInst ->
+                is TvmCellParsePldsliceInst -> {
                     visitLoadSliceInst(
                         scope,
                         stmt,
@@ -530,8 +588,9 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = false,
                     )
+                }
 
-                is TvmCellParsePldsliceqInst ->
+                is TvmCellParsePldsliceqInst -> {
                     visitLoadSliceInst(
                         scope,
                         stmt,
@@ -539,6 +598,7 @@ class TvmCellInterpreter(
                         preload = true,
                         quiet = true,
                     )
+                }
 
                 is TvmCellParseLdslicexInst -> {
                     visitLoadSliceXWithStackSL(scope, stmt, preload = false, quiet = false, pushResultOnStack = true)
@@ -556,9 +616,18 @@ class TvmCellInterpreter(
                     visitLoadSliceXWithStackSL(scope, stmt, preload = true, quiet = true, pushResultOnStack = true)
                 }
 
-                is TvmCellParseSrefsInst -> visitSizeRefsInst(scope, stmt)
-                is TvmCellParseSbitsInst -> visitSizeBitsInst(scope, stmt)
-                is TvmCellParseSbitrefsInst -> visitSizeBitRefsInst(scope, stmt)
+                is TvmCellParseSrefsInst -> {
+                    visitSizeRefsInst(scope, stmt)
+                }
+
+                is TvmCellParseSbitsInst -> {
+                    visitSizeBitsInst(scope, stmt)
+                }
+
+                is TvmCellParseSbitrefsInst -> {
+                    visitSizeBitRefsInst(scope, stmt)
+                }
+
                 is TvmCellParseSdskipfirstInst -> {
                     visitLoadSliceXWithStackSL(scope, stmt, preload = false, quiet = false, pushResultOnStack = false)
                 }
@@ -595,12 +664,29 @@ class TvmCellInterpreter(
                     visitBeginsXInst(scope, stmt, quiet = true)
                 }
 
-                is TvmCellParseCdepthInst -> visitDepthInst(scope, stmt, operandType = TvmCellType)
-                is TvmCellParseSdepthInst -> visitDepthInst(scope, stmt, operandType = TvmSliceType)
-                is TvmCellParseLdrefrtosInst -> visitLoadRefRtosInst(scope, stmt)
-                is TvmCellParseSdsubstrInst -> visitSdsubstrInst(scope, stmt)
+                is TvmCellParseCdepthInst -> {
+                    visitDepthInst(scope, stmt, operandType = TvmCellType)
+                }
 
-                else -> TODO("Unknown stmt: $stmt")
+                is TvmCellParseSdepthInst -> {
+                    visitDepthInst(scope, stmt, operandType = TvmSliceType)
+                }
+
+                is TvmCellParseLdrefrtosInst -> {
+                    visitLoadRefRtosInst(scope, stmt)
+                }
+
+                is TvmCellParseSdsubstrInst -> {
+                    visitSdsubstrInst(scope, stmt)
+                }
+
+                is TvmCellParseSplitInst -> {
+                    visitSplitInst(scope, stmt)
+                }
+
+                else -> {
+                    TODO("Unknown stmt: $stmt")
+                }
             }
         }
 
@@ -699,25 +785,102 @@ class TvmCellInterpreter(
         )
     }
 
+    fun visitSplitInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmCellParseSplitInst,
+    ) {
+        scope.consumeDefaultGas(stmt)
+        val r =
+            with(ctx) {
+                scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
+            }
+                ?: return
+        val l =
+            with(ctx) {
+                scope
+                    .takeLastIntOrThrowTypeError()
+                    ?.extractToSizeSort()
+            }
+                ?: return
+        val s =
+            scope.takeLastSliceOrThrowTypeError()
+                ?: return
+        val sCellSopy =
+            scope
+                .calcOnState { allocEmptyCell() }
+                .also { scope.builderCopy(scope.calcOnState { readSliceCell(s) }, it) }
+        val sLeft = scope.calcOnState { allocSliceFromCell(sCellSopy) }.asSliceRef()
+        scope.calcOnState {
+            val actualRefs = with(ctx) { readSliceRefPos(s) bvAdd r }
+            val actualDataLength = with(ctx) { readSliceDataPos(s) bvAdd l }
+            fieldManagers.cellDataLengthFieldManager.writeCellDataLength(this, sCellSopy, actualDataLength, null)
+            fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(this, sCellSopy, actualRefs)
+
+            writeSliceCell(sLeft, sCellSopy)
+            writeSliceRefPos(sLeft, readSliceRefPos(s))
+        }
+
+        val rightPart =
+            scope.calcOnState {
+                memory.allocConcrete(TvmSliceType).also { sliceCopy(s, it) }
+            }
+        scope.sliceLoadBitArrayTlb(s, rightPart, l) { _ ->
+            calcOnState {
+                sliceMoveRefPtr(rightPart, r)
+                sliceMoveDataPtr(rightPart, l)
+                stack.addSlice(sLeft)
+                stack.addSlice(rightPart)
+                newStmt(stmt.nextStmt())
+            }
+        }
+    }
+
     fun visitCellBuildInst(
         scope: TvmStepScopeManager,
         stmt: TvmCellBuildInst,
     ) {
         when (stmt) {
-            is TvmCellBuildEndcInst -> visitEndCellInst(scope, stmt)
-            is TvmCellBuildNewcInst -> visitNewCellInst(scope, stmt)
-            is TvmCellBuildStuInst -> visitStoreIntInst(scope, stmt, stmt.c + 1, false)
+            is TvmCellBuildEndcInst -> {
+                visitEndCellInst(scope, stmt)
+            }
+
+            is TvmCellBuildNewcInst -> {
+                visitNewCellInst(scope, stmt)
+            }
+
+            is TvmCellBuildStuInst -> {
+                visitStoreIntInst(scope, stmt, stmt.c + 1, false)
+            }
+
             is TvmCellBuildSturInst -> {
                 doSwap(scope)
                 visitStoreIntInst(scope, stmt, stmt.c + 1, false)
             }
 
-            is TvmCellBuildStiInst -> visitStoreIntInst(scope, stmt, stmt.c + 1, true)
-            is TvmCellBuildStuxInst -> visitStoreIntXInst(scope, stmt, false)
-            is TvmCellBuildStixInst -> visitStoreIntXInst(scope, stmt, true)
-            is TvmCellBuildStzeroesInst -> visitStoreZeroesInst(scope, stmt)
-            is TvmCellBuildStonesInst -> visitStoreOnesInst(scope, stmt)
-            is TvmCellBuildBbitsInst -> visitBuilderBitsInst(scope, stmt)
+            is TvmCellBuildStiInst -> {
+                visitStoreIntInst(scope, stmt, stmt.c + 1, true)
+            }
+
+            is TvmCellBuildStuxInst -> {
+                visitStoreIntXInst(scope, stmt, false)
+            }
+
+            is TvmCellBuildStixInst -> {
+                visitStoreIntXInst(scope, stmt, true)
+            }
+
+            is TvmCellBuildStzeroesInst -> {
+                visitStoreZeroesInst(scope, stmt)
+            }
+
+            is TvmCellBuildStonesInst -> {
+                visitStoreOnesInst(scope, stmt)
+            }
+
+            is TvmCellBuildBbitsInst -> {
+                visitBuilderBitsInst(scope, stmt)
+            }
+
             is TvmCellBuildStsliceInst -> {
                 scope.consumeDefaultGas(stmt)
 
@@ -790,9 +953,18 @@ class TvmCellInterpreter(
                 scope.doStoreBuilder(stmt, quiet = true)
             }
 
-            is TvmCellBuildStrefInst -> visitStoreRefInst(scope, stmt, quiet = false)
-            is TvmCellBuildStrefqInst -> visitStoreRefInst(scope, stmt, quiet = true)
-            is TvmCellBuildStrefAltInst -> visitStoreRefInst(scope, stmt, quiet = false)
+            is TvmCellBuildStrefInst -> {
+                visitStoreRefInst(scope, stmt, quiet = false)
+            }
+
+            is TvmCellBuildStrefqInst -> {
+                visitStoreRefInst(scope, stmt, quiet = true)
+            }
+
+            is TvmCellBuildStrefAltInst -> {
+                visitStoreRefInst(scope, stmt, quiet = false)
+            }
+
             is TvmCellBuildStrefrInst -> {
                 doSwap(scope)
                 visitStoreRefInst(scope, stmt, quiet = false)
@@ -803,7 +975,9 @@ class TvmCellInterpreter(
                 visitStoreRefInst(scope, stmt, quiet = true)
             }
 
-            is TvmCellBuildBdepthInst -> visitDepthInst(scope, stmt, operandType = TvmBuilderType)
+            is TvmCellBuildBdepthInst -> {
+                visitDepthInst(scope, stmt, operandType = TvmBuilderType)
+            }
 
             is TvmCellBuildStbrefrInst -> {
                 scope.consumeDefaultGas(stmt)
@@ -814,7 +988,9 @@ class TvmCellInterpreter(
                 visitStoreRefInst(scope, stmt, quiet = false)
             }
 
-            is TvmCellBuildBrefsInst -> visitCellBrefsInst(scope, stmt)
+            is TvmCellBuildBrefsInst -> {
+                visitCellBrefsInst(scope, stmt)
+            }
 
             is TvmCellBuildBtosInst -> {
                 scope.consumeDefaultGas(stmt)
@@ -823,7 +999,9 @@ class TvmCellInterpreter(
                 doCellToSlice(scope, stmt)
             }
 
-            else -> TODO("$stmt")
+            else -> {
+                TODO("$stmt")
+            }
         }
     }
 
@@ -1101,7 +1279,8 @@ class TvmCellInterpreter(
 
         val sizeBits = sizeBytes * Byte.SIZE_BITS
 
-        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
+        val updatedSliceAddress =
+            scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
         scope.makeSliceTypeLoad(
             slice,
             TvmCellDataIntegerRead(mkBv(sizeBits), isSigned, Endian.LittleEndian),
@@ -1162,7 +1341,8 @@ class TvmCellInterpreter(
             return
         }
 
-        val updatedSliceAddress = scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
+        val updatedSliceAddress =
+            scope.calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
         scope.makeSliceTypeLoad(
             slice,
             TvmCellDataBitArrayRead(mkBv(sizeBits)),
@@ -1893,7 +2073,8 @@ class TvmCellInterpreter(
                 ?: return
 
             scope.doWithState {
-                val updatedBuilder = memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
+                val updatedBuilder =
+                    memory.allocConcrete(TvmBuilderType).also { builderCopyFromBuilder(builder, it) }
                 builderStoreNextRefNoOverflowCheck(updatedBuilder, cell)
 
                 // In this case, new builder has the same data structure as the old builder (only refs are changed).
