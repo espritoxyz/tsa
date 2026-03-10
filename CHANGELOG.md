@@ -1,5 +1,12 @@
 # TSA Changelog
 
+## v0.5.0 - v0.5.1
+
+* Added soft constraints for balance and message value in https://github.com/espritoxyz/tsa/pull/288
+* Added normalization for cell reads in https://github.com/espritoxyz/tsa/pull/289
+
+**Full Changelog**: https://github.com/espritoxyz/tsa/compare/v0.5.0...v0.5.1
+
 ## v0.4.28-dev - v0.5.0
 
 * Several new checker functions:
