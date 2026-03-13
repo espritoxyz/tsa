@@ -441,6 +441,7 @@ internal fun checkInvariants(
 internal fun List<TvmSymbolicTest>.assertNotEmpty() = assert(isNotEmpty())
 
 internal fun List<TvmSymbolicTest>.assertInvariantsHold(vararg properties: (TvmSymbolicTest) -> Boolean) {
+    assertNotEmpty() // we never actually want to have no tests
     checkInvariants(this, properties.toList())
 }
 

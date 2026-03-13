@@ -64,6 +64,7 @@ class GasTest {
                     "hash",
                     "continuations",
                     "contracts",
+                    "checkers",
                     -> FileVisitResult.SKIP_SUBTREE
 
                     else -> FileVisitResult.CONTINUE

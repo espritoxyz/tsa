@@ -1,0 +1,19 @@
+#include "vulnerable-highload-1/imports/stdlib.fc";
+
+() main() { }
+
+int get_seqno() impure method_id (37) {
+   return get_data().begin_parse().preload_int(32);
+}
+
+() recv_external(slice in_msg) impure {
+    slice ds = get_data().begin_parse();
+    int stored_seqno = ds~load_uint(32);
+    int msg_seqno = in_msg~load_uint(32);
+
+    throw_unless(33, msg_seqno == stored_seqno);
+
+    accept_message();
+
+    set_data(begin_cell().store_uint(stored_seqno + 1, 32).end_cell());
+}

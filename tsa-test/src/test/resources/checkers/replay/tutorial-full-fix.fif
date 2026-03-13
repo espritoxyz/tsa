@@ -1,0 +1,82 @@
+"Asm.fif" include
+// automatically generated from tutorial-full-fix.tolk
+PROGRAM{
+  100099 DECLMETHOD getSeqno()
+  0 DECLMETHOD main()
+  -1 DECLMETHOD onExternalMessage()
+  // 2 functions inlined in-place:
+  // - Storage.load (2 calls)
+  // - Storage.save (1 call)
+  // /home/metametamoon/workspace/tsa/tsa-repo/tsa-test/src/test/resources/checkers/replay/tutorial-full-fix.tolk:21
+  getSeqno() PROC:<{          	// 
+    // 14: return Storage.fromCell(contract.getData())
+    c4 PUSH                 	//  '2
+    CTOS                    	//  s
+    256 LDU                 	//  '7 s
+    NIP                     	//  s
+    32 LDI                  	//  '9 s
+    ENDS                    	//  '1
+  }>
+  // /home/metametamoon/workspace/tsa/tsa-repo/tsa-test/src/test/resources/checkers/replay/tutorial-full-fix.tolk:25
+  main() PROC:<{              	// 
+  }>
+  // /home/metametamoon/workspace/tsa/tsa-repo/tsa-test/src/test/resources/checkers/replay/tutorial-full-fix.tolk:28
+  onExternalMessage() PROC:<{ 	//  inMsg
+    // 29: var signature = inMsg.loadBits(512)
+    9 PUSHPOW2              	//  inMsg '2=512
+    LDSLICEX                	//  signature inMsg
+    // 14: return Storage.fromCell(contract.getData())
+    c4 PUSH                 	//  signature inMsg '10
+    CTOS                    	//  signature inMsg s
+    256 LDU                 	//  signature inMsg '15 s
+    32 LDI                  	//  signature inMsg '15 '17 s
+    ENDS                    	//  signature inMsg publicKey storage.seqno
+    // 32: assert (isSignatureValid(inMsg.hash(), signature, publicKey)) throw 35
+    s2 PUSH                 	//  signature inMsg publicKey storage.seqno inMsg
+    HASHSU                  	//  signature inMsg publicKey storage.seqno '20
+    s0 s4 s2 XC2PU          	//  storage.seqno inMsg publicKey '20 signature publicKey
+    CHKSIGNU                	//  storage.seqno inMsg publicKey '21
+    35 THROWIFNOT           	//  storage.seqno inMsg publicKey
+    // 34: var msgSeqno = inMsg.loadUint(32)
+    SWAP                    	//  storage.seqno publicKey inMsg
+    32 LDU                  	//  storedSeqno publicKey msgSeqno inMsg
+    s1 s3 XCPU              	//  storedSeqno publicKey inMsg msgSeqno storedSeqno
+    // 36: assert (msgSeqno == storedSeqno) throw 36
+    EQUAL                   	//  storedSeqno publicKey inMsg '29
+    36 THROWIFNOT           	//  storedSeqno publicKey inMsg
+    // 38: acceptExternalMessage()
+    ACCEPT                  	//  storedSeqno publicKey inMsg
+    // 40: publicKey: publicKey, seqno: storedSeqno + 1
+    s0 s2 XCHG              	//  inMsg publicKey storedSeqno
+    INC                     	//  inMsg publicKey '31
+    // 18: contract.setData(self.toCell())
+    SWAP
+    NEWC                    	//  inMsg '31 publicKey b
+    256 STU                 	//  inMsg '31 b
+    32 STI                  	//  inMsg b
+    ENDC                    	//  inMsg '36
+    c4 POP                  	//  inMsg
+    // 42: commitContractDataAndActions()
+    COMMIT                  	//  inMsg
+    // 46: value: ton("0.05")
+    50000000 PUSHINT        	//  inMsg '40=50000000
+    // 48: amount: inMsg.loadUint(32)
+    SWAP                    	//  '40=50000000 inMsg
+    32 PLDU                 	//  '40=50000000 '46
+    // 50: dest: address("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"), // some address
+    x{801FA71A130A2388602BC059A30B9F95877DFFF513454FE41ACA880C71528EB73B7_} PUSHSLICE	//  'USlot2=50000000 '68 'USlot7
+    // 44: val reply = createMessage(
+    NEWC                    	//  'USlot2=50000000 '68 'USlot7 b
+    b{010000} STSLICECONST  	//  'USlot2=50000000 '68 'USlot7 b
+    STSTDADDR               	//  'USlot2=50000000 '68 b
+    ROT                     	//  '68 b 'USlot2=50000000
+    STGRAMS                 	//  '68 b
+    0 PUSHINT
+    107 STUR                	//  '68 b
+    32 STI                  	//  b
+    ENDC                    	//  reply
+    // 52: reply.send(SEND_MODE_REGULAR)
+    0 PUSHINT               	//  reply '134=0
+    SENDRAWMSG              	// 
+  }>
+}END>c
