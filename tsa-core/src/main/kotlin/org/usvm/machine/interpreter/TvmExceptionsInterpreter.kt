@@ -212,6 +212,9 @@ class TvmExceptionsInterpreter(
                     if (invertCondition) it.not() else it
                 }
             val exceptionCode = scope.calcOnState { exceptionCodeExtractor.code(this) }
+            if (exceptionCode == 1000) {
+                println("here")
+            }
             val param =
                 if (takeParameterFromStack) {
                     scope.calcOnState {

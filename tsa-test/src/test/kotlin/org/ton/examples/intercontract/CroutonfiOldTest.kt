@@ -25,16 +25,18 @@ class CroutonfiOldTest {
     private val schemePath = "/intercontract/croutonfi-old/scheme.json"
     private val vaultCodePath = "/intercontract/croutonfi-old/vault_code.boc"
     private val vaultDataPath = "/intercontract/croutonfi-old/vault_data.boc"
-    private val poolCodePath = "/intercontract/croutonfi-old/pool_code.boc"
+    private val poolCodePath = "/intercontract/croutonfi-old/Pool.compiled.json"
     private val poolDataPath = "/intercontract/croutonfi-old/pool_data.boc"
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+//    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun findTonDrain() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)
         val vaultContract = extractBocContractFromResource(vaultCodePath)
         val poolContract = extractBocContractFromResource(poolCodePath)
         val communicationScheme = extractCommunicationSchemeFromResource(schemePath)
+
+        // tests.filter { it.eventsList.size == 3 && it.eventsList.last().computePhaseResult is TvmSuccessfulExecution }
 
         val options =
             TvmOptions(
@@ -44,7 +46,7 @@ class CroutonfiOldTest {
                 turnOnTLBParsingChecks = false,
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
-                timeout = 3.minutes,
+//                timeout = 3.minutes,
                 solverTimeout = 3.seconds,
             )
 
@@ -71,6 +73,8 @@ class CroutonfiOldTest {
                 options = options,
                 additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(1000)),
             )
+
+        println(tests.map { it.eventsList.size }.toSet())
 
         propertiesFound(
             tests,

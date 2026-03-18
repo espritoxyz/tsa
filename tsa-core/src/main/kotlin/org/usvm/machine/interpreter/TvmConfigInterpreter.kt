@@ -158,6 +158,7 @@ class TvmConfigInterpreter(
                             ?: return@doWithStateCtx
 
                     val slice = scope.calcOnState { allocSliceFromCell(cell) }
+                    scope.calcOnState { dataCellInfoStorage.mapper.addAddressSlice(slice) }
                     addOnStack(slice, TvmSliceType)
                 }
                 CONFIG_PARAMETER_IDX -> { // GLOBAL_CONFIG
@@ -235,28 +236,6 @@ class TvmConfigInterpreter(
             newStmt(stmt.nextStmt())
         }
     }
-
-    private fun checkInRange(
-        scope: TvmStepScopeManager,
-        value: UExpr<TvmContext.TvmInt257Sort>,
-        min: ULong?,
-        max: ULong?,
-    ): Unit? =
-        with(ctx) {
-            var cond: UBoolExpr = trueExpr
-            if (min != null) {
-                cond = cond and mkBvSignedGreaterOrEqualExpr(value, min.toBv().unsignedExtendToInteger())
-            }
-            if (max != null) {
-                cond = cond and mkBvSignedLessOrEqualExpr(value, max.toBv().unsignedExtendToInteger())
-            }
-
-            return scope.fork(
-                cond,
-                falseStateIsExceptional = true,
-                blockOnFalseState = throwIntegerOutOfRangeError,
-            )
-        }
 
     private fun visitGetoriginalfwdfeeInst(
         scope: TvmStepScopeManager,

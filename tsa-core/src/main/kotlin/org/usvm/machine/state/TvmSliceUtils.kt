@@ -7,6 +7,7 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBoolSort
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
+import mu.KLogging
 import org.ton.Endian
 import org.ton.bytecode.TvmCell
 import org.usvm.UBoolExpr
@@ -578,6 +579,12 @@ fun sliceLoadGramsTlb(
         badCellSizeIsExceptional = quietBlock == null,
         onBadCellSize = if (quietBlock == null) throwCellUnderflowErrorBasedOnContext else { x, _ -> x.quietBlock() },
     ) { valueFromTlb ->
+
+        if (valueFromTlb != null) {
+            logger.debug { "Got TL-B coins: $valueFromTlb}" }
+        } else {
+            logger.debug { "Fallback to raw coins reading" }
+        }
 
         val (length, grams) =
             valueFromTlb?.let {
@@ -1230,8 +1237,6 @@ fun TvmState.allocEmptyCell() =
         }
     }
 
-fun TvmState.allocSliceFromCell(cell: CellRef): SliceRef = allocSliceFromCell(cell.value).asSliceRef()
-
 fun TvmState.allocSliceFromCell(cell: UHeapRef) =
     with(ctx) {
         memory.allocConcrete(TvmSliceType).also { slice ->
@@ -1392,6 +1397,13 @@ fun sliceLoadIntTlb(
         badCellSizeIsExceptional = quietBlock == null,
         onBadCellSize = if (quietBlock == null) throwCellUnderflowErrorBasedOnContext else { x, _ -> x.quietBlock() },
     ) { tlbValue ->
+
+        if (tlbValue != null) {
+            logger.debug { "Got TL-B integer: $tlbValue}" }
+        } else {
+            logger.debug { "Fallback to raw integer reading" }
+        }
+
         val result =
             tlbValue?.expr ?: let {
                 val value =
@@ -1426,6 +1438,13 @@ fun TvmStepScopeManager.sliceLoadBitArrayTlb(
         badCellSizeIsExceptional = true, // TODO: quiet version
         onBadCellSize = ctx.throwCellUnderflowErrorBasedOnContext,
     ) { valueFromTlb ->
+
+        if (valueFromTlb != null) {
+            logger.debug { "Got TL-B bitarray: $valueFromTlb}" }
+        } else {
+            logger.debug { "Fallback to raw bitarray reading" }
+        }
+
         val result =
             valueFromTlb?.expr ?: let {
                 val bits = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
@@ -1462,6 +1481,12 @@ fun sliceLoadAddrTlb(
                 { x, _ -> x.quietBlock() }
             },
     ) { tlbValue ->
+        if (tlbValue != null) {
+            logger.debug { "Got TL-B address: $tlbValue}" }
+        } else {
+            logger.debug { "Fallback to raw address reading" }
+        }
+
         calcOnStateCtx {
             val addrSlice =
                 if (tlbValue != null) {
@@ -1734,3 +1759,5 @@ fun TvmStepScopeManager.readCellFull(cell: UHeapRef): SliceReadData {
     val slice = calcOnState { allocSliceFromCell(cell) }
     return readSliceFull(slice)
 }
+
+private val logger = object : KLogging() {}.logger

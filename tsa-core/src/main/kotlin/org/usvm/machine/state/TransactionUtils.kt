@@ -11,13 +11,13 @@ import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.makeCellToSlice
 
-fun builderStoreSliceTransaction(
+fun builderStoreSliceNoFork(
     scope: TvmStepScopeManager,
     builder: UConcreteHeapRef,
     slice: UHeapRef,
 ): Unit? = builderStoreSliceTlb(scope, builder, builder, slice)
 
-fun makeCellToSliceNoFork(
+fun makeCellToSliceTlbNoFork(
     scope: TvmStepScopeManager,
     cell: UHeapRef,
     slice: UConcreteHeapRef,
@@ -31,6 +31,15 @@ fun makeCellToSliceNoFork(
     }
 
     scope.doNotKillScopeOnDoWithConditions = false
+}
+
+fun makeCellToSliceTlbNoFork(
+    scope: TvmStepScopeManager,
+    cell: UHeapRef,
+): UConcreteHeapRef {
+    val slice = scope.calcOnState { allocSliceFromCell(cell) }
+    makeCellToSliceTlbNoFork(scope, cell, slice)
+    return slice
 }
 
 fun sliceLoadIntTlbNoForkAndNoRegister(
@@ -116,7 +125,7 @@ fun sliceLoadGramsTlbNoFork(
     return resGrams?.let { updatedSlice to it }
 }
 
-fun sliceLoadRefTransaction(
+fun sliceLoadRefNoFork(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     quietBlock: (TvmState.() -> Unit)? = null,

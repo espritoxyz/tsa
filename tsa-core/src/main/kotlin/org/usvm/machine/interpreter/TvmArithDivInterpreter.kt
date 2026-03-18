@@ -1265,3 +1265,25 @@ fun <S : UBvSort> TvmContext.checkInBounds(
         blockOnFalseState = throwIntegerOverflowError,
     )
 }
+
+fun checkInRange(
+    scope: TvmStepScopeManager,
+    value: UExpr<TvmInt257Sort>,
+    min: ULong?,
+    max: ULong?,
+): Unit? =
+    with(scope.ctx) {
+        var cond: UBoolExpr = trueExpr
+        if (min != null) {
+            cond = cond and mkBvSignedGreaterOrEqualExpr(value, min.toBv().unsignedExtendToInteger())
+        }
+        if (max != null) {
+            cond = cond and mkBvSignedLessOrEqualExpr(value, max.toBv().unsignedExtendToInteger())
+        }
+
+        return scope.fork(
+            cond,
+            falseStateIsExceptional = true,
+            blockOnFalseState = throwIntegerOutOfRangeError,
+        )
+    }

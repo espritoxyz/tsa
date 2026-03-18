@@ -5,6 +5,7 @@ import io.ksmt.expr.KExpr
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.asExpr
 import kotlinx.collections.immutable.persistentSetOf
+import org.ton.Endian
 import org.ton.bytecode.TvmDictDeleteDictdelInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetrefInst
@@ -178,6 +179,8 @@ import org.usvm.machine.state.assertDictType
 import org.usvm.machine.state.assertIfSat
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.machine.state.builderStoreInt
+import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.checkCellOverflow
@@ -1565,10 +1568,26 @@ class TvmDictOperationInterpreter(
         scope.doWithStateCtx { builderCopyFromBuilder(builder, resultBuilder) }
 
         if (dictCellRef == null) {
-            scope.builderStoreDataBits(resultBuilder, mkBv(value = 0, sizeBits = 1u))
+            builderStoreIntTlb(
+                scope,
+                builder,
+                resultBuilder,
+                value = zeroValue,
+                sizeBits = oneSizeExpr,
+                isSigned = false,
+                Endian.BigEndian,
+            )
                 ?: return
         } else {
-            scope.builderStoreDataBits(resultBuilder, mkBv(value = 1, sizeBits = 1u))
+            builderStoreIntTlb(
+                scope,
+                builder,
+                resultBuilder,
+                value = oneValue,
+                sizeBits = oneSizeExpr,
+                isSigned = false,
+                Endian.BigEndian,
+            )
                 ?: return
 
             val refs =
@@ -2211,12 +2230,12 @@ class TvmDictOperationInterpreter(
                 }
             }
         return (allSetEntries != null && allSetEntries.isInput) ||
-            dictCellRef is UConcreteHeapRef &&
-            scope.calcOnState {
-                inputDictionaryStorage.hasInputDictEntryAtRef(
-                    dictCellRef,
-                )
-            }
+                dictCellRef is UConcreteHeapRef &&
+                scope.calcOnState {
+                    inputDictionaryStorage.hasInputDictEntryAtRef(
+                        dictCellRef,
+                    )
+                }
     }
 
     private fun TvmState.copyDictValuesMemoryRepresentation(
@@ -2491,7 +2510,7 @@ class TvmDictOperationInterpreter(
             when (keyKind) {
                 DictKeyKind.SIGNED_INT,
                 DictKeyKind.UNSIGNED_INT,
-                -> {
+                    -> {
                     // key does not necessarily fit into [keyLength] bits
                     // and in case of unsigned key is not necessarily non-negative
                     scope.takeLastIntOrThrowTypeError()?.signExtendToSort(cellDataSort)
@@ -2765,7 +2784,7 @@ class TvmDictOperationInterpreter(
         when (keyType) {
             DictKeyKind.UNSIGNED_INT,
             DictKeyKind.SIGNED_INT,
-            -> {
+                -> {
                 when {
                     compareLessThan && allowEq -> mkBvSignedLessOrEqualExpr(left, right)
                     compareLessThan && !allowEq -> mkBvSignedLessExpr(left, right)

@@ -25,19 +25,20 @@ import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSliceTlb
-import org.usvm.machine.state.builderStoreSliceTransaction
+import org.usvm.machine.state.builderStoreSliceNoFork
 import org.usvm.machine.state.builderStoreSliceWithForkOnOverflow
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.createSliceIsEmptyConstraint
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.getCellContractInfoParam
+import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.readCellDataLength
 import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.sliceLoadAddrTlbNoFork
 import org.usvm.machine.state.sliceLoadGramsTlbNoFork
 import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
-import org.usvm.machine.state.sliceLoadRefTransaction
+import org.usvm.machine.state.sliceLoadRefNoFork
 import org.usvm.machine.types.CellGeneralRef
 import org.usvm.machine.types.CellRef
 import org.usvm.machine.types.ConcreteCellRef
@@ -80,14 +81,14 @@ data class TlbCommonMessageInfo(
 
                 val srcAddSlice =
                     (
-                        sliceSkipNoneOrStdAddr(scope, ptr.slice, quietBlock = quietBlock)
-                            ?: return@with null
-                    ).unwrap(ptr)
+                            sliceSkipNoneOrStdAddr(scope, ptr.slice, quietBlock = quietBlock)
+                                ?: return@with null
+                            ).unwrap(ptr)
 
                 val addrCell =
                     scope.getCellContractInfoParam(ADDRESS_PARAMETER_IDX)
                         ?: return@extractFromSlice null
-                val tlbAddrSlice = scope.calcOnState { allocSliceFromCell(addrCell) }
+                val tlbAddrSlice = makeCellToSliceTlbNoFork(scope, addrCell)
                 scope.calcOnState {
                     dataCellInfoStorage.mapper.addAddressSlice(tlbAddrSlice)
                 }
@@ -351,6 +352,10 @@ data class TlbInternalMessageContent(
                     ?: return@with
             }
 
+            if (commonMessageInfo.srcAddressSlice is UConcreteHeapRef) {
+                state.dataCellInfoStorage.mapper.addAddressSlice(commonMessageInfo.srcAddressSlice)
+            }
+
             // src:MsgAddressInt
             builderStoreSliceTlb(
                 scope,
@@ -359,6 +364,10 @@ data class TlbInternalMessageContent(
                 commonMessageInfo.srcAddressSlice ?: error("null slice"),
             )
                 ?: return@with
+
+            if (commonMessageInfo.dstAddressSlice is UConcreteHeapRef) {
+                state.dataCellInfoStorage.mapper.addAddressSlice(commonMessageInfo.dstAddressSlice)
+            }
 
             // dest:MsgAddressInt
             builderStoreSliceTlb(
@@ -569,10 +578,10 @@ data class TlbInternalMessageContent(
                     scope.assert(bodyBitIsInlined.not())
                         ?: return scopeDied
 
-                    sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)
+                    sliceLoadRefNoFork(scope, ptr.slice, quietBlock = quietBlock)
                         ?.unwrap(ptr)
                         ?.let { bodyRef ->
-                            val slice = scope.calcOnState { allocSliceFromCell(bodyRef) }
+                            val slice = SliceRef(makeCellToSliceTlbNoFork(scope, bodyRef.value))
                             TlbBody.OutOfLine(bodyRef, slice)
                         }
                         ?: return scopeDied
@@ -584,12 +593,11 @@ data class TlbInternalMessageContent(
                     // Note: the line below DOES NOT move pointers in ptr.
                     // It does not break anything, as we do not read from `ptr` after reading message body
                     // in this function, even though it is aesthetically unpleasant
-                    builderStoreSliceTransaction(scope, bodyBuilder, ptr.slice)
+                    builderStoreSliceNoFork(scope, bodyBuilder, ptr.slice)
                         ?: return scopeDied
                     ptr.slice = scope.calcOnState { allocSliceFromCell(allocEmptyCell()) }
                     val newBody =
-                        scope
-                            .calcOnState { allocSliceFromCell(allocCellFromBuilder(bodyBuilder)) }
+                        makeCellToSliceTlbNoFork(scope, scope.calcOnState { allocCellFromBuilder(bodyBuilder) })
                             .asSliceRef()
 
                     TlbBody.Inline(newBody)
@@ -629,7 +637,7 @@ data class TlbInternalMessageContent(
                             ?: return scopeDied
 
                         val ref =
-                            sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
+                            sliceLoadRefNoFork(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
                                 ?: return scopeDied
                         TlbStateInit.OutOfLine(ref)
                     } else {
@@ -694,7 +702,7 @@ data class TlbInternalMessageContent(
                         scope.assert(refIsMissing.not())
                             ?: return@doWithCtx scopeDied
 
-                        sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
+                        sliceLoadRefNoFork(scope, ptr.slice)?.unwrap(ptr)
                             ?: return@doWithCtx scopeDied
                     }
                 value.ok()

@@ -5,6 +5,7 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.persistentListOf
+import mu.KLogging
 import org.ton.Endian
 import org.ton.TlbAddressByRef
 import org.ton.TlbBitArrayByRef
@@ -23,6 +24,7 @@ import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.isAllocated
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmSizeSort
@@ -36,6 +38,7 @@ import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.lastStmt
+import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.slicePreloadIntWithoutChecks
 import org.usvm.machine.types.memory.ConcreteSizeBlockField
@@ -70,9 +73,9 @@ private fun <T> MutableMap<T, UBoolExpr>.addGuardedOutcome(
 }
 
 private fun <ReadResult> MutableMap<
-    MakeSliceTypeLoadOutcome,
-    MutableMap<ReadResult?, UBoolExpr>,
->.addGuardedTypeloadOutcome(
+        MakeSliceTypeLoadOutcome,
+        MutableMap<ReadResult?, UBoolExpr>,
+        >.addGuardedTypeloadOutcome(
     typeLoadOutcome: MakeSliceTypeLoadOutcome,
     readValue: ReadResult?,
     guard: UBoolExpr,
@@ -86,8 +89,8 @@ private fun TlbStack.Error.ignore(
     cellRef: UConcreteHeapRef,
 ): Boolean =
     !ctx.tvmOptions.turnOnTLBParsingChecks ||
-        fromMutableTlb ||
-        (cellRef.isAllocated && !ctx.tvmOptions.tlbOptions.performTlbChecksOnAllocatedCells)
+            fromMutableTlb ||
+            (cellRef.isAllocated && !ctx.tvmOptions.tlbOptions.performTlbChecksOnAllocatedCells)
 
 /**
  * @param newSlice contains the data left after the loading of [type] from [oldSlice]
@@ -437,7 +440,12 @@ fun TvmState.copyTlbToNewBuilder(
 ) {
     val tlbBuilder =
         dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
-            ?: return
+
+    if (tlbBuilder == null) {
+        logger.debug { "Builder $oldBuilder had no TL-B" }
+        return
+    }
+
     dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, tlbBuilder)
 }
 
@@ -449,7 +457,12 @@ private fun TvmState.addTlbLabelToBuilder(
 ) {
     val oldTlbBuilder =
         dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
-            ?: return
+
+    if (oldTlbBuilder == null) {
+        logger.debug { "Builder $oldBuilder had no TL-B" }
+        return
+    }
+
     val newTlbBuilder = oldTlbBuilder.addTlbLabel(label, initializeTlbField)
     dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, newTlbBuilder)
 }
@@ -461,7 +474,12 @@ private fun TvmState.addTlbConstantToBuilder(
 ) {
     val oldTlbBuilder =
         dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
-            ?: return
+
+    if (oldTlbBuilder == null) {
+        logger.debug { "Builder $oldBuilder had no TL-B" }
+        return
+    }
+
     val newTlbBuilder = oldTlbBuilder.addConstant(constant)
     dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, newTlbBuilder)
 }
@@ -558,10 +576,8 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
             }
         val sliceLength = mkSizeSubExpr(cellLength, dataPos)
 
-        val leafAddresses = flattenReferenceIte(slice, extractAllocated = true, extractStatic = true)
-
         val (label, resultSliceRef) =
-            if (calcOnState { leafAddresses.all { dataCellInfoStorage.mapper.sliceIsAddress(it.second) } }) {
+            if (sliceIsAddress(slice, sliceLength, cellRef)) {
                 // store TL-B address
                 TlbAddressByRef(sliceLength) to slice
             } else {
@@ -584,6 +600,49 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
         }
     }
 
+private fun TvmStepScopeManager.sliceIsAddress(
+    slice: UHeapRef,
+    length: UExpr<TvmSizeSort>,
+    cell: UHeapRef,
+): Boolean = with(ctx) {
+    val leafRefs = flattenReferenceIte(slice, extractAllocated = true, extractStatic = true)
+
+    if (leafRefs.all { calcOnState { dataCellInfoStorage.mapper.sliceIsAddress(it.second) } }) {
+        return true
+    }
+
+    if (slice !is UConcreteHeapRef || cell !is UConcreteHeapRef) {
+        return false
+    }
+
+    if (length !is KBitVecValue || length.intValue() != TvmContext.stdMsgAddrSize) {
+        return false
+    }
+
+    val stack = calcOnState { dataCellInfoStorage.sliceMapper.getTlbStack(slice) }
+        ?: return false
+
+    val results = stack.step(
+        scope = this@sliceIsAddress,
+        loadData = LimitedLoadData(
+            cell,
+            guard = trueExpr,
+            type = TvmCellDataIntegerRead(sizeBits = threeSizeExpr, isSigned = false, endian = Endian.BigEndian),
+        ),
+        badCellSizeIsExceptional = true,
+        onBadCellSize = { _, _ -> error("Should not be reachable") },
+    ) ?: error("Unexpected null in TlbStack.step")
+
+    if (results.size != 1) {
+        return false
+    }
+
+    val result = results.single()
+
+    // check that start is "100"
+    return result.value?.expr?.let { (it eq fourSizeExpr.unsignedExtendToInteger()).isTrue } == true
+}
+
 fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
     oldBuilder: UConcreteHeapRef,
     newBuilder: UConcreteHeapRef,
@@ -600,3 +659,5 @@ fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
         storeSliceTlbLabelInBuilder(oldBuilder, newBuilder, newSlice)
     }
 }
+
+private val logger = object : KLogging() {}.logger

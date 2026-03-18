@@ -1,5 +1,6 @@
 package org.usvm.machine
 
+import io.ksmt.expr.KExpr
 import io.ksmt.solver.KSolver
 import io.ksmt.solver.KSolverConfiguration
 import io.ksmt.solver.KSolverStatus
@@ -9,6 +10,7 @@ import io.ksmt.solver.wrapper.bv2int.KBv2IntRewriterConfig
 import io.ksmt.solver.wrapper.bv2int.KBv2IntSolver
 import io.ksmt.solver.yices.KYicesSolver
 import io.ksmt.solver.z3.KZ3Solver
+import io.ksmt.sort.KBoolSort
 import mu.KLogging
 import org.usvm.UBv32SizeExprProvider
 import org.usvm.UComponents
@@ -102,6 +104,12 @@ class TvmComponents(
             internalSolver.check(timeout).also { status ->
                 logger.debug("Forked with status: {}", status)
             }
+
+        override fun checkWithAssumptions(assumptions: List<KExpr<KBoolSort>>, timeout: Duration): KSolverStatus {
+            return internalSolver.checkWithAssumptions(assumptions, timeout).also { status ->
+                logger.debug("Forked with assumptions with status: {}", status)
+            }
+        }
     }
 
     class TvmSolver(

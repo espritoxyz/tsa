@@ -38,7 +38,7 @@ import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.getInboundMessageValue
 import org.usvm.machine.state.getSliceRemainingRefsCount
-import org.usvm.machine.state.makeCellToSliceNoFork
+import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.messages.ActionParseResult
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
@@ -54,7 +54,7 @@ import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
 import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
-import org.usvm.machine.state.sliceLoadRefTransaction
+import org.usvm.machine.state.sliceLoadRefNoFork
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.SliceRef
@@ -713,8 +713,8 @@ class TvmTransactionInterpreter(
             val actionList = mutableListOf<SliceRef>()
 
             while (true) {
-                val slice = scope.calcOnState { allocSliceFromCell(cur) }
-                val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice.value) }
+                val slice = makeCellToSliceTlbNoFork(scope, cur.value)
+                val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice) }
 
                 val isEnd =
                     scope.checkCondition(remainingRefs eq zeroSizeExpr)
@@ -725,7 +725,7 @@ class TvmTransactionInterpreter(
                 }
 
                 val action =
-                    sliceLoadRefTransaction(scope, slice.value)?.let {
+                    sliceLoadRefNoFork(scope, slice)?.let {
                         cur = it.second
                         it.first
                     }
@@ -755,8 +755,7 @@ class TvmTransactionInterpreter(
             scope.slicePreloadNextRef(slice)
                 ?: return null
 
-        val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
-        makeCellToSliceNoFork(scope, msg, msgSlice) // for further TL-B readings
+        val msgSlice = makeCellToSliceTlbNoFork(scope, msg) // for further TL-B readings
 
         val nextStmtAction: TvmState.() -> Unit = {
             val nextStmt =
