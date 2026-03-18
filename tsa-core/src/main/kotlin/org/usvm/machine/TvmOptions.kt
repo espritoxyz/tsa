@@ -41,7 +41,7 @@ data class TvmOptions(
      * is unspecified).
      */
     val stopOnFirstError: Boolean = true,
-    val useIntBlasting: Boolean = true,
+    val useIntBlasting: Boolean = false,
     val collectTlbMemoryStats: Boolean = false,
     val pathSelectionStrategies: List<PathSelectionStrategy> = listOf(PathSelectionStrategy.DFS),
     val divideTimeBetweenOpcodes: TimeDivisionBetweenOpcodes? = null,

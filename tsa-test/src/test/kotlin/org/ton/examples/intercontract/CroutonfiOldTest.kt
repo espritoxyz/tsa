@@ -25,7 +25,7 @@ class CroutonfiOldTest {
     private val schemePath = "/intercontract/croutonfi-old/scheme.json"
     private val vaultCodePath = "/intercontract/croutonfi-old/vault_code.boc"
     private val vaultDataPath = "/intercontract/croutonfi-old/vault_data.boc"
-    private val poolCodePath = "/intercontract/croutonfi-old/Pool.compiled.json"
+    private val poolCodePath = "/intercontract/croutonfi-old/pool_code.boc"
     private val poolDataPath = "/intercontract/croutonfi-old/pool_data.boc"
 
 //    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
@@ -46,7 +46,7 @@ class CroutonfiOldTest {
                 turnOnTLBParsingChecks = false,
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
-//                timeout = 3.minutes,
+                timeout = 3.minutes,
                 solverTimeout = 3.seconds,
             )
 
