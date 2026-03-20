@@ -1,0 +1,14 @@
+{
+    "projects": [
+        {
+            "name": "SimplifiedDex",
+            "path": "./ton-vault.tact",
+            "output": "./output",
+            "options": {
+                "experimental": {
+                    "inline": true
+                }
+            }
+        }
+    ]
+}

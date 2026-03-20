@@ -156,6 +156,10 @@ class TvmStepScopeManager(
             "Cannot perform [doWithConditions] on exceptional state"
         }
 
+        check(givenConditionsWithActions.isNotEmpty()) {
+            "empty list!!"
+        }
+
         val conditionsWithActions =
             if (!allowFailuresOnCurrentStep && originalState.c2IsDefault()) {
                 givenConditionsWithActions.filter { !it.caseIsExceptional }

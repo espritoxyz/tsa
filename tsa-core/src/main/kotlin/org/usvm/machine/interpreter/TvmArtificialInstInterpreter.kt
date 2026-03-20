@@ -472,7 +472,11 @@ class TvmArtificialInstInterpreter(
                 )
             }
         scope.calcOnState { isExceptional = false }
-        scope.doWithConditions(actions) {}
+        if (actions.isNotEmpty()) {
+            scope.doWithConditions(actions) {}
+        } else {
+            scope.assert(ctx.falseExpr)
+        }
     }
 
     private fun visitActionPhaseInst(
