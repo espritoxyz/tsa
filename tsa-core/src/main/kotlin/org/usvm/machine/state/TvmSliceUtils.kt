@@ -20,6 +20,7 @@ import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.isFalse
 import org.usvm.isStatic
+import org.usvm.logger
 import org.usvm.machine.SizeExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
@@ -607,6 +608,10 @@ fun sliceLoadGramsTlb(
                 val grams =
                     slicePreloadInt(newSlice, extendedLength, isSigned = false, quietBlock)
                         ?: return@makeSliceTypeLoad
+
+                if (grams !is KInterpretedValue) {
+                    logger.debug("Fallback to raw coins read")
+                }
 
                 length to grams
             }
@@ -1230,11 +1235,12 @@ fun TvmState.allocEmptyCell() =
         }
     }
 
-fun TvmState.allocSliceFromCell(cell: CellRef): SliceRef = allocSliceFromCell(cell.value).asSliceRef()
-
 fun TvmState.allocSliceFromCell(cell: UHeapRef) =
     with(ctx) {
         memory.allocConcrete(TvmSliceType).also { slice ->
+            if (slice.address == 971) {
+                println("here")
+            }
             memory.writeField(slice, sliceCellField, addressSort, cell, trueExpr)
             fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(memory, slice, zeroSizeExpr)
             memory.writeField(slice, sliceRefPosField, sizeSort, zeroSizeExpr, trueExpr)
@@ -1392,11 +1398,16 @@ fun sliceLoadIntTlb(
         badCellSizeIsExceptional = quietBlock == null,
         onBadCellSize = if (quietBlock == null) throwCellUnderflowErrorBasedOnContext else { x, _ -> x.quietBlock() },
     ) { tlbValue ->
+
         val result =
             tlbValue?.expr ?: let {
                 val value =
                     slicePreloadDataBits(slice, sizeBits, quietBlock = quietBlock)
                         ?: return@makeSliceTypeLoad
+
+                if (value !is KInterpretedValue) {
+                    logger.debug("Fallback to raw integer load")
+                }
 
                 if (isSigned) {
                     value.signedExtendToInteger()
@@ -1462,6 +1473,11 @@ fun sliceLoadAddrTlb(
                 { x, _ -> x.quietBlock() }
             },
     ) { tlbValue ->
+
+        if (tlbValue == null) {
+            logger.debug("Fallback to raw address load")
+        }
+
         calcOnStateCtx {
             val addrSlice =
                 if (tlbValue != null) {

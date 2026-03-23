@@ -2,13 +2,13 @@ package org.usvm.test.resolver
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import mu.KLogging
 import org.ton.TlbResolvedBuiltinLabel
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
-import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmResult.TvmFailure
@@ -112,8 +112,9 @@ data object TvmTestResolver {
 
     private fun collectVisitedInstructions(state: TvmState): List<TvmInst> =
         state.pathNode.allStatements
-            .filterNot { it is TvmArtificialInst }
             .reversed()
+
+    private val logger = object : KLogging() {}.logger
 }
 
 data class TvmContractSymbolicTestResult(

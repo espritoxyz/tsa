@@ -282,6 +282,36 @@ class TvmCellMaybeConstructorBitRead(
     }
 }
 
+fun TlbBasicMsgAddrLabel.readBvOfAddress(
+    state: TvmState,
+    ref: UHeapRef,
+    path: PersistentList<Int>,
+    curStructure: KnownTypePrefix,
+): UExpr<KBvSort> = with(state.ctx) {
+    val struct =
+        (this@readBvOfAddress as TlbCompositeLabel).internalStructure as? SwitchPrefix
+            ?: error("structure of TlbFullMsgAddrLabel must be switch")
+
+    if (struct.variants.size > 1) {
+        TODO()
+    }
+
+    val variant = struct.variants.single()
+
+    val rest =
+        variant.struct as? KnownTypePrefix
+            ?: error("Unexpected structure: ${variant.struct}")
+    val restLabel =
+        rest.typeLabel as? FixedSizeDataLabel
+            ?: error("Unexpected label: ${rest.typeLabel}")
+    val restField = ConcreteSizeBlockField(restLabel.concreteSize, rest.id, path.add(curStructure.id))
+    val restValue = state.memory.readField(ref, restField, restField.getSort(this))
+
+    val prefix = mkBv(variant.key, variant.key.length.toUInt())
+
+    return mkBvConcatExpr(prefix, restValue)
+}
+
 // As a read result expects address length + slice with the address
 class TvmCellDataMsgAddrRead(
     val ctx: TvmContext,
@@ -354,28 +384,7 @@ class TvmCellDataMsgAddrRead(
 
             is TlbBasicMsgAddrLabel ->
                 with(state.ctx) {
-                    val struct =
-                        (label as TlbCompositeLabel).internalStructure as? SwitchPrefix
-                            ?: error("structure of TlbFullMsgAddrLabel must be switch")
-
-                    if (struct.variants.size > 1) {
-                        TODO()
-                    }
-
-                    val variant = struct.variants.single()
-
-                    val rest =
-                        variant.struct as? KnownTypePrefix
-                            ?: error("Unexpected structure: ${variant.struct}")
-                    val restLabel =
-                        rest.typeLabel as? FixedSizeDataLabel
-                            ?: error("Unexpected label: ${rest.typeLabel}")
-                    val restField = ConcreteSizeBlockField(restLabel.concreteSize, rest.id, path.add(curStructure.id))
-                    val restValue = state.memory.readField(address, restField, restField.getSort(this))
-
-                    val prefix = mkBv(variant.key, variant.key.length.toUInt())
-
-                    val content = mkBvConcatExpr(prefix, restValue)
+                    val content = label.readBvOfAddress(state, address, path, curStructure)
 
                     val value = state.allocSliceFromData(content)
                     state.dataCellInfoStorage.mapper.addAddressSlice(value)
@@ -500,28 +509,7 @@ data class TvmCellDataBitArrayRead(
                 }
 
                 is TlbBasicMsgAddrLabel -> {
-                    val struct =
-                        (label as TlbCompositeLabel).internalStructure as? SwitchPrefix
-                            ?: error("structure of TlbFullMsgAddrLabel must be switch")
-
-                    if (struct.variants.size > 1) {
-                        TODO()
-                    }
-
-                    val variant = struct.variants.single()
-
-                    val rest =
-                        variant.struct as? KnownTypePrefix
-                            ?: error("Unexpected structure: ${variant.struct}")
-                    val restLabel =
-                        rest.typeLabel as? FixedSizeDataLabel
-                            ?: error("Unexpected label: ${rest.typeLabel}")
-                    val restField = ConcreteSizeBlockField(restLabel.concreteSize, rest.id, path.add(curStructure.id))
-                    val restValue = state.memory.readField(address, restField, restField.getSort(this))
-
-                    val prefix = mkBv(variant.key, variant.key.length.toUInt())
-
-                    val content = mkBvConcatExpr(prefix, restValue)
+                    val content = label.readBvOfAddress(state, address, path, curStructure)
 
                     val value = state.allocSliceFromData(content)
                     UExprReadResult(value)

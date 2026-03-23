@@ -2,6 +2,8 @@ package org.usvm.utils
 
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KEqExpr
+import io.ksmt.expr.KInterpretedValue
+import io.ksmt.expr.KIteExpr
 import io.ksmt.expr.KNotExpr
 import io.ksmt.sort.KBvSort
 import kotlinx.collections.immutable.PersistentMap
@@ -258,4 +260,14 @@ fun <Sort : USort> TvmContext.splitAndRead(
             falseBranch = acc,
         )
     }
+}
+
+fun <Sort : USort> UExpr<Sort>.isIteWithConcreteLeaves(): Boolean {
+    if (this is KInterpretedValue) {
+        return true
+    }
+    if (this !is KIteExpr) {
+        return false
+    }
+    return trueBranch.isIteWithConcreteLeaves() && falseBranch.isIteWithConcreteLeaves()
 }

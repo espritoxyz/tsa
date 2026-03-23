@@ -5,6 +5,8 @@ import io.ksmt.expr.KExpr
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.asExpr
 import kotlinx.collections.immutable.persistentSetOf
+import mu.KLogging
+import org.ton.Endian
 import org.ton.bytecode.TvmDictDeleteDictdelInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetrefInst
@@ -151,7 +153,6 @@ import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
-import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.interpreter.inputdict.DictKeyKind
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.interpreter.inputdict.InputDictRootInformation
@@ -177,7 +178,7 @@ import org.usvm.machine.state.allocatedDictContainsKey
 import org.usvm.machine.state.assertDictType
 import org.usvm.machine.state.assertIfSat
 import org.usvm.machine.state.builderCopyFromBuilder
-import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.checkCellOverflow
@@ -1500,6 +1501,11 @@ class TvmDictOperationInterpreter(
             badCellSizeIsExceptional = true,
             onBadCellSize = ctx.throwCellUnderflowErrorBasedOnContext,
         ) { isNotEmptyValueFromTlb ->
+
+            if (isNotEmptyValueFromTlb == null) {
+                logger.debug { "Fallback to raw memory on LDDICT" }
+            }
+
             val isNotEmpty =
                 isNotEmptyValueFromTlb?.expr ?: let {
                     val maybeConstructorTypeBit =
@@ -1565,10 +1571,26 @@ class TvmDictOperationInterpreter(
         scope.doWithStateCtx { builderCopyFromBuilder(builder, resultBuilder) }
 
         if (dictCellRef == null) {
-            scope.builderStoreDataBits(resultBuilder, mkBv(value = 0, sizeBits = 1u))
+            builderStoreIntTlb(
+                scope,
+                builder,
+                resultBuilder,
+                value = zeroValue,
+                sizeBits = oneSizeExpr,
+                isSigned = false,
+                Endian.BigEndian,
+            )
                 ?: return
         } else {
-            scope.builderStoreDataBits(resultBuilder, mkBv(value = 1, sizeBits = 1u))
+            builderStoreIntTlb(
+                scope,
+                builder,
+                resultBuilder,
+                value = oneValue,
+                sizeBits = oneSizeExpr,
+                isSigned = false,
+                Endian.BigEndian,
+            )
                 ?: return
 
             val refs =
@@ -1665,7 +1687,8 @@ class TvmDictOperationInterpreter(
 
         val oldValue =
             dictCellRef?.let {
-                scope.calcOnState { dictGetValue(dictCellRef, keyLength.asDictId(), key) }
+                scope.dictGetValue(dictCellRef, keyLength.asDictId(), key)
+                    ?: return
             }
 
         if (dictCellRef != null) {
@@ -1762,7 +1785,8 @@ class TvmDictOperationInterpreter(
             inputDictionaryStorage = inputDictionaryStorage.createDictEntry(resultDict, newInputDict)
         }
 
-        val oldValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
+        val oldValue = scope.dictGetValue(dictCellRef, dictId, key)
+            ?: return
 
         assertDictValueDoesNotOverflow(scope, dictId, oldValue)
             ?: return
@@ -1962,7 +1986,8 @@ class TvmDictOperationInterpreter(
             },
         ) ?: return
 
-        val sliceValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
+        val sliceValue = scope.dictGetValue(dictCellRef, dictId, key)
+            ?: return
 
         val unwrappedValue =
             unwrapDictValue(scope, sliceValue, valueType)
@@ -2057,7 +2082,8 @@ class TvmDictOperationInterpreter(
             },
         ) ?: return
 
-        val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
+        val value = scope.dictGetValue(dictCellRef, dictId, key)
+            ?: return
         val unwrappedValue =
             unwrapDictValue(scope, value, valueType)
                 ?: return
@@ -2162,7 +2188,8 @@ class TvmDictOperationInterpreter(
                     newStmt(inst.nextStmt())
                 }
             } else {
-                val oldValue = this.calcOnState { dictGetValue(dictCellRef, dictId, key) }
+                val oldValue = dictGetValue(dictCellRef, dictId, key)
+                    ?: return@doWithConditions
                 assertDictValueDoesNotOverflow(this, dictId, oldValue)
                     ?: return@doWithConditions
                 val unwrappedValue =
@@ -2414,7 +2441,8 @@ class TvmDictOperationInterpreter(
                 keySort,
                 keyKind,
             )?.expr ?: return
-        val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, keyResultSymbol.expr) }
+        val value = scope.dictGetValue(dictCellRef, dictId, keyResultSymbol.expr)
+            ?: return
         val unwrappedValue =
             unwrapDictValue(scope, value, valueType)
                 ?: return
@@ -2649,7 +2677,8 @@ class TvmDictOperationInterpreter(
             memory.write(setContainsElemLValue, rvalue = trueExpr, guard = trueExpr)
         }
 
-        val value = scope.calcOnState { dictGetValue(dictCellRef, dictId, resultElement) }
+        val value = scope.dictGetValue(dictCellRef, dictId, resultElement)
+            ?: return
         val unwrappedValue =
             unwrapDictValue(scope, value, valueType)
                 ?: return
@@ -2695,7 +2724,8 @@ class TvmDictOperationInterpreter(
         ) { updated ->
             val resultSymbol = updated.answer
             if (resultSymbol != null) {
-                val value = this.calcOnState { dictGetValue(dictCellRef, dictId, resultSymbol.expr) }
+                val value = dictGetValue(dictCellRef, dictId, resultSymbol.expr)
+                    ?: return@doInputDictNextPrev
                 val unwrappedValue =
                     unwrapDictValue(this, value, valueType)
                         ?: return@doInputDictNextPrev
@@ -3106,5 +3136,9 @@ class TvmDictOperationInterpreter(
         SLICE,
         CELL,
         BUILDER,
+    }
+
+    companion object {
+        val logger = object : KLogging() {}.logger
     }
 }

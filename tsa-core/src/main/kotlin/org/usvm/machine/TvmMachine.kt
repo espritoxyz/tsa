@@ -5,6 +5,7 @@ import org.ton.TvmInputInfo
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmInst
+import org.ton.bytecode.TvmRealInst
 import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
 import org.usvm.UMachineOptions
@@ -90,55 +91,32 @@ class TvmMachine(
 
         val timeStatistics = TimeStatistics<TvmCodeBlock, TvmState>()
 
-        fun getRemainingTimeMs(): Duration {
-            val diff = options.timeout - timeStatistics.runningTime
-            return diff.coerceAtLeast(Duration.ZERO)
-        }
-
-        val pathSelector =
-            if (tvmOptions.divideTimeBetweenOpcodes == null) {
-                val initialState =
-                    interpreter.getInitialState(
-                        startContractId,
-                        concreteGeneralData,
-                        concreteContractData,
-                        methodId,
-                    )
-                createPathSelector(initialState)
+        var pathSelector = createPathSelector(timeStatistics) { opcodeInfo ->
+            if (opcodeInfo == null || tvmOptions.divideTimeBetweenOpcodes == null) {
+                interpreter.getInitialState(
+                    startContractId,
+                    concreteGeneralData,
+                    concreteContractData,
+                    methodId,
+                )
             } else {
-                val keys =
-                    tvmOptions.divideTimeBetweenOpcodes.opcodes.map { ConcreteOpcode(it) } +
-                        ExcludedOpcodes(tvmOptions.divideTimeBetweenOpcodes.opcodes) + NoOpcode
-
-                ConstantTimeFairPathSelector(
-                    initialKeys = keys.toSet(),
-                    stopwatch = RealTimeStopwatch(),
-                    ::getRemainingTimeMs,
-                    getKey = {
-                        it.additionalInputsConcreteData[tvmOptions.divideTimeBetweenOpcodes.inputId]?.opcodeInfo
-                            ?: error(
-                                "Concrete info about input ${tvmOptions.divideTimeBetweenOpcodes.inputId} not found",
-                            )
-                    },
-                    getKeyPriority = { 0 },
-                    basePathSelectorFactory = {
-                        val initialState =
-                            interpreter.getInitialState(
-                                startContractId,
-                                concreteGeneralData,
-                                concreteContractData,
-                                methodId,
-                                additionalInputsConcreteData =
-                                    mapOf(
-                                        tvmOptions.divideTimeBetweenOpcodes.inputId to
-                                            MessageConcreteData(opcodeInfo = it),
-                                    ),
-                            )
-
-                        createPathSelector(initialState)
-                    },
+                interpreter.getInitialState(
+                    startContractId,
+                    concreteGeneralData,
+                    concreteContractData,
+                    methodId,
+                    additionalInputsConcreteData =
+                        mapOf(
+                            tvmOptions.divideTimeBetweenOpcodes.inputId to
+                                    MessageConcreteData(opcodeInfo = opcodeInfo),
+                        ),
                 )
             }
+        }
+
+        if (tvmOptions.trace != null) {
+            pathSelector = wrapPathSelectorToChooseSpecificTrace(pathSelector, tvmOptions.trace)
+        }
 
         val stepLimit = options.stepLimit
         val stepsStatistics = StepsStatistics<TvmCodeBlock, TvmState>()
@@ -199,7 +177,87 @@ class TvmMachine(
         return statesCollector.collectedStates
     }
 
-    private fun createPathSelector(state: TvmState): UPathSelector<TvmState> {
+    private fun createPathSelector(
+        timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
+        createInitialState: (OpcodeInfo?) -> TvmState
+    ): UPathSelector<TvmState> {
+        fun getRemainingTimeMs(): Duration {
+            val diff = options.timeout - timeStatistics.runningTime
+            return diff.coerceAtLeast(Duration.ZERO)
+        }
+
+        return if (tvmOptions.divideTimeBetweenOpcodes == null) {
+            val initialState = createInitialState(null)
+            createBasicPathSelector(initialState)
+        } else {
+            val keys =
+                tvmOptions.divideTimeBetweenOpcodes.opcodes.map { ConcreteOpcode(it) } +
+                        ExcludedOpcodes(tvmOptions.divideTimeBetweenOpcodes.opcodes) + NoOpcode
+
+            ConstantTimeFairPathSelector(
+                initialKeys = keys.toSet(),
+                stopwatch = RealTimeStopwatch(),
+                ::getRemainingTimeMs,
+                getKey = {
+                    it.additionalInputsConcreteData[tvmOptions.divideTimeBetweenOpcodes.inputId]?.opcodeInfo
+                        ?: error(
+                            "Concrete info about input ${tvmOptions.divideTimeBetweenOpcodes.inputId} not found",
+                        )
+                },
+                getKeyPriority = { 0 },
+                basePathSelectorFactory = {
+                    val initialState = createInitialState(it)
+                    createBasicPathSelector(initialState)
+                },
+            )
+        }
+    }
+
+    private fun wrapPathSelectorToChooseSpecificTrace(
+        pathSelector: UPathSelector<TvmState>,
+        trace: FollowTrace,
+    ): UPathSelector<TvmState> {
+        return object : UPathSelector<TvmState> {
+            override fun isEmpty(): Boolean {
+                return pathSelector.isEmpty()
+            }
+
+            override fun peek(): TvmState {
+                return pathSelector.peek()
+            }
+
+            override fun remove(state: TvmState) {
+                return pathSelector.remove(state)
+            }
+
+            override fun add(states: Collection<TvmState>) {
+                states.forEach { add(it) }
+            }
+
+            private fun takeState(state: TvmState): Boolean {
+                val curTrace = state.pathNode.allStatements.reversed().map { inst ->
+                    (inst as? TvmRealInst)?.physicalLocation?.let { it.cellHashHex to it.offset }
+                }
+                return trace.locations.take(curTrace.size) == curTrace
+            }
+
+            private fun add(state: TvmState) {
+                if (takeState(state)) {
+                    pathSelector.add(listOf(state))
+                }
+            }
+
+            override fun update(state: TvmState) {
+                if (takeState(state)) {
+                    pathSelector.update(state)
+                } else {
+                    pathSelector.remove(state)
+                }
+            }
+        }
+    }
+
+    private fun createBasicPathSelector(state: TvmState): UPathSelector<TvmState> {
         val loopTracker = TvmLoopTracker()
         return createPathSelector(
             initialState = state,

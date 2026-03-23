@@ -1,13 +1,16 @@
 package org.usvm.machine.types
 
+import mu.KLogging
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
 import org.ton.TvmInputInfo
 import org.ton.TvmParameterInfo
+import org.ton.compositeLabelOfUnknown
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
 import org.usvm.mkSizeGeExpr
@@ -23,11 +26,33 @@ class TvmDataCellInfoStorage private constructor(
         state: TvmState,
         ref: UHeapRef,
     ) = with(ctx) {
-        val staticAddresses = flattenReferenceIte(ref).map { it.second }
+        val staticRefs = flattenReferenceIte(ref).map { it.second }
 
-        staticAddresses.forEach {
+        logger.debug {
+            "Notified about static refs: $staticRefs"
+        }
+
+        staticRefs.forEach {
             if (!state.isTerminated) {
                 mapper.initializeConstraintsForChildren(state, it)
+            }
+        }
+    }
+
+    fun notifyAboutDictValueRequest(
+        scope: TvmStepScopeManager,
+        valueCellRef: UHeapRef,
+    ) = with(ctx) {
+        val staticRefs = flattenReferenceIte(valueCellRef).map { it.second }
+
+        logger.debug {
+            "Notified about dict value refs: $staticRefs"
+        }
+
+        staticRefs.forEach { ref ->
+            if (mapper.getLabelInfo(ref) == null) {
+                mapper.addLabel(scope, ref, compositeLabelOfUnknown)
+                    ?: return@with null
             }
         }
     }
@@ -146,4 +171,6 @@ class TvmDataCellInfoStorage private constructor(
             return TvmDataCellInfoStorage(state.ctx, mapper, sliceMapper)
         }
     }
+
+    private val logger = object : KLogging() {}.logger
 }

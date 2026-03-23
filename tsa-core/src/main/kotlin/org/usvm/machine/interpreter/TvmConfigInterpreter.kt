@@ -158,6 +158,7 @@ class TvmConfigInterpreter(
                             ?: return@doWithStateCtx
 
                     val slice = scope.calcOnState { allocSliceFromCell(cell) }
+                    scope.calcOnState { dataCellInfoStorage.mapper.addAddressSlice(slice) }
                     addOnStack(slice, TvmSliceType)
                 }
                 CONFIG_PARAMETER_IDX -> { // GLOBAL_CONFIG

@@ -229,6 +229,10 @@ class TvmExceptionsInterpreter(
                 },
             ) ?: return
 
+            if (exceptionCode == 1000) {
+                println("here")
+            }
+
             scope.doWithState { newStmt(stmt.nextStmt()) }
         }
     }

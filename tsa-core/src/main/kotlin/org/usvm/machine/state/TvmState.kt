@@ -250,7 +250,12 @@ class TvmState(
         }
 
     fun generateSymbolicRef(referenceType: TvmRealReferenceType): UConcreteHeapRef =
-        memory.allocStatic(referenceType).also { symbolicRefs = symbolicRefs.add(it.address) }
+        memory.allocStatic(referenceType).also {
+            symbolicRefs = symbolicRefs.add(it.address)
+            if (it.address == -1048672) {
+                println("here")
+            }
+        }
 
     fun ensureSymbolicRefInitialized(
         ref: UHeapRef,

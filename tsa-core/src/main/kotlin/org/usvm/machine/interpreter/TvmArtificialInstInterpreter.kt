@@ -379,7 +379,7 @@ class TvmArtificialInstInterpreter(
         }
     }
 
-    private fun TvmStepScopeManager.visitHandleMessageCostsInst(stmt: TsaArtificialHandleMessagesCostInst): Unit =
+    private fun TvmStepScopeManager.visitHandleMessageCostsInst(stmt: TsaArtificialHandleMessagesCostInst) {
         transactionInterpreter.handleMessageCosts(
             this,
             stmt.parsingResult.parsedOrderedActions,
@@ -431,6 +431,7 @@ class TvmArtificialInstInterpreter(
                 }
             }
         }
+    }
 
     private fun visitParseActionInst(
         scope: TvmStepScopeManager,

@@ -38,7 +38,7 @@ import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.getInboundMessageValue
 import org.usvm.machine.state.getSliceRemainingRefsCount
-import org.usvm.machine.state.makeCellToSliceNoFork
+import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.messages.ActionParseResult
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
@@ -201,6 +201,7 @@ class TvmTransactionInterpreter(
     data class CondTransform(
         val predicate: MsgHandlingPredicate,
         val transform: Transformation,
+        val exceptional: Boolean,
     )
 
     private fun asOnCopy(transformation: MutableTransformation): Transformation =
@@ -387,12 +388,14 @@ class TvmTransactionInterpreter(
                         asOnCopy {
                             MessageHandlingState.doubleSendRemainingValue(currentContractId)
                         },
+                    exceptional = false,
                 ),
                 CondTransform(
                     predicate = {
                         (alreadyHasMsgsWithSendRemainingValue and sendRemainingValue).not()
                     },
                     transform = asOnCopy { build() },
+                    exceptional = false,
                 ),
             )
         val transform2: List<CondTransform> =
@@ -405,6 +408,7 @@ class TvmTransactionInterpreter(
                             messageValue = currentContractBalance
                             build()
                         },
+                    exceptional = false,
                 ),
                 CondTransform(
                     predicate = { sendRemainingBalance and sendRemainingValue },
@@ -412,6 +416,7 @@ class TvmTransactionInterpreter(
                         asOnCopy {
                             MessageHandlingState.incompatibleModsError(currentContractId)
                         },
+                    exceptional = true,
                 ),
                 CondTransform(
                     predicate = {
@@ -424,6 +429,7 @@ class TvmTransactionInterpreter(
                             remainingInboundMessageValue = zeroValue
                             build()
                         },
+                    exceptional = false,
                 ),
                 CondTransform(
                     predicate = {
@@ -434,12 +440,14 @@ class TvmTransactionInterpreter(
                         asOnCopy {
                             MessageHandlingState.insufficientFundsError(currentContractId)
                         },
+                    exceptional = true,
                 ),
                 CondTransform(
                     predicate = {
                         sendRemainingBalance.not() and sendRemainingValue.not()
                     },
                     transform = asOnCopy { build() },
+                    exceptional = false,
                 ),
             )
         val transform3: List<CondTransform> =
@@ -451,6 +459,7 @@ class TvmTransactionInterpreter(
                             messageValueBrutto = messageValue bvAdd msgFwdFees
                             build()
                         },
+                    exceptional = false,
                 ),
                 CondTransform(
                     predicate = { payFeesSeparately.not() and (this.messageValue bvUge msgFwdFees) },
@@ -460,6 +469,7 @@ class TvmTransactionInterpreter(
                             messageValue = messageValue bvSub msgFwdFees
                             build()
                         },
+                    exceptional = false,
                 ),
                 CondTransform(
                     predicate = { payFeesSeparately.not() and (this.messageValue bvUge msgFwdFees).not() },
@@ -467,6 +477,7 @@ class TvmTransactionInterpreter(
                         asOnCopy {
                             MessageHandlingState.insufficientFundsError(currentContractId)
                         },
+                    exceptional = true,
                 ),
             )
         val transform4: List<CondTransform> =
@@ -492,6 +503,7 @@ class TvmTransactionInterpreter(
                                 )
                             build()
                         },
+                    exceptional = false,
                 ),
                 CondTransform(
                     predicate = { (remainingBalance bvUge messageValueBrutto).not() },
@@ -499,6 +511,7 @@ class TvmTransactionInterpreter(
                         asOnCopy {
                             MessageHandlingState.insufficientFundsError(currentContractId)
                         },
+                    exceptional = true,
                 ),
             )
         val transformApplyValue: List<CondTransform> =
@@ -511,6 +524,7 @@ class TvmTransactionInterpreter(
                                 ctx.mkOr(alreadyHasMsgsWithSendRemainingValue, sendRemainingValue)
                             build()
                         },
+                    exceptional = false,
                 ),
             )
         val transformations = listOf(transform1, transform2, transform3, transform4, transformApplyValue)
@@ -540,7 +554,7 @@ class TvmTransactionInterpreter(
                 }
                 TvmStepScopeManager.ActionOnCondition(
                     {},
-                    false,
+                    caseIsExceptional = it.exceptional,
                     predicate,
                     currentState.applyTransform(it.transform),
                 )
@@ -713,8 +727,8 @@ class TvmTransactionInterpreter(
             val actionList = mutableListOf<SliceRef>()
 
             while (true) {
-                val slice = scope.calcOnState { allocSliceFromCell(cur) }
-                val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice.value) }
+                val slice = makeCellToSliceTlbNoFork(scope, cur.value)
+                val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice) }
 
                 val isEnd =
                     scope.checkCondition(remainingRefs eq zeroSizeExpr)
@@ -725,7 +739,7 @@ class TvmTransactionInterpreter(
                 }
 
                 val action =
-                    sliceLoadRefTransaction(scope, slice.value)?.let {
+                    sliceLoadRefTransaction(scope, slice)?.let {
                         cur = it.second
                         it.first
                     }
@@ -755,8 +769,7 @@ class TvmTransactionInterpreter(
             scope.slicePreloadNextRef(slice)
                 ?: return null
 
-        val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
-        makeCellToSliceNoFork(scope, msg, msgSlice) // for further TL-B readings
+        val msgSlice = makeCellToSliceTlbNoFork(scope, msg)
 
         val nextStmtAction: TvmState.() -> Unit = {
             val nextStmt =
@@ -815,7 +828,7 @@ class TvmTransactionInterpreter(
 
                             innerStatus ?: return null
 
-                            result ?: listOf(null)
+                            result?.ifEmpty { listOf(null) } ?: listOf(null)
                         }
                     destinationVariants
                 }

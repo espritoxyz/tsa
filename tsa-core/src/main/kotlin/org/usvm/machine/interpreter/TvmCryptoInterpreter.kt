@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import mu.KLogging
 import org.ton.bytecode.TvmAppCryptoChksignuInst
 import org.ton.bytecode.TvmAppCryptoHashbuInst
 import org.ton.bytecode.TvmAppCryptoHashcuInst
@@ -10,7 +11,6 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
-import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.checkOutOfRange
@@ -150,5 +150,9 @@ class TvmCryptoInterpreter(
             stack.addInt(hash)
             newStmt(stmt.nextStmt())
         }
+    }
+
+    companion object {
+        val logger = object : KLogging() {}.logger
     }
 }

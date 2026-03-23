@@ -23,6 +23,7 @@ import org.usvm.collection.set.primitive.USetRegion
 import org.usvm.collection.set.primitive.USetRegionId
 import org.usvm.collection.set.primitive.setEntries
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
+import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.setUnion
 import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmSliceType
@@ -206,6 +207,24 @@ fun TvmState.dictGetValue(
             assertType(it, TvmSliceType)
         }
     }
+
+fun TvmStepScopeManager.dictGetValue(
+    dictRef: UHeapRef,
+    dictId: DictId,
+    key: UExpr<UBvSort>,
+): UHeapRef? {
+    val sliceValue = calcOnState { dictGetValue(dictRef, dictId, key) }
+    val cellValue = calcOnState {
+        readSliceCell(sliceValue)
+    }
+    val dataCellInfoStorage = calcOnState {
+        dataCellInfoStorage
+    }
+    dataCellInfoStorage.notifyAboutDictValueRequest(scope = this, cellValue)
+        ?: return null
+
+    return sliceValue
+}
 
 fun TvmState.allocatedDictContainsKey(
     dictRef: UHeapRef,

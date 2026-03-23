@@ -163,7 +163,7 @@ class TvmStepScopeManager(
                 givenConditionsWithActions
             }
 
-        if (givenConditionsWithActions.size > 1) {
+        if (givenConditionsWithActions.count { !it.condition.isFalse } > 1) {
             originalState.forkPoints += originalState.pathNode
         }
 

@@ -46,6 +46,7 @@ data class TvmOptions(
     val pathSelectionStrategies: List<PathSelectionStrategy> = listOf(PathSelectionStrategy.DFS),
     val divideTimeBetweenOpcodes: TimeDivisionBetweenOpcodes? = null,
     val collectNonTerminatedState: Boolean = false,
+    val trace: FollowTrace? = null,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
@@ -82,3 +83,7 @@ data class IntercontractOptions(
     val isIntercontractEnabled: Boolean
         get() = communicationScheme != null
 }
+
+data class FollowTrace(
+    val locations: List<Pair<String, Int>?>,
+)

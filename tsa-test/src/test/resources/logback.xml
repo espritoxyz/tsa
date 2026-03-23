@@ -6,7 +6,6 @@
         </encoder>
     </appender>
 
-    <!--
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <file>output.log</file>
         <append>false</append>
@@ -15,10 +14,9 @@
             <pattern>%d{HH:mm:ss.SSS} |%.-1level| %replace(%c{0}){'(\$Companion)?\$logger\$1',''} - %msg%n</pattern>
         </encoder>
     </appender>
-    -->
 
-    <root level="info">
+    <root level="debug">
         <appender-ref ref="STDOUT" />
-        <!-- <appender-ref ref="FILE" /> -->
+        <appender-ref ref="FILE" />
     </root>
 </configuration>

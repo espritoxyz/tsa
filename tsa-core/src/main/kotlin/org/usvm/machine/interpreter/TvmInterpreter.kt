@@ -158,6 +158,7 @@ import org.ton.bytecode.TvmLambda
 import org.ton.bytecode.TvmMainMethodLocation
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmOrdContinuation
+import org.ton.bytecode.TvmRealInst
 import org.ton.bytecode.TvmRegisterSavelist
 import org.ton.bytecode.TvmStackBasicInst
 import org.ton.bytecode.TvmStackBasicNopInst
@@ -221,6 +222,7 @@ import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.machine.DEBUG_FLAG
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
@@ -350,7 +352,7 @@ class TvmInterpreter(
     var forkBlackList: UForkBlackList<TvmState, TvmInst> = UForkBlackList.createDefault(),
 ) : UInterpreter<TvmState>() {
     companion object {
-        val logger = object : KLogging() {}.logger
+        private val logger = object : KLogging() {}.logger
     }
 
     private val exceptionsInterpreter = TvmExceptionsInterpreter(ctx)
@@ -735,6 +737,7 @@ class TvmInterpreter(
         val stmt = state.lastStmt
         logger.debug("Current contract: {}", state.currentContract)
         logger.debug("State id: {}", state.id)
+        logger.debug("State trace depth: {}", state.pathNode.depth)
         logger.debug("Executing: {} (class {})", formatTsaInstruction(stmt), stmt.javaClass.name)
 
         val initialGasUsage = state.gasUsageHistory
@@ -2802,7 +2805,7 @@ class TvmInterpreter(
 
     private fun TvmStepScopeManager.doIf(
         continuation: TvmContinuation,
-        stmt: TvmInst,
+        stmt: TvmRealInst,
         invertCondition: Boolean,
         isJmp: Boolean,
     ) = with(ctx) {
@@ -2812,13 +2815,16 @@ class TvmInterpreter(
                 if (invertCondition) it else it.not()
             }
 
+        DEBUG_FLAG = true
         fork(
             invertedCondition,
             falseStateIsExceptional = false,
             blockOnFalseState = {
+                DEBUG_FLAG = false
                 newStmt(stmt.nextStmt())
             },
         ) ?: return@with
+        DEBUG_FLAG = false
 
         if (isJmp) {
             jumpToContinuation(continuation)

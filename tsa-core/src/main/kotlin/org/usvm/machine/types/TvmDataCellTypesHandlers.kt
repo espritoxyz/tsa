@@ -23,6 +23,7 @@ import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.isAllocated
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmSizeSort
@@ -558,10 +559,8 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
             }
         val sliceLength = mkSizeSubExpr(cellLength, dataPos)
 
-        val leafAddresses = flattenReferenceIte(slice, extractAllocated = true, extractStatic = true)
-
         val (label, resultSliceRef) =
-            if (calcOnState { leafAddresses.all { dataCellInfoStorage.mapper.sliceIsAddress(it.second) } }) {
+            if (sliceIsAddress(slice, sliceLength, cellRef)) {
                 // store TL-B address
                 TlbAddressByRef(sliceLength) to slice
             } else {
@@ -583,6 +582,49 @@ fun TvmStepScopeManager.storeSliceTlbLabelInBuilder(
             }
         }
     }
+
+private fun TvmStepScopeManager.sliceIsAddress(
+    slice: UHeapRef,
+    length: UExpr<TvmSizeSort>,
+    cell: UHeapRef,
+): Boolean = with(ctx) {
+    val leafRefs = flattenReferenceIte(slice, extractAllocated = true, extractStatic = true)
+
+    if (leafRefs.all { calcOnState { dataCellInfoStorage.mapper.sliceIsAddress(it.second) } }) {
+        return true
+    }
+
+    if (slice !is UConcreteHeapRef || cell !is UConcreteHeapRef) {
+        return false
+    }
+
+    if (length !is KBitVecValue || length.intValue() != TvmContext.stdMsgAddrSize) {
+        return false
+    }
+
+    val stack = calcOnState { dataCellInfoStorage.sliceMapper.getTlbStack(slice) }
+        ?: return false
+
+    val results = stack.step(
+        scope = this@sliceIsAddress,
+        loadData = LimitedLoadData(
+            cell,
+            guard = trueExpr,
+            type = TvmCellDataIntegerRead(sizeBits = threeSizeExpr, isSigned = false, endian = Endian.BigEndian),
+        ),
+        badCellSizeIsExceptional = true,
+        onBadCellSize = { _, _ -> error("Should not be reachable") },
+    ) ?: error("Unexpected null in TlbStack.step")
+
+    if (results.size != 1) {
+        return false
+    }
+
+    val result = results.single()
+
+    // check that start is "100"
+    return result.value?.expr?.let { (it eq fourSizeExpr.unsignedExtendToInteger()).isTrue } == true
+}
 
 fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
     oldBuilder: UConcreteHeapRef,

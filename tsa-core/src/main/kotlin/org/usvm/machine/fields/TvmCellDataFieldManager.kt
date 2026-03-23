@@ -2,6 +2,7 @@ package org.usvm.machine.fields
 
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentHashSetOf
+import mu.KLogging
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
 import org.usvm.UBoolExpr
@@ -85,6 +86,7 @@ class TvmCellDataFieldManager(
             refsWithAssertedCellData = refsWithAssertedCellData.addAll(newRefs.map { it.address })
             refsWithRequestedCellDataField = refsWithRequestedCellDataField.addAll(newRefs.map { it.address })
             newRefs.forEach {
+                logger.debug("Data constraints for {}", it)
                 inferenceManager.fixateRef(it)
             }
 
@@ -124,5 +126,6 @@ class TvmCellDataFieldManager(
 
     companion object {
         private val cellDataField: TvmField = TvmFieldImpl(TvmCellType, "data")
+        private val logger = object : KLogging() {}.logger
     }
 }

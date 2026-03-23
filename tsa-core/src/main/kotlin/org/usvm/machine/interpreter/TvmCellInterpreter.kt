@@ -103,6 +103,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
+import org.usvm.logger
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.sliceCellField
@@ -1223,6 +1224,11 @@ class TvmCellInterpreter(
                     quietBlock?.let { { state, _ -> quietBlock(state) } }
                         ?: throwCellUnderflowErrorBasedOnContext,
             ) { valueFromTlb ->
+
+                if (valueFromTlb == null) {
+                    logger.debug("Fallback to raw slice read")
+                }
+
                 if (pushResultOnStack) {
                     val result =
                         valueFromTlb?.expr ?: let {
