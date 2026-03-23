@@ -4,6 +4,7 @@ import io.ksmt.expr.KInterpretedValue
 import org.ton.FixedSizeDataLabel
 import org.ton.TlbAddressByRef
 import org.ton.TlbAtomicLabel
+import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbBitArrayByRef
 import org.ton.TlbBitArrayOfConcreteSize
 import org.ton.TlbBuiltinLabel
@@ -83,8 +84,12 @@ fun <ReadResult> TlbBuiltinLabel.accepts(
                 }
             }
 
-            is TlbMsgAddrLabel -> {
-                (symbolicTypeRead is TvmCellDataMsgAddrRead).expr
+            is TlbBasicMsgAddrLabel -> {
+                if (symbolicTypeRead is TvmCellDataBitArrayRead) {
+                    symbolicTypeRead.sizeBits eq TvmContext.stdMsgAddrSize.toSizeSort()
+                } else {
+                    (symbolicTypeRead is TvmCellDataMsgAddrRead).expr
+                }
             }
 
             is TlbCoinsLabel -> {

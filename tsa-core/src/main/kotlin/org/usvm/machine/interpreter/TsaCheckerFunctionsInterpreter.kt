@@ -36,7 +36,7 @@ import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
-import org.usvm.machine.state.makeCellToSliceNoFork
+import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
@@ -374,7 +374,7 @@ class TsaCheckerFunctionsInterpreter(
                                 compositeLabelOfUnknown,
                             ) ?: return null
 
-                            makeCellToSliceNoFork(scope, msgBodyCell, it.msgBodySliceNonBounced)
+                            makeCellToSliceTlbNoFork(scope, msgBodyCell, it.msgBodySliceNonBounced)
                         }
 
                         when (stackOperations.type) {
@@ -411,6 +411,7 @@ class TsaCheckerFunctionsInterpreter(
             }
 
         prepareNewStack(scope, oldStack, stackOperations, receiverInput, nextContractId)
+            ?: return null
 
         val oldMemory =
             scope.calcOnState {

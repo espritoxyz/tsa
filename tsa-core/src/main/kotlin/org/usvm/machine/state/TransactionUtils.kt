@@ -17,7 +17,7 @@ fun builderStoreSliceTransaction(
     slice: UHeapRef,
 ): Unit? = builderStoreSliceTlb(scope, builder, builder, slice)
 
-fun makeCellToSliceNoFork(
+fun makeCellToSliceTlbNoFork(
     scope: TvmStepScopeManager,
     cell: UHeapRef,
     slice: UConcreteHeapRef,
@@ -31,6 +31,15 @@ fun makeCellToSliceNoFork(
     }
 
     scope.doNotKillScopeOnDoWithConditions = false
+}
+
+fun makeCellToSliceTlbNoFork(
+    scope: TvmStepScopeManager,
+    cell: UHeapRef,
+): UConcreteHeapRef {
+    val slice = scope.calcOnState { allocSliceFromCell(cell) }
+    makeCellToSliceTlbNoFork(scope, cell, slice)
+    return slice
 }
 
 fun sliceLoadIntTlbNoForkAndNoRegister(

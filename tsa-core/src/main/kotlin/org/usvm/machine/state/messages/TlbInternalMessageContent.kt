@@ -31,6 +31,7 @@ import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.createSliceIsEmptyConstraint
 import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.getCellContractInfoParam
+import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.readCellDataLength
 import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.state.readSliceDataPos
@@ -351,6 +352,10 @@ data class TlbInternalMessageContent(
                     ?: return@with
             }
 
+            if (commonMessageInfo.srcAddressSlice is UConcreteHeapRef) {
+                state.dataCellInfoStorage.mapper.addAddressSlice(commonMessageInfo.srcAddressSlice)
+            }
+
             // src:MsgAddressInt
             builderStoreSliceTlb(
                 scope,
@@ -359,6 +364,10 @@ data class TlbInternalMessageContent(
                 commonMessageInfo.srcAddressSlice ?: error("null slice"),
             )
                 ?: return@with
+
+            if (commonMessageInfo.dstAddressSlice is UConcreteHeapRef) {
+                state.dataCellInfoStorage.mapper.addAddressSlice(commonMessageInfo.dstAddressSlice)
+            }
 
             // dest:MsgAddressInt
             builderStoreSliceTlb(
@@ -572,8 +581,8 @@ data class TlbInternalMessageContent(
                     sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)
                         ?.unwrap(ptr)
                         ?.let { bodyRef ->
-                            val slice = scope.calcOnState { allocSliceFromCell(bodyRef) }
-                            TlbBody.OutOfLine(bodyRef, slice)
+                            val slice = makeCellToSliceTlbNoFork(scope, bodyRef.value)
+                            TlbBody.OutOfLine(bodyRef, slice.asSliceRef())
                         }
                         ?: return scopeDied
                 } else {
@@ -588,8 +597,7 @@ data class TlbInternalMessageContent(
                         ?: return scopeDied
                     ptr.slice = scope.calcOnState { allocSliceFromCell(allocEmptyCell()) }
                     val newBody =
-                        scope
-                            .calcOnState { allocSliceFromCell(allocCellFromBuilder(bodyBuilder)) }
+                        makeCellToSliceTlbNoFork(scope, scope.calcOnState { allocCellFromBuilder(bodyBuilder) })
                             .asSliceRef()
 
                     TlbBody.Inline(newBody)
