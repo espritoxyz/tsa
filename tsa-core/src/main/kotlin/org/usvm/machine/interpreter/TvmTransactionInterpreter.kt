@@ -38,7 +38,7 @@ import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.getContractInfoParamOf
 import org.usvm.machine.state.getInboundMessageValue
 import org.usvm.machine.state.getSliceRemainingRefsCount
-import org.usvm.machine.state.makeCellToSliceNoFork
+import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.messages.ActionParseResult
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.MessageActionParseResult
@@ -756,7 +756,7 @@ class TvmTransactionInterpreter(
                 ?: return null
 
         val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
-        makeCellToSliceNoFork(scope, msg, msgSlice) // for further TL-B readings
+        makeCellToSliceTlbNoFork(scope, msg, msgSlice) // for further TL-B readings
 
         val nextStmtAction: TvmState.() -> Unit = {
             val nextStmt =
@@ -823,6 +823,8 @@ class TvmTransactionInterpreter(
                 null -> {
                     listOf(null)
                 }
+            }.ifEmpty {
+                listOf(null)
             }
 
         return receiverOptions.map { possibleReceiver ->

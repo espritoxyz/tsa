@@ -5,6 +5,7 @@ import io.ksmt.expr.KExpr
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.asExpr
 import kotlinx.collections.immutable.persistentSetOf
+import org.ton.Endian
 import org.ton.bytecode.TvmDictDeleteDictdelInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetrefInst
@@ -177,7 +178,7 @@ import org.usvm.machine.state.allocatedDictContainsKey
 import org.usvm.machine.state.assertDictType
 import org.usvm.machine.state.assertIfSat
 import org.usvm.machine.state.builderCopyFromBuilder
-import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.checkCellOverflow
@@ -1565,11 +1566,25 @@ class TvmDictOperationInterpreter(
         scope.doWithStateCtx { builderCopyFromBuilder(builder, resultBuilder) }
 
         if (dictCellRef == null) {
-            scope.builderStoreDataBits(resultBuilder, mkBv(value = 0, sizeBits = 1u))
-                ?: return
+            builderStoreIntTlb(
+                scope,
+                builder,
+                resultBuilder,
+                value = zeroValue,
+                sizeBits = oneSizeExpr,
+                isSigned = false,
+                Endian.BigEndian,
+            ) ?: return
         } else {
-            scope.builderStoreDataBits(resultBuilder, mkBv(value = 1, sizeBits = 1u))
-                ?: return
+            builderStoreIntTlb(
+                scope,
+                builder,
+                resultBuilder,
+                value = oneValue,
+                sizeBits = oneSizeExpr,
+                isSigned = false,
+                Endian.BigEndian,
+            ) ?: return
 
             val refs =
                 scope.calcOnState {

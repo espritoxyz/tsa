@@ -3,6 +3,7 @@ package org.usvm.machine.types.memory
 import io.ksmt.sort.KBvSort
 import kotlinx.collections.immutable.PersistentList
 import org.ton.FixedSizeDataLabel
+import org.ton.TlbBasicMsgAddrLabel
 import org.ton.TlbBuiltinLabel
 import org.ton.TlbStructure.KnownTypePrefix
 import org.usvm.UExpr
@@ -16,6 +17,7 @@ import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.extractIntFromShiftedData
 import org.usvm.machine.types.TvmCellDataTypeRead
+import org.usvm.machine.types.readBvOfAddress
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.mkSizeSubExpr
@@ -44,6 +46,10 @@ fun extractKBvOfConcreteSizeFromTlbIfPossible(
             is FixedSizeDataLabel -> {
                 val field = ConcreteSizeBlockField(curStructure.typeLabel.concreteSize, curStructure.id, path)
                 state.memory.readField(address, field, field.getSort(this))
+            }
+
+            is TlbBasicMsgAddrLabel -> {
+                curStructure.typeLabel.readBvOfAddress(state, address, path, curStructure)
             }
 
             else -> {

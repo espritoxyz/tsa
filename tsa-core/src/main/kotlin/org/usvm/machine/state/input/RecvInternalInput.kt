@@ -142,6 +142,7 @@ class RecvInternalInput(
             // hack for using builder operations
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
             assertArgConstraints(scope, minMessageCurrencyValue = minMessageCurrencyValue)
+                ?: return null
 
             val flags = generateFlagsStruct(this)
             val bodyCellMaybeBounced =
