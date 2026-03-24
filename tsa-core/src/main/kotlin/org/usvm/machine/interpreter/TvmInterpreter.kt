@@ -260,6 +260,7 @@ import org.usvm.machine.state.addTuple
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocateCell
+import org.usvm.machine.state.applySoftConstraints
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMaxValueUnsignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
@@ -682,7 +683,11 @@ class TvmInterpreter(
 
                 processAddressRandomization(clonedOldState, state)
             } else {
-                newStates
+                newStates.also {
+                    it.forEach { state ->
+                        state.applySoftConstraints()
+                    }
+                }
             }
         }
     }

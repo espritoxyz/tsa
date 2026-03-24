@@ -57,7 +57,7 @@ class TvmState(
     private var symbolicRefs: PersistentSet<UConcreteHeapAddress> = persistentHashSetOf(),
     var gasUsageHistory: PersistentList<Pair<ContractId, UExpr<UBv32Sort>>>,
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
-    pathConstraints: UPathConstraints<TvmType>,
+    override val pathConstraints: TvmPathConstraints,
     memory: UMemory<TvmType, TvmCodeBlock>,
     models: List<TvmModel> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),

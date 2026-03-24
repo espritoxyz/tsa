@@ -34,6 +34,7 @@ import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.writeField
 import org.usvm.isAllocated
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.INT_BITS
@@ -69,6 +70,9 @@ import org.usvm.memory.foldHeapRef
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
+import org.usvm.solver.USatResult
+import org.usvm.solver.UUnknownResult
+import org.usvm.solver.UUnsatResult
 import org.usvm.test.resolver.HashMapESerializer
 import org.usvm.types.USingleTypeStream
 import org.usvm.utils.flattenReferenceIte
@@ -804,3 +808,28 @@ fun TvmState.generateSymbolicTime(): UExpr<TvmInt257Sort> =
     with(ctx) {
         makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_UNIX_TIME)).zeroExtendToSort(int257sort)
     }
+
+fun TvmState.applySoftConstraints() {
+    val softConstraints = pathConstraints.tvmSoftConstraints
+
+    // Before running the solver, check the models for satisfying soft constraints
+    val trueModels = models.filter { model ->
+        softConstraints.all { model.eval(it).isTrue }
+    }
+
+    if (trueModels.isNotEmpty()) {
+        models = trueModels
+        return
+    }
+
+    val solver = ctx.solver<TvmType>()
+    when (val solverResult = solver.checkWithSoftConstraints(pathConstraints, softConstraints)) {
+        is USatResult -> {
+            models = listOf(solverResult.model)
+        }
+        is UUnsatResult -> error("Unexpected $solverResult for the state $this supposed to be sat")
+        is UUnknownResult -> {
+            // This state is supposed to be sat without soft constraints, so we just keep old models
+        }
+    }
+}
