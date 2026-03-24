@@ -180,12 +180,16 @@ data class ConstTlbStackFrame(
         } ?: TlbStackFrame.EndOfFrame
 
     override fun readInModel(read: TlbStack.ConcreteReadInfo): TlbStackFrame.ModelReadResult {
-        check(read.leftBits >= data.length)
+        val dataLength = data.length - read.resolver.eval(offset).intValue()
+
+        check(read.leftBits >= dataLength) {
+            "Unexpected read"
+        }
         val newReadInfo =
             TlbStack.ConcreteReadInfo(
                 read.ref,
                 read.resolver,
-                read.leftBits - data.length,
+                read.leftBits - dataLength,
             )
         val further = buildFrameForStructure(read.resolver.state.ctx, nextStruct, path, leftTlbDepth)
         val newFrames = further?.let { listOf(it) } ?: emptyList()
