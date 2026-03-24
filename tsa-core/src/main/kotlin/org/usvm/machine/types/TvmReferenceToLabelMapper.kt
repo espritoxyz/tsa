@@ -143,27 +143,6 @@ class TvmReferenceToLabelMapper private constructor(
         }
     }
 
-    fun getLabelFromModel(
-        model: TvmModel,
-        ref: UConcreteHeapRef,
-    ): TvmParameterInfo.CellInfo {
-        check(ref.isStatic) {
-            "Unexpected ref: $ref"
-        }
-
-        val labelInfo = inputAddressToLabels[ref.address]
-
-        check(labelInfo != null) {
-            "Must call this method only for refs which structures are known. No info about $ref"
-        }
-
-        return labelInfo.variants.entries
-            .firstOrNull { (_, guard) ->
-                model.eval(guard).isTrue
-            }?.key
-            ?: error("One of the guards in LabelInfo for $ref must be true in the given model.")
-    }
-
     fun initializeConstraintsForChildren(
         state: TvmState,
         ref: UConcreteHeapRef,

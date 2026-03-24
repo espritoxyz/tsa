@@ -687,7 +687,10 @@ class TvmTestStateResolver(
             if (!labelMapper.proactiveStructuralConstraintsWereCalculated(modelRef) &&
                 labelMapper.addressWasGiven(modelRef)
             ) {
-                return buildDefaultCell(labelMapper.getLabelFromModel(model, modelRef))
+                val info =
+                    getLabelInfoInModel(modelRef)
+                        ?: error("Label must be given in this case")
+                return buildDefaultCell(info)
             }
 
             val typeVariants = state.getPossibleTypes(modelRef)
@@ -800,46 +803,64 @@ class TvmTestStateResolver(
         return TvmTestIntegerValue(value)
     }
 
+    fun getLabelInfoInModel(cell: UHeapRef): TvmParameterInfo.CellInfo? {
+        val modelRef = model.eval(cell) as UConcreteHeapRef
+        val info =
+            labelMapper.getLabelInfo(modelRef)
+                ?: return null
+        info.variants.entries.forEach { (info, guard) ->
+            if (model.eval(guard).isTrue) {
+                return info
+            }
+        }
+        error("One guard must be true in model")
+    }
+
+    fun hasDataCellLabel(cell: UHeapRef): TvmParameterInfo.DataCellInfo? =
+        getLabelInfoInModel(cell) as? TvmParameterInfo.DataCellInfo
+
     private fun resolveCellData(cell: UHeapRef): String {
         val modelRef = model.eval(cell) as UConcreteHeapRef
 
-        if (labelMapper.addressWasGiven(modelRef)) {
-            val label = labelMapper.getLabelFromModel(model, modelRef)
-            if (label is TvmParameterInfo.DataCellInfo) {
-                val valueFromTlbFields =
-                    readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
+        val label = hasDataCellLabel(cell)
+        if (label != null) {
+            val (valueFromTlbFields, guard) =
+                readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
 
-                val dataLength =
-                    resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell)).also {
-                        check(it in 0..MAX_DATA_LENGTH) {
-                            "Unexpected data length"
-                        }
-                    }
-
-                check(valueFromTlbFields.length == dataLength) {
-                    "Inconsistent data from TL-B field"
-                }
-
-                if (performAdditionalChecks &&
-                    modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()
-                ) {
-                    val symbolicData =
-                        state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
-                            state,
-                            cell,
-                        )
-                    val data = extractCellData(evaluateInModel(symbolicData))
-                    val dataFromField = data.take(dataLength)
-
-                    check(dataFromField == valueFromTlbFields) {
-                        "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
-                            "cellDataField: $dataFromField\n" +
-                            "   tlb fields: $valueFromTlbFields"
-                    }
-                }
-
-                return valueFromTlbFields
+            check(eval(guard).isTrue) {
+                "Unexpected guard: $guard"
             }
+
+            val dataLength =
+                resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell)).also {
+                    check(it in 0..MAX_DATA_LENGTH) {
+                        "Unexpected data length"
+                    }
+                }
+
+            check(valueFromTlbFields.length == dataLength) {
+                "Inconsistent data from TL-B field"
+            }
+
+            if (performAdditionalChecks &&
+                modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()
+            ) {
+                val symbolicData =
+                    state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
+                        state,
+                        cell,
+                    )
+                val data = extractCellData(evaluateInModel(symbolicData))
+                val dataFromField = data.take(dataLength)
+
+                check(dataFromField == valueFromTlbFields) {
+                    "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
+                        "cellDataField: $dataFromField\n" +
+                        "   tlb fields: $valueFromTlbFields"
+                }
+            }
+
+            return valueFromTlbFields
         }
 
         val symbolicData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)

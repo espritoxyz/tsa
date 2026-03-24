@@ -179,9 +179,7 @@ data class ConstTlbStackFrame(
             TlbStackFrame.NextFrame(it)
         } ?: TlbStackFrame.EndOfFrame
 
-    override fun readInModel(
-        read: TlbStack.ConcreteReadInfo,
-    ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> {
+    override fun readInModel(read: TlbStack.ConcreteReadInfo): TlbStackFrame.ModelReadResult {
         check(read.leftBits >= data.length)
         val newReadInfo =
             TlbStack.ConcreteReadInfo(
@@ -191,7 +189,13 @@ data class ConstTlbStackFrame(
             )
         val further = buildFrameForStructure(read.resolver.state.ctx, nextStruct, path, leftTlbDepth)
         val newFrames = further?.let { listOf(it) } ?: emptyList()
-        return Triple(data, newReadInfo, newFrames)
+        return TlbStackFrame.ModelReadResult(
+            data,
+            newReadInfo,
+            newFrames,
+            read.ref.ctx.trueExpr,
+            missedSlices = emptyList(),
+        )
     }
 
     override fun compareWithOtherFrame(
