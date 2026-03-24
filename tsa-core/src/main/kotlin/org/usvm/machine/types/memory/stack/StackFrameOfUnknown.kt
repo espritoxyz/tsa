@@ -262,8 +262,6 @@ data class StackFrameOfUnknown(
                 val dataConcrete = read.resolver.model.eval(dataSymbolic)
                 val data = (dataConcrete as KBitVecValue<*>).stringValue
 
-                val guard = dataSymbolic eq dataConcrete
-
                 val restSizeField = UnknownBlockLengthField(path)
                 val restSize =
                     read.resolver.state.memory
@@ -272,13 +270,26 @@ data class StackFrameOfUnknown(
                             restSizeField,
                             restSizeField.getSort(read.ref.ctx.tctx()),
                         ).zeroExtendToSort(sizeSort)
-                val concreteRestSize = read.resolver.eval(restSize).intValue()
+                val concreteRestSize = read.resolver.eval(restSize)
 
-                check(concreteRestSize == read.leftBits) {
+                val sizeGuard = restSize eq concreteRestSize
+
+                val high = dataSymbolic.sort.sizeBits.toInt() - 1
+                val low = dataSymbolic.sort.sizeBits.toInt() - read.leftBits
+                val dataGuard =
+                    if (low <= high) {
+                        mkBvExtractExpr(high, low, dataSymbolic) eq mkBvExtractExpr(high, low, dataConcrete)
+                    } else {
+                        trueExpr
+                    }
+
+                check(concreteRestSize.intValue() == read.leftBits) {
                     "Unexpected read in StackFrameOfUnknown"
                 }
 
                 val newReadInfo = TlbStack.ConcreteReadInfo(read.ref, read.resolver, leftBits = 0)
+
+                val guard = sizeGuard and dataGuard
 
                 TlbStackFrame.ModelReadResult(
                     data.take(read.leftBits),

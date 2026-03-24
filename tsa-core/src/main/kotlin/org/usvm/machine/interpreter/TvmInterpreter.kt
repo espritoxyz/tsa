@@ -644,6 +644,10 @@ class TvmInterpreter(
     fun postProcessState(state: TvmState): List<TvmState> {
         state.phase = TvmTerminated
 
+        if (state.id == 22u) {
+            println("here")
+        }
+
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 
         val clonedOldState =

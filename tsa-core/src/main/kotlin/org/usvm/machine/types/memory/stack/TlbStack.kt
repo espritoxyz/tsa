@@ -29,6 +29,14 @@ data class TlbStack(
     val isEmpty: Boolean
         get() = frames.isEmpty()
 
+    fun lastFrameIsUnknownWithOffset(): Boolean {
+        if (frames.isEmpty()) {
+            return false
+        }
+        val last = frames.last()
+        return last is StackFrameOfUnknown && last.hasOffset
+    }
+
     fun <ReadResult> step(
         scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,

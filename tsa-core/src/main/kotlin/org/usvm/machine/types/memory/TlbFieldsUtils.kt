@@ -161,17 +161,28 @@ fun TvmContext.generateGuardForSwitch(
 }
 
 fun readInModelFromTlbFields(
-    address: UHeapRef,
+    cellRef: UHeapRef,
     resolver: TvmTestStateResolver,
     label: TlbCompositeLabel,
 ): ModelReadResult {
     val state = resolver.state
+    val stack = TlbStack.new(state.ctx, label)
+    val sizeSymbolic = state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cellRef)
+    return readInModelFromTlbFields(cellRef, resolver, stack, sizeSymbolic)
+}
+
+fun readInModelFromTlbFields(
+    cellRef: UHeapRef,
+    resolver: TvmTestStateResolver,
+    givenStack: TlbStack,
+    sizeSymbolic: UExpr<TvmSizeSort>,
+): ModelReadResult {
+    val state = resolver.state
     val model = resolver.model
-    var stack = TlbStack.new(state.ctx, label)
+    var stack = givenStack
     var result = ""
-    val sizeSymbolic = state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
     val size = model.eval(sizeSymbolic).intValue()
-    var readInfo = TlbStack.ConcreteReadInfo(model.eval(address) as UConcreteHeapRef, resolver, size)
+    var readInfo = TlbStack.ConcreteReadInfo(model.eval(cellRef) as UConcreteHeapRef, resolver, size)
     var guard: UBoolExpr = state.ctx.trueExpr
     val missedSlices = mutableListOf<Pair<UHeapRef, TvmTestSliceValue>>()
 

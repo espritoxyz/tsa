@@ -6,6 +6,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
@@ -90,6 +91,8 @@ class TvmValueFixator(
         value: TvmTestSliceValue,
     ): UBoolExpr? =
         with(ctx) {
+            val modelRef = resolver.eval(ref) as UConcreteHeapRef
+
             val dataPosSymbolic =
                 scope.calcOnState {
                     fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, ref)
@@ -100,13 +103,53 @@ class TvmValueFixator(
                 }
             val cellRef = scope.calcOnState { memory.readField(ref, TvmContext.sliceCellField, addressSort) }
 
-            fixateConcreteValueForDataCell(
-                scope,
-                cellRef,
-                truncateSliceCell(value),
-                dataPosSymbolic,
-                refPosSymbolic,
-            )
+            val tlbStack =
+                scope.calcOnState {
+                    dataCellInfoStorage.sliceMapper.getTlbStack(modelRef)
+                }
+            if (tlbStack != null && !tlbStack.lastFrameIsUnknownWithOffset()) {
+                val cellLength =
+                    scope.calcOnState {
+                        fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
+                    }
+                val symbolicDataLength =
+                    mkSizeSubExpr(
+                        cellLength,
+                        dataPosSymbolic,
+                    )
+
+                val modelReadResult = readInModelFromTlbFields(cellRef, resolver, tlbStack, symbolicDataLength)
+                val children =
+                    modelReadResult.missedSlices.map { (ref, value) ->
+                        fixateConcreteValue(scope, ref, value)
+                            ?: return@with null
+                    }
+                val dataGuard = children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
+
+                val refs = truncateSliceCell(value).refs
+
+                val restGuard =
+                    fixateConcreteValueForDataCell(
+                        scope,
+                        cellRef,
+                        TvmTestDataCellValue(data = "", refs),
+                        dataOffset = cellLength,
+                        refPosSymbolic,
+                    ) ?: return null
+
+                return dataGuard and restGuard and (ref eq modelRef) and (resolver.eval(cellRef) eq cellRef)
+            }
+
+            val cellGuard =
+                fixateConcreteValueForDataCell(
+                    scope,
+                    cellRef,
+                    truncateSliceCell(value),
+                    dataPosSymbolic,
+                    refPosSymbolic,
+                ) ?: return null
+
+            (ref eq modelRef) and cellGuard
         }
 
     private fun fixateConcreteValueForDataCell(
@@ -150,7 +193,7 @@ class TvmValueFixator(
                             trueExpr
                         } else {
                             val label = resolver.hasDataCellLabel(ref)
-                            if (label != null) {
+                            if (label != null && (dataOffset eq zeroSizeExpr).isTrue) {
                                 val modelReadResult = readInModelFromTlbFields(ref, resolver, label.dataCellStructure)
                                 val children =
                                     modelReadResult.missedSlices.map { (ref, value) ->
