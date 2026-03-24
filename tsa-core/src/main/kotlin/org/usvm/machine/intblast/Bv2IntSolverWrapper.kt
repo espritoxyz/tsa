@@ -119,9 +119,10 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
 
         if (options.useIntBlasting) {
             val bv2intRes = check()
-            if (bv2intRes != KSolverStatus.UNKNOWN) {
-                return bv2intRes
-            }
+            return bv2intRes
+//            if (bv2intRes != KSolverStatus.UNKNOWN) {
+//                return bv2intRes
+//            }
         }
 
         reassertExprs()

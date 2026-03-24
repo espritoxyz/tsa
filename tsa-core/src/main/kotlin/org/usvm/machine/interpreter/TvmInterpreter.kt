@@ -721,12 +721,13 @@ class TvmInterpreter(
                     acc and fixateCondCur
                 }
 
+            // TODO: soft constraints for values with taken hashes
             scope.assert(fixateCond)
                 ?: return@with emptyList()
 
             clonedOldState.fixatedRandomAddresses = clonedOldState.addressesToBeRandomized
             clonedOldState.addressesToBeRandomized = persistentSetOf()
-            clonedOldState.refsToBeIndependentFromRandomAddresses
+            clonedOldState.refsToBeIndependentFromRandomAddresses = persistentSetOf()
 
             return postProcessState(clonedOldState)
         }
