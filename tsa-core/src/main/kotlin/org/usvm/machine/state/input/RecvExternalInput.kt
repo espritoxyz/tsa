@@ -11,7 +11,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.allocEmptyBuilder
+import org.usvm.machine.state.allocEmptyBuilderWithTlb
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderStoreSliceTlb
@@ -45,7 +45,7 @@ class RecvExternalInput(
 
     override fun constructFullMessage(state: TvmState): UConcreteHeapRef =
         with(ctx) {
-            val resultBuilder = state.allocEmptyBuilder()
+            val resultBuilder = state.allocEmptyBuilderWithTlb()
 
             // hack for using builder operations
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)

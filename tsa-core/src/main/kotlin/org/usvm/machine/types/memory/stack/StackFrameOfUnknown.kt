@@ -242,9 +242,7 @@ data class StackFrameOfUnknown(
         return nextFrame.skipLabel(state, ref)
     }
 
-    override fun readInModel(
-        read: TlbStack.ConcreteReadInfo,
-    ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
+    override fun readInModel(read: TlbStack.ConcreteReadInfo): TlbStackFrame.ModelReadResult =
         with(read.resolver.state.ctx) {
             check(!hasOffset) {
                 "Cannot read from StackFrameOfUnknown with offset"
@@ -261,7 +259,8 @@ data class StackFrameOfUnknown(
                 val dataSymbolic =
                     read.resolver.state.memory
                         .readField(read.ref, field, field.getSort(this))
-                val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
+                val dataConcrete = read.resolver.model.eval(dataSymbolic)
+                val data = (dataConcrete as KBitVecValue<*>).stringValue
 
                 val restSizeField = UnknownBlockLengthField(path)
                 val restSize =
@@ -271,15 +270,34 @@ data class StackFrameOfUnknown(
                             restSizeField,
                             restSizeField.getSort(read.ref.ctx.tctx()),
                         ).zeroExtendToSort(sizeSort)
-                val concreteRestSize = read.resolver.eval(restSize).intValue()
+                val concreteRestSize = read.resolver.eval(restSize)
 
-                check(concreteRestSize == read.leftBits) {
+                val sizeGuard = restSize eq concreteRestSize
+
+                val high = dataSymbolic.sort.sizeBits.toInt() - 1
+                val low = dataSymbolic.sort.sizeBits.toInt() - read.leftBits
+                val dataGuard =
+                    if (low <= high) {
+                        mkBvExtractExpr(high, low, dataSymbolic) eq mkBvExtractExpr(high, low, dataConcrete)
+                    } else {
+                        trueExpr
+                    }
+
+                check(concreteRestSize.intValue() == read.leftBits) {
                     "Unexpected read in StackFrameOfUnknown"
                 }
 
                 val newReadInfo = TlbStack.ConcreteReadInfo(read.ref, read.resolver, leftBits = 0)
 
-                Triple(data.take(read.leftBits), newReadInfo, emptyList())
+                val guard = sizeGuard and dataGuard
+
+                TlbStackFrame.ModelReadResult(
+                    data.take(read.leftBits),
+                    newReadInfo,
+                    emptyList(),
+                    guard,
+                    missedSlices = emptyList(),
+                )
             } else {
                 val nextFrame =
                     buildFrameForStructure(this, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)

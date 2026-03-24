@@ -713,6 +713,10 @@ fun TvmState.sliceMoveRefPtr(
 fun TvmState.allocEmptyBuilder(): UConcreteHeapRef =
     memory.allocConcrete(TvmBuilderType).also {
         builderCopyFromBuilder(emptyRefValue.emptyBuilder, it)
+    }
+
+fun TvmState.allocEmptyBuilderWithTlb(): UConcreteHeapRef =
+    allocEmptyBuilder().also {
         dataCellInfoStorage.mapper.addTlbBuilder(it, TlbStructureBuilder.empty)
     }
 

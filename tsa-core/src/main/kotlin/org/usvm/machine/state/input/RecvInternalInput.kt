@@ -15,7 +15,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.asIntValue
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.allocEmptyBuilder
+import org.usvm.machine.state.allocEmptyBuilderWithTlb
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.builderStoreIntTlb
@@ -71,7 +71,7 @@ class RecvInternalInput(
             // hack for using builder operations
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
 
-            val builder = state.allocEmptyBuilder()
+            val builder = state.allocEmptyBuilderWithTlb()
             builderStoreIntTlb(
                 scope,
                 builder,

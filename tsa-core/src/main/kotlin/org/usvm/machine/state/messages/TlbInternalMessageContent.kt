@@ -18,7 +18,7 @@ import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocCellFromBuilder
-import org.usvm.machine.state.allocEmptyBuilder
+import org.usvm.machine.state.allocEmptyBuilderWithTlb
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreGramsTlb
@@ -345,7 +345,7 @@ data class TlbInternalMessageContent(
         }
         val state = scope.calcOnState { this }
         return with(state.ctx) {
-            val resultBuilder = state.allocEmptyBuilder()
+            val resultBuilder = state.allocEmptyBuilderWithTlb()
 
             for (flag in commonMessageInfo.flags.asFlagsList()) {
                 resultBuilder.storeUint(scope, flag)
@@ -499,7 +499,7 @@ data class TlbInternalMessageContent(
                     }
                 } else {
                     // force out-of-line storage
-                    val builder = calcOnState { allocEmptyBuilder() }
+                    val builder = calcOnState { allocEmptyBuilderWithTlb() }
                     builderStoreSliceTlb(
                         this,
                         builder,
@@ -589,7 +589,7 @@ data class TlbInternalMessageContent(
                     scope.assert(bodyBitIsInlined)
                         ?: return scopeDied
 
-                    val bodyBuilder = scope.calcOnState { allocEmptyBuilder() }
+                    val bodyBuilder = scope.calcOnState { allocEmptyBuilderWithTlb() }
                     // Note: the line below DOES NOT move pointers in ptr.
                     // It does not break anything, as we do not read from `ptr` after reading message body
                     // in this function, even though it is aesthetically unpleasant

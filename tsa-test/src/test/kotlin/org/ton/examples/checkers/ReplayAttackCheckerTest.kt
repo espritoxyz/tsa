@@ -1,6 +1,9 @@
 package org.ton.examples.checkers
 
 import io.ktor.util.extension
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
+import org.ton.RUN_HARD_TESTS_REGEX
+import org.ton.RUN_HARD_TESTS_VAR
 import org.ton.cell.CellBuilder
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
 import org.ton.test.utils.assertInvariantsHold
@@ -151,6 +154,7 @@ class ReplayAttackCheckerTest {
         )
     }
 
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testWalletHighload() {
         val tests = runTest(highloadWalletV3)
@@ -161,6 +165,7 @@ class ReplayAttackCheckerTest {
         )
     }
 
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testWalletHighloadVulnerable() {
         val tests = runTest(highloadWalletVulnerable)
@@ -171,6 +176,7 @@ class ReplayAttackCheckerTest {
         )
     }
 
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testWalletHighloadVulnerable2() {
         val tests = runTest(highloadWalletVulnerable2)

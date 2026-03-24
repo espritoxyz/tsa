@@ -8,6 +8,7 @@ import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.isFalse
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
@@ -18,6 +19,7 @@ import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.UExprReadResult
 import org.usvm.machine.types.isEmptyRead
+import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestStateResolver
 
 data class TlbStack(
@@ -26,6 +28,14 @@ data class TlbStack(
 ) {
     val isEmpty: Boolean
         get() = frames.isEmpty()
+
+    fun lastFrameIsUnknownWithOffset(): Boolean {
+        if (frames.isEmpty()) {
+            return false
+        }
+        val last = frames.last()
+        return last is StackFrameOfUnknown && last.hasOffset
+    }
 
     fun <ReadResult> step(
         scope: TvmStepScopeManager,
@@ -194,10 +204,10 @@ data class TlbStack(
             result
         }
 
-    fun readInModel(readInfo: ConcreteReadInfo): Triple<String, ConcreteReadInfo, TlbStack> {
+    fun readInModel(readInfo: ConcreteReadInfo): ModelReadResult {
         require(frames.isNotEmpty())
         val lastFrame = frames.last()
-        val (readValue, leftToRead, newFrames) = lastFrame.readInModel(readInfo)
+        val (readValue, leftToRead, newFrames, guard, slices) = lastFrame.readInModel(readInfo)
         val deepFrames =
             if (newFrames.isEmpty()) {
                 skipSingleStep(readInfo.resolver.state, readInfo.ref, frames.viewWithoutLast())
@@ -205,8 +215,16 @@ data class TlbStack(
                 frames.viewWithoutLast()
             }
         val newTlbStack = TlbStack(deepFrames + newFrames)
-        return Triple(readValue, leftToRead, newTlbStack)
+        return ModelReadResult(readValue, leftToRead, newTlbStack, guard, slices)
     }
+
+    data class ModelReadResult(
+        val data: String,
+        val nextRead: ConcreteReadInfo,
+        val nextStack: TlbStack,
+        val guard: UBoolExpr,
+        val missedSlices: List<Pair<UHeapRef, TvmTestSliceValue>>,
+    )
 
     fun compareWithOtherStack(
         scope: TvmStepScopeManager,
