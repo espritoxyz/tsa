@@ -715,11 +715,10 @@ fun TvmState.allocEmptyBuilder(): UConcreteHeapRef =
         builderCopyFromBuilder(emptyRefValue.emptyBuilder, it)
     }
 
-fun TvmState.allocEmptyBuilderWithTlb(): UConcreteHeapRef {
-    return allocEmptyBuilder().also {
+fun TvmState.allocEmptyBuilderWithTlb(): UConcreteHeapRef =
+    allocEmptyBuilder().also {
         dataCellInfoStorage.mapper.addTlbBuilder(it, TlbStructureBuilder.empty)
     }
-}
 
 fun TvmState.builderCopyFromBuilder(
     original: UConcreteHeapRef,

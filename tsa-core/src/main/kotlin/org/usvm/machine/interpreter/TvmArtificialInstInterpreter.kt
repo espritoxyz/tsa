@@ -45,7 +45,6 @@ import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addSlice
 import org.usvm.machine.state.allocEmptyBuilder
-import org.usvm.machine.state.allocEmptyBuilderWithTlb
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreDataBits
 import org.usvm.machine.state.builderToCell
