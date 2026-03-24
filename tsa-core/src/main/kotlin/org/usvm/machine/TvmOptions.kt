@@ -41,7 +41,8 @@ data class TvmOptions(
      * is unspecified).
      */
     val stopOnFirstError: Boolean = true,
-    val useIntBlasting: Boolean = false,
+    val useIntBlasting: Boolean = true,
+    val useSoftConstraints: Boolean = false,
     val collectTlbMemoryStats: Boolean = false,
     val pathSelectionStrategies: List<PathSelectionStrategy> = listOf(PathSelectionStrategy.DFS),
     val divideTimeBetweenOpcodes: TimeDivisionBetweenOpcodes? = null,
@@ -50,6 +51,9 @@ data class TvmOptions(
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
             "Cannot perform inter-contract analysis without enabling out messages analysis"
+        }
+        check(!useIntBlasting || !useSoftConstraints) {
+            "For now, soft constraints for int-blasting is not supported"
         }
     }
 }

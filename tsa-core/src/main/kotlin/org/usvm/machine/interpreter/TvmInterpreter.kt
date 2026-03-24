@@ -684,8 +684,10 @@ class TvmInterpreter(
                 processAddressRandomization(clonedOldState, state)
             } else {
                 newStates.also {
-                    it.forEach { state ->
-                        state.applySoftConstraints()
+                    if (ctx.tvmOptions.useSoftConstraints) {
+                        it.forEach { state ->
+                            state.applySoftConstraints()
+                        }
                     }
                 }
             }

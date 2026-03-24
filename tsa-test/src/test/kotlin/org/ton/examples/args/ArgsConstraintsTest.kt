@@ -122,7 +122,13 @@ class ArgsConstraintsTest {
     @Test
     fun testBalance() {
         val path = getResourcePath<ArgsConstraintsTest>(balancePath)
-        val result = funcCompileAndAnalyzeAllMethods(path)
+
+        val options = TvmOptions(
+            useIntBlasting = false,
+            useSoftConstraints = true,
+        )
+
+        val result = funcCompileAndAnalyzeAllMethods(path, tvmOptions = options)
 
         val tests = result.testSuites.single()
 

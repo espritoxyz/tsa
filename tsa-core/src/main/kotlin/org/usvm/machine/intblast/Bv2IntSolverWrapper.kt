@@ -149,7 +149,8 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
 
     override fun model(): KModel = currentSolver.model()
 
-    override fun unsatCore(): List<KExpr<KBoolSort>> = currentSolver.unsatCore()
+    override fun unsatCore(): List<KExpr<KBoolSort>> =
+        currentSolver.unsatCore()
 
     override fun reasonOfUnknown(): String = currentSolver.reasonOfUnknown()
 
