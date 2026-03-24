@@ -1,8 +1,5 @@
 package org.ton.examples.intercontract
 
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
-import org.ton.RUN_HARD_TESTS_REGEX
-import org.ton.RUN_HARD_TESTS_VAR
 import org.ton.test.utils.extractBocContractFromResource
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
@@ -18,7 +15,6 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 class CroutonfiOldTest {
     private val checkerPath = "/intercontract/croutonfi-old/checker.fc"

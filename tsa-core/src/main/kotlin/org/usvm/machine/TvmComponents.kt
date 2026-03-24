@@ -15,24 +15,12 @@ import org.usvm.UBv32SizeExprProvider
 import org.usvm.UComponents
 import org.usvm.UContext
 import org.usvm.USizeExprProvider
-import org.usvm.constraints.UPathConstraints
-import org.usvm.isTrue
 import org.usvm.machine.intblast.Bv2IntExprFilter
 import org.usvm.machine.intblast.Bv2IntSolverWrapper
-import org.usvm.machine.state.TvmPathConstraints
-import org.usvm.machine.state.TvmState
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
-import org.usvm.model.UModelBase
-import org.usvm.model.UModelDecoder
-import org.usvm.solver.UExprTranslator
-import org.usvm.solver.USatResult
-import org.usvm.solver.USoftConstraintsProvider
 import org.usvm.solver.USolverBase
-import org.usvm.solver.USolverResult
 import org.usvm.solver.UTypeSolver
-import org.usvm.solver.UUnknownResult
-import org.usvm.solver.UUnsatResult
 import org.usvm.types.UTypeSystem
 import kotlin.time.Duration
 

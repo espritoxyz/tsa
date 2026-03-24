@@ -813,9 +813,10 @@ fun TvmState.applySoftConstraints() {
     val softConstraints = pathConstraints.tvmSoftConstraints
 
     // Before running the solver, check the models for satisfying soft constraints
-    val trueModels = models.filter { model ->
-        softConstraints.all { model.eval(it).isTrue }
-    }
+    val trueModels =
+        models.filter { model ->
+            softConstraints.all { model.eval(it).isTrue }
+        }
 
     if (trueModels.isNotEmpty()) {
         models = trueModels

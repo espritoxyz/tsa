@@ -123,10 +123,11 @@ class ArgsConstraintsTest {
     fun testBalance() {
         val path = getResourcePath<ArgsConstraintsTest>(balancePath)
 
-        val options = TvmOptions(
-            useIntBlasting = false,
-            useSoftConstraints = true,
-        )
+        val options =
+            TvmOptions(
+                useIntBlasting = false,
+                useSoftConstraints = true,
+            )
 
         val result = funcCompileAndAnalyzeAllMethods(path, tvmOptions = options)
 
