@@ -207,11 +207,14 @@ class TvmTestStateResolver(
             ?: error("Unexpected config type")
     }
 
-    fun resolveContractAddress(): TvmTestDataCellValue {
+    fun resolveContractAddresses(): Map<ContractId, TvmTestDataCellValue> {
         val address = getInitialRootContractParam(ADDRESS_PARAMETER_IDX)
 
-        return (resolveStackValue(address) as? TvmTestDataCellValue)
-            ?: error("Unexpected address type")
+        return state.contractIds.associateWith {
+            val address = getInitialContractParam(it, ADDRESS_PARAMETER_IDX)
+            (resolveStackValue(address) as? TvmTestDataCellValue)
+                ?: error("Unexpected address type")
+        }
     }
 
     fun resolveInitialContractState(contract: ContractId): TvmContractState {

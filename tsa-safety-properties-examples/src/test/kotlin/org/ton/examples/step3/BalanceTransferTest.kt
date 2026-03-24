@@ -65,7 +65,7 @@ class BalanceTransferTest {
 
         // Check it is possible only when the target address equals to the wallet address
         val targetAddress = nonTransferredBalanceExecution.fetchedValues[0] as TvmTestSliceValue
-        val walletAddress = nonTransferredBalanceExecution.contractAddress
+        val walletAddress = nonTransferredBalanceExecution.contractAddresses[2]!!
         assertEquals(targetAddress.cell.data.substring(targetAddress.dataPos), walletAddress.data)
     }
 }
