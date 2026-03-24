@@ -1,11 +1,14 @@
 package org.usvm.utils
 
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KBvConcatExpr
+import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KEqExpr
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.expr.KIteExpr
 import io.ksmt.expr.KNotExpr
 import io.ksmt.sort.KBvSort
+import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.minus
@@ -24,6 +27,7 @@ import org.usvm.isStatic
 import org.usvm.machine.TvmContext
 import org.usvm.machine.bigIntValue
 import org.usvm.memory.foldHeapRef
+import kotlin.math.exp
 
 val UExpr<out KBvSort>.intValueOrNull: Int?
     get() = (this as? KBitVecValue<*>)?.bigIntValue()?.toInt()
@@ -270,4 +274,102 @@ fun <Sort : USort> UExpr<Sort>.isIteWithConcreteLeaves(): Boolean {
         return false
     }
     return trueBranch.isIteWithConcreteLeaves() && falseBranch.isIteWithConcreteLeaves()
+}
+
+fun unpackConcat(expr: UExpr<KBvSort>): List<UExpr<UBvSort>> = with(expr.ctx) {
+    when (expr) {
+        is KBvZeroExtensionExpr -> {
+            List(expr.extensionSize) { mkBv(0, 1u) } + unpackConcat(expr.value)
+        }
+        is KBvConcatExpr -> {
+            unpackConcat(expr.arg0) + unpackConcat(expr.arg1)
+        }
+        is KBitVecValue -> {
+            val bits = expr.sort.sizeBits.toInt()
+            val firstBit = mkBvExtractExpr(high = bits - 1, low = bits - 1, expr)
+            val rest = if (bits > 1) {
+                unpackConcat(mkBvExtractExpr(high = bits - 2, low = 0, expr))
+            } else {
+                emptyList()
+            }
+            listOf(firstBit) + rest
+        }
+        else -> listOf(expr)
+    }
+}
+
+fun groupIntoParts(a: UExpr<KBvSort>, b: UExpr<KBvSort>): List<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>? {
+    check(a.sort == b.sort) {
+        "Incompatible sorts"
+    }
+
+    val aParts = unpackConcat(a).toMutableList()
+    val bParts = unpackConcat(b).toMutableList()
+
+    val result = mutableListOf<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>()
+
+    lateinit var curA: UExpr<KBvSort>
+    var endA = 0
+    lateinit var curB: UExpr<KBvSort>
+    var endB = 0
+    var ptr = 0
+
+    while (true) {
+        if (ptr == endA && endA == endB) {
+            if (ptr > 0) {
+                check(curA.sort == curB.sort) {
+                    "Incompatible sorts"
+                }
+                if (result.isNotEmpty() &&
+                    result.last().first is KBitVecValue && result.last().second is KBitVecValue &&
+                    curA is KBitVecValue && curB is KBitVecValue
+                ) {
+                    val last = result.removeLast()
+                    with(a.ctx) {
+                        result.add(mkBvConcatExpr(last.first, curA) to mkBvConcatExpr(last.second, curB))
+                    }
+                } else {
+                    result.add(curA to curB)
+                }
+            }
+            if (aParts.isEmpty() && bParts.isEmpty()) {
+                return result
+            }
+            if (aParts.isEmpty() || bParts.isEmpty()) {
+                return null
+            }
+            curA = aParts.removeFirst()
+            endA += curA.sort.sizeBits.toInt()
+            curB = bParts.removeFirst()
+            endB += curB.sort.sizeBits.toInt()
+        }
+
+        with(a.ctx) {
+            if (endA == ptr) {
+                if (aParts.isEmpty()) {
+                    return null
+                }
+                val part = aParts.removeFirst()
+                curA = mkBvConcatExpr(curA, part)
+                endA += part.sort.sizeBits.toInt()
+                if (endA > endB) {
+                    return null
+                }
+            }
+
+            if (endB == ptr) {
+                if (bParts.isEmpty()) {
+                    return null
+                }
+                val part = bParts.removeFirst()
+                curB = mkBvConcatExpr(curB, part)
+                endB += part.sort.sizeBits.toInt()
+                if (endB > endA) {
+                    return null
+                }
+            }
+        }
+
+        ptr++
+    }
 }

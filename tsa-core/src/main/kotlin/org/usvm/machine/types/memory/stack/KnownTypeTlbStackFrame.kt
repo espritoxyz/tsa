@@ -205,7 +205,7 @@ data class KnownTypeTlbStackFrame(
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo,
-    ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
+    ): TlbStackFrame.ModelReadResult =
         with(read.resolver.state.ctx) {
             val state = read.resolver.state
             val model = read.resolver.model
@@ -214,7 +214,13 @@ data class KnownTypeTlbStackFrame(
                     val newFrame =
                         expandNewStackFrame(state.ctx)
                             ?: error("Could not expand new frame for struct $struct")
-                    Triple("", read, listOf(this@KnownTypeTlbStackFrame, newFrame))
+                    TlbStackFrame.ModelReadResult(
+                        "",
+                        read,
+                        listOf(this@KnownTypeTlbStackFrame, newFrame),
+                        trueExpr,
+                        missedSlices = emptyList(),
+                    )
                 }
 
                 is FixedSizeDataLabel -> {
@@ -225,6 +231,9 @@ data class KnownTypeTlbStackFrame(
                     val field = ConcreteSizeBlockField(struct.typeLabel.concreteSize, struct.id, path)
                     val contentSymbolic = state.memory.readField(read.ref, field, field.getSort(this))
                     val content = model.eval(contentSymbolic)
+
+                    val guard = content eq contentSymbolic
+
                     val bits = (content as? KBitVecValue)?.stringValue ?: error("Unexpected expr $content")
 
                     val newRead =
@@ -236,7 +245,13 @@ data class KnownTypeTlbStackFrame(
 
                     val newFrame = (skipLabel(read.resolver.state, read.ref) as? TlbStackFrame.NextFrame)?.frame
 
-                    Triple(bits, newRead, newFrame?.let { listOf(it) } ?: emptyList())
+                    TlbStackFrame.ModelReadResult(
+                        bits,
+                        newRead,
+                        newFrame?.let { listOf(it) } ?: emptyList(),
+                        guard,
+                        missedSlices = emptyList(),
+                    )
                 }
 
                 is TlbIntegerLabelOfSymbolicSize -> {
@@ -247,7 +262,10 @@ data class KnownTypeTlbStackFrame(
 
                     val field = SymbolicSizeBlockField(struct.typeLabel.lengthUpperBound, struct.id, path)
                     val intValueSymbolic = state.memory.readField(read.ref, field, field.getSort(this))
-                    val intValue = (model.eval(intValueSymbolic) as KBitVecValue<*>).stringValue
+                    val intValueConcrete = model.eval(intValueSymbolic)
+                    val intValue = (intValueConcrete as KBitVecValue<*>).stringValue
+
+                    val guard = intValueConcrete eq intValueSymbolic
 
                     val intValueBinaryTrimmed = intValue.takeLast(intSize)
 
@@ -260,7 +278,13 @@ data class KnownTypeTlbStackFrame(
 
                     val newFrame = (skipLabel(read.resolver.state, read.ref) as? TlbStackFrame.NextFrame)?.frame
 
-                    Triple(intValueBinaryTrimmed, newRead, newFrame?.let { listOf(it) } ?: emptyList())
+                    TlbStackFrame.ModelReadResult(
+                        intValueBinaryTrimmed,
+                        newRead,
+                        newFrame?.let { listOf(it) } ?: emptyList(),
+                        guard,
+                        missedSlices = emptyList(),
+                    )
                 }
 
                 is TlbBitArrayByRef, is TlbAddressByRef -> {
@@ -282,7 +306,13 @@ data class KnownTypeTlbStackFrame(
 
                     val newFrame = (skipLabel(read.resolver.state, read.ref) as? TlbStackFrame.NextFrame)?.frame
 
-                    Triple(curData, newRead, newFrame?.let { listOf(it) } ?: emptyList())
+                    TlbStackFrame.ModelReadResult(
+                        curData,
+                        newRead,
+                        newFrame?.let { listOf(it) } ?: emptyList(),
+                        guard = trueExpr,
+                        missedSlices = listOf(slice to content),
+                    )
                 }
             }
         }
@@ -332,8 +362,8 @@ data class KnownTypeTlbStackFrame(
 
                         val canCompare =
                             struct.typeLabel.sizeBits == otherFrame.struct.typeLabel.sizeBits ||
-                                struct.rest is TlbStructure.Empty &&
-                                otherFrame.struct.rest is TlbStructure.Empty
+                                    struct.rest is TlbStructure.Empty &&
+                                    otherFrame.struct.rest is TlbStructure.Empty
 
                         if (!canCompare) {
                             return null to Unit

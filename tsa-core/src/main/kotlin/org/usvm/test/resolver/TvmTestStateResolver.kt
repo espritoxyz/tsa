@@ -37,6 +37,7 @@ import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
@@ -687,7 +688,9 @@ class TvmTestStateResolver(
             if (!labelMapper.proactiveStructuralConstraintsWereCalculated(modelRef) &&
                 labelMapper.addressWasGiven(modelRef)
             ) {
-                return buildDefaultCell(labelMapper.getLabelFromModel(model, modelRef))
+                val info = getLabelInfoInModel(modelRef)
+                    ?: error("Label must be given in this case")
+                return buildDefaultCell(info)
             }
 
             val typeVariants = state.getPossibleTypes(modelRef)
@@ -800,46 +803,65 @@ class TvmTestStateResolver(
         return TvmTestIntegerValue(value)
     }
 
+    fun getLabelInfoInModel(cell: UHeapRef): TvmParameterInfo.CellInfo? {
+        val modelRef = model.eval(cell) as UConcreteHeapRef
+        val info = labelMapper.getLabelInfo(modelRef)
+            ?: return null
+        info.variants.entries.forEach { (info, guard) ->
+            if (model.eval(guard).isTrue) {
+                return info
+            }
+        }
+        error("One guard must be true in model")
+    }
+
+    fun hasDataCellLabel(cell: UHeapRef): TvmParameterInfo.DataCellInfo? {
+        return getLabelInfoInModel(cell) as? TvmParameterInfo.DataCellInfo
+    }
+
     private fun resolveCellData(cell: UHeapRef): String {
         val modelRef = model.eval(cell) as UConcreteHeapRef
 
-        if (labelMapper.addressWasGiven(modelRef)) {
-            val label = labelMapper.getLabelFromModel(model, modelRef)
-            if (label is TvmParameterInfo.DataCellInfo) {
-                val valueFromTlbFields =
-                    readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
+        val label = hasDataCellLabel(cell)
 
-                val dataLength =
-                    resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell)).also {
-                        check(it in 0..MAX_DATA_LENGTH) {
-                            "Unexpected data length"
-                        }
+        if (label != null) {
+            val (valueFromTlbFields, guard) =
+                readInModelFromTlbFields(cell, this@TvmTestStateResolver, label.dataCellStructure)
+
+            check(eval(guard).isTrue) {
+                "Unexpected value of TL-B memory guard"
+            }
+
+            val dataLength =
+                resolveInt(state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, cell)).also {
+                    check(it in 0..MAX_DATA_LENGTH) {
+                        "Unexpected data length"
                     }
-
-                check(valueFromTlbFields.length == dataLength) {
-                    "Inconsistent data from TL-B field"
                 }
 
-                if (performAdditionalChecks &&
-                    modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()
-                ) {
-                    val symbolicData =
-                        state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
-                            state,
-                            cell,
-                        )
-                    val data = extractCellData(evaluateInModel(symbolicData))
-                    val dataFromField = data.take(dataLength)
+            check(valueFromTlbFields.length == dataLength) {
+                "Inconsistent data from TL-B field"
+            }
 
-                    check(dataFromField == valueFromTlbFields) {
-                        "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
+            if (performAdditionalChecks &&
+                modelRef.address in state.fieldManagers.cellDataFieldManager.getCellsWithAssertedCellData()
+            ) {
+                val symbolicData =
+                    state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(
+                        state,
+                        cell,
+                    )
+                val data = extractCellData(evaluateInModel(symbolicData))
+                val dataFromField = data.take(dataLength)
+
+                check(dataFromField == valueFromTlbFields) {
+                    "Data from cellDataField and tlb fields for ref $modelRef are inconsistent\n" +
                             "cellDataField: $dataFromField\n" +
                             "   tlb fields: $valueFromTlbFields"
-                    }
                 }
-
-                return valueFromTlbFields
             }
+
+            return valueFromTlbFields
         }
 
         val symbolicData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, cell)
@@ -868,11 +890,10 @@ class TvmTestStateResolver(
 
 private class ConstraintsVisitor(
     ctx: TvmContext,
-) : UExprTranslator<TvmType, TvmSizeSort>(ctx) {
+) : UExprTranslator<TvmType, TvmSizeSort>(ctx), TvmBvTransformer {
     val refs = mutableSetOf<UConcreteHeapRef>()
-
     override fun transform(expr: UConcreteHeapRef): UHeapRef {
         refs.add(expr)
-        return super.transform(expr)
+        return super<UExprTranslator>.transform(expr)
     }
 }

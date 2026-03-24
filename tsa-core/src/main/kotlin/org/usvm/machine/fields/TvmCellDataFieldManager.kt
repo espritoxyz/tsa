@@ -86,7 +86,6 @@ class TvmCellDataFieldManager(
             refsWithAssertedCellData = refsWithAssertedCellData.addAll(newRefs.map { it.address })
             refsWithRequestedCellDataField = refsWithRequestedCellDataField.addAll(newRefs.map { it.address })
             newRefs.forEach {
-                logger.debug("Data constraints for {}", it)
                 inferenceManager.fixateRef(it)
             }
 
@@ -95,6 +94,7 @@ class TvmCellDataFieldManager(
                 ?: return@with null
 
             if (!dataConstraint.isTrue) {
+                logger.debug("Data constraints for {}", newRefs)
                 scope.calcOnState {
                     debugInfo.dataConstraints = debugInfo.dataConstraints.add(dataConstraint)
                 }

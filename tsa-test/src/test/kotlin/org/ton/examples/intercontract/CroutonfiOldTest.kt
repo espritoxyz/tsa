@@ -41,20 +41,20 @@ class CroutonfiOldTest {
         val poolContract = extractBocContractFromResource(poolCodePath)
         val communicationScheme = extractCommunicationSchemeFromResource(schemePath)
 
-        val trace = File("path.txt").readLines().map { line ->
-            val parts = line.split(" ")
-            if (parts.size == 2) {
-                val hex = parts[0]
-                val offset = parts[1].toIntOrNull()
-                if (offset != null && hex.all { it.isDigit() || it in 'A'..'F' }) {
-                    hex to offset
-                } else {
-                    null
-                }
-            } else {
-                null
-            }
-        }
+//        val trace = File("path.txt").readLines().map { line ->
+//            val parts = line.split(" ")
+//            if (parts.size == 2) {
+//                val hex = parts[0]
+//                val offset = parts[1].toIntOrNull()
+//                if (offset != null && hex.all { it.isDigit() || it in 'A'..'F' }) {
+//                    hex to offset
+//                } else {
+//                    null
+//                }
+//            } else {
+//                null
+//            }
+//        }
 
         val options =
             TvmOptions(
@@ -68,7 +68,7 @@ class CroutonfiOldTest {
                 solverTimeout = 5.seconds,
                 loopIterationLimit = 3,
                 useIntBlasting = true,
-                trace = FollowTrace(trace)
+//                trace = FollowTrace(trace)
             )
 
         val concreteVaultData =

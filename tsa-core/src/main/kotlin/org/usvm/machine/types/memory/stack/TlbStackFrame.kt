@@ -6,12 +6,14 @@ import org.ton.TlbStructure
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
+import org.usvm.test.resolver.TvmTestSliceValue
 
 fun buildFrameForStructure(
     ctx: TvmContext,
@@ -75,7 +77,15 @@ sealed interface TlbStackFrame {
 
     fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame?
 
-    fun readInModel(read: TlbStack.ConcreteReadInfo): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>>
+    fun readInModel(read: TlbStack.ConcreteReadInfo): ModelReadResult
+
+    data class ModelReadResult(
+        val data: String,
+        val nextRead: TlbStack.ConcreteReadInfo,
+        val nextFrames: List<TlbStackFrame>,
+        val guard: UBoolExpr,
+        val missedSlices: List<Pair<UHeapRef, TvmTestSliceValue>>,
+    )
 
     fun compareWithOtherFrame(
         scope: TvmStepScopeManager,

@@ -31,6 +31,7 @@ import org.usvm.machine.state.preloadDataBitsFromCellWithoutStructuralAsserts
 import org.usvm.machine.types.memory.stack.TlbStack
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
+import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestStateResolver
 
 fun TvmContext.generateCellDataConstraint(
@@ -163,7 +164,7 @@ fun readInModelFromTlbFields(
     address: UHeapRef,
     resolver: TvmTestStateResolver,
     label: TlbCompositeLabel,
-): String {
+): ModelReadResult {
     val state = resolver.state
     val model = resolver.model
     var stack = TlbStack.new(state.ctx, label)
@@ -171,16 +172,26 @@ fun readInModelFromTlbFields(
     val sizeSymbolic = state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, address)
     val size = model.eval(sizeSymbolic).intValue()
     var readInfo = TlbStack.ConcreteReadInfo(model.eval(address) as UConcreteHeapRef, resolver, size)
+    var guard: UBoolExpr = state.ctx.trueExpr
+    val missedSlices = mutableListOf<Pair<UHeapRef, TvmTestSliceValue>>()
 
     while (!stack.isEmpty) {
-        val (readValue, leftToRead, newStack) = stack.readInModel(readInfo)
+        val (readValue, leftToRead, newStack, curGuard, slices) = stack.readInModel(readInfo)
         result += readValue
         readInfo = leftToRead
         stack = newStack
+        guard = state.ctx.mkAnd(guard, curGuard)
+        missedSlices += slices
     }
 
-    return result
+    return ModelReadResult(result, guard, missedSlices)
 }
+
+data class ModelReadResult(
+    val data: String,
+    val guard: UBoolExpr,
+    val missedSlices: List<Pair<UHeapRef, TvmTestSliceValue>>,
+)
 
 fun generateTlbFieldConstraints(
     state: TvmState,

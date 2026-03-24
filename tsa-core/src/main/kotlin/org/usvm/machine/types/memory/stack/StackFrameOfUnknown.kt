@@ -244,7 +244,7 @@ data class StackFrameOfUnknown(
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo,
-    ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
+    ): TlbStackFrame.ModelReadResult =
         with(read.resolver.state.ctx) {
             check(!hasOffset) {
                 "Cannot read from StackFrameOfUnknown with offset"
@@ -261,7 +261,10 @@ data class StackFrameOfUnknown(
                 val dataSymbolic =
                     read.resolver.state.memory
                         .readField(read.ref, field, field.getSort(this))
-                val data = (read.resolver.model.eval(dataSymbolic) as KBitVecValue<*>).stringValue
+                val dataConcrete = read.resolver.model.eval(dataSymbolic)
+                val data = (dataConcrete as KBitVecValue<*>).stringValue
+
+                val guard = dataSymbolic eq dataConcrete
 
                 val restSizeField = UnknownBlockLengthField(path)
                 val restSize =
@@ -279,7 +282,7 @@ data class StackFrameOfUnknown(
 
                 val newReadInfo = TlbStack.ConcreteReadInfo(read.ref, read.resolver, leftBits = 0)
 
-                Triple(data.take(read.leftBits), newReadInfo, emptyList())
+                TlbStackFrame.ModelReadResult(data.take(read.leftBits), newReadInfo, emptyList(), guard, missedSlices = emptyList())
             } else {
                 val nextFrame =
                     buildFrameForStructure(this, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)

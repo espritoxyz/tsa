@@ -121,7 +121,7 @@ data class SwitchTlbStackFrame(
 
     override fun readInModel(
         read: TlbStack.ConcreteReadInfo,
-    ): Triple<String, TlbStack.ConcreteReadInfo, List<TlbStackFrame>> =
+    ): TlbStackFrame.ModelReadResult =
         with(read.resolver.state.ctx) {
             check(read.leftBits >= struct.switchSize)
 
@@ -147,7 +147,13 @@ data class SwitchTlbStackFrame(
                             read.resolver,
                             read.leftBits - struct.switchSize,
                         )
-                    return@with Triple(key, newReadInfo, further?.let { listOf(it) } ?: emptyList())
+                    return@with TlbStackFrame.ModelReadResult(
+                        key,
+                        newReadInfo,
+                        further?.let { listOf(it) } ?: emptyList(),
+                        guard,
+                        missedSlices = emptyList(),
+                    )
                 }
             }
 

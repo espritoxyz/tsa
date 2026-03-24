@@ -19,6 +19,7 @@ import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
 import org.usvm.machine.state.readCellRef
+import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.mkSizeAddExpr
 import org.usvm.mkSizeExpr
 import org.usvm.mkSizeSubExpr
@@ -148,12 +149,22 @@ class TvmValueFixator(
                         if (value.data.isEmpty()) {
                             trueExpr
                         } else {
-                            val symbolicData =
-                                scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
-                                    ?: return@with null
+                            val label = resolver.hasDataCellLabel(ref)
+                            if (label != null) {
+                                val modelReadResult = readInModelFromTlbFields(ref, resolver, label.dataCellStructure)
+                                val children = modelReadResult.missedSlices.map { (ref, value) ->
+                                    fixateConcreteValue(scope, ref, value)
+                                        ?: return@with null
+                                }
+                                children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
+                            } else {
+                                val symbolicData =
+                                    scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
+                                        ?: return@with null
 
-                            val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
-                            (symbolicData eq concreteData)
+                                val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
+                                (symbolicData eq concreteData)
+                            }
                         }
 
                     bitsCond and (symbolicDataLength eq mkSizeExpr(value.data.length))
