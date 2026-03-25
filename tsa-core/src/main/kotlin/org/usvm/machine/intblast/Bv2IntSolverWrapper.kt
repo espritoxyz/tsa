@@ -8,6 +8,7 @@ import io.ksmt.solver.KSolverConfiguration
 import io.ksmt.solver.KSolverStatus
 import io.ksmt.solver.wrapper.bv2int.KBv2IntSolver
 import io.ksmt.sort.KBoolSort
+import mu.KLogging
 import org.usvm.machine.TvmOptions
 import kotlin.time.Duration
 
@@ -118,6 +119,8 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
     private fun reassertExprsToBvSolver() {
         currentSolver.pop()
 
+        logger.debug("Switched to bv solver")
+
         isRewriteSolver = false
         encounterdBvExpr = true
         currentSolver.push()
@@ -131,6 +134,8 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
 
     private fun reassertExprsToIntSolver() {
         currentSolver.pop()
+
+        logger.debug("Switched to int solver")
 
         isRewriteSolver = true
         currentSolver.push()
@@ -200,5 +205,9 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
     override fun close() {
         bv2intSolver.close()
         regularSolver.close()
+    }
+
+    companion object {
+        private val logger = object : KLogging() {}.logger
     }
 }

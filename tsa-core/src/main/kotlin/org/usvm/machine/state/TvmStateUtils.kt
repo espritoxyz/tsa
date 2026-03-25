@@ -39,6 +39,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.INT_BITS
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
+import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
@@ -837,8 +838,10 @@ fun TvmState.applySoftConstraints() {
             models = listOf(solverResult.model)
         }
         is UUnsatResult -> {
-            solver.checkWithSoftConstraints(pathConstraints, softConstraints)
-            error("Unexpected $solverResult for the state $this supposed to be sat")
+            if (!ctx.tctx().tvmOptions.quietMode) {
+                solver.checkWithSoftConstraints(pathConstraints, softConstraints)
+                error("Unexpected $solverResult for the state $this supposed to be sat")
+            }
         }
         is UUnknownResult -> {
             // This state is supposed to be sat without soft constraints, so we just keep old models

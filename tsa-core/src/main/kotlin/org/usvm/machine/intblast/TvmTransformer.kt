@@ -1,5 +1,6 @@
 package org.usvm.machine.intblast
 
+import io.ksmt.expr.KInterpretedValue
 import io.ksmt.expr.transformer.KNonRecursiveTransformer
 import io.ksmt.expr.transformer.KTransformerBase
 import io.ksmt.sort.KBvSort
@@ -66,14 +67,17 @@ class TvmBvNonRecursiveTransformer(
     }
 
     override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> {
-        visitedHardExpression = true
+        visitedHardExpression =
+            visitedHardExpression ||
+            expr.lhs !is KInterpretedValue &&
+            expr.rhs !is KInterpretedValue
         return transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
             TvmMultiplication.transformToBv(l, r)
         }
     }
 
     override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> {
-        visitedHardExpression = true
+        visitedHardExpression = visitedHardExpression || expr.rhs !is KInterpretedValue
         return transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
             TvmSignedModulo.transformToBv(l, r)
         }

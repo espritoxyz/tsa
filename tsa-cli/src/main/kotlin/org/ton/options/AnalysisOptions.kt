@@ -65,7 +65,7 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
         .path()
         .help("File to write covered TVM instructions (in hash+offset format).")
 
-    val useIntBlasting by option("--int-blasting")
+    val noIntBlasting by option("--no-int-blasting")
         .flag(default = false)
         .help("Use int-blasting optimization")
 }
