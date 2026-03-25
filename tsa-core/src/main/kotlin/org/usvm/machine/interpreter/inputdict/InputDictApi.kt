@@ -127,7 +127,7 @@ fun doInputDictNextPrev(
             resultSymbol,
             isNext,
             mightBeEqualToPivot,
-            dictKeyKind == DictKeyKind.SIGNED_INT,
+            dictKeyKind == DictKeyKind.SIGNED_INT || dictKeyKind == DictKeyKind.UNSIGNED_INT,
         )
     val actions =
         dictNextApplied.map {

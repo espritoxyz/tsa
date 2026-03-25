@@ -239,7 +239,7 @@ data class InputDict(
         isSigned: Boolean,
     ): List<DictNextResult> {
         val existsNextBranch =
-            createExistsBranch(
+            createDictNextExistsBranch(
                 ctx,
                 freshConstantForInput,
                 freshConstantForResult,
@@ -266,7 +266,7 @@ data class InputDict(
         )
     }
 
-    private fun createExistsBranch(
+    private fun createDictNextExistsBranch(
         ctx: TvmContext,
         freshConstantForInput: TypedDictKey,
         freshConstantForResult: TypedDictKey,
