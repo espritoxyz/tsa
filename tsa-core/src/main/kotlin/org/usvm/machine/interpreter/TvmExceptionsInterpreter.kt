@@ -212,9 +212,6 @@ class TvmExceptionsInterpreter(
                     if (invertCondition) it.not() else it
                 }
             val exceptionCode = scope.calcOnState { exceptionCodeExtractor.code(this) }
-            if (exceptionCode == 257) {
-                println("here")
-            }
             val param =
                 if (takeParameterFromStack) {
                     scope.calcOnState {

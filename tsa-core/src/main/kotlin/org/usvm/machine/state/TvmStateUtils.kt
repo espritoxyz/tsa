@@ -836,7 +836,10 @@ fun TvmState.applySoftConstraints() {
         is USatResult -> {
             models = listOf(solverResult.model)
         }
-        is UUnsatResult -> error("Unexpected $solverResult for the state $this supposed to be sat")
+        is UUnsatResult -> {
+            solver.checkWithSoftConstraints(pathConstraints, softConstraints)
+            error("Unexpected $solverResult for the state $this supposed to be sat")
+        }
         is UUnknownResult -> {
             // This state is supposed to be sat without soft constraints, so we just keep old models
         }

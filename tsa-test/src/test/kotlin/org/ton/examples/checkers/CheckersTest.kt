@@ -594,7 +594,7 @@ class CheckersTest {
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = TvmOptions(timeout = 120.seconds),
+                options = TvmOptions(timeout = 180.seconds, useIntBlasting = false),
             )
 
         // There is at least one failed execution with exit code 257

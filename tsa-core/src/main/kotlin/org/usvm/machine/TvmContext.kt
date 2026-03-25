@@ -48,7 +48,9 @@ import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.UIteExpr
 import org.usvm.isTrue
+import org.usvm.machine.intblast.TvmAddition
 import org.usvm.machine.intblast.TvmMultiplication
+import org.usvm.machine.intblast.TvmNegation
 import org.usvm.machine.intblast.TvmSignedDivision
 import org.usvm.machine.intblast.TvmSignedModulo
 import org.usvm.machine.state.TvmBadDestinationAddress
@@ -75,6 +77,7 @@ import org.usvm.machine.types.memory.stack.BadSizeContext
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.utils.groupIntoParts
+import org.usvm.utils.isIteWithConcreteLeaves
 import org.usvm.utils.tryTransformToIteWithConcreteLeaves
 import java.math.BigInteger
 
@@ -123,6 +126,50 @@ class TvmContext(
             .createIfContextActive {
                 TvmSignedModulo(this, lhs, rhs, lhs.sort)
             }.cast()
+
+    private val tvmAddCache = mkAstInterner<TvmAddition<*>>()
+
+    fun <Sort : UBvSort> mkTvmAdd(
+        lhs: UExpr<Sort>,
+        rhs: UExpr<Sort>,
+    ): UExpr<Sort> {
+        val standard = mkBvAddExpr(lhs, rhs)
+        return if (!standard.isIteWithConcreteLeaves()) {
+            mkTvmAddNoSimplify(lhs, rhs)
+        } else {
+            standard
+        }
+    }
+
+    fun <Sort : UBvSort> mkTvmAddNoSimplify(
+        lhs: UExpr<Sort>,
+        rhs: UExpr<Sort>,
+    ): TvmAddition<Sort> =
+        tvmAddCache
+            .createIfContextActive {
+                TvmAddition(this, lhs, rhs, lhs.sort)
+            }.cast()
+
+    private val tvmNegCache = mkAstInterner<TvmNegation<*>>()
+
+    fun <Sort : UBvSort> mkTvmNeg(arg: UExpr<Sort>): UExpr<Sort> {
+        val standard = mkBvNegationExpr(arg)
+        if (arg.isIteWithConcreteLeaves()) {
+            return standard
+        }
+        return mkTvmNegNoSimplify(arg)
+    }
+
+    fun <Sort : UBvSort> mkTvmNegNoSimplify(arg: UExpr<Sort>): TvmNegation<Sort> =
+        tvmNegCache
+            .createIfContextActive {
+                TvmNegation(this, arg, arg.sort)
+            }.cast()
+
+    fun <Sort : UBvSort> mkTvmSub(
+        lhs: UExpr<Sort>,
+        rhs: UExpr<Sort>,
+    ): UExpr<Sort> = mkTvmAdd(lhs, mkTvmNeg(rhs))
 
     val int257sort = TvmInt257Sort(this)
     val cellDataSort = TvmCellDataSort(this)

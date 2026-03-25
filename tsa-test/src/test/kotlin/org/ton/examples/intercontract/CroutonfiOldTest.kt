@@ -94,7 +94,7 @@ class CroutonfiOldTest {
                 turnOnTLBParsingChecks = false,
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
-                timeout = 5.minutes,
+//                timeout = 5.minutes,
             )
 
         val tests =

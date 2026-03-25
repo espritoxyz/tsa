@@ -16,13 +16,14 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
     private val bv2intSolver: KBv2IntSolver<C1>,
     private val regularSolver: KSolver<C2>,
     private val exprFilter: KNonRecursiveVisitor<Boolean>,
-    private val transformer: TvmBvTransformer,
+    private val transformer: TvmBvNonRecursiveTransformer,
 ) : KSolver<KSolverConfiguration> {
     private val assertions = mutableListOf<KExpr<KBoolSort>>()
     private val trackedAssertions = mutableListOf<KExpr<KBoolSort>>()
     private var currentScope = 0
 
-    private var isRewriteSolver = true
+    private var isRewriteSolver = false
+    private var encounterdBvExpr = false
     private val currentSolver: KSolver<*>
         get() = if (isRewriteSolver) bv2intSolver else regularSolver
 
@@ -34,14 +35,19 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         require(currentScope == 1)
 
         if (isRewriteSolver && !exprFilter.applyVisitor(expr)) {
-            reassertExprs()
+            reassertExprsToBvSolver()
         }
 
+        val bvExpr = expr.accept(transformer)
+        if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
+            reassertExprsToIntSolver()
+        }
+
+        assertions.add(expr)
+
         if (isRewriteSolver) {
-            assertions.add(expr)
             currentSolver.assert(expr)
         } else {
-            val bvExpr = expr.accept(transformer)
             currentSolver.assert(bvExpr)
         }
     }
@@ -50,14 +56,19 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         require(currentScope == 1)
 
         if (isRewriteSolver && !exprs.all { exprFilter.applyVisitor(it) }) {
-            reassertExprs()
+            reassertExprsToBvSolver()
         }
 
+        val bvExprs = exprs.map { transformer.apply(it) }
+        if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
+            reassertExprsToIntSolver()
+        }
+
+        assertions.addAll(exprs)
+
         if (isRewriteSolver) {
-            assertions.addAll(exprs)
             currentSolver.assert(exprs)
         } else {
-            val bvExprs = exprs.map { transformer.apply(it) }
             currentSolver.assert(bvExprs)
         }
     }
@@ -66,14 +77,19 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         require(currentScope == 1)
 
         if (isRewriteSolver && !exprFilter.applyVisitor(expr)) {
-            reassertExprs()
+            reassertExprsToBvSolver()
         }
 
+        val bvExpr = expr.accept(transformer)
+        if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
+            reassertExprsToIntSolver()
+        }
+
+        trackedAssertions.add(expr)
+
         if (isRewriteSolver) {
-            trackedAssertions.add(expr)
             currentSolver.assertAndTrack(expr)
         } else {
-            val bvExpr = expr.accept(transformer)
             currentSolver.assertAndTrack(bvExpr)
         }
     }
@@ -82,22 +98,28 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         require(currentScope == 1)
 
         if (isRewriteSolver && !exprs.all { exprFilter.applyVisitor(it) }) {
-            reassertExprs()
+            reassertExprsToBvSolver()
         }
 
+        val bvExprs = exprs.map { transformer.apply(it) }
+        if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
+            reassertExprsToIntSolver()
+        }
+
+        trackedAssertions.addAll(exprs)
+
         if (isRewriteSolver) {
-            trackedAssertions.addAll(exprs)
             currentSolver.assertAndTrack(exprs)
         } else {
-            val bvExprs = exprs.map { it.accept(transformer) }
             currentSolver.assertAndTrack(bvExprs)
         }
     }
 
-    private fun reassertExprs() {
+    private fun reassertExprsToBvSolver() {
         currentSolver.pop()
 
         isRewriteSolver = false
+        encounterdBvExpr = true
         currentSolver.push()
 
         val bvAssertions = assertions.map { it.accept(transformer) }
@@ -105,6 +127,16 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
 
         currentSolver.assert(bvAssertions)
         currentSolver.assertAndTrack(trackedBvAssertions)
+    }
+
+    private fun reassertExprsToIntSolver() {
+        currentSolver.pop()
+
+        isRewriteSolver = true
+        currentSolver.push()
+
+        currentSolver.assert(assertions)
+        currentSolver.assertAndTrack(trackedAssertions)
     }
 
     override fun push() {
@@ -132,12 +164,9 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         if (options.useIntBlasting) {
             val bv2intRes = check()
             return bv2intRes
-//            if (bv2intRes != KSolverStatus.UNKNOWN) {
-//                return bv2intRes
-//            }
         }
 
-        reassertExprs()
+        reassertExprsToBvSolver()
         return check()
     }
 
@@ -154,7 +183,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         require(currentScope == 1)
 
         if (isRewriteSolver && !assumptions.all { exprFilter.applyVisitor(it) }) {
-            reassertExprs()
+            reassertExprsToBvSolver()
         }
 
         return wrappedCheck { currentSolver.checkWithAssumptions(assumptions, timeout) }

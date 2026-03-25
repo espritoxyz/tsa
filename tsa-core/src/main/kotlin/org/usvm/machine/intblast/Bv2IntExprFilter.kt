@@ -190,4 +190,23 @@ class Bv2IntExprFilter(
         exprVisitResult(expr, res)
         return expr
     }
+
+    override fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort> {
+        val res =
+            visitExprAfterVisitedDefault(expr, expr.lhs, expr.rhs) {
+                val result = visitResult(expr.lhs)!! && visitResult(expr.rhs)!!
+                saveVisitResult(expr, result)
+            }
+        exprVisitResult(expr, res)
+        return expr
+    }
+
+    override fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort> {
+        val res =
+            visitExprAfterVisitedDefault(expr, expr.arg) {
+                saveVisitResult(expr, visitResult(expr.arg)!!)
+            }
+        exprVisitResult(expr, res)
+        return expr
+    }
 }

@@ -20,6 +20,7 @@ import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.isFalse
 import org.usvm.isStatic
+import org.usvm.logger
 import org.usvm.machine.SizeExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
@@ -607,6 +608,10 @@ fun sliceLoadGramsTlb(
                 val grams =
                     slicePreloadInt(newSlice, extendedLength, isSigned = false, quietBlock)
                         ?: return@makeSliceTypeLoad
+
+                if (grams !is KInterpretedValue) {
+                    logger.debug("Fallback to raw coins read")
+                }
 
                 length to grams
             }
@@ -1401,6 +1406,10 @@ fun sliceLoadIntTlb(
                 val value =
                     slicePreloadDataBits(slice, sizeBits, quietBlock = quietBlock)
                         ?: return@makeSliceTypeLoad
+
+                if (value !is KInterpretedValue) {
+                    logger.debug("Fallback to raw int load")
+                }
 
                 if (isSigned) {
                     value.signedExtendToInteger()

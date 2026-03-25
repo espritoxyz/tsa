@@ -61,6 +61,7 @@ import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.isExceptional
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.lastStmt
+import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.messages.ContractSender
 import org.usvm.machine.state.messages.Flags
 import org.usvm.machine.state.messages.MessageAsStackArguments
@@ -717,7 +718,7 @@ class TvmArtificialInstInterpreter(
                 val body =
                     scope.calcOnState {
                         val cell = builderToCell(builder)
-                        val slice = allocSliceFromCell(cell)
+                        val slice = makeCellToSliceTlbNoFork(scope, cell)
                         TlbBody.OutOfLine(cell.asCellRef(), slice.asSliceRef())
                     }
                 val destinationAddressCell =
@@ -734,6 +735,7 @@ class TvmArtificialInstInterpreter(
                         bounced = 1.toBv257(),
                     )
                 val dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) }
+                scope.calcOnState { dataCellInfoStorage.mapper.addAddressSlice(dstAddressSlice) }
                 // according to transaction.cpp:prepare_bounce_phase from tone monorepo,
                 // the stateinit does not exist in bounce message (in the old format, pre TVM 12)
                 val content =

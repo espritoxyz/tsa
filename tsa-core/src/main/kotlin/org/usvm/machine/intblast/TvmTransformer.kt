@@ -19,6 +19,10 @@ interface TvmTransformer : KTransformerBase {
     fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort>
 
     fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort>
+
+    fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort>
+
+    fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort>
 }
 
 interface TvmBvTransformer : TvmTransformer {
@@ -36,25 +40,53 @@ interface TvmBvTransformer : TvmTransformer {
         expr.transformToBv {
             apply(it)
         }
+
+    override fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort> =
+        expr.transformToBv {
+            apply(it)
+        }
+
+    override fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort> =
+        expr.transformToBv {
+            apply(it)
+        }
 }
 
 class TvmBvNonRecursiveTransformer(
     ctx: TvmContext,
 ) : KNonRecursiveTransformer(ctx),
     TvmBvTransformer {
-    override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
+    var visitedHardExpression = false
+
+    override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> {
+        visitedHardExpression = true
+        return transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
             TvmSignedDivision.transformToBv(l, r)
         }
+    }
 
-    override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
+    override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> {
+        visitedHardExpression = true
+        return transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
             TvmMultiplication.transformToBv(l, r)
         }
+    }
 
-    override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
+    override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> {
+        visitedHardExpression = true
+        return transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
             TvmSignedModulo.transformToBv(l, r)
+        }
+    }
+
+    override fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort> =
+        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
+            TvmAddition.transformToBv(l, r)
+        }
+
+    override fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort> =
+        transformExprAfterTransformed(expr, expr.arg) { x ->
+            TvmNegation.transformToBv(x)
         }
 }
 
@@ -82,5 +114,15 @@ class TvmTranslator(
     override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> =
         transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
             ctx.tctx().mkTvmSignedMod(l, r)
+        }
+
+    override fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort> =
+        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
+            ctx.tctx().mkTvmAddNoSimplify(l, r)
+        }
+
+    override fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort> =
+        transformExprAfterTransformed(expr, expr.arg) { x ->
+            ctx.tctx().mkTvmNegNoSimplify(x)
         }
 }
