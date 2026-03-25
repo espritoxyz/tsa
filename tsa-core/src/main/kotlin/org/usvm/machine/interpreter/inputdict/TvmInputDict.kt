@@ -240,14 +240,14 @@ data class InputDict(
     ): List<DictNextResult> {
         val existsNextBranch =
             createDictNextExistsBranch(
-                ctx,
-                freshConstantForInput,
-                freshConstantForResult,
-                inputDict,
-                mightBeEqualToPivot,
-                isNext,
-                isOfIntegerKey,
-                pivot,
+                ctx = ctx,
+                freshConstantForInput = freshConstantForInput,
+                freshConstantForResult = freshConstantForResult,
+                inputDict = inputDict,
+                mightBeEqualToPivot = mightBeEqualToPivot,
+                isNext = isNext,
+                isSigned = isOfIntegerKey,
+                pivot = pivot,
             )
         val (nextCs, updatedUniversalConstraints) =
             inputDict.addLazyUniversalConstraint(

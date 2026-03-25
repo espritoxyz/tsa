@@ -1,18 +1,18 @@
 #include "../../../imports/stdlib.fc";
 
 
-() test(slice in_msg, int queried_key) impure method_id (1) {
+() test(slice in_msg, int lower_bound) impure method_id (1) {
     cell init_dict = in_msg~load_dict();
     (_, _, int found1) = init_dict.udict_get_max?(64);
     throw_unless(300, found1);
-    ( _, int found2) = init_dict.udict_get?(64, -1);
+    (_, _, int found2) = init_dict.udict_get_prev?(64, lower_bound);
     throw_unless(400, ~ found2);
     throw(500);
 }
 
 () main(slice in_msg) {
-    int queried_key = in_msg~load_int(64);
-    throw_unless(302, queried_key < 0);
-    test(in_msg, queried_key);
+    int lower_bound = in_msg~load_int(64);
+    throw_unless(302, lower_bound < 0);
+    test(in_msg, lower_bound);
     return ();
 }
