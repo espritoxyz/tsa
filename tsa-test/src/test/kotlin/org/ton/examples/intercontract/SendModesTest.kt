@@ -312,6 +312,8 @@ class SendModesTest {
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options =
                     TvmOptions(
+                        useIntBlasting = false,
+                        useSoftConstraints = false,
                         stopOnFirstError = false,
                         enableOutMessageAnalysis = true,
                         intercontractOptions =

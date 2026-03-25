@@ -125,7 +125,7 @@ class ArgsConstraintsTest {
 
         val options =
             TvmOptions(
-                useIntBlasting = false,
+//                useIntBlasting = false,
                 useSoftConstraints = true,
             )
 

@@ -37,6 +37,7 @@ import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
@@ -892,11 +893,11 @@ class TvmTestStateResolver(
 
 private class ConstraintsVisitor(
     ctx: TvmContext,
-) : UExprTranslator<TvmType, TvmSizeSort>(ctx) {
+) : UExprTranslator<TvmType, TvmSizeSort>(ctx), TvmBvTransformer {
     val refs = mutableSetOf<UConcreteHeapRef>()
 
     override fun transform(expr: UConcreteHeapRef): UHeapRef {
         refs.add(expr)
-        return super.transform(expr)
+        return super<UExprTranslator>.transform(expr)
     }
 }

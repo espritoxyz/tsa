@@ -6,19 +6,28 @@ import io.ksmt.solver.KSolverStatus
 import io.ksmt.solver.KTheory
 import io.ksmt.solver.wrapper.bv2int.KBv2IntRewriter.SignednessMode
 import io.ksmt.solver.wrapper.bv2int.KBv2IntRewriterConfig
-import io.ksmt.solver.wrapper.bv2int.KBv2IntSolver
 import io.ksmt.solver.yices.KYicesSolver
 import io.ksmt.solver.z3.KZ3Solver
 import mu.KLogging
 import org.usvm.UBoolExpr
 import org.usvm.UBv32SizeExprProvider
 import org.usvm.UComponents
+import org.usvm.UComposer
 import org.usvm.UContext
 import org.usvm.USizeExprProvider
+import org.usvm.collections.immutable.internal.MutabilityOwnership
+import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.intblast.Bv2IntExprFilter
 import org.usvm.machine.intblast.Bv2IntSolverWrapper
+import org.usvm.machine.intblast.TvmBv2IntSolver
+import org.usvm.machine.intblast.TvmBvNonRecursiveTransformer
+import org.usvm.machine.intblast.TvmComposer
+import org.usvm.machine.intblast.TvmTranslator
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
+import org.usvm.memory.UReadOnlyMemory
+import org.usvm.model.ULazyModelDecoder
+import org.usvm.solver.UExprTranslator
 import org.usvm.solver.USolverBase
 import org.usvm.solver.UTypeSolver
 import org.usvm.types.UTypeSystem
@@ -36,6 +45,21 @@ class TvmComponents(
         UBv32SizeExprProvider(ctx)
 
     val typeSystem = TvmTypeSystem()
+
+    override fun <Context : UContext<TvmSizeSort>> mkComposer(
+        ctx: Context,
+    ): (UReadOnlyMemory<TvmType>, MutabilityOwnership) -> UComposer<TvmType, TvmSizeSort> =
+        { memory, ownership ->
+            TvmComposer(ctx.tctx(), memory, ownership)
+        }
+
+    override fun <Context : UContext<TvmSizeSort>> buildTranslatorAndLazyDecoder(
+        ctx: Context,
+    ): Pair<UExprTranslator<TvmType, TvmSizeSort>, ULazyModelDecoder<TvmType>> {
+        val translator = TvmTranslator(ctx.tctx())
+        val decoder = ULazyModelDecoder(translator)
+        return translator to decoder
+    }
 
     override fun <Context : UContext<TvmSizeSort>> mkSolver(ctx: Context): USolverBase<TvmType> {
         val (translator, decoder) = buildTranslatorAndLazyDecoder(ctx)
@@ -56,7 +80,7 @@ class TvmComponents(
             Bv2IntSolverWrapper(
                 options = options,
                 bv2intSolver =
-                    KBv2IntSolver(
+                    TvmBv2IntSolver(
                         ctx,
                         intSolver,
                         KBv2IntRewriterConfig(signednessMode = SignednessMode.SIGNED),
@@ -69,6 +93,7 @@ class TvmComponents(
                         excludeNonConstShift = true,
                         excludeNonlinearArith = false,
                     ),
+                transformer = TvmBvNonRecursiveTransformer(ctx.tctx()),
             )
 
         val wrappedSolver =

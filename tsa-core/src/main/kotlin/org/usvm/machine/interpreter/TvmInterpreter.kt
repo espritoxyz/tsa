@@ -1327,7 +1327,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvMulNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkBvMulExpr(firstOperand, secondOperand)
+                        mkTvmMul(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicAddconstInst -> {
@@ -1353,7 +1353,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvMulNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkBvMulExpr(firstOperand, secondOperand)
+                        mkTvmMul(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicIncInst -> {

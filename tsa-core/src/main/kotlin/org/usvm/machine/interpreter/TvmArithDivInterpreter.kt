@@ -1175,20 +1175,15 @@ fun <S : UBvSort> TvmContext.makeDiv(
     x: UExpr<S>,
     y: UExpr<S>,
 ): DivResult<S> {
-    val zero = zeroValue.signExtendToSort(x.sort)
-    val minusOne = minusOneValue.signExtendToSort(x.sort)
+    val result = mkTvmSignedDiv(x, y)
 
-    val isNegative = mkBvSignedLessExpr(x, zero) xor mkBvSignedLessExpr(y, zero)
-    val computedDiv = mkBvSignedDivExpr(x, y)
-    val computedMod = mkBvSignedModExpr(x, y)
-    val needToCorrect = isNegative and (computedMod neq zero)
-    val noOverflow = mkBvDivNoOverflowExpr(x, y) // only one case: MIN_VALUE / MINUS_ONE
-
-    val result =
-        mkIte(
-            needToCorrect,
-            trueBranch = { mkBvAddExpr(computedDiv, minusOne) },
-            falseBranch = { computedDiv },
+    // only one case: MIN_VALUE / MINUS_ONE
+    val noOverflow =
+        mkNot(
+            mkAnd(
+                x eq mkBvShiftLeftExpr(mkBv(1, x.sort), mkBv(x.sort.sizeBits.toInt() - 1, x.sort)),
+                y eq mkBv(-1, x.sort),
+            ),
         )
 
     return DivResult(result, noOverflow)
@@ -1198,7 +1193,7 @@ fun <S : UBvSort> TvmContext.makeDiv(
 fun <S : UBvSort> TvmContext.makeMod(
     x: UExpr<S>,
     y: UExpr<S>,
-): UExpr<S> = mkBvSignedModExpr(x, y)
+): UExpr<S> = mkTvmSignedMod(x, y)
 
 fun <S : UBvSort> TvmContext.makeDivc(
     x: UExpr<S>,

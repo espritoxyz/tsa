@@ -269,8 +269,12 @@ fun <Sort : KBvSort> TvmContext.bvMinValueSignedExtended(sizeBits: UExpr<Sort>):
     val one = mkBv(1, sizeBits.sort)
     return mkIte(
         condition = sizeBits eq zero,
-        trueBranch = zero,
-        falseBranch = mkBvNegationExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one))),
+        trueBranch = {
+            zero
+        },
+        falseBranch = {
+            mkBvNegationExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one)))
+        },
     )
 }
 
@@ -282,8 +286,12 @@ fun <Sort : KBvSort> TvmContext.bvMaxValueSignedExtended(sizeBits: UExpr<Sort>):
     val one = mkBv(1, sizeBits.sort)
     return mkIte(
         condition = sizeBits eq zero,
-        trueBranch = zero,
-        falseBranch = mkBvSubExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one)), one),
+        trueBranch = {
+            zero
+        },
+        falseBranch = {
+            mkBvSubExpr(mkBvShiftLeftExpr(one, mkBvSubExpr(sizeBits, one)), one)
+        },
     )
 }
 

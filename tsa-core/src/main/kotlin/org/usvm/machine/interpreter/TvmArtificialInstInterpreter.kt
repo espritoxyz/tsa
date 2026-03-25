@@ -53,6 +53,7 @@ import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
 import org.usvm.machine.state.doWithStateCtx
+import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.generateSymbolicTime
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getContractInfoParamOf
@@ -78,10 +79,12 @@ import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setBalance
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.setFailure
+import org.usvm.machine.state.sliceLoadIntTlb
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.asSliceRef
+import org.usvm.machine.types.makeCellToSlice
 import org.usvm.sizeSort
 import org.usvm.test.resolver.TvmTestStateResolver
 
@@ -585,62 +588,82 @@ class TvmArtificialInstInterpreter(
             isExceptional = false
         }
 
-        scope.calcOnState {
-            with(ctx) {
+        with(ctx) {
                 if (stmt.computePhaseResult is TvmFailure) {
+                    val receivedMessage = scope.calcOnState { receivedMessage }
+
                     val (sender, _, receivedMsgData) =
                         receivedMessage as? ReceivedMessage.MessageFromOtherContract
                             ?: run {
-                                newStmt(
-                                    TsaArtificialExitInst(
-                                        stmt.computePhaseResult,
-                                        stmt.actionPhaseResult,
-                                        lastStmt.location,
-                                    ),
-                                )
-                                return@calcOnState
-                            }
-                    // if is bounceable, bounce back to sender
-                    val fullMsgData =
-                        fieldManagers.cellDataFieldManager.readCellData(scope, receivedMsgData.fullMessage.value)
-                            ?: return@calcOnState
-                    val isBounceable =
-                        mkBvAndExpr(
-                            fullMsgData,
-                            mkBvShiftLeftExpr(oneCellValue, 1020.toCellSort()),
-                        )
-
-                    constructBouncedMessage(scope, receivedMsgData, sender.contractId) { bouncedMessage ->
-                        fork(
-                            isBounceable.neq(zeroCellValue),
-                            falseStateIsExceptional = false,
-                            blockOnTrueState = {
-                                messageQueue =
-                                    messageQueue.add(
-                                        ReceivedMessage.MessageFromOtherContract(
-                                            sender = ContractSender(currentContract, currentEventId),
-                                            receiver = sender.contractId,
-                                            message = bouncedMessage,
+                                scope.doWithState {
+                                    newStmt(
+                                        TsaArtificialExitInst(
+                                            stmt.computePhaseResult,
+                                            stmt.actionPhaseResult,
+                                            lastStmt.location,
                                         ),
                                     )
-                                newStmt(
-                                    TsaArtificialExitInst(
-                                        stmt.computePhaseResult,
-                                        stmt.actionPhaseResult,
-                                        lastStmt.location,
+                                }
+                                return
+                            }
+
+                    // to use TL-B memory
+                    val fullMsgSlice = scope.calcOnState {
+                        allocSliceFromCell(receivedMessage.message.fullMessage.value)
+                    }
+                    scope.makeCellToSlice(receivedMessage.message.fullMessage.value, fullMsgSlice) {
+                        val emptySlice = calcOnState { generateSymbolicSlice() }
+                        sliceLoadIntTlb(this, fullMsgSlice, emptySlice, sizeBits = 3, isSigned = false) { flags ->
+                            val isBounceable = mkBvAndExpr(flags, oneValue)
+                            doWithConditions(
+                                givenConditionsWithActions = listOf(
+                                    TvmStepScopeManager.ActionOnCondition(
+                                        caseIsExceptional = false,
+                                        condition = isBounceable neq zeroValue,
+                                        paramForDoForAllBlock = true,
+                                        action = { } // this will be processed in doForAllBlock
                                     ),
+                                    TvmStepScopeManager.ActionOnCondition(
+                                        caseIsExceptional = false,
+                                        condition = isBounceable eq zeroValue,
+                                        paramForDoForAllBlock = false,
+                                        action = {
+                                            newStmt(
+                                                TsaArtificialExitInst(
+                                                    stmt.computePhaseResult,
+                                                    stmt.actionPhaseResult,
+                                                    lastStmt.location,
+                                                ),
+                                            )
+                                        }
+                                    )
                                 )
-                            },
-                            blockOnFalseState = {
-                                newStmt(
-                                    TsaArtificialExitInst(
-                                        stmt.computePhaseResult,
-                                        stmt.actionPhaseResult,
-                                        lastStmt.location,
-                                    ),
-                                )
-                            },
-                        )
+                            ) { isBounceable ->
+                                if (!isBounceable) {
+                                    return@doWithConditions
+                                }
+
+                                constructBouncedMessage(this, receivedMsgData, sender.contractId) { bouncedMessage ->
+                                    doWithState {
+                                        messageQueue =
+                                            messageQueue.add(
+                                                ReceivedMessage.MessageFromOtherContract(
+                                                    sender = ContractSender(currentContract, currentEventId),
+                                                    receiver = sender.contractId,
+                                                    message = bouncedMessage,
+                                                ),
+                                            )
+                                        newStmt(
+                                            TsaArtificialExitInst(
+                                                stmt.computePhaseResult,
+                                                stmt.actionPhaseResult,
+                                                lastStmt.location,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else {
                     scope.doWithState {
@@ -654,7 +677,6 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
-        }
     }
 
     private fun constructBouncedMessage(

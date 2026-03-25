@@ -1,5 +1,8 @@
 package org.ton.examples.intercontract
 
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
+import org.ton.RUN_HARD_TESTS_REGEX
+import org.ton.RUN_HARD_TESTS_VAR
 import org.ton.test.utils.extractBocContractFromResource
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
@@ -24,7 +27,7 @@ class CroutonfiOldTest {
     private val poolCodePath = "/intercontract/croutonfi-old/pool_code.boc"
     private val poolDataPath = "/intercontract/croutonfi-old/pool_data.boc"
 
-//    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun findTonDrain() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)
@@ -61,6 +64,42 @@ class CroutonfiOldTest {
             analyzeInterContract(
                 listOf(checkerContract, vaultContract, poolContract),
                 concreteContractData = listOf(TvmConcreteContractData(), concreteVaultData, concretePoolData),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+                additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(1000)),
+            )
+
+        propertiesFound(
+            tests,
+            listOf { test ->
+                (test.result as? TvmTestFailure)?.exitCode == 1000
+            },
+        )
+    }
+
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    @Test
+    fun findTonDrainSymbolicC4() {
+        val checkerContract = extractCheckerContractFromResource(checkerPath)
+        val vaultContract = extractBocContractFromResource(vaultCodePath)
+        val poolContract = extractBocContractFromResource(poolCodePath)
+        val communicationScheme = extractCommunicationSchemeFromResource(schemePath)
+
+        val options =
+            TvmOptions(
+                useReceiverInputs = false,
+                performAdditionalChecksWhileResolving = true,
+                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+                timeout = 5.minutes,
+            )
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, vaultContract, poolContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
