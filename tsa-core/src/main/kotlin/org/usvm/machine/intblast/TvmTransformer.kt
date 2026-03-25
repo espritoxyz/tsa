@@ -67,10 +67,6 @@ class TvmBvNonRecursiveTransformer(
     }
 
     override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> {
-        visitedHardExpression =
-            visitedHardExpression ||
-            expr.lhs !is KInterpretedValue &&
-            expr.rhs !is KInterpretedValue
         return transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
             TvmMultiplication.transformToBv(l, r)
         }
