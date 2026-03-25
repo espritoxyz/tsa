@@ -15,7 +15,9 @@ import org.usvm.solver.UExprTranslator
 
 interface TvmTransformer : KTransformerBase {
     fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort>
+
     fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort>
+
     fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort>
 }
 

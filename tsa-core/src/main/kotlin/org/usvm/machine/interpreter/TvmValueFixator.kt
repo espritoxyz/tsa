@@ -124,6 +124,9 @@ class TvmValueFixator(
                         fixateConcreteValue(scope, ref, value)
                             ?: return@with null
                     }
+
+                // TODO: check that modelReadResult matches [value]
+
                 val dataGuard = children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
 
                 val refs = truncateSliceCell(value).refs

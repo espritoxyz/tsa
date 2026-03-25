@@ -589,39 +589,41 @@ class TvmArtificialInstInterpreter(
         }
 
         with(ctx) {
-                if (stmt.computePhaseResult is TvmFailure) {
-                    val receivedMessage = scope.calcOnState { receivedMessage }
+            if (stmt.computePhaseResult is TvmFailure) {
+                val receivedMessage = scope.calcOnState { receivedMessage }
 
-                    val (sender, _, receivedMsgData) =
-                        receivedMessage as? ReceivedMessage.MessageFromOtherContract
-                            ?: run {
-                                scope.doWithState {
-                                    newStmt(
-                                        TsaArtificialExitInst(
-                                            stmt.computePhaseResult,
-                                            stmt.actionPhaseResult,
-                                            lastStmt.location,
-                                        ),
-                                    )
-                                }
-                                return
+                val (sender, _, receivedMsgData) =
+                    receivedMessage as? ReceivedMessage.MessageFromOtherContract
+                        ?: run {
+                            scope.doWithState {
+                                newStmt(
+                                    TsaArtificialExitInst(
+                                        stmt.computePhaseResult,
+                                        stmt.actionPhaseResult,
+                                        lastStmt.location,
+                                    ),
+                                )
                             }
+                            return
+                        }
 
-                    // to use TL-B memory
-                    val fullMsgSlice = scope.calcOnState {
+                // to use TL-B memory
+                val fullMsgSlice =
+                    scope.calcOnState {
                         allocSliceFromCell(receivedMessage.message.fullMessage.value)
                     }
-                    scope.makeCellToSlice(receivedMessage.message.fullMessage.value, fullMsgSlice) {
-                        val emptySlice = calcOnState { generateSymbolicSlice() }
-                        sliceLoadIntTlb(this, fullMsgSlice, emptySlice, sizeBits = 3, isSigned = false) { flags ->
-                            val isBounceable = mkBvAndExpr(flags, oneValue)
-                            doWithConditions(
-                                givenConditionsWithActions = listOf(
+                scope.makeCellToSlice(receivedMessage.message.fullMessage.value, fullMsgSlice) {
+                    val emptySlice = calcOnState { generateSymbolicSlice() }
+                    sliceLoadIntTlb(this, fullMsgSlice, emptySlice, sizeBits = 3, isSigned = false) { flags ->
+                        val isBounceable = mkBvAndExpr(flags, oneValue)
+                        doWithConditions(
+                            givenConditionsWithActions =
+                                listOf(
                                     TvmStepScopeManager.ActionOnCondition(
                                         caseIsExceptional = false,
                                         condition = isBounceable neq zeroValue,
                                         paramForDoForAllBlock = true,
-                                        action = { } // this will be processed in doForAllBlock
+                                        action = { }, // this will be processed in doForAllBlock
                                     ),
                                     TvmStepScopeManager.ActionOnCondition(
                                         caseIsExceptional = false,
@@ -635,48 +637,48 @@ class TvmArtificialInstInterpreter(
                                                     lastStmt.location,
                                                 ),
                                             )
-                                        }
-                                    )
-                                )
-                            ) { isBounceable ->
-                                if (!isBounceable) {
-                                    return@doWithConditions
-                                }
+                                        },
+                                    ),
+                                ),
+                        ) { isBounceable ->
+                            if (!isBounceable) {
+                                return@doWithConditions
+                            }
 
-                                constructBouncedMessage(this, receivedMsgData, sender.contractId) { bouncedMessage ->
-                                    doWithState {
-                                        messageQueue =
-                                            messageQueue.add(
-                                                ReceivedMessage.MessageFromOtherContract(
-                                                    sender = ContractSender(currentContract, currentEventId),
-                                                    receiver = sender.contractId,
-                                                    message = bouncedMessage,
-                                                ),
-                                            )
-                                        newStmt(
-                                            TsaArtificialExitInst(
-                                                stmt.computePhaseResult,
-                                                stmt.actionPhaseResult,
-                                                lastStmt.location,
+                            constructBouncedMessage(this, receivedMsgData, sender.contractId) { bouncedMessage ->
+                                doWithState {
+                                    messageQueue =
+                                        messageQueue.add(
+                                            ReceivedMessage.MessageFromOtherContract(
+                                                sender = ContractSender(currentContract, currentEventId),
+                                                receiver = sender.contractId,
+                                                message = bouncedMessage,
                                             ),
                                         )
-                                    }
+                                    newStmt(
+                                        TsaArtificialExitInst(
+                                            stmt.computePhaseResult,
+                                            stmt.actionPhaseResult,
+                                            lastStmt.location,
+                                        ),
+                                    )
                                 }
                             }
                         }
                     }
-                } else {
-                    scope.doWithState {
-                        newStmt(
-                            TsaArtificialExitInst(
-                                stmt.computePhaseResult,
-                                stmt.actionPhaseResult,
-                                lastStmt.location,
-                            ),
-                        )
-                    }
+                }
+            } else {
+                scope.doWithState {
+                    newStmt(
+                        TsaArtificialExitInst(
+                            stmt.computePhaseResult,
+                            stmt.actionPhaseResult,
+                            lastStmt.location,
+                        ),
+                    )
                 }
             }
+        }
     }
 
     private fun constructBouncedMessage(

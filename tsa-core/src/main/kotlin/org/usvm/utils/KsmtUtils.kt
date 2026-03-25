@@ -267,52 +267,57 @@ fun <Sort : USort> TvmContext.splitAndRead(
     }
 }
 
-fun <Sort : USort> UExpr<Sort>.tryTransformToIteWithConcreteLeaves(): UExpr<Sort>? = with(ctx.tctx()) {
-    when (this@tryTransformToIteWithConcreteLeaves) {
-        is KInterpretedValue -> this@tryTransformToIteWithConcreteLeaves
-        is KBvConcatExpr -> {
-            val newArg0 = arg0.tryTransformToIteWithConcreteLeaves()
-                ?: return null
-            val newArg1 = arg1.tryTransformToIteWithConcreteLeaves()
-                ?: return null
-            if (newArg0 is KIteExpr && newArg1 is KInterpretedValue) {
-                return mkIte(
-                    newArg0.condition,
-                    mkBvConcatExpr(newArg0.trueBranch, newArg1),
-                    mkBvConcatExpr(newArg0.falseBranch, newArg1),
-                ).uncheckedCast()
+fun <Sort : USort> UExpr<Sort>.tryTransformToIteWithConcreteLeaves(): UExpr<Sort>? =
+    with(ctx.tctx()) {
+        when (this@tryTransformToIteWithConcreteLeaves) {
+            is KInterpretedValue -> this@tryTransformToIteWithConcreteLeaves
+            is KBvConcatExpr -> {
+                val newArg0 =
+                    arg0.tryTransformToIteWithConcreteLeaves()
+                        ?: return null
+                val newArg1 =
+                    arg1.tryTransformToIteWithConcreteLeaves()
+                        ?: return null
+                if (newArg0 is KIteExpr && newArg1 is KInterpretedValue) {
+                    return mkIte(
+                        newArg0.condition,
+                        mkBvConcatExpr(newArg0.trueBranch, newArg1),
+                        mkBvConcatExpr(newArg0.falseBranch, newArg1),
+                    ).uncheckedCast()
+                }
+                if (newArg1 is KIteExpr && newArg0 is KInterpretedValue) {
+                    return mkIte(
+                        newArg1.condition,
+                        mkBvConcatExpr(newArg0, newArg1.trueBranch),
+                        mkBvConcatExpr(newArg0, newArg1.falseBranch),
+                    ).uncheckedCast()
+                }
+                if (newArg0 is KIteExpr && newArg1 is KIteExpr && newArg0.condition == newArg1.condition) {
+                    return mkIte(
+                        newArg0.condition,
+                        mkBvConcatExpr(newArg0.trueBranch, newArg1.trueBranch),
+                        mkBvConcatExpr(newArg0.falseBranch, newArg1.falseBranch),
+                    ).uncheckedCast()
+                }
+                null
             }
-            if (newArg1 is KIteExpr && newArg0 is KInterpretedValue) {
-                return mkIte(
-                    newArg1.condition,
-                    mkBvConcatExpr(newArg0, newArg1.trueBranch),
-                    mkBvConcatExpr(newArg0, newArg1.falseBranch),
-                ).uncheckedCast()
-            }
-            if (newArg0 is KIteExpr && newArg1 is KIteExpr && newArg0.condition == newArg1.condition) {
-                return mkIte(
-                    newArg0.condition,
-                    mkBvConcatExpr(newArg0.trueBranch, newArg1.trueBranch),
-                    mkBvConcatExpr(newArg0.falseBranch, newArg1.falseBranch),
-                ).uncheckedCast()
-            }
-            null
-        }
-        is KIteExpr -> {
-            val newTrueBranch = trueBranch.tryTransformToIteWithConcreteLeaves()
-                ?: return null
-            val newFalseBranch = falseBranch.tryTransformToIteWithConcreteLeaves()
-                ?: return null
+            is KIteExpr -> {
+                val newTrueBranch =
+                    trueBranch.tryTransformToIteWithConcreteLeaves()
+                        ?: return null
+                val newFalseBranch =
+                    falseBranch.tryTransformToIteWithConcreteLeaves()
+                        ?: return null
 
-            mkIte(condition, newTrueBranch, newFalseBranch)
+                mkIte(condition, newTrueBranch, newFalseBranch)
+            }
+            is KBvZeroExtensionExpr -> {
+                val asConcat = mkBvConcatExpr(mkBv(0, extensionSize.toUInt()), value)
+                asConcat.tryTransformToIteWithConcreteLeaves().uncheckedCast()
+            }
+            else -> null
         }
-        is KBvZeroExtensionExpr -> {
-            val asConcat = mkBvConcatExpr(mkBv(0, extensionSize.toUInt()), value)
-            asConcat.tryTransformToIteWithConcreteLeaves().uncheckedCast()
-        }
-        else -> null
     }
-}
 
 fun <Sort : USort> UExpr<Sort>.isIteWithConcreteLeaves(): Boolean {
     if (this is KInterpretedValue) {
@@ -324,29 +329,34 @@ fun <Sort : USort> UExpr<Sort>.isIteWithConcreteLeaves(): Boolean {
     return trueBranch.isIteWithConcreteLeaves() && falseBranch.isIteWithConcreteLeaves()
 }
 
-fun unpackConcat(expr: UExpr<KBvSort>): List<UExpr<UBvSort>> = with(expr.ctx) {
-    if (expr.isIteWithConcreteLeaves()) {
-        val bits = expr.sort.sizeBits.toInt()
-        val firstBit = mkBvExtractExpr(high = bits - 1, low = bits - 1, expr)
-        val rest = if (bits > 1) {
-            unpackConcat(mkBvExtractExpr(high = bits - 2, low = 0, expr))
-        } else {
-            emptyList()
+fun unpackConcat(expr: UExpr<KBvSort>): List<UExpr<UBvSort>> =
+    with(expr.ctx) {
+        if (expr.isIteWithConcreteLeaves()) {
+            val bits = expr.sort.sizeBits.toInt()
+            val firstBit = mkBvExtractExpr(high = bits - 1, low = bits - 1, expr)
+            val rest =
+                if (bits > 1) {
+                    unpackConcat(mkBvExtractExpr(high = bits - 2, low = 0, expr))
+                } else {
+                    emptyList()
+                }
+            return listOf(firstBit) + rest
         }
-        return listOf(firstBit) + rest
+        when (expr) {
+            is KBvZeroExtensionExpr -> {
+                List(expr.extensionSize) { mkBv(0, 1u) } + unpackConcat(expr.value)
+            }
+            is KBvConcatExpr -> {
+                unpackConcat(expr.arg0) + unpackConcat(expr.arg1)
+            }
+            else -> listOf(expr)
+        }
     }
-    when (expr) {
-        is KBvZeroExtensionExpr -> {
-            List(expr.extensionSize) { mkBv(0, 1u) } + unpackConcat(expr.value)
-        }
-        is KBvConcatExpr -> {
-            unpackConcat(expr.arg0) + unpackConcat(expr.arg1)
-        }
-        else -> listOf(expr)
-    }
-}
 
-fun groupIntoParts(a: UExpr<KBvSort>, b: UExpr<KBvSort>): List<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>? {
+fun groupIntoParts(
+    a: UExpr<KBvSort>,
+    b: UExpr<KBvSort>,
+): List<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>? {
     check(a.sort == b.sort) {
         "Incompatible sorts"
     }
@@ -362,7 +372,10 @@ fun groupIntoParts(a: UExpr<KBvSort>, b: UExpr<KBvSort>): List<Pair<UExpr<KBvSor
     var endB = 0
     var ptr = 0
 
-    fun isCompatibleForMerge(a: UExpr<KBvSort>, b: UExpr<KBvSort>): Boolean {
+    fun isCompatibleForMerge(
+        a: UExpr<KBvSort>,
+        b: UExpr<KBvSort>,
+    ): Boolean {
         if (a is KInterpretedValue && b is KInterpretedValue) {
             return true
         }

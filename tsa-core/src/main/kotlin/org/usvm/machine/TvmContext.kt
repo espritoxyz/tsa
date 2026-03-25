@@ -346,7 +346,9 @@ class TvmContext(
         }
 
         if (value is KBvZeroExtensionExpr && low.toUInt() < value.value.sort.sizeBits) {
-            val bits = value.value.sort.sizeBits.toInt()
+            val bits =
+                value.value.sort.sizeBits
+                    .toInt()
             return if (high >= bits) {
                 mkBvZeroExtensionExpr(high - bits + 1, mkBvExtractExpr(high = bits - 1, low = low, value.value))
             } else {
@@ -369,7 +371,10 @@ class TvmContext(
             return mkBvExtractExpr(high = high - sub, low = low - sub, value.arg0)
         }
 
-        if (value is KBvConcatExpr && low.toUInt() < value.arg1.sort.sizeBits && high.toUInt() >= value.arg1.sort.sizeBits) {
+        if (value is KBvConcatExpr &&
+            low.toUInt() < value.arg1.sort.sizeBits &&
+            high.toUInt() >= value.arg1.sort.sizeBits
+        ) {
             val sub =
                 value.arg1.sort.sizeBits
                     .toInt()
@@ -443,7 +448,10 @@ class TvmContext(
         return super.mkBvShiftLeftExpr(arg, shift)
     }
 
-    override fun <T : KBvSort, S : KBvSort> mkBvConcatExpr(arg0: KExpr<T>, arg1: KExpr<S>): KExpr<KBvSort> {
+    override fun <T : KBvSort, S : KBvSort> mkBvConcatExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<S>,
+    ): KExpr<KBvSort> {
         if (arg0 is KIteExpr && arg1 is KIteExpr && arg0.condition == arg1.condition) {
             return mkIte(
                 arg0.condition,
@@ -502,7 +510,10 @@ class TvmContext(
             }
         }
 
-    override fun <T : KBvSort> mkBvAndExpr(arg0: KExpr<T>, arg1: KExpr<T>): KExpr<T> {
+    override fun <T : KBvSort> mkBvAndExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<T> {
         if (arg1 is KIteExpr && arg0 !is KIteExpr) {
             return mkBvAndExpr(arg1, arg0)
         }
@@ -535,7 +546,10 @@ class TvmContext(
         return super.mkBvAndExpr(arg0, arg1)
     }
 
-    override fun <T : KBvSort> mkBvOrExpr(arg0: KExpr<T>, arg1: KExpr<T>): KExpr<T> {
+    override fun <T : KBvSort> mkBvOrExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<T> {
         if (arg1 is KIteExpr && arg0 !is KIteExpr) {
             return mkBvOrExpr(arg1, arg0)
         }
@@ -670,7 +684,10 @@ class TvmContext(
         return super.mkBvZeroExtensionExpr(extensionSize, value)
     }
 
-    override fun <T : KBvSort> mkBvAddExpr(arg0: KExpr<T>, arg1: KExpr<T>): KExpr<T> {
+    override fun <T : KBvSort> mkBvAddExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<T> {
         val transformedArg0 = arg0.tryTransformToIteWithConcreteLeaves()
         val transformedArg1 = arg1.tryTransformToIteWithConcreteLeaves()
 
@@ -678,7 +695,7 @@ class TvmContext(
             return mkIte(
                 transformedArg1.condition,
                 mkBvAddExpr(transformedArg0, transformedArg1.trueBranch),
-                mkBvAddExpr(transformedArg0, transformedArg1.falseBranch)
+                mkBvAddExpr(transformedArg0, transformedArg1.falseBranch),
             )
         }
 
@@ -686,7 +703,7 @@ class TvmContext(
             return mkIte(
                 transformedArg0.condition,
                 mkBvAddExpr(transformedArg1, transformedArg0.trueBranch),
-                mkBvAddExpr(transformedArg1, transformedArg0.falseBranch)
+                mkBvAddExpr(transformedArg1, transformedArg0.falseBranch),
             )
         }
 
@@ -704,7 +721,10 @@ class TvmContext(
                 mkBvAddExpr(arg0, transformedArg1.falseBranch),
             )
         }
-        if (transformedArg0 is KIteExpr && transformedArg1 is KIteExpr && transformedArg0.condition == transformedArg1.condition) {
+        if (transformedArg0 is KIteExpr &&
+            transformedArg1 is KIteExpr &&
+            transformedArg0.condition == transformedArg1.condition
+        ) {
             return mkIte(
                 transformedArg0.condition,
                 mkBvAddExpr(transformedArg0.trueBranch, transformedArg1.trueBranch),

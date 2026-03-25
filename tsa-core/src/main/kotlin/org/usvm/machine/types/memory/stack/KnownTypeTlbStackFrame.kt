@@ -289,7 +289,7 @@ data class KnownTypeTlbStackFrame(
                     val slice = state.memory.readField(read.ref, field, field.getSort(this))
 
                     val content =
-                        read.resolver.resolveRef(slice) as? TvmTestSliceValue
+                        read.resolver.resolveRef(slice, fromTlbStack = true) as? TvmTestSliceValue
                             ?: error("$slice must evaluate to slice")
 
                     val curData = content.cell.data.drop(content.dataPos)
