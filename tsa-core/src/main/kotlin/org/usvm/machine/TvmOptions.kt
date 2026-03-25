@@ -21,7 +21,7 @@ data class TvmOptions(
     val tlbOptions: TlbOptions = TlbOptions(),
     val maxRecursionDepth: Int? = DEFAULT_MAX_RECURSION_DEPTH,
     val timeout: Duration = Duration.INFINITE,
-    val solverTimeout: Duration = 2.seconds,
+    val solverTimeout: Duration = 1.seconds,
     val excludeExecutionsWithFailures: Boolean = false,
     /**
      * Represents the maximum number of iterations (specifically, loop body executions) in

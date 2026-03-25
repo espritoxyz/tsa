@@ -29,6 +29,7 @@ import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.types.mkIte
 import org.usvm.memory.foldHeapRef
+import kotlin.math.min
 
 val UExpr<out KBvSort>.intValueOrNull: Int?
     get() = (this as? KBitVecValue<*>)?.bigIntValue()?.toInt()
@@ -357,12 +358,17 @@ fun groupIntoParts(
     a: UExpr<KBvSort>,
     b: UExpr<KBvSort>,
 ): List<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>? {
+//    return null
     check(a.sort == b.sort) {
         "Incompatible sorts"
     }
 
-    val aParts = unpackConcat(a).toMutableList()
-    val bParts = unpackConcat(b).toMutableList()
+    if (a is KInterpretedValue && b is KInterpretedValue) {
+        return listOf(a to b)
+    }
+
+    val aParts = ArrayDeque(unpackConcat(a))
+    val bParts = ArrayDeque(unpackConcat(b))
 
     val result = mutableListOf<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>()
 
@@ -441,6 +447,6 @@ fun groupIntoParts(
             }
         }
 
-        ptr++
+        ptr = min(endA, endB)
     }
 }

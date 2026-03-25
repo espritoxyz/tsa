@@ -76,7 +76,6 @@ import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.memory.stack.BadSizeContext
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
-import org.usvm.utils.groupIntoParts
 import org.usvm.utils.isIteWithConcreteLeaves
 import org.usvm.utils.tryTransformToIteWithConcreteLeaves
 import java.math.BigInteger
@@ -585,11 +584,6 @@ class TvmContext(
                 falseBranch = mkBvAndExpr(arg0, arg1.falseBranch),
             )
         }
-        val groups = groupIntoParts(arg0.uncheckedCast(), arg1.uncheckedCast())
-        if (groups != null && groups.size > 1) {
-            val propagated = groups.map { mkBvAndExpr(it.first, it.second) }
-            return propagated.reduce { acc, expr -> mkBvConcatExpr(acc, expr) }.uncheckedCast()
-        }
         return super.mkBvAndExpr(arg0, arg1)
     }
 
@@ -613,11 +607,6 @@ class TvmContext(
                 trueBranch = mkBvOrExpr(arg1, arg0.trueBranch),
                 falseBranch = mkBvOrExpr(arg1, arg0.falseBranch),
             )
-        }
-        val groups = groupIntoParts(arg0.uncheckedCast(), arg1.uncheckedCast())
-        if (groups != null && groups.size > 1) {
-            val propagated = groups.map { mkBvOrExpr(it.first, it.second) }
-            return propagated.reduce { acc, expr -> mkBvConcatExpr(acc, expr) }.uncheckedCast()
         }
         return super.mkBvOrExpr(arg0, arg1)
     }
