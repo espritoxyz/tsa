@@ -120,14 +120,14 @@ fun doInputDictNextPrev(
         scope.calcOnState { inputDictionaryStorage.getRootInfoByIdOrThrow(inputDict.rootInputDictId) }
     val dictNextApplied =
         inputDict.doDictNextImpl(
-            scope.ctx,
-            keyExtended,
-            rootInputDictInfo,
-            freshConstantForInput,
-            resultSymbol,
-            isNext,
-            mightBeEqualToPivot,
-            dictKeyKind == DictKeyKind.SIGNED_INT || dictKeyKind == DictKeyKind.UNSIGNED_INT,
+            ctx = scope.ctx,
+            pivot = keyExtended,
+            inputDict = rootInputDictInfo,
+            freshConstantForInput = freshConstantForInput,
+            freshConstantForResult = resultSymbol,
+            isNext = isNext,
+            mightBeEqualToPivot = mightBeEqualToPivot,
+            isOfIntegerKey = dictKeyKind == DictKeyKind.SIGNED_INT || dictKeyKind == DictKeyKind.UNSIGNED_INT,
         )
     val actions =
         dictNextApplied.map {

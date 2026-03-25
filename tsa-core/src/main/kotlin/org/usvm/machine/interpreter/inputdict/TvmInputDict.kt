@@ -236,7 +236,7 @@ data class InputDict(
         freshConstantForResult: TypedDictKey,
         isNext: Boolean,
         mightBeEqualToPivot: Boolean,
-        isSigned: Boolean,
+        isOfIntegerKey: Boolean,
     ): List<DictNextResult> {
         val existsNextBranch =
             createDictNextExistsBranch(
@@ -246,13 +246,13 @@ data class InputDict(
                 inputDict,
                 mightBeEqualToPivot,
                 isNext,
-                isSigned,
+                isOfIntegerKey,
                 pivot,
             )
         val (nextCs, updatedUniversalConstraints) =
             inputDict.addLazyUniversalConstraint(
                 ctx,
-                UpperLowerBoundConstraint(pivot, isNext, mightBeEqualToPivot, isSigned, modifications),
+                UpperLowerBoundConstraint(pivot, isNext, mightBeEqualToPivot, isOfIntegerKey, modifications),
             )
         val doesNotExist =
             DictNextResult.DoesNotExist(
