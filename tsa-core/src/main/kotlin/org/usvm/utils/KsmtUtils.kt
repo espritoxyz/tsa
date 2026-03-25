@@ -31,6 +31,8 @@ import org.usvm.machine.types.mkIte
 import org.usvm.memory.foldHeapRef
 import kotlin.math.min
 
+private const val MAX_RECURSION_DEPTH = 100
+
 val UExpr<out KBvSort>.intValueOrNull: Int?
     get() = (this as? KBitVecValue<*>)?.bigIntValue()?.toInt()
 
@@ -268,16 +270,17 @@ fun <Sort : USort> TvmContext.splitAndRead(
     }
 }
 
-fun <Sort : USort> UExpr<Sort>.tryTransformToIteWithConcreteLeaves(): UExpr<Sort>? =
-    with(ctx.tctx()) {
+fun <Sort : USort> UExpr<Sort>.tryTransformToIteWithConcreteLeaves(depth: Int = 0): UExpr<Sort>? {
+    if (depth > MAX_RECURSION_DEPTH) return null
+    return with(ctx.tctx()) {
         when (this@tryTransformToIteWithConcreteLeaves) {
             is KInterpretedValue -> this@tryTransformToIteWithConcreteLeaves
             is KBvConcatExpr -> {
                 val newArg0 =
-                    arg0.tryTransformToIteWithConcreteLeaves()
+                    arg0.tryTransformToIteWithConcreteLeaves(depth + 1)
                         ?: return null
                 val newArg1 =
-                    arg1.tryTransformToIteWithConcreteLeaves()
+                    arg1.tryTransformToIteWithConcreteLeaves(depth + 1)
                         ?: return null
                 if (newArg0 is KIteExpr && newArg1 is KInterpretedValue) {
                     return mkIte(
@@ -304,40 +307,47 @@ fun <Sort : USort> UExpr<Sort>.tryTransformToIteWithConcreteLeaves(): UExpr<Sort
             }
             is KIteExpr -> {
                 val newTrueBranch =
-                    trueBranch.tryTransformToIteWithConcreteLeaves()
+                    trueBranch.tryTransformToIteWithConcreteLeaves(depth + 1)
                         ?: return null
                 val newFalseBranch =
-                    falseBranch.tryTransformToIteWithConcreteLeaves()
+                    falseBranch.tryTransformToIteWithConcreteLeaves(depth + 1)
                         ?: return null
 
                 mkIte(condition, newTrueBranch, newFalseBranch)
             }
             is KBvZeroExtensionExpr -> {
                 val asConcat = mkBvConcatExpr(mkBv(0, extensionSize.toUInt()), value)
-                asConcat.tryTransformToIteWithConcreteLeaves().uncheckedCast()
+                asConcat.tryTransformToIteWithConcreteLeaves(depth + 1).uncheckedCast()
             }
             else -> null
         }
     }
+}
 
-fun <Sort : USort> UExpr<Sort>.isIteWithConcreteLeaves(): Boolean {
+fun <Sort : USort> UExpr<Sort>.isIteWithConcreteLeaves(depth: Int = 0): Boolean {
+    if (depth > MAX_RECURSION_DEPTH) return false
     if (this is KInterpretedValue) {
         return true
     }
     if (this !is KIteExpr) {
         return false
     }
-    return trueBranch.isIteWithConcreteLeaves() && falseBranch.isIteWithConcreteLeaves()
+    return trueBranch.isIteWithConcreteLeaves(depth + 1) && falseBranch.isIteWithConcreteLeaves(depth + 1)
 }
 
-fun unpackConcat(expr: UExpr<KBvSort>): List<UExpr<UBvSort>> =
-    with(expr.ctx) {
+fun unpackConcat(
+    expr: UExpr<KBvSort>,
+    depth: Int = 0,
+): List<UExpr<UBvSort>>? {
+    if (depth > MAX_RECURSION_DEPTH) return null
+    return with(expr.ctx) {
         if (expr.isIteWithConcreteLeaves()) {
             val bits = expr.sort.sizeBits.toInt()
             val firstBit = mkBvExtractExpr(high = bits - 1, low = bits - 1, expr)
             val rest =
                 if (bits > 1) {
-                    unpackConcat(mkBvExtractExpr(high = bits - 2, low = 0, expr))
+                    unpackConcat(mkBvExtractExpr(high = bits - 2, low = 0, expr), depth + 1)
+                        ?: return null
                 } else {
                     emptyList()
                 }
@@ -345,20 +355,23 @@ fun unpackConcat(expr: UExpr<KBvSort>): List<UExpr<UBvSort>> =
         }
         when (expr) {
             is KBvZeroExtensionExpr -> {
-                List(expr.extensionSize) { mkBv(0, 1u) } + unpackConcat(expr.value)
+                val unpacked = unpackConcat(expr.value, depth + 1) ?: return null
+                List(expr.extensionSize) { mkBv(0, 1u) } + unpacked
             }
             is KBvConcatExpr -> {
-                unpackConcat(expr.arg0) + unpackConcat(expr.arg1)
+                val unpackedArg0 = unpackConcat(expr.arg0, depth + 1) ?: return null
+                val unpackedArg1 = unpackConcat(expr.arg1, depth + 1) ?: return null
+                unpackedArg0 + unpackedArg1
             }
             else -> listOf(expr)
         }
     }
+}
 
 fun groupIntoParts(
     a: UExpr<KBvSort>,
     b: UExpr<KBvSort>,
 ): List<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>? {
-//    return null
     check(a.sort == b.sort) {
         "Incompatible sorts"
     }
@@ -367,8 +380,8 @@ fun groupIntoParts(
         return listOf(a to b)
     }
 
-    val aParts = ArrayDeque(unpackConcat(a))
-    val bParts = ArrayDeque(unpackConcat(b))
+    val aParts = ArrayDeque(unpackConcat(a) ?: return null)
+    val bParts = ArrayDeque(unpackConcat(b) ?: return null)
 
     val result = mutableListOf<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>()
 
