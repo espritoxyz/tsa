@@ -260,6 +260,7 @@ import org.usvm.machine.state.addTuple
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocateCell
+import org.usvm.machine.state.applySoftConstraints
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMaxValueUnsignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
@@ -682,7 +683,13 @@ class TvmInterpreter(
 
                 processAddressRandomization(clonedOldState, state)
             } else {
-                newStates
+                newStates.also {
+                    if (ctx.tvmOptions.useSoftConstraints) {
+                        it.forEach { state ->
+                            state.applySoftConstraints()
+                        }
+                    }
+                }
             }
         }
     }
@@ -714,12 +721,13 @@ class TvmInterpreter(
                     acc and fixateCondCur
                 }
 
+            // TODO: soft constraints for values with taken hashes
             scope.assert(fixateCond)
                 ?: return@with emptyList()
 
             clonedOldState.fixatedRandomAddresses = clonedOldState.addressesToBeRandomized
             clonedOldState.addressesToBeRandomized = persistentSetOf()
-            clonedOldState.refsToBeIndependentFromRandomAddresses
+            clonedOldState.refsToBeIndependentFromRandomAddresses = persistentSetOf()
 
             return postProcessState(clonedOldState)
         }
@@ -1307,7 +1315,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkBvAddExpr(firstOperand, secondOperand)
+                        mkTvmAdd(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicMulInst -> {
@@ -1319,7 +1327,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvMulNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkBvMulExpr(firstOperand, secondOperand)
+                        mkTvmMul(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicAddconstInst -> {
@@ -1332,7 +1340,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkBvAddExpr(firstOperand, secondOperand)
+                        mkTvmAdd(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicMulconstInst -> {
@@ -1345,7 +1353,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvMulNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkBvMulExpr(firstOperand, secondOperand)
+                        mkTvmMul(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicIncInst -> {
@@ -1358,7 +1366,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkBvAddExpr(firstOperand, secondOperand)
+                        mkTvmAdd(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicDecInst -> {
@@ -1371,7 +1379,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvSubNoUnderflowExpr(firstOperand, secondOperand, isSigned = true)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkBvSubExpr(firstOperand, secondOperand)
+                        mkTvmSub(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicNegateInst -> {
@@ -1384,7 +1392,7 @@ class TvmInterpreter(
                             blockOnFalseState = throwIntegerOverflowError,
                         ) ?: return
 
-                        mkBvNegationExpr(operand)
+                        mkTvmNeg(operand)
                     }
 
                     is TvmArithmBasicSubInst -> {
@@ -1422,7 +1430,7 @@ class TvmInterpreter(
         checkUnderflow(resNoUnderflow, scope)
             ?: return null
 
-        return mkBvSubExpr(firstOperand, secondOperand)
+        return mkTvmSub(firstOperand, secondOperand)
     }
 
     private fun visitArithmeticLogicalInst(

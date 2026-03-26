@@ -37,6 +37,7 @@ import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
+import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
@@ -207,11 +208,14 @@ class TvmTestStateResolver(
             ?: error("Unexpected config type")
     }
 
-    fun resolveContractAddress(): TvmTestDataCellValue {
+    fun resolveContractAddresses(): Map<ContractId, TvmTestDataCellValue> {
         val address = getInitialRootContractParam(ADDRESS_PARAMETER_IDX)
 
-        return (resolveStackValue(address) as? TvmTestDataCellValue)
-            ?: error("Unexpected address type")
+        return state.contractIds.associateWith {
+            val address = getInitialContractParam(it, ADDRESS_PARAMETER_IDX)
+            (resolveStackValue(address) as? TvmTestDataCellValue)
+                ?: error("Unexpected address type")
+        }
     }
 
     fun resolveInitialContractState(contract: ContractId): TvmContractState {
@@ -469,14 +473,17 @@ class TvmTestStateResolver(
             }
         }
 
-    fun resolveRef(ref: UHeapRef): TvmTestReferenceValue {
+    fun resolveRef(
+        ref: UHeapRef,
+        fromTlbStack: Boolean = false,
+    ): TvmTestReferenceValue {
         val concreteRef = evaluateInModel(ref) as UConcreteHeapRef
         val possibleTypes = state.getPossibleTypes(concreteRef)
         val type = possibleTypes.first()
         require(type is TvmFinalReferenceType)
         return when (type) {
-            TvmSliceType -> resolveSlice(ref)
-            TvmDataCellType, TvmDictCellType -> resolveCell(ref)
+            TvmSliceType -> resolveSlice(ref, fromTlbStack)
+            TvmDataCellType, TvmDictCellType -> resolveCell(ref, fromTlbStack)
             TvmBuilderType -> resolveBuilder(ref)
         }
     }
@@ -522,7 +529,10 @@ class TvmTestStateResolver(
 
     private fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
 
-    private fun resolveSlice(slice: UHeapRef): TvmTestSliceValue =
+    private fun resolveSlice(
+        slice: UHeapRef,
+        fromTlbStack: Boolean = false,
+    ): TvmTestSliceValue =
         with(ctx) {
             val cellValue = resolveCell(memory.readField(slice, TvmContext.sliceCellField, addressSort))
             require(cellValue is TvmTestDataCellValue)
@@ -535,6 +545,7 @@ class TvmTestStateResolver(
     private fun resolveDataCell(
         modelRef: UConcreteHeapRef,
         cell: UHeapRef,
+        fromTlbStack: Boolean = false,
     ): TvmTestDataCellValue =
         with(ctx) {
             if (modelRef.address == NULL_ADDRESS) {
@@ -542,7 +553,7 @@ class TvmTestStateResolver(
             }
 
             // cell is not in path constraints => just return empty cell
-            if (modelRef.isStatic && modelRef !in constraintVisitor.refs) {
+            if (modelRef.isStatic && modelRef !in constraintVisitor.refs && !fromTlbStack) {
                 return@with TvmTestDataCellValue()
             }
 
@@ -669,7 +680,10 @@ class TvmTestStateResolver(
 
     private fun resolveCell(cell: CellRef): TvmTestCellValue = resolveCell(cell.value)
 
-    private fun resolveCell(cell: UHeapRef): TvmTestCellValue =
+    private fun resolveCell(
+        cell: UHeapRef,
+        fromTlbStack: Boolean = false,
+    ): TvmTestCellValue =
         with(ctx) {
             val modelRef = evaluateInModel(cell) as UConcreteHeapRef
             if (modelRef.address == NULL_ADDRESS) {
@@ -706,7 +720,7 @@ class TvmTestStateResolver(
                 return resolveDictCell(modelRef)
             }
 
-            resolveDataCell(modelRef, cell)
+            resolveDataCell(modelRef, cell, fromTlbStack)
         }
 
     private fun resolveRefUpdates(
@@ -889,11 +903,12 @@ class TvmTestStateResolver(
 
 private class ConstraintsVisitor(
     ctx: TvmContext,
-) : UExprTranslator<TvmType, TvmSizeSort>(ctx) {
+) : UExprTranslator<TvmType, TvmSizeSort>(ctx),
+    TvmBvTransformer {
     val refs = mutableSetOf<UConcreteHeapRef>()
 
     override fun transform(expr: UConcreteHeapRef): UHeapRef {
         refs.add(expr)
-        return super.transform(expr)
+        return super<UExprTranslator>.transform(expr)
     }
 }

@@ -25,13 +25,15 @@ import io.ksmt.expr.transformer.KExprVisitResult
 import io.ksmt.expr.transformer.KNonRecursiveVisitor
 import io.ksmt.sort.KBvSort
 import io.ksmt.sort.KSort
+import org.usvm.UExpr
 
 class Bv2IntExprFilter(
     ctx: KContext,
     private val excludeNonConstShift: Boolean = true,
     private val excludeNonConstBvand: Boolean = true,
     private val excludeNonlinearArith: Boolean = false,
-) : KNonRecursiveVisitor<Boolean>(ctx) {
+) : KNonRecursiveVisitor<Boolean>(ctx),
+    TvmTransformer {
     private inline fun filter(
         enabled: Boolean,
         body: () -> Boolean,
@@ -157,5 +159,54 @@ class Bv2IntExprFilter(
     override fun <T : KBvSort> visit(expr: KBvUnsignedRemExpr<T>): KExprVisitResult<Boolean> {
         if (!filterNonlinearArith(expr.arg0, expr.arg1)) return saveVisitResult(expr, false)
         return super.visit(expr)
+    }
+
+    override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> {
+        val res =
+            visitExprAfterVisitedDefault(expr, expr.lhs, expr.rhs) {
+                val result = visitResult(expr.lhs)!! && visitResult(expr.rhs)!!
+                saveVisitResult(expr, result)
+            }
+        exprVisitResult(expr, res)
+        return expr
+    }
+
+    override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> {
+        val res =
+            visitExprAfterVisitedDefault(expr, expr.lhs, expr.rhs) {
+                val result = visitResult(expr.lhs)!! && visitResult(expr.rhs)!!
+                saveVisitResult(expr, result)
+            }
+        exprVisitResult(expr, res)
+        return expr
+    }
+
+    override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> {
+        val res =
+            visitExprAfterVisitedDefault(expr, expr.lhs, expr.rhs) {
+                val result = visitResult(expr.lhs)!! && visitResult(expr.rhs)!!
+                saveVisitResult(expr, result)
+            }
+        exprVisitResult(expr, res)
+        return expr
+    }
+
+    override fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort> {
+        val res =
+            visitExprAfterVisitedDefault(expr, expr.lhs, expr.rhs) {
+                val result = visitResult(expr.lhs)!! && visitResult(expr.rhs)!!
+                saveVisitResult(expr, result)
+            }
+        exprVisitResult(expr, res)
+        return expr
+    }
+
+    override fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort> {
+        val res =
+            visitExprAfterVisitedDefault(expr, expr.arg) {
+                saveVisitResult(expr, visitResult(expr.arg)!!)
+            }
+        exprVisitResult(expr, res)
+        return expr
     }
 }

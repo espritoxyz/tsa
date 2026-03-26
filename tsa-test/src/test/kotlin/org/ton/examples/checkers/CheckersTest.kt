@@ -49,7 +49,7 @@ class CheckersTest {
     private val getBalanceCheckerPath = "/checkers/get_balance.fc"
     private val emptyContractPath = "/empty_contract.fc"
     private val tactConfig = "/tact/tact.config.json"
-    private val intBlastOptimizationChecker = "/checkers/int_optimization.fc"
+    private val pathExplosionChecker = "/checkers/int_optimization.fc"
 
     private object TransactionRollBackTestData {
         const val SENDER = "/checkers/transaction-rollback/sender-checker.fc"
@@ -584,8 +584,8 @@ class CheckersTest {
     }
 
     @Test
-    fun intBlastOptimizationTest() {
-        val checkerContract = extractCheckerContractFromResource(intBlastOptimizationChecker)
+    fun pathExplosionTest() {
+        val checkerContract = extractCheckerContractFromResource(pathExplosionChecker)
         val pathTactConfig = extractResource(tactConfig)
         val analyzedContract = getTactContract(TactSourcesDescription(pathTactConfig, "IntOptimization", "GuessGame"))
 
@@ -594,7 +594,7 @@ class CheckersTest {
                 listOf(checkerContract, analyzedContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
-                options = TvmOptions(timeout = 120.seconds),
+                options = TvmOptions(timeout = 180.seconds),
             )
 
         // There is at least one failed execution with exit code 257

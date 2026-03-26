@@ -45,7 +45,6 @@ class CroutonfiOldTest {
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
                 timeout = 3.minutes,
-                solverTimeout = 3.seconds,
             )
 
         val concreteVaultData =
@@ -66,6 +65,43 @@ class CroutonfiOldTest {
             analyzeInterContract(
                 listOf(checkerContract, vaultContract, poolContract),
                 concreteContractData = listOf(TvmConcreteContractData(), concreteVaultData, concretePoolData),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+                additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(1000)),
+            )
+
+        propertiesFound(
+            tests,
+            listOf { test ->
+                (test.result as? TvmTestFailure)?.exitCode == 1000
+            },
+        )
+    }
+
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    @Test
+    fun findTonDrainSymbolicC4() {
+        val checkerContract = extractCheckerContractFromResource(checkerPath)
+        val vaultContract = extractBocContractFromResource(vaultCodePath)
+        val poolContract = extractBocContractFromResource(poolCodePath)
+        val communicationScheme = extractCommunicationSchemeFromResource(schemePath)
+
+        val options =
+            TvmOptions(
+                useReceiverInputs = false,
+                performAdditionalChecksWhileResolving = true,
+                intercontractOptions = IntercontractOptions(communicationScheme = communicationScheme),
+                turnOnTLBParsingChecks = false,
+                enableOutMessageAnalysis = true,
+                stopOnFirstError = false,
+                timeout = 5.minutes,
+                solverTimeout = 3.seconds,
+            )
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, vaultContract, poolContract),
                 startContractId = 0,
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
