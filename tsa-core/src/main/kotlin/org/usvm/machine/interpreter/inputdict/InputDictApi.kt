@@ -16,6 +16,7 @@ fun doInputDictHasKey(
     scope: TvmStepScopeManager,
     inputDict: InputDict,
     key: TypedDictKey,
+    userInputInRange: UBoolExpr,
 ) = with(scope.ctx) {
     val ctx = scope.ctx
     val keyExists = scope.calcOnState { makeSymbolicPrimitive(boolSort) }
@@ -27,10 +28,12 @@ fun doInputDictHasKey(
         constraint = mkAnd(result.constraints),
         unsatBlock = {
             error(
-                "The constraints are only enforce the equibalence of boolean variable and expression and thus should never fail",
+                "The constraints are only to enforce the equivalence of boolean variable and expression and thus should never fail",
             )
         },
     )
+        ?: return@with null
+    scope.assert(constraint = keyExists.implies(userInputInRange))
         ?: return@with null
     scope.calcOnState {
         inputDictionaryStorage =

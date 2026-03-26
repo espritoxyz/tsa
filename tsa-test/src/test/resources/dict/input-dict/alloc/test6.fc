@@ -1,0 +1,16 @@
+#include "../../../imports/stdlib.fc";
+
+slice wrap(int arg) {
+    return begin_cell().store_uint(arg, 64).end_cell().begin_parse();
+}
+() main(slice in_msg) {
+    var dict = new_dict();
+    dict~udict_set(4, 15, wrap(3));
+    (_, _, int found) = dict.udict_get_next?(4, 100000);
+    if (found) {
+        throw(101);
+    } else {
+        throw(102);
+    }
+    return ();
+}
