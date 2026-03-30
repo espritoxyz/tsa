@@ -2014,7 +2014,10 @@ class TvmDictOperationInterpreter(
                 ?: return
         val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
-        val (key, _) = loadKey(scope, keyKind, keyLength) ?: return
+        val (key, inRange) = loadKey(scope, keyKind, keyLength) ?: return
+
+        checkOutOfRange(inRange, scope)
+            ?: return
 
         if (dictCellRef == null) {
             scope.doWithStateCtx {
@@ -2925,17 +2928,17 @@ class TvmDictOperationInterpreter(
                 DictKeyKind.SIGNED_INT, DictKeyKind.UNSIGNED_INT -> {
                     val value =
                         scope.takeLastIntOrThrowTypeError() ?: return@with null
-                    val (begin, end) =
+                    val (begin, endInclusive) =
                         if (keyType == DictKeyKind.UNSIGNED_INT) {
-                            0.toBv257() to mkBvShiftLeftExpr(1.toBv257(), keyLength.toBv257())
+                            0.toBv257() to (mkBvShiftLeftExpr(1.toBv257(), keyLength.toBv257()) bvSub 1.toBv257())
                         } else {
                             val n = mkBvShiftLeftExpr(1.toBv257(), (keyLength - 1).toBv257())
                             val left = 0.toBv257() bvSub n
-                            left to n
+                            left to (n bvSub 1.toBv257())
                         }
 
                     val lowerBound = begin bvSle value
-                    val upperBound = value bvSlt end
+                    val upperBound = value bvSle endInclusive
                     val inRange = lowerBound and upperBound
                     mkBvExtractExpr(high = keyLength - 1, low = 0, value) to inRange
                 }
