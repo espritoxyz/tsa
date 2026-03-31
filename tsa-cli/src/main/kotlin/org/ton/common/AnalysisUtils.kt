@@ -67,7 +67,7 @@ private fun createTvmOptions(
             enableOutMessageAnalysis = enableOutMessageAnalysisIfSingleContract,
             divideTimeBetweenOpcodes = divideTimeBetweenOpcodes,
             useIntBlasting = !analysisOptions.noIntBlasting,
-            solverTimeout = 3.seconds,
+            solverTimeout = analysisOptions.solverTimeout.seconds,
         )
 
     if (interContractSchemePath != null) {

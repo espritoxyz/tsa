@@ -20,6 +20,11 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
         .int()
         .help("Analysis timeout in seconds.")
 
+    val solverTimeout by option("--solver-timeout")
+        .int()
+        .default(1)
+        .help("Solver timeout in seconds. Default: 1.")
+
     val continueOnContractException by option("--continue-on-contract-exception")
         .flag()
         .help(
