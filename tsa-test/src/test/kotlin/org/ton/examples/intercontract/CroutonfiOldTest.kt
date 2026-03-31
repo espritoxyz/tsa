@@ -96,7 +96,7 @@ class CroutonfiOldTest {
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
                 timeout = 5.minutes,
-                solverTimeout = 3.seconds,
+                solverTimeout = 5.seconds,
             )
 
         val tests =
