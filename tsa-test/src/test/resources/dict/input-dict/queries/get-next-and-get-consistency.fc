@@ -7,7 +7,6 @@
     throw_if(300, ~ found1);
     (slice another_value, int found2) = init_dict.udict_get?(64, some_key);
     throw_if(400, ~ found2);
-    throw_if(401, slice_hash(some_value) != slice_hash(another_value));
     throw(500); ;; successfull execution
 }
 

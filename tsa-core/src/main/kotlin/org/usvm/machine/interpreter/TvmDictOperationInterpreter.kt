@@ -1620,7 +1620,12 @@ class TvmDictOperationInterpreter(
                 ?: return
         val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
-        val key = loadKey(scope, keyKind, keyLength) ?: return
+        val (key, inRange) =
+            loadKey(scope, keyKind, keyLength)
+                ?: return
+
+        checkOutOfRange(inRange, scope)
+            ?: return
         val value = loadValue(scope, valueType)
 
         if (value == null) {
@@ -1766,8 +1771,9 @@ class TvmDictOperationInterpreter(
             scope.calcOnState {
                 readInputDictionary(dictOriginalConcrete, keySort, keyKind)
             }
+        val inRange = ctx.trueExpr // we quit at the start if outOfRange
         val keyExists =
-            doInputDictHasKey(scope, baseInputDict, TypedDictKey(key, keyKind))?.exists
+            doInputDictHasKey(scope, baseInputDict, TypedDictKey(key, keyKind), inRange)?.exists
                 ?: return
 
         val conditionToStore = createStoreConditionFromMode(mode, keyExists)
@@ -1912,7 +1918,7 @@ class TvmDictOperationInterpreter(
                 ?: return
         val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
-        val key = loadKey(scope, keyKind, keyLength) ?: return
+        val (key, inRange) = loadKey(scope, keyKind, keyLength) ?: return
 
         if (dictCellRef == null) {
             scope.doWithState {
@@ -1929,7 +1935,7 @@ class TvmDictOperationInterpreter(
         val dicts = flattenReferenceIte(dictCellRef, extractAllocated = true)
         val actions = dicts.map { (cond, dict) -> TvmStepScopeManager.ActionOnCondition({}, false, cond, dict) }
         scope.doWithConditions(actions) { dictCellRef ->
-            doDictGetImpl(this, keyLength, dictCellRef, keyKind, key, nullDefaultValue, inst, valueType)
+            doDictGetImpl(this, keyLength, dictCellRef, keyKind, key, nullDefaultValue, inst, valueType, inRange)
         }
     }
 
@@ -1942,6 +1948,7 @@ class TvmDictOperationInterpreter(
         nullDefaultValue: Boolean,
         inst: TvmInst,
         valueType: DictValueType,
+        isUserInputInRange: UBoolExpr,
     ) {
         val ctx = scope.ctx
         val dictId = DictId(keyLength)
@@ -1955,12 +1962,12 @@ class TvmDictOperationInterpreter(
             if (isInput) {
                 val inputDict = scope.calcOnState { readInputDictionary(dictCellRef, keySort, keyKind) }
                 val keyExists =
-                    doInputDictHasKey(scope, inputDict, TypedDictKey(key, keyKind))?.exists
+                    doInputDictHasKey(scope, inputDict, TypedDictKey(key, keyKind), isUserInputInRange)?.exists
                         ?: return
                 keyExists
             } else {
                 scope.calcOnState {
-                    allocatedDictContainsKey(dictCellRef, dictId, key)
+                    ctx.mkIte(isUserInputInRange, allocatedDictContainsKey(dictCellRef, dictId, key), ctx.falseExpr)
                 }
             }
 
@@ -2007,7 +2014,10 @@ class TvmDictOperationInterpreter(
                 ?: return
         val (dictCellRef, status) = popDictFromStack(scope, keyLength)
         status ?: return
-        val key = loadKey(scope, keyKind, keyLength) ?: return
+        val (key, inRange) = loadKey(scope, keyKind, keyLength) ?: return
+
+        checkOutOfRange(inRange, scope)
+            ?: return
 
         if (dictCellRef == null) {
             scope.doWithStateCtx {
@@ -2129,7 +2139,7 @@ class TvmDictOperationInterpreter(
             }
 
         val queryKeyExists =
-            doInputDictHasKey(scope, initInputDict, TypedDictKey(key, keyKind))?.exists
+            doInputDictHasKey(scope, initInputDict, TypedDictKey(key, keyKind), ctx.trueExpr)?.exists
                 ?: return
         val appliedModification = Modification.Remove(TypedDictKey(key, keyKind))
         val newInputDict = initInputDict.withModification(appliedModification)
@@ -2144,6 +2154,7 @@ class TvmDictOperationInterpreter(
                 scope,
                 newInputDict,
                 scope.calcOnState { makeFreshKeySymbol(keySort, keyKind) },
+                userInputInRange = ctx.trueExpr,
             )?.exists
                 ?: return
         assertInputDictIsEmpty(
@@ -2903,24 +2914,33 @@ class TvmDictOperationInterpreter(
             }
     }
 
+    /**
+     * @returns (shortenedKey, userInputInRange) (`null` on dead scope)
+     */
     private fun loadKey(
         scope: TvmStepScopeManager,
         keyType: DictKeyKind,
         keyLength: Int,
-    ): UExpr<UBvSort>? =
+    ): Pair<UExpr<UBvSort>, UBoolExpr>? =
         with(ctx) {
             // todo: handle keyLength errors
             when (keyType) {
-                DictKeyKind.SIGNED_INT -> {
-                    scope
-                        .takeLastIntOrThrowTypeError()
-                        ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
-                }
+                DictKeyKind.SIGNED_INT, DictKeyKind.UNSIGNED_INT -> {
+                    val value =
+                        scope.takeLastIntOrThrowTypeError() ?: return@with null
+                    val (begin, endInclusive) =
+                        if (keyType == DictKeyKind.UNSIGNED_INT) {
+                            0.toBv257() to (mkBvShiftLeftExpr(1.toBv257(), keyLength.toBv257()) bvSub 1.toBv257())
+                        } else {
+                            val n = mkBvShiftLeftExpr(1.toBv257(), (keyLength - 1).toBv257())
+                            val left = 0.toBv257() bvSub n
+                            left to (n bvSub 1.toBv257())
+                        }
 
-                DictKeyKind.UNSIGNED_INT -> {
-                    scope
-                        .takeLastIntOrThrowTypeError()
-                        ?.let { mkBvExtractExpr(high = keyLength - 1, low = 0, it) }
+                    val lowerBound = begin bvSle value
+                    val upperBound = value bvSle endInclusive
+                    val inRange = lowerBound and upperBound
+                    mkBvExtractExpr(high = keyLength - 1, low = 0, value) to inRange
                 }
 
                 DictKeyKind.SLICE -> {
@@ -2930,7 +2950,10 @@ class TvmDictOperationInterpreter(
                         return null
                     }
 
-                    scope.slicePreloadDataBits(slice, keyLength)
+                    val key =
+                        scope.slicePreloadDataBits(slice, keyLength)
+                            ?: return@with null
+                    key to ctx.trueExpr
                 }
             }
         }

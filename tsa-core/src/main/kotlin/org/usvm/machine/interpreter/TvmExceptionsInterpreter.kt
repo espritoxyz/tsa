@@ -49,20 +49,22 @@ class TvmExceptionsInterpreter(
         stmt: TvmExceptionsInst,
     ) {
         when (stmt) {
-            is TvmExceptionsThrowargInst ->
+            is TvmExceptionsThrowargInst -> {
                 scope.doWithState {
                     scope.consumeDefaultGas(stmt)
 
                     val param = takeLastIntOrNull() ?: return@doWithState
                     throwException(code = stmt.n, param = param)
                 }
+            }
 
-            is TvmExceptionsThrowShortInst ->
+            is TvmExceptionsThrowShortInst -> {
                 scope.doWithState {
                     scope.consumeDefaultGas(stmt)
 
                     throwException(code = stmt.n)
                 }
+            }
 
             is TvmExceptionsThrowifInst -> {
                 scope.consumeConstantGas(34)
@@ -188,7 +190,9 @@ class TvmExceptionsInterpreter(
                 )
             }
 
-            else -> TODO("Unknown stmt: $stmt")
+            else -> {
+                TODO("Unknown stmt: $stmt")
+            }
         }
     }
 

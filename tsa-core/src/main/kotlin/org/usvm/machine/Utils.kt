@@ -3,6 +3,7 @@ package org.usvm.machine
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.powerOfTwo
+import io.ksmt.utils.toBigInteger
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellData
@@ -26,7 +27,13 @@ import java.nio.file.Paths
 inline fun UExpr<out UBvSort>.bigIntValue() = (this as KBitVecValue<*>).toBigIntegerSigned()
 
 @Suppress("NOTHING_TO_INLINE")
-inline fun UExpr<out UBvSort>.intValue() = bigIntValue().toInt()
+inline fun UExpr<out UBvSort>.intValue(): Int {
+    val bigInt = bigIntValue()
+    check(bigInt <= Int.MAX_VALUE.toBigInteger() && bigInt >= Int.MIN_VALUE.toBigInteger()) {
+        "Integer not in Int range"
+    }
+    return bigInt.toInt()
+}
 
 fun TvmCodeBlock.extractMethodIdOrNull(): MethodId? = (this as? TvmMethod)?.id
 

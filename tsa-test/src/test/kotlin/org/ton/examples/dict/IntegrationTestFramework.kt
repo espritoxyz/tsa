@@ -25,7 +25,9 @@ fun runTestsInFileDefault(
     generateTests: Boolean = true,
 ) {
     logger.info("Executing test \"$testName\"")
-    logger.info("File is ${file.absolutePath}")
+    val regex = testName.replace('/', '.').replace('_', '.').replace('-', '.')
+    logger.info("Regex for test: \"$regex\"")
+    logger.info("File is ${file.toURI()}")
     val content = file.readText()
     val throwRegex = Regex("""\b(?:throw|throw_unless|throw_if)\(\s*(?<code>\d{3})""")
     val foundCodes =

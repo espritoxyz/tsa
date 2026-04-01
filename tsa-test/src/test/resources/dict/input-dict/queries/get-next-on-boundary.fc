@@ -1,0 +1,17 @@
+#include "../../../imports/stdlib.fc";
+
+
+() test(slice in_msg) impure method_id (1) {
+    cell init_dict = in_msg~load_dict();
+    (int i1, _, int found1) = init_dict.udict_get_next?(4, 15);
+    if (found1) {
+        throw(100);
+    } else {
+        throw(101);
+    }
+}
+
+() main(slice in_msg) {
+    test(in_msg);
+    return ();
+}

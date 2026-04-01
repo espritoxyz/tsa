@@ -147,7 +147,8 @@ data class InputDict(
         modifications.foldOnSymbols(ctx, rootInformation.symbols.map { GuardedTypedDictKey(it, ctx.trueExpr) })
 
     /**
-     * most probably, you want to use [doInputDictHasKey] instead as a less error-prone version
+     * most probably, you want to use [doInputDictHasKey] instead as a less error-prone version.
+     * @return the constraint that assert the equivalence of [freshConstantForExistenceOfKey] and that the key is in a dictionary
      */
     fun doDictHasKeyImpl(
         ctx: TvmContext,
@@ -236,23 +237,23 @@ data class InputDict(
         freshConstantForResult: TypedDictKey,
         isNext: Boolean,
         mightBeEqualToPivot: Boolean,
-        isSigned: Boolean,
+        isOfIntegerKey: Boolean,
     ): List<DictNextResult> {
         val existsNextBranch =
-            createExistsBranch(
-                ctx,
-                freshConstantForInput,
-                freshConstantForResult,
-                inputDict,
-                mightBeEqualToPivot,
-                isNext,
-                isSigned,
-                pivot,
+            createDictNextExistsBranch(
+                ctx = ctx,
+                freshConstantForInput = freshConstantForInput,
+                freshConstantForResult = freshConstantForResult,
+                inputDict = inputDict,
+                mightBeEqualToPivot = mightBeEqualToPivot,
+                isNext = isNext,
+                isSigned = isOfIntegerKey,
+                pivot = pivot,
             )
         val (nextCs, updatedUniversalConstraints) =
             inputDict.addLazyUniversalConstraint(
                 ctx,
-                UpperLowerBoundConstraint(pivot, isNext, mightBeEqualToPivot, isSigned, modifications),
+                UpperLowerBoundConstraint(pivot, isNext, mightBeEqualToPivot, isOfIntegerKey, modifications),
             )
         val doesNotExist =
             DictNextResult.DoesNotExist(
@@ -266,7 +267,7 @@ data class InputDict(
         )
     }
 
-    private fun createExistsBranch(
+    private fun createDictNextExistsBranch(
         ctx: TvmContext,
         freshConstantForInput: TypedDictKey,
         freshConstantForResult: TypedDictKey,
@@ -312,27 +313,29 @@ data class InputDict(
     }
 
     /**
-     * [freshConstantForInput] must be explicitly added to the list of symbols after the call
-     * @return [result] to constraints
+     * [freshRootDictKeySymbol] must be explicitly added to the list of symbols after the call
+     * @return constraints that assert that [result] is equal to some key in a dictionary
      */
     private fun freshInputSymbolOrStoredKey(
         ctx: TvmContext,
-        freshConstantForInput: ExtendedDictKey,
+        freshRootDictKeySymbol: ExtendedDictKey,
         result: ExtendedDictKey,
     ): UBoolExpr {
-        val inputT: ExtendedDictKey = freshConstantForInput
-        val inputTCs = modifications.isInputDictKeyContainedInModifiedDict(ctx, inputT)
-        val storedElements = modifications.getExplicitlyStoredKeys(ctx)
+        val isFreshRootDictSymbolInModified =
+            modifications.isInputDictKeyContainedInModifiedDict(ctx, freshRootDictKeySymbol)
+        val explicitlyStoredElements = modifications.getExplicitlyStoredKeys(ctx)
 
         val resultInKeys =
             with(ctx) {
-                storedElements.fold(inputTCs and (result eq inputT)) { acc, next ->
-                    acc or (next.guard and (next.symbol.toExtendedKey(ctx) eq result))
+                explicitlyStoredElements.fold(
+                    isFreshRootDictSymbolInModified and (result eq freshRootDictKeySymbol),
+                ) { acc, storedElement ->
+                    acc or (storedElement.guard and (storedElement.symbol.toExtendedKey(ctx) eq result))
                 }
             }
         val someConstraintHeld =
             with(ctx) {
-                storedElements.fold(inputTCs) { acc, next ->
+                explicitlyStoredElements.fold(isFreshRootDictSymbolInModified) { acc, next ->
                     acc or next.guard
                 }
             }
