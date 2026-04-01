@@ -998,9 +998,9 @@ class TvmContext(
 
     infix fun <T : KBvSort> KExpr<T>.bvUle(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessOrEqualExpr(this, other)
 
-    infix fun <T : KBvSort> KExpr<T>.bvSle(other: KExpr<T>): UBoolExpr = mkBvSignedLessOrEqualExpr(this, other)
+    infix fun <T : KBvSort> KExpr<T>.bvUlt(other: KExpr<T>): UBoolExpr = mkBvUnsignedLessExpr(this, other)
 
-    infix fun <T : KBvSort> KExpr<T>.bvSlt(other: KExpr<T>): UBoolExpr = mkBvSignedLessExpr(this, other)
+    infix fun <T : KBvSort> KExpr<T>.bvSle(other: KExpr<T>): UBoolExpr = mkBvSignedLessOrEqualExpr(this, other)
 
     infix fun <T : KBvSort> KExpr<T>.bvUgt(other: KExpr<T>): UBoolExpr = mkBvUnsignedGreaterExpr(this, other)
 

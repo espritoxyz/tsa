@@ -29,6 +29,7 @@ import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
+import org.usvm.machine.state.TvmReserveMode4NotFirst
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocSliceFromCell
@@ -220,6 +221,14 @@ class TvmTransactionInterpreter(
         actions: List<ResolvedAndParsedAction>,
         restActions: TvmStepScopeManager.(ActionHandlingResult) -> Unit?,
     ) {
+        val mode4NotFirst =
+            actions
+                .drop(1)
+                .filterIsInstance<ParsedReserveAction>()
+                .any { ReserveMode(it.mode).hasReserveAddOriginalBalance() }
+        if (mode4NotFirst) {
+            ActionHandlingResult.SoftFailure(TvmReserveMode4NotFirst(scope.calcOnState { currentContract }))
+        }
         val messageHandlingState =
             scope.calcOnState {
                 val balance = getBalance() ?: error("Balance not set")
@@ -390,31 +399,45 @@ class TvmTransactionInterpreter(
         val mode = ReserveMode(reserveAction.mode)
         if (mode.hasReserveAllExcept() ||
             mode.hasReserveAtMost() ||
-            mode.hasReserveAddOriginalBalance() ||
             mode.hasInvertSign() ||
             mode.hasReserveBounceIfActionFail()
         ) {
             TODO("The unsupported reserve mode: ${mode.flags}")
         }
+        val reserve =
+            run {
+                var reserveTmp = reserveAction.amount
+                if (mode.hasReserveAddOriginalBalance() && currentMessageHandlingState is MessageHandlingState.Ok) {
+                    // should be original balance, but we assert that this mode occurs only as the first in the list pf actions
+                    reserveTmp =
+                        with(ctx) {
+                            val originalBalance =
+                                currentMessageHandlingState.remainingBalance bvSub
+                                    currentMessageHandlingState.remainingInboundMessageValue
+                            reserveTmp bvAdd originalBalance
+                        }
+                }
+                reserveTmp
+            }
         val transformation =
             listOf(
                 CondTransform(
                     predicate = {
-                        with(ctx) { this@CondTransform.remainingBalance bvUge reserveAction.amount }
+                        with(ctx) { this@CondTransform.remainingBalance bvUge reserve }
                     },
                     transform =
                         asOnCopy {
                             with(ctx) {
-                                this@asOnCopy.reserved = this@asOnCopy.reserved bvAdd reserveAction.amount
+                                this@asOnCopy.reserved = this@asOnCopy.reserved bvAdd reserve
                                 this@asOnCopy.currentContractBalance =
-                                    this@asOnCopy.currentContractBalance bvSub reserveAction.amount
+                                    this@asOnCopy.currentContractBalance bvSub reserve
                                 this@asOnCopy.build()
                             }
                         },
                 ),
                 CondTransform(
                     predicate = {
-                        with(ctx) { this@CondTransform.remainingBalance bvUlt reserveAction.amount }
+                        with(ctx) { this@CondTransform.remainingBalance bvUlt reserve }
                     },
                     transform =
                         asOnCopy {

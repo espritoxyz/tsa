@@ -27,6 +27,16 @@ class ReserveTest {
         val sender = "/intercontract/reserve/mode-0-remaining-value/sender.fc"
     }
 
+    object Mode4NormalMessage {
+        val checker = "/intercontract/reserve/mode-4-normal-send/checker.fc"
+        val sender = "/intercontract/reserve/mode-4-normal-send/sender.fc"
+    }
+
+    object Mode4SendRemainingValue {
+        val checker = "/intercontract/reserve/mode-4-remaining-balance/checker.fc"
+        val sender = "/intercontract/reserve/mode-4-remaining-balance/sender.fc"
+    }
+
     @Test
     fun `reserve 0 - normal message - suffices`() {
         val checker = extractCheckerContractFromResource(Mode0NormalMessage.checker)
@@ -83,6 +93,69 @@ class ReserveTest {
                 .storeInt(20_000_000_000, 64) // initial balance
                 .storeInt(15_000_000_000, 64) // to reserve
                 .storeInt(1_000_000_000, 64) // expected upper bound on out message
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertPropertiesFound(hasExitCode(400))
+    }
+
+    @Test
+    fun `reserve 4 - normal message - suffices`() {
+        val checker = extractCheckerContractFromResource(Mode4NormalMessage.checker)
+        val sender = extractFuncContractFromResource(Mode4NormalMessage.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(20_000_000_000, 64) // initial balance
+                .storeInt(1_000_000_000, 64) // inbound message value
+                .storeInt(500_000_000, 64) // to send
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertPropertiesFound(hasExitCode(10000))
+    }
+
+    @Test
+    fun `reserve 4 - normal message - insufficient funds`() {
+        val checker = extractCheckerContractFromResource(Mode4NormalMessage.checker)
+        val sender = extractFuncContractFromResource(Mode4NormalMessage.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(20_000_000_000, 64) // initial balance
+                .storeInt(1_000_000_000, 64) // inbound message value
+                .storeInt(2_000_000_000, 64) // to send
+                .endCell()
+
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertInvariantsHold(doesNotEndWithExitCode(10000))
+        assertTrue(tests.isNotEmpty())
+    }
+
+    @Test
+    fun `reserve 4 - send remaining balance - true bound`() {
+        val checker = extractCheckerContractFromResource(Mode4SendRemainingValue.checker)
+        val sender = extractFuncContractFromResource(Mode4SendRemainingValue.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(20_000_000_000, 64) // initial balance
+                .storeInt(1_000_000_000, 64) // inbound message value
+                .storeInt(1_000_000_000, 64) // expected upper bound on out message
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertInvariantsHold(doesNotEndWithExitCode(400))
+        tests.assertPropertiesFound(hasExitCode(10000))
+    }
+
+    @Test
+    fun `reserve 4 - send remaining balance - bound too small`() {
+        val checker = extractCheckerContractFromResource(Mode4SendRemainingValue.checker)
+        val sender = extractFuncContractFromResource(Mode4SendRemainingValue.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(20_000_000_000, 64) // initial balance
+                .storeInt(1_000_000_000, 64) // inbound message value
+                .storeInt(500_000_000, 64) // expected upper bound on out message
                 .endCell()
         val checkerData = TvmConcreteContractData(contractC4)
         val tests = runAnalysis(checker, sender, checkerData)
