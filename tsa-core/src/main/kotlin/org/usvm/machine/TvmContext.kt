@@ -925,7 +925,10 @@ class TvmContext(
         val INT_EXT1_BITS: UInt = INT_BITS + 1u
         val INT_EXT256_BITS: UInt = INT_BITS + 256u
 
-        // Minimum incoming message value/balance in nanotons
+        /**
+         * Minimum incoming message value/balance in nanotons.
+         * Used as a workaround for test generation, where a message with too small value caused errors in blueprint sandbox.
+         */
         const val MIN_MESSAGE_CURRENCY: Long = 100_000_000
 
         // Maximum incoming message value/balance in nanotons
