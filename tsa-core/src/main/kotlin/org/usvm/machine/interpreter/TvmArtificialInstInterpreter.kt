@@ -41,6 +41,7 @@ import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addSlice
@@ -302,7 +303,7 @@ class TvmArtificialInstInterpreter(
                 // A temporary solution. The more suitable solution would calculate
                 // `computeFeeUsed` as the state instructions are executed (possibly with some helper
                 // structures). When this happens, this comment and the line below must be deleted
-                currentComputeFeeUsed = makeSymbolicPrimitive(ctx.int257sort)
+                currentComputeFeeUsed = makeSymbolicPrimitive(ctx.int257sort, TvmTrackedLiteral("compute_fee"))
                 currentPhaseEndTime = pseudologicalTime
 
                 registerEventIfNeeded(stmt.computePhaseResult)

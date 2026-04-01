@@ -9,7 +9,9 @@ import io.ksmt.solver.wrapper.bv2int.KBv2IntRewriter.WrapMode.NORMALIZED_SIGNED
 import io.ksmt.solver.wrapper.bv2int.KBv2IntRewriterConfig
 import io.ksmt.sort.KBvSort
 import io.ksmt.sort.KIntSort
+import org.usvm.UBvSort
 import org.usvm.UExpr
+import org.usvm.machine.state.hash.TvmHashSymbol
 
 class TvmBv2IntRewriter(
     ctx: KContext,
@@ -71,4 +73,8 @@ class TvmBv2IntRewriter(
         ) { arg: KExpr<KIntSort> ->
             ctx.mkArithUnaryMinus(arg)
         }
+
+    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
+        error("Should be removed by now")
+    }
 }

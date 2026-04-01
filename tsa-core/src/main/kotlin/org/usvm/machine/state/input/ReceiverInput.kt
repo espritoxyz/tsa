@@ -16,6 +16,8 @@ import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmCreatedAt
+import org.usvm.machine.state.TvmCreatedLt
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addSoftConstraints
 import org.usvm.machine.state.allocSliceFromCell
@@ -45,8 +47,8 @@ sealed class ReceiverInput(
 
     val msgBodySliceNonBounced = givenMsgBody ?: state.generateSymbolicSlice()
 
-    val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_lt:uint64
-    val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort) // created_at:uint32
+    val createdLt = state.makeSymbolicPrimitive(state.ctx.int257sort, TvmCreatedLt()) // created_lt:uint64
+    val createdAt = state.makeSymbolicPrimitive(state.ctx.int257sort, TvmCreatedAt()) // created_at:uint32
 
     private val contractAddressCell: UConcreteHeapRef by lazy {
         state.getContractInfoParamOf(ADDRESS_PARAMETER_IDX, receiverContractId).cellValue as? UConcreteHeapRef

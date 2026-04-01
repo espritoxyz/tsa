@@ -38,7 +38,7 @@ import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.sliceLoadAddrTlbNoFork
 import org.usvm.machine.state.sliceLoadGramsTlbNoFork
 import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
-import org.usvm.machine.state.sliceLoadRefTransaction
+import org.usvm.machine.state.sliceLoadRefNoFork
 import org.usvm.machine.types.CellGeneralRef
 import org.usvm.machine.types.CellRef
 import org.usvm.machine.types.ConcreteCellRef
@@ -578,7 +578,7 @@ data class TlbInternalMessageContent(
                     scope.assert(bodyBitIsInlined.not())
                         ?: return scopeDied
 
-                    sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)
+                    sliceLoadRefNoFork(scope, ptr.slice, quietBlock = quietBlock)
                         ?.unwrap(ptr)
                         ?.let { bodyRef ->
                             val slice = makeCellToSliceTlbNoFork(scope, bodyRef.value)
@@ -637,7 +637,7 @@ data class TlbInternalMessageContent(
                             ?: return scopeDied
 
                         val ref =
-                            sliceLoadRefTransaction(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
+                            sliceLoadRefNoFork(scope, ptr.slice, quietBlock = quietBlock)?.unwrap(ptr)
                                 ?: return scopeDied
                         TlbStateInit.OutOfLine(ref)
                     } else {
@@ -702,7 +702,7 @@ data class TlbInternalMessageContent(
                         scope.assert(refIsMissing.not())
                             ?: return@doWithCtx scopeDied
 
-                        sliceLoadRefTransaction(scope, ptr.slice)?.unwrap(ptr)
+                        sliceLoadRefNoFork(scope, ptr.slice)?.unwrap(ptr)
                             ?: return@doWithCtx scopeDied
                     }
                 value.ok()

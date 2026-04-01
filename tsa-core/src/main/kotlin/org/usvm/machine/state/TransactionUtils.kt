@@ -125,7 +125,7 @@ fun sliceLoadGramsTlbNoFork(
     return resGrams?.let { updatedSlice to it }
 }
 
-fun sliceLoadRefTransaction(
+fun sliceLoadRefNoFork(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     quietBlock: (TvmState.() -> Unit)? = null,

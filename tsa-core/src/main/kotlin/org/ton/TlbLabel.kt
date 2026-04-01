@@ -212,6 +212,8 @@ data object TlbInternalShortStdMsgAddrLabel : TlbAtomicLabel(), FixedSizeDataLab
     override val concreteSize: Int = INTERNAL_SHORT_STD_MSG_ADDR_SIZE
 }
 
+const val COINS_INTEGER_LENGTH_UPPER_BOUND = 120
+
 data object TlbCoinsLabel : TlbResolvedBuiltinLabel, TlbCompositeLabel("Coins") {
     init {
         val coinPrefixId = TlbStructureIdProvider.provideId()
@@ -231,7 +233,7 @@ data object TlbCoinsLabel : TlbResolvedBuiltinLabel, TlbCompositeLabel("Coins") 
                         TlbIntegerLabelOfSymbolicSize(
                             isSigned = false,
                             endian = Endian.BigEndian,
-                            lengthUpperBound = 120,
+                            lengthUpperBound = COINS_INTEGER_LENGTH_UPPER_BOUND,
                             arity = 1,
                         ) { ctx, args ->
                             val arg = args.single()
