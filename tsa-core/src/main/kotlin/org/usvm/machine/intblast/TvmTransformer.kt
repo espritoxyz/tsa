@@ -60,7 +60,7 @@ interface TvmBvTransformer : TvmTransformer {
             apply(it)
         }
 
-    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> = expr.fallbackMock
+    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> = apply(expr.fallbackMock)
 }
 
 class TvmBvNonRecursiveTransformer(
@@ -136,9 +136,7 @@ class TvmTranslator(
         }
 
     override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> =
-        transformExprAfterTransformed(expr, expr.fallbackMock) { x ->
-            x
-        }
+        transformExprAfterTransformed(expr, expr.fallbackMock) { it }
 
     override fun <Sort : KBvSort> transform(expr: KBvOrExpr<Sort>): UExpr<Sort> =
         transformExprAfterTransformed(expr, expr.arg0, expr.arg1) { l, r ->
