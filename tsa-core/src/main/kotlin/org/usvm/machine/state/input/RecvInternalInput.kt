@@ -14,6 +14,8 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.asIntValue
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmFwdFee
+import org.usvm.machine.state.TvmMsgValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocEmptyBuilderWithTlb
 import org.usvm.machine.state.allocSliceFromCell
@@ -41,7 +43,11 @@ class RecvInternalInput(
 ) : ReceiverInput(receiverContractId, messageConcreteData, givenMsgBody, state) {
     override val msgValue: Int257Expr =
         with(state.ctx) {
-            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE)).zeroExtendToSort(int257sort)
+            state
+                .makeSymbolicPrimitive(
+                    mkBvSort(TvmContext.BITS_FOR_BALANCE),
+                    TvmMsgValue(),
+                ).zeroExtendToSort(int257sort)
         }
 
     override val srcAddressSlice: UConcreteHeapRef =
@@ -134,7 +140,7 @@ class RecvInternalInput(
     // fwd_fee:Grams
     override val fwdFee: Int257Expr =
         with(state.ctx) {
-            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort)
+            state.makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE), TvmFwdFee()).zeroExtendToSort(int257sort)
         }
 
     override fun constructFullMessage(state: TvmState): UConcreteHeapRef? =

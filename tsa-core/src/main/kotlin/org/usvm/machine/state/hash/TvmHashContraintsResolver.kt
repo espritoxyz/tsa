@@ -1,9 +1,12 @@
 package org.usvm.machine.state.hash
 
+import io.ksmt.expr.KBvAndExpr
+import io.ksmt.expr.KBvOrExpr
 import io.ksmt.expr.KEqExpr
 import io.ksmt.expr.KExpr
 import io.ksmt.sort.KBoolSort
 import io.ksmt.sort.KBvSort
+import io.ksmt.utils.uncheckedCast
 import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
@@ -34,6 +37,7 @@ import org.usvm.collection.set.ref.UInputRefSetWithAllocatedElementsReading
 import org.usvm.collection.set.ref.UInputRefSetWithInputElementsReading
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intblast.TvmMultiplication
@@ -46,7 +50,7 @@ import org.usvm.machine.state.assertDataCellType
 import org.usvm.machine.state.extractFullCellIfItIsConcrete
 import org.usvm.machine.state.killCurrentState
 import org.usvm.machine.state.makeCellToSliceTlbNoFork
-import org.usvm.machine.state.sliceLoadRefNoFork
+import org.usvm.machine.state.sliceLoadRefNoForkNoUnderflowCHeck
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmType
@@ -56,6 +60,8 @@ import org.usvm.regions.Region
 import org.usvm.test.resolver.TvmTestCellValue
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestStateResolver
+import org.usvm.utils.groupIntoParts
+import kotlin.collections.map
 
 class TvmHashConstraintsResolver(
     val scope: TvmStepScopeManager,
@@ -66,10 +72,11 @@ class TvmHashConstraintsResolver(
 
         var changed = false
         val transformedConstraints =
-            state.pathConstraints.constraintSequence().toList().map { expr ->
+            state.pathConstraints.tvmConstraintsSequence().toList().map { expr ->
                 transformer.apply(expr).also {
                     if (transformer.stateWasKilled) {
                         scope.killCurrentState()
+                        return null
                     }
                     if (it != expr) {
                         changed = true
@@ -102,6 +109,30 @@ class TvmHashConstraintsResolver(
     ) : UExprTransformer<TvmType, TvmSizeSort>(ctx),
         TvmTransformer {
         var stateWasKilled: Boolean = false
+
+        override fun <Sort : KBvSort> transform(expr: KBvOrExpr<Sort>): UExpr<Sort> =
+            transformExprAfterTransformed(expr, expr.arg0, expr.arg1) { l, r ->
+                with(ctx.tctx()) {
+                    val groups = groupIntoParts(l.uncheckedCast(), r.uncheckedCast())
+                    if (groups != null && groups.size > 1) {
+                        val propagated = groups.map { mkBvOrExpr(it.first, it.second) }
+                        return propagated.reduce { acc, expr -> mkBvConcatExpr(acc, expr) }.uncheckedCast()
+                    }
+                    mkBvOrExpr(l, r)
+                }
+            }
+
+        override fun <Sort : KBvSort> transform(expr: KBvAndExpr<Sort>): UExpr<Sort> =
+            transformExprAfterTransformed(expr, expr.arg0, expr.arg1) { l, r ->
+                with(ctx.tctx()) {
+                    val groups = groupIntoParts(l.uncheckedCast(), r.uncheckedCast())
+                    if (groups != null && groups.size > 1) {
+                        val propagated = groups.map { mkBvAndExpr(it.first, it.second) }
+                        return propagated.reduce { acc, expr -> mkBvConcatExpr(acc, expr) }.uncheckedCast()
+                    }
+                    mkBvAndExpr(l, r)
+                }
+            }
 
         private fun transformToCellEquality(
             concreteRef: UConcreteHeapRef,
@@ -152,13 +183,13 @@ class TvmHashConstraintsResolver(
 
             for (idx in 0..<value.refs.size) {
                 val (newSlice1, ref1) =
-                    sliceLoadRefNoFork(scope, slice1)
+                    sliceLoadRefNoForkNoUnderflowCHeck(scope, slice1)
                         ?: run {
                             stateWasKilled = true
                             return null
                         }
                 val (newSlice2, ref2) =
-                    sliceLoadRefNoFork(scope, slice2)
+                    sliceLoadRefNoForkNoUnderflowCHeck(scope, slice2)
                         ?: run {
                             stateWasKilled = true
                             return null
@@ -185,25 +216,45 @@ class TvmHashConstraintsResolver(
             return result
         }
 
-        override fun <T : USort> transform(expr: KEqExpr<T>): KExpr<KBoolSort> {
-            if (expr.lhs is TvmHashSymbol && expr.rhs is TvmHashSymbol) {
-                val possibleLhsTypes = state.getPossibleTypes((expr.lhs as TvmHashSymbol).ref).toList()
-                val possibleRhsTypes = state.getPossibleTypes((expr.rhs as TvmHashSymbol).ref).toList()
+        private fun processHashEquality(
+            l: UExpr<*>,
+            r: UExpr<*>,
+        ): UBoolExpr? {
+            if (l is TvmHashSymbol && r is TvmHashSymbol) {
+                val possibleLhsTypes = state.getPossibleTypes(l.ref).toList()
+                val possibleRhsTypes = state.getPossibleTypes(r.ref).toList()
                 if (TvmDataCellType in possibleLhsTypes && TvmDataCellType in possibleRhsTypes) {
-                    val lhsValue = state.extractFullCellIfItIsConcrete((expr.lhs as TvmHashSymbol).ref)
-                    val rhsValue = state.extractFullCellIfItIsConcrete((expr.rhs as TvmHashSymbol).ref)
+                    val lhsValue = state.extractFullCellIfItIsConcrete(l.ref)
+                    val rhsValue = state.extractFullCellIfItIsConcrete(r.ref)
                     if (lhsValue != null) {
-                        return transformToCellEquality((expr.lhs as TvmHashSymbol).ref, (expr.rhs as TvmHashSymbol).ref)
-                            ?: expr
+                        return transformToCellEquality(l.ref, r.ref)
                     }
                     if (rhsValue != null) {
-                        return transformToCellEquality((expr.rhs as TvmHashSymbol).ref, (expr.lhs as TvmHashSymbol).ref)
-                            ?: expr
+                        return transformToCellEquality(r.ref, l.ref)
                     }
                 }
             }
-            return super<UExprTransformer>.transform(expr)
+            return null
         }
+
+        override fun <T : USort> transform(expr: KEqExpr<T>): KExpr<KBoolSort> =
+            transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
+                val groups = groupIntoParts(l.uncheckedCast(), r.uncheckedCast())
+                if (groups != null && groups.size > 1) {
+                    val propagated =
+                        groups.map {
+                            processHashEquality(it.first, it.second)
+                                ?: ctx.mkEq(it.first, it.second)
+                        }
+                    return propagated
+                        .reduce { acc, expr ->
+                            ctx.mkAnd(acc, expr)
+                        }.uncheckedCast()
+                }
+
+                processHashEquality(l, r)
+                    ?: ctx.mkEq(l, r)
+            }
 
         override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> = expr
 

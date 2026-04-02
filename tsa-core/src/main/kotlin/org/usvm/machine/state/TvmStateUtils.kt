@@ -704,7 +704,7 @@ fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort
                         workchain,
                     ),
                     // address:bits256
-                    makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt())),
+                    makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt()), TvmMessageSender()),
                 ),
             )
         return address to workchain
@@ -807,24 +807,25 @@ fun TvmState.mockCellDepth(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRe
 fun TvmState.mockHash(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
     refToHash[ref.address]?.let {
         with(ctx) { it.zeroExtendToSort(int257sort) }
-    } ?: mockNonNegativeInt {
+    } ?: mockNonNegativeInt(TvmHash(ref)) {
         ctx.mkTvmHash(ref, it).also { hash ->
             refToHash = refToHash.put(ref.address, hash)
         }
     }
 
 fun TvmState.mockCellDepth(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
-    refToDepth[ref.address] ?: mockNonNegativeInt().also {
+    refToDepth[ref.address] ?: mockNonNegativeInt(TvmDepth(ref)).also {
         refToDepth = refToDepth.put(ref.address, it)
     }
 
 private fun TvmState.mockNonNegativeInt(
+    literal: TvmTrackedLiteral,
     onInnerPart: (UExpr<UBvSort>) -> UExpr<UBvSort> = { it },
 ): UExpr<TvmInt257Sort> =
     with(ctx) {
         val unsignedPart =
             onInnerPart(
-                makeSymbolicPrimitive(ctx.mkBvSort((INT_BITS.toInt() - 1).toUInt())),
+                makeSymbolicPrimitive(ctx.mkBvSort((INT_BITS.toInt() - 1).toUInt()), literal),
             )
         return unsignedPart.zeroExtendToSort(int257sort)
     }

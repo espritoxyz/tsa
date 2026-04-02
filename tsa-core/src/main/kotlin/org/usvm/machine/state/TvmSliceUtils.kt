@@ -1569,6 +1569,28 @@ fun sliceLoadRefTlb(
     }
 }
 
+fun sliceLoadRefTlbNoUnderflowCheck(
+    scope: TvmStepScopeManager,
+    slice: UHeapRef,
+    updatedSlice: UConcreteHeapRef,
+    action: TvmStepScopeManager.(UHeapRef) -> Unit,
+) {
+    scope.makeSliceRefLoad(slice, updatedSlice) {
+        val ref =
+            calcOnStateCtx {
+                val cell = memory.readField(slice, sliceCellField, addressSort)
+
+                val sliceRefPos = memory.readField(slice, sliceRefPosField, sizeSort)
+
+                readCellRef(cell, sliceRefPos)
+            }
+
+        doWithState { sliceMoveRefPtr(updatedSlice) }
+
+        action(ref)
+    }
+}
+
 fun builderStoreIntTlb(
     scope: TvmStepScopeManager,
     builder: UConcreteHeapRef,

@@ -54,6 +54,16 @@ class TvmPathConstraints(
             tvmSoftConstraints = tvmSoftConstraints,
         )
     }
+
+    // exclude type constraints
+    fun tvmConstraintsSequence(): Sequence<UBoolExpr> {
+        if (isFalse) {
+            return emptySequence()
+        }
+        return logicalConstraints.asSequence() +
+            equalityConstraints.constraints() +
+            numericConstraints.constraints()
+    }
 }
 
 fun TvmState.addSoftConstraints(constraint: UBoolExpr) {

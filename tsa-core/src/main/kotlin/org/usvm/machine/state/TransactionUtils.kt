@@ -146,6 +146,26 @@ fun sliceLoadRefNoFork(
     return result?.let { updatedSlice to it.asCellRef() }
 }
 
+fun sliceLoadRefNoForkNoUnderflowCHeck(
+    scope: TvmStepScopeManager,
+    slice: UHeapRef,
+): Pair<UHeapRef, CellRef>? {
+    var result: UHeapRef? = null
+    val originalStateId = scope.calcOnState { id }
+    val updatedSlice =
+        scope.calcOnState {
+            memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
+        }
+    scope.doNotKillScopeOnDoWithConditions = true
+    sliceLoadRefTlbNoUnderflowCheck(scope, slice, updatedSlice) { value ->
+        validateSliceLoadState(originalStateId)
+
+        result = value
+    }
+    scope.doNotKillScopeOnDoWithConditions = false
+    return result?.let { updatedSlice to it.asCellRef() }
+}
+
 private fun TvmStepScopeManager.validateSliceLoadState(originalStateId: StateId) =
     doWithState {
         require(id == originalStateId) {

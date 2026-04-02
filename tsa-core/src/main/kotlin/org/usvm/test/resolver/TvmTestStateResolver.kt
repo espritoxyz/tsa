@@ -18,7 +18,6 @@ import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmInst
 import org.usvm.NULL_ADDRESS
-import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapAddress
@@ -41,8 +40,6 @@ import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
-import org.usvm.machine.state.TvmCellRefsRegionValueInfo
-import org.usvm.machine.state.TvmRefsMemoryRegion
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmStack.TvmStackTupleValue
@@ -64,7 +61,7 @@ import org.usvm.machine.state.input.TvmStackInput
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.messages.MessageAsStackArguments
 import org.usvm.machine.state.messages.ReceivedMessage
-import org.usvm.machine.state.tvmCellRefsRegion
+import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.CellRef
 import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TvmBuilderType
@@ -91,6 +88,7 @@ import org.usvm.machine.types.dp.getDefaultDict
 import org.usvm.machine.types.getPossibleTypes
 import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.memory.UMemory
+import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.solver.UExprTranslator
 import java.math.BigInteger
@@ -534,7 +532,7 @@ class TvmTestStateResolver(
         fromTlbStack: Boolean = false,
     ): TvmTestSliceValue =
         with(ctx) {
-            val cellValue = resolveCell(memory.readField(slice, TvmContext.sliceCellField, addressSort))
+            val cellValue = resolveCell(memory.readField(slice, TvmContext.sliceCellField, addressSort), fromTlbStack)
             require(cellValue is TvmTestDataCellValue)
             val dataPosValue = resolveInt(state.fieldManagers.cellDataLengthFieldManager.readSliceDataPos(state, slice))
             val refPosValue = resolveInt(memory.readField(slice, TvmContext.sliceRefPosField, sizeSort))
@@ -567,15 +565,11 @@ class TvmTestStateResolver(
                 }
             val refs = mutableListOf<TvmTestCellValue>()
 
-            val storedRefs = mutableMapOf<Int, TvmTestCellValue>()
-            val updateNode = memory.tvmCellRefsRegion().getRefsUpdateNode(modelRef)
-
-            resolveRefUpdates(updateNode, storedRefs, refsLength)
-
             for (idx in 0 until refsLength) {
+                val ref = state.readCellRef(modelRef, refIdx = mkSizeExpr(idx), initConstraintsForChildren = false)
+
                 val refCell =
-                    storedRefs[idx]
-                        ?: TvmTestDataCellValue()
+                    resolveCell(ref)
 
                 refs.add(refCell)
             }
@@ -701,6 +695,9 @@ class TvmTestStateResolver(
             if (!labelMapper.proactiveStructuralConstraintsWereCalculated(modelRef) &&
                 labelMapper.addressWasGiven(modelRef)
             ) {
+                check(modelRef !in constraintVisitor.refs) {
+                    "Should have calculated proactive structural constraints"
+                }
                 val info =
                     getLabelInfoInModel(modelRef)
                         ?: error("Label must be given in this case")
@@ -722,55 +719,6 @@ class TvmTestStateResolver(
 
             resolveDataCell(modelRef, cell, fromTlbStack)
         }
-
-    private fun resolveRefUpdates(
-        updateNode: TvmRefsMemoryRegion.TvmRefsRegionUpdateNode<TvmSizeSort, UAddressSort>?,
-        storedRefs: MutableMap<Int, TvmTestCellValue>,
-        refsLength: Int,
-    ) {
-        @Suppress("NAME_SHADOWING")
-        var updateNode = updateNode
-
-        while (updateNode != null) {
-            when (updateNode) {
-                is TvmRefsMemoryRegion.TvmRefsRegionInputNode -> {
-                    val idx = resolveInt(updateNode.key)
-                    // [idx] might be >= [refsLength]
-                    // because we read refs when generating structural constraints
-                    // without checking actual number of refs in a cell
-                    if (idx < refsLength) {
-                        val value = TvmCellRefsRegionValueInfo(state).actualizeSymbolicValue(updateNode.value)
-                        val refCell = resolveCell(value)
-                        storedRefs.putIfAbsent(idx, refCell)
-                    }
-                }
-
-                is TvmRefsMemoryRegion.TvmRefsRegionEmptyUpdateNode -> {}
-
-                is TvmRefsMemoryRegion.TvmRefsRegionCopyUpdateNode -> {
-                    val guardValue = evaluateInModel(updateNode.guard)
-                    if (guardValue.isTrue) {
-                        resolveRefUpdates(updateNode.updates, storedRefs, refsLength)
-                    }
-                }
-
-                is TvmRefsMemoryRegion.TvmRefsRegionPinpointUpdateNode -> {
-                    val guardValue = evaluateInModel(updateNode.guard)
-                    if (guardValue.isTrue) {
-                        updateNode.values.forEach { (key, value) ->
-                            val idx = resolveInt(key)
-                            if (idx < refsLength) {
-                                val refCell = resolveCell(value)
-                                storedRefs.putIfAbsent(idx, refCell)
-                            }
-                        }
-                    }
-                }
-            }
-
-            updateNode = updateNode.prevUpdate
-        }
-    }
 
     private fun resolveTypeLoad(loads: List<TvmDataCellLoadedTypeInfo.Action>): List<TvmCellDataTypeLoad> {
         val resolved =
