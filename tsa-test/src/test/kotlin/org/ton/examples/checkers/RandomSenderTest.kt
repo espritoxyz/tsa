@@ -17,6 +17,7 @@ import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.seconds
 
 @Tag("intercontract")
 class RandomSenderTest {
@@ -31,6 +32,7 @@ class RandomSenderTest {
     private val nonVulnerableContract = "/checkers/random-sender/non_vulnerable_contract.fc"
     private val nonVulnerableContractWithHash = "/checkers/random-sender/non_vulnerable_contract_with_hash.fc"
     private val vulnerableWithOverflow = "/checkers/random-sender/simple_vulnerable_contract_with_overflow.fc"
+    private val someNft = "/checkers/random-sender/some-nft-deployer/deployer.fc"
 
     private fun runTestGeneral(analyzedContract: TsaContractCode): TvmSymbolicTestSuite {
         val checkerContract = extractCheckerContractFromResource(tonDrainChecker)
@@ -39,6 +41,7 @@ class RandomSenderTest {
             TvmOptions(
                 stopOnFirstError = false,
                 enableOutMessageAnalysis = true,
+                timeout = 20.seconds,
             )
 
         return analyzeInterContract(
@@ -164,5 +167,10 @@ class RandomSenderTest {
                 { test -> test.exitCode() == 1000 },
             ),
         )
+    }
+
+    @Test
+    fun `some nft contract does not throw`() {
+        runTest(someNft)
     }
 }
