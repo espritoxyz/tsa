@@ -3,12 +3,14 @@ package org.ton.examples.intercontract
 import org.junit.jupiter.api.Tag
 import org.ton.cell.CellBuilder
 import org.ton.cell.buildCell
+import org.ton.test.utils.assertPropertiesFound
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.executionCode
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
 import org.ton.test.utils.extractFuncContractFromResource
+import org.ton.test.utils.hasExitCode
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.TvmConcreteContractData
@@ -62,6 +64,9 @@ class SendModesTest {
     private val sendPayForwardFeesSeparatelyRecipient = "/intercontract/modes/pay-forward-fees-separately/recipient.fc"
     private val sendPayForwardFeesSeparatelyCommunicationScheme =
         "/intercontract/modes/pay-forward-fees-separately/inter-contract.json"
+
+    private val symbolicModeChecker = "/intercontract/modes/symbolic-modes/checker.fc"
+    private val symbolicModeSender = "/intercontract/modes/symbolic-modes/sender.fc"
 
     @Test
     fun sendRemainingBalanceTest() {
@@ -507,5 +512,21 @@ class SendModesTest {
     @Test
     fun sendRemainingValueWithPayForwardFeesSeparately() {
         sendRemainingValueNewBaseTest(300)
+    }
+
+    @Test
+    fun `symbolic modes`() {
+        val checkerContract = extractCheckerContractFromResource(symbolicModeChecker)
+        val analyzedContract = extractFuncContractFromResource(symbolicModeSender)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = false, enableOutMessageAnalysis = true),
+            )
+
+        tests.assertPropertiesFound(hasExitCode(10000))
     }
 }
