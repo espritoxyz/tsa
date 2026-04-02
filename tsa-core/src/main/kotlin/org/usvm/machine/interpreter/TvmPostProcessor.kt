@@ -7,12 +7,17 @@ import org.ton.cell.Cell
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmSignatureCheck
+import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
+import org.usvm.machine.types.TvmType
+import org.usvm.solver.USatResult
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestCellValue
 import org.usvm.test.resolver.TvmTestDataCellValue
@@ -39,8 +44,37 @@ class TvmPostProcessor(
     private val publicKey by lazy { privateKey.publicKey() }
     private val publicKeyHex by lazy { publicKey.key.encodeHex() }
 
-    fun postProcessState(scope: TvmStepScopeManager): Unit? =
+    fun postProcessState(state: TvmState): TvmState? =
         with(ctx) {
+            // hack
+            val oldIsExceptional = state.isExceptional
+            state.isExceptional = false
+
+            val scope =
+                TvmStepScopeManager(
+                    state,
+                    UForkBlackList.createDefault(),
+                    allowFailuresOnCurrentStep = true,
+                )
+
+            val hashEqualityTransformer = TvmHashConstraintsResolver(scope)
+            val newPathConstraints =
+                hashEqualityTransformer.generateNewPathConstraints()
+                    ?: return null
+            if (newPathConstraints != state.pathConstraints) {
+                val solverResult = solver<TvmType>().check(newPathConstraints)
+                val newModel =
+                    (solverResult as? USatResult)?.model
+                        ?: return@with null
+
+                val newState = state.clone(newPathConstraints)
+                newState.models = listOf(newModel)
+                newState.isExceptional = oldIsExceptional
+                return postProcessState(newState)
+            }
+
+            state.isExceptional = oldIsExceptional
+
             // must be asserted first
             assertConstraints(scope) { resolver ->
                 generateRandomAddressConstraint(scope, resolver)
@@ -64,9 +98,15 @@ class TvmPostProcessor(
             } ?: return null
 
             // must be asserted separately since it relies on correct hash values
-            return assertConstraints(scope) { resolver ->
+            assertConstraints(scope) { resolver ->
                 generateSignatureConstraints(scope, resolver)
-            }
+            } ?: return null
+
+            val structuralConstraintsHolder = state.structuralConstraintsHolder
+            structuralConstraintsHolder.applyTo(scope)
+                ?: return null
+
+            return state
         }
 
     private inline fun assertConstraints(
@@ -135,7 +175,7 @@ class TvmPostProcessor(
 
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
                 val curConstraint =
-                    fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash, resolver)
+                    fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash.zeroExtendToSort(int257sort), resolver)
                         ?: return null
                 acc and curConstraint
             }

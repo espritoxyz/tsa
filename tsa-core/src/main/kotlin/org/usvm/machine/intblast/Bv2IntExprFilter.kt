@@ -25,7 +25,9 @@ import io.ksmt.expr.transformer.KExprVisitResult
 import io.ksmt.expr.transformer.KNonRecursiveVisitor
 import io.ksmt.sort.KBvSort
 import io.ksmt.sort.KSort
+import org.usvm.UBvSort
 import org.usvm.UExpr
+import org.usvm.machine.state.hash.TvmHashSymbol
 
 class Bv2IntExprFilter(
     ctx: KContext,
@@ -208,5 +210,9 @@ class Bv2IntExprFilter(
             }
         exprVisitResult(expr, res)
         return expr
+    }
+
+    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
+        error("Should be removed by now")
     }
 }

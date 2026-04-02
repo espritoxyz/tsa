@@ -12,6 +12,8 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.TvmSignatureCheck
+import org.usvm.machine.state.TvmSignatureCheckLiteral
+import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
@@ -102,7 +104,10 @@ class TvmCryptoInterpreter(
             scope,
         ) ?: return@with
 
-        val condition = scope.calcOnState { makeSymbolicPrimitive(ctx.boolSort) }
+        val condition =
+            scope.calcOnState {
+                makeSymbolicPrimitive(ctx.boolSort, TvmSignatureCheckLiteral())
+            }
         scope.fork(
             condition,
             falseStateIsExceptional = false,
@@ -140,7 +145,7 @@ class TvmCryptoInterpreter(
             // TODO correct implementation
             repeat(refsToTake) { stack.takeLastEntry() }
 
-            val hash = makeSymbolicPrimitive(ctx.int257sort)
+            val hash = makeSymbolicPrimitive(ctx.int257sort, TvmTrackedLiteral("hash_of_many"))
             // Hash is a 256-bit unsigned integer
             scope.assert(
                 ctx.unsignedIntegerFitsBits(hash, 256u),

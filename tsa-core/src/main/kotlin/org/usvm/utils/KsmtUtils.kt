@@ -339,19 +339,15 @@ fun unpackConcat(
     expr: UExpr<KBvSort>,
     depth: Int = 0,
 ): List<UExpr<UBvSort>>? {
-    if (depth > MAX_RECURSION_DEPTH) return null
+    if (depth > MAX_RECURSION_DEPTH) {
+        return null
+    }
     return with(expr.ctx) {
         if (expr.isIteWithConcreteLeaves()) {
             val bits = expr.sort.sizeBits.toInt()
-            val firstBit = mkBvExtractExpr(high = bits - 1, low = bits - 1, expr)
-            val rest =
-                if (bits > 1) {
-                    unpackConcat(mkBvExtractExpr(high = bits - 2, low = 0, expr), depth + 1)
-                        ?: return null
-                } else {
-                    emptyList()
-                }
-            return listOf(firstBit) + rest
+            return List(bits) { i ->
+                mkBvExtractExpr(high = bits - i - 1, low = bits - i - 1, expr)
+            }
         }
         when (expr) {
             is KBvZeroExtensionExpr -> {

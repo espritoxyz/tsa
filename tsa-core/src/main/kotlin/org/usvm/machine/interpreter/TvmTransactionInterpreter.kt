@@ -54,7 +54,7 @@ import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
 import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
-import org.usvm.machine.state.sliceLoadRefTransaction
+import org.usvm.machine.state.sliceLoadRefNoFork
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.SliceRef
@@ -725,7 +725,7 @@ class TvmTransactionInterpreter(
                 }
 
                 val action =
-                    sliceLoadRefTransaction(scope, slice.value)?.let {
+                    sliceLoadRefNoFork(scope, slice.value)?.let {
                         cur = it.second
                         it.first
                     }

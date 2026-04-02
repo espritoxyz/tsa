@@ -30,6 +30,7 @@ import org.usvm.machine.fields.TvmFieldManagers
 import org.usvm.machine.interpreter.DispatchedMessageContent
 import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.state.messages.FwdFeeInfo
@@ -81,7 +82,7 @@ class TvmState(
     var messageQueue: PersistentList<ReceivedMessage.MessageFromOtherContract> = persistentListOf(),
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
     // post-process fields
-    var refToHash: PersistentMap<UConcreteHeapAddress, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
+    var refToHash: PersistentMap<UConcreteHeapAddress, TvmHashSymbol> = persistentMapOf(),
     var refToDepth: PersistentMap<UConcreteHeapAddress, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
     var forwardFees: PersistentSet<FwdFeeInfo> = persistentSetOf(),
     var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),

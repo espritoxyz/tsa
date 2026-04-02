@@ -67,6 +67,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTypeCheckError
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
+import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.unsignedIntegerFitsBits
@@ -140,6 +141,17 @@ class TvmContext(
         tvmSignedModCache
             .createIfContextActive {
                 TvmSignedModulo(this, lhs, rhs, lhs.sort)
+            }.cast()
+
+    private val tvmHashCache = mkAstInterner<TvmHashSymbol>()
+
+    fun mkTvmHash(
+        ref: UConcreteHeapRef,
+        fallbackMock: UExpr<UBvSort>,
+    ): TvmHashSymbol =
+        tvmHashCache
+            .createIfContextActive {
+                TvmHashSymbol(this, ref, fallbackMock)
             }.cast()
 
     private val tvmAddCache = mkAstInterner<TvmAddition<*>>()

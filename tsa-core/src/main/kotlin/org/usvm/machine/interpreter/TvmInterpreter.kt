@@ -658,19 +658,8 @@ class TvmInterpreter(
             }
 
         val filtered =
-            states.filter { state ->
-                val scope =
-                    TvmStepScopeManager(
-                        state,
-                        UForkBlackList.createDefault(),
-                        allowFailuresOnCurrentStep = true,
-                    )
-
-                postProcessor.postProcessState(scope)
-                    ?: return@filter false
-
-                val structuralConstraintsHolder = state.structuralConstraintsHolder
-                structuralConstraintsHolder.applyTo(scope) != null
+            states.mapNotNull { state ->
+                postProcessor.postProcessState(state)
             }
 
         return filtered.flatMap { state ->

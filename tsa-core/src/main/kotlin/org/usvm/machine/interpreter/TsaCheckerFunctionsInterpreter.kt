@@ -16,6 +16,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.C0Register
 import org.usvm.machine.state.C4Register
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.TvmCheckerSymbolicPrimitive
 import org.usvm.machine.state.TvmContractExecutionMemory
 import org.usvm.machine.state.TvmEventInformation
 import org.usvm.machine.state.TvmRegisters
@@ -645,7 +646,7 @@ class TsaCheckerFunctionsInterpreter(
             }
 
             val value =
-                makeSymbolicPrimitive(mkBvSort(bits.toUInt())).let {
+                makeSymbolicPrimitive(mkBvSort(bits.toUInt()), TvmCheckerSymbolicPrimitive()).let {
                     if (isSigned == FALSE_CONCRETE_VALUE) {
                         it.zeroExtendToSort(int257sort)
                     } else {

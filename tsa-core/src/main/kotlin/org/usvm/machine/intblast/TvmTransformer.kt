@@ -7,12 +7,14 @@ import io.ksmt.expr.transformer.KNonRecursiveTransformer
 import io.ksmt.expr.transformer.KTransformerBase
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
+import org.usvm.UBvSort
 import org.usvm.UComposer
 import org.usvm.UExpr
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
+import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UReadOnlyMemory
 import org.usvm.solver.UExprTranslator
@@ -28,6 +30,8 @@ interface TvmTransformer : KTransformerBase {
     fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort>
 
     fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort>
+
+    fun transform(expr: TvmHashSymbol): UExpr<UBvSort>
 }
 
 interface TvmBvTransformer : TvmTransformer {
@@ -55,6 +59,8 @@ interface TvmBvTransformer : TvmTransformer {
         expr.transformToBv {
             apply(it)
         }
+
+    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> = apply(expr.fallbackMock)
 }
 
 class TvmBvNonRecursiveTransformer(
@@ -128,6 +134,9 @@ class TvmTranslator(
         transformExprAfterTransformed(expr, expr.arg) { x ->
             ctx.tctx().mkTvmNegNoSimplify(x)
         }
+
+    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> =
+        transformExprAfterTransformed(expr, expr.fallbackMock) { it }
 
     override fun <Sort : KBvSort> transform(expr: KBvOrExpr<Sort>): UExpr<Sort> =
         transformExprAfterTransformed(expr, expr.arg0, expr.arg1) { l, r ->

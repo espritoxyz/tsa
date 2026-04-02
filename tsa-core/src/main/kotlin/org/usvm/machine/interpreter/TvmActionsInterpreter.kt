@@ -14,6 +14,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.C5Register
+import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.builderStoreDataBits
@@ -83,7 +84,8 @@ class TvmActionsInterpreter(
         val notOutOfRangeExpr = unsignedIntegerFitsBits(normalizedMode, 8u)
         checkOutOfRange(notOutOfRangeExpr, scope) ?: return
 
-        val fee = scope.calcOnState { makeSymbolicPrimitive(int257sort) }
+        // TODO: support normally
+        val fee = scope.calcOnState { makeSymbolicPrimitive(int257sort, TvmTrackedLiteral("SENDMSG_fee")) }
         scope.assert(
             constraint =
                 mkAnd(
