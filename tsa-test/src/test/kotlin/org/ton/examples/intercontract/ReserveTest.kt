@@ -37,6 +37,11 @@ class ReserveTest {
         val sender = "/intercontract/reserve/mode-4-remaining-balance/sender.fc"
     }
 
+    object Mode0RepeatingReserves {
+        val checker = "/intercontract/reserve/mode-0-repeating-reserves/checker.fc"
+        val sender = "/intercontract/reserve/mode-0-repeating-reserves/sender.fc"
+    }
+
     @Test
     fun `reserve 0 - normal message - suffices`() {
         val checker = extractCheckerContractFromResource(Mode0NormalMessage.checker)
@@ -160,6 +165,37 @@ class ReserveTest {
         val checkerData = TvmConcreteContractData(contractC4)
         val tests = runAnalysis(checker, sender, checkerData)
         tests.assertPropertiesFound(hasExitCode(400))
+    }
+
+    @Test
+    fun `reserve 0 - repeating reserves - suffices`() {
+        val checker = extractCheckerContractFromResource(Mode0RepeatingReserves.checker)
+        val sender = extractFuncContractFromResource(Mode0RepeatingReserves.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(2_000_000_000, 64) // initial balance
+                .storeInt(1_000_000_000, 64) // to reserve
+                .storeInt(500_000_000, 64) // to send
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertPropertiesFound(hasExitCode(10000))
+    }
+
+    @Test
+    fun `reserve 0 - repeating reserves - insufficient funds`() {
+        val checker = extractCheckerContractFromResource(Mode0RepeatingReserves.checker)
+        val sender = extractFuncContractFromResource(Mode0RepeatingReserves.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(20_000_000_000, 64) // initial balance
+                .storeInt(15_000_000_000, 64) // to reserve
+                .storeInt(10_000_000_000, 64) // to send
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertInvariantsHold(doesNotEndWithExitCode(10000))
+        assertTrue(tests.isNotEmpty())
     }
 
     private fun runAnalysis(
