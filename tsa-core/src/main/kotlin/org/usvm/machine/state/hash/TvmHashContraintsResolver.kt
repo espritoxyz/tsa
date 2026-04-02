@@ -9,6 +9,7 @@ import org.usvm.UBoolExpr
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UExprTransformer
 import org.usvm.UIndexedMethodReturnValue
 import org.usvm.UIsSubtypeExpr
 import org.usvm.UIsSupertypeExpr
@@ -16,7 +17,6 @@ import org.usvm.UNullRef
 import org.usvm.URegisterReading
 import org.usvm.USort
 import org.usvm.UTrackedSymbol
-import org.usvm.UTransformer
 import org.usvm.collection.array.UAllocatedArrayReading
 import org.usvm.collection.array.UInputArrayReading
 import org.usvm.collection.array.length.UInputArrayLengthReading
@@ -101,7 +101,7 @@ class TvmHashConstraintsResolver(
         override val ctx: TvmContext,
         val scope: TvmStepScopeManager,
         val state: TvmState,
-    ) : UTransformer<TvmType, TvmSizeSort>,
+    ) : UExprTransformer<TvmType, TvmSizeSort>(ctx),
         TvmTransformer {
         var stateWasKilled: Boolean = false
 
@@ -204,7 +204,7 @@ class TvmHashConstraintsResolver(
                     }
                 }
             }
-            return super<UTransformer>.transform(expr)
+            return super<UExprTransformer>.transform(expr)
         }
 
         override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> = expr
