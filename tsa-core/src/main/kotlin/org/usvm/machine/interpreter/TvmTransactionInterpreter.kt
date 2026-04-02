@@ -17,12 +17,14 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.isFalse
 import org.usvm.isTrue
+import org.usvm.logger
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.OP_BITS
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.dropFirstWithoutChecks
+import org.usvm.machine.intValue
 import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.IncompatibleMessageModes
@@ -64,7 +66,6 @@ import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.asSliceRef
 import org.usvm.mkSizeExpr
 import org.usvm.test.resolver.TvmTestStateResolver
-import org.usvm.utils.intValueOrNull
 
 private typealias MsgHandlingPredicate = TvmTransactionInterpreter.MessageHandlingState.Ok.() -> UExpr<KBoolSort>
 private typealias Transformation =
@@ -769,6 +770,11 @@ class TvmTransactionInterpreter(
                             sizeBits = 8,
                             isSigned = true,
                         )?.unwrap(parsingState) ?: return@with scopeDied
+                    val fixedMode = scope.calcOnState { this.models.first().eval(mode) }
+                    scope.assert(with(ctx) { fixedMode eq mode })
+                        ?: return@with scopeDied
+                    val modeConcrete = fixedMode.intValue()
+                    logger.debug("Fixed the mode to be $modeConcrete")
                     val grams =
                         sliceLoadGramsTlbNoFork(
                             scope,
@@ -778,7 +784,7 @@ class TvmTransactionInterpreter(
                     Ok(
                         listOf(
                             ReserveAction(
-                                mode.intValueOrNull ?: error("Symbolic modes fo reserve actions are not supported"),
+                                modeConcrete,
                                 grams,
                             ) to trueExpr,
                         ),

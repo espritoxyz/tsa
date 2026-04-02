@@ -31,6 +31,7 @@ class RandomSenderTest {
     private val nonVulnerableContract = "/checkers/random-sender/non_vulnerable_contract.fc"
     private val nonVulnerableContractWithHash = "/checkers/random-sender/non_vulnerable_contract_with_hash.fc"
     private val vulnerableWithOverflow = "/checkers/random-sender/simple_vulnerable_contract_with_overflow.fc"
+    private val someNftSimplified = "/checkers/random-sender/some-nft-deployer/deployer-simplified.fc"
 
     private fun runTestGeneral(analyzedContract: TsaContractCode): TvmSymbolicTestSuite {
         val checkerContract = extractCheckerContractFromResource(tonDrainChecker)
@@ -163,6 +164,19 @@ class RandomSenderTest {
             listOf(
                 { test -> test.exitCode() == 1000 },
             ),
+        )
+    }
+
+    @Test
+    fun `some nft contract does not throw`() {
+        val tests = runTest(someNftSimplified)
+        propertiesFound(
+            tests,
+            listOf { test -> test.exitCode() == 500 },
+        )
+        checkInvariants(
+            tests,
+            listOf { test -> test.exitCode() != 1000 },
         )
     }
 }
