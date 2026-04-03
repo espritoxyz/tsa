@@ -111,6 +111,12 @@ data class TvmDoubleSendRemainingValue(
     override val ruleId = "double-send-remaining-value"
 }
 
+data class TvmReserveMode4NotFirst(
+    val contractId: ContractId,
+) : TvmResult.TvmSoftFailureExit {
+    override val ruleId = "reserve-mode-4-not-first"
+}
+
 data class TvmBadDestinationAddress(
     val contractId: ContractId,
 ) : TvmResult.TvmSoftFailureExit {

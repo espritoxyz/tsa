@@ -185,6 +185,9 @@ fun TvmState.generateSymbolicBuilder(): UConcreteHeapRef = generateSymbolicRef(T
 
 fun TvmState.ensureSymbolicBuilderInitialized(ref: UHeapRef) = ensureSymbolicRefInitialized(ref, TvmBuilderType)
 
+/**
+ * @return `false` on UNSAT and UNKNOWN
+ */
 fun TvmStepScopeManager.assertIfSat(constraint: UBoolExpr): Boolean {
     val originalState = calcOnState { this }
     val (stateWithConstraint) = originalState.ctx.statesForkProvider.forkMulti(originalState, listOf(constraint))
@@ -846,12 +849,14 @@ fun TvmState.applySoftConstraints() {
         is USatResult -> {
             models = listOf(solverResult.model)
         }
+
         is UUnsatResult -> {
             if (!ctx.tctx().tvmOptions.quietMode) {
                 solver.checkWithSoftConstraints(pathConstraints, softConstraints)
                 error("Unexpected $solverResult for the state $this supposed to be sat")
             }
         }
+
         is UUnknownResult -> {
             // This state is supposed to be sat without soft constraints, so we just keep old models
         }

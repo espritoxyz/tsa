@@ -21,6 +21,7 @@ import org.usvm.machine.state.allocCellFromBuilder
 import org.usvm.machine.state.allocEmptyBuilderWithTlb
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
+import org.usvm.machine.state.assertIfSat
 import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
@@ -166,7 +167,6 @@ data class TlbCommonMessageInfo(
                 val noneTag = mkBv(NONE_ADDRESS_TAG, INT_BITS)
                 val isTagNone =
                     scope.checkCondition(tag eq noneTag.uncheckedCast())
-                        ?: return@sliceSkipNoneOrStdAddr null
 
                 if (isTagNone) {
                     return@sliceSkipNoneOrStdAddr afterTagSlice to null
@@ -176,7 +176,6 @@ data class TlbCommonMessageInfo(
                 val stdTag = mkBv(STD_ADDRESS_TAG, INT_BITS)
                 val isTagStd =
                     scope.checkCondition(tag eq stdTag.uncheckedCast())
-                        ?: return@sliceSkipNoneOrStdAddr null
 
                 require(isTagStd) {
                     "Only none and std source addresses are supported"
@@ -189,21 +188,7 @@ data class TlbCommonMessageInfo(
                 nextSlice to addr
             }
 
-        private fun TvmStepScopeManager.checkCondition(cond: UBoolExpr): Boolean? =
-            with(ctx) {
-                val checkRes = checkSat(cond)
-                val invertedRes = checkSat(cond.not())
-
-                require(checkRes == null || invertedRes == null) {
-                    error("Symbolic actions are not supported")
-                }
-
-                if (checkRes == null && invertedRes == null) {
-                    return@checkCondition null
-                }
-
-                checkRes != null
-            }
+        private fun TvmStepScopeManager.checkCondition(cond: UBoolExpr): Boolean = assertIfSat(cond)
     }
 }
 

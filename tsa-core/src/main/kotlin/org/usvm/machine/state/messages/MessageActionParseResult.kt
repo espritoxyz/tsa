@@ -24,8 +24,10 @@ data class MessageActionParseResult(
     val resolvedReceiver: ContractId?,
 ) : ActionParseResult
 
-// TODO: support reserve properly
-data object ReserveAction : ActionParseResult
+data class ReserveAction(
+    val mode: Int,
+    val grams: Int257Expr,
+) : ActionParseResult
 
 /**
  * represents the arguments that are used in `recv_internal_message` / `recv_external_message`.

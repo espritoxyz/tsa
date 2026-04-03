@@ -1,0 +1,12 @@
+#include "../../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    cell msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) ;; just some address
+        .store_coins(1000000000) ;; 1 Ton
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+        .store_uint(0, 32)
+        .end_cell();
+    send_raw_message(msg, 0);
+}
