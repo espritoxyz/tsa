@@ -30,9 +30,9 @@ int op::do_sale() asm "0x0fe0ede PUSHINT";
         int sub_op = in_msg_body~load_uint(32);
         throw_if(404, sub_op != op::do_sale());
         (cell state_init, cell body) = (in_msg_body~load_ref(), in_msg_body~load_ref());
-        in_msg_body.end_parse();
+        ;; in_msg_body.end_parse();
 
-        slice dest_address = "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a; ;; just some address
+        slice dest_address = in_msg_body~load_msg_addr();
         var msg = begin_cell()
             .store_uint(0x18, 6)
             .store_uint(4, 3).store_slice(dest_address)
