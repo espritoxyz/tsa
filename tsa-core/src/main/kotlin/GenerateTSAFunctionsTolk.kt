@@ -154,7 +154,7 @@ private fun generateTolkCallFunctions(): String {
 
     for (retParams in 0..MAX_PARAMETERS) {
         for (putParams in 0..MAX_PARAMETERS) {
-            val methodId = 10000 + retParams * 100 + putParams
+            val methodId = generateMethodId(retParams, putParams)
             functions += generateApiCallAndImplCallFunctions(retParams, putParams, methodId)
         }
     }
@@ -164,6 +164,11 @@ private fun generateTolkCallFunctions(): String {
         separator = "\n\n",
     )
 }
+
+internal fun generateMethodId(
+    retParams: Int,
+    putParams: Int,
+): Int = 10000 + retParams * 100 + putParams
 
 private fun generateApiCallAndImplCallFunctions(
     retParams: Int,
@@ -183,8 +188,8 @@ private fun String.indented(): String = " ".repeat(4) + this
 /**
  * Typical example:
  * ```
- * fun tsaCallGetterIn1Ret2<A, B>(p0: B, idContract: int, idMethod: int): (A, B) {
- *     val result = tsaCallGetterIn1Ret1Impl(wrap(p0), idContract, idMethod);
+ * fun tsaCallGetMethodIn1Ret2<A, B>(p0: B, idContract: int, idMethod: int): (A, B) {
+ *     val result = tsaCallGetMethodIn1Ret1Impl(wrap(p0), idContract, idMethod);
  *     return (unwrap<A>(result.0), unwrap<B>(result.1));
  * }
  * ```
@@ -214,7 +219,7 @@ private fun generateApiGetterCall(
         (0 until inputParams)
             .joinToString(separator = "") { "wrap(p$it), " }
 
-    val internalCall = "tsaCallGetterIn${inputParams}Ret${retParams}Impl(${wrappedArgs}idContract, idMethod)"
+    val internalCall = "tsaCallGetMethodIn${inputParams}Ret${retParams}Impl(${wrappedArgs}idContract, idMethod)"
 
     val body =
         if (retParams == 0) {
@@ -234,7 +239,7 @@ private fun generateApiGetterCall(
 
     val wrapperFn =
         """
-        |fun tsaCallGetterIn${inputParams}Ret$retParams$generics(${getterApiParams}idContract: int, idMethod: int)$getterApiRetType {
+        |fun tsaCallGetMethodIn${inputParams}Ret$retParams$generics(${getterApiParams}idContract: int, idMethod: int)$getterApiRetType {
         |$body
         |}
         """.trimMargin()
@@ -245,7 +250,7 @@ private fun generateApiGetterCall(
  * Typical example (for 1 in 2 out):
  * ```
  * @method_id(10201)
- * fun tsaCallGetterIn1Ret2Impl(p0: TsaAny, idContract: int, idMethod: int): (TsaAny, TsaAny) {
+ * fun tsaCallGetMethodIn1Ret2Impl(p0: TsaAny, idContract: int, idMethod: int): (TsaAny, TsaAny) {
  *     return return2();
  * }
  * ```
@@ -274,7 +279,7 @@ private fun generateImplGetterCall(
     val internalFn =
         """
         |@method_id($methodId)
-        |fun tsaCallGetterIn${inputParams}Ret${retParams}Impl(${internalParams}idContract: int, idMethod: int)$internalReturnType {
+        |fun tsaCallGetMethodIn${inputParams}Ret${retParams}Impl(${internalParams}idContract: int, idMethod: int)$internalReturnType {
         |$internalBody
         |}
         """.trimMargin()

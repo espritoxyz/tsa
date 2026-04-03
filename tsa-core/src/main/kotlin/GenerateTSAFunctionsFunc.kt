@@ -120,7 +120,7 @@ internal fun generateFuncCheckerFile(): String {
                         .mapIndexed { index, paramType ->
                             "$paramType p$index, "
                         }.joinToString(separator = "")
-                val methodId = 10000 + retParams * 100 + putParams
+                val methodId = generateMethodId(retParams, putParams)
                 val returnStmt =
                     if (retParams > 0) {
                         "return return_$retParams();"
