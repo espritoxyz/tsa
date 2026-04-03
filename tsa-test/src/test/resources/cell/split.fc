@@ -66,3 +66,52 @@
     (_, slice y) = split(a, 1, 1);
     return slice_hash(y);
 }
+
+(int) split_too_big_l() impure method_id (6) {
+    slice a = begin_cell()
+        .store_uint(1, 4)
+        .store_ref(begin_cell().store_uint(1, 4).end_cell())
+        .store_ref(begin_cell().store_uint(2, 4).end_cell())
+        .store_ref(begin_cell().store_uint(3, 4).end_cell())
+        .end_cell()
+        .begin_parse();
+    (slice x, _) = split(a, 10, 0);
+    return slice_hash(x);
+}
+
+(int) split_too_big_r() impure method_id (7) {
+    slice a = begin_cell()
+        .store_uint(1, 4)
+        .store_ref(begin_cell().store_uint(1, 4).end_cell())
+        .store_ref(begin_cell().store_uint(2, 4).end_cell())
+        .store_ref(begin_cell().store_uint(3, 4).end_cell())
+        .end_cell()
+        .begin_parse();
+    (slice x, _) = split(a, 0, 4);
+    return slice_hash(x);
+}
+
+(int) split_too_big_l_int_range() impure method_id (8) {
+    slice a = begin_cell()
+        .store_uint(1, 4)
+        .store_ref(begin_cell().store_uint(1, 4).end_cell())
+        .store_ref(begin_cell().store_uint(2, 4).end_cell())
+        .store_ref(begin_cell().store_uint(3, 4).end_cell())
+        .end_cell()
+        .begin_parse();
+    (slice x, _) = split(a, 100000, 0);
+    return slice_hash(x);
+}
+
+(int) split_too_big_r_in_range() impure method_id (9) {
+    slice a = begin_cell()
+        .store_uint(1, 4)
+        .store_ref(begin_cell().store_uint(1, 4).end_cell())
+        .store_ref(begin_cell().store_uint(2, 4).end_cell())
+        .store_ref(begin_cell().store_uint(3, 4).end_cell())
+        .end_cell()
+        .begin_parse();
+    (slice x, _) = split(a, 0, 1000);
+    return slice_hash(x);
+}
+

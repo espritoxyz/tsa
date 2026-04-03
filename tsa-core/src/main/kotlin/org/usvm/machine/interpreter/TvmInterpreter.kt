@@ -259,7 +259,6 @@ import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.addTuple
-import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocateCell
 import org.usvm.machine.state.applySoftConstraints
@@ -269,9 +268,9 @@ import org.usvm.machine.state.bvMinValueSignedExtended
 import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.callContinuationComplex
 import org.usvm.machine.state.callMethod
+import org.usvm.machine.state.checkIntegerOverflow
+import org.usvm.machine.state.checkIntegerUnderflow
 import org.usvm.machine.state.checkOutOfRange
-import org.usvm.machine.state.checkOverflow
-import org.usvm.machine.state.checkUnderflow
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.createSliceIsEmptyConstraint
@@ -1313,9 +1312,9 @@ class TvmInterpreter(
                         val firstOperand = scope.takeLastIntOrThrowTypeError() ?: return
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvAddNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkBvAddExpr(firstOperand, secondOperand)
                     }
@@ -1325,9 +1324,9 @@ class TvmInterpreter(
                         val firstOperand = scope.takeLastIntOrThrowTypeError() ?: return
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvMulNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvMulNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkTvmMul(firstOperand, secondOperand)
                     }
@@ -1338,9 +1337,9 @@ class TvmInterpreter(
 
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvAddNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkBvAddExpr(firstOperand, secondOperand)
                     }
@@ -1351,9 +1350,9 @@ class TvmInterpreter(
 
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvMulNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvMulNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkTvmMul(firstOperand, secondOperand)
                     }
@@ -1364,9 +1363,9 @@ class TvmInterpreter(
 
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvAddNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkBvAddExpr(firstOperand, secondOperand)
                     }
@@ -1377,9 +1376,9 @@ class TvmInterpreter(
 
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvSubNoOverflowExpr(firstOperand, secondOperand)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvSubNoUnderflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkBvSubExpr(firstOperand, secondOperand)
                     }
@@ -1426,10 +1425,10 @@ class TvmInterpreter(
 
         // TODO optimize using ksmt implementation?
         val resNoOverflow = mkBvSubNoOverflowExpr(firstOperand, secondOperand)
-        checkOverflow(resNoOverflow, scope)
+        checkIntegerOverflow(resNoOverflow, scope)
             ?: return null
         val resNoUnderflow = mkBvSubNoUnderflowExpr(firstOperand, secondOperand, isSigned = true)
-        checkUnderflow(resNoUnderflow, scope)
+        checkIntegerUnderflow(resNoUnderflow, scope)
             ?: return null
 
         return mkBvSubExpr(firstOperand, secondOperand)
@@ -1477,7 +1476,7 @@ class TvmInterpreter(
                         scope.consumeDefaultGas(stmt)
 
                         val value = scope.takeLastIntOrThrowTypeError() ?: return
-                        checkOverflow(mkBvNegationNoOverflowExpr(value), scope) ?: return
+                        checkIntegerOverflow(mkBvNegationNoOverflowExpr(value), scope) ?: return
 
                         mkIte(
                             mkBvSignedLessExpr(value, zeroValue),
@@ -1548,7 +1547,7 @@ class TvmInterpreter(
                         checkOutOfRange(notOutOfRangeExpr, scope) ?: return
 
                         val resNoOverflow = unsignedIntegerFitsBits(exp, 8u)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         mkBvShiftLeftExpr(oneValue, exp)
                     }
@@ -1568,7 +1567,7 @@ class TvmInterpreter(
                                 mkBvSignedLessOrEqualExpr(minArgValue, value),
                                 mkBvSignedLessOrEqualExpr(value, maxArgValue),
                             )
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         mkBvShiftLeftExpr(value, shift.toBv257())
                     }
@@ -1590,7 +1589,7 @@ class TvmInterpreter(
                                 mkBvSignedLessOrEqualExpr(value, maxArgValue),
                             )
 
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         mkBvShiftLeftExpr(value, shift)
                     }
@@ -1624,7 +1623,7 @@ class TvmInterpreter(
                         check(sizeBits in 1..256) { "Unexpected sizeBits $sizeBits" }
 
                         val resNoOverflow = signedIntegerFitsBits(value, sizeBits.toUInt())
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         value
                     }
@@ -1645,7 +1644,7 @@ class TvmInterpreter(
                                     mkBvSignedLessOrEqualExpr(value, bvMaxValueSignedExtended(sizeBits)),
                                 ),
                             )
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         value
                     }
@@ -1658,7 +1657,7 @@ class TvmInterpreter(
                         check(sizeBits in 1..256) { "Unexpected sizeBits $sizeBits" }
 
                         val resNoOverflow = unsignedIntegerFitsBits(value, sizeBits.toUInt())
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         value
                     }
@@ -1682,7 +1681,7 @@ class TvmInterpreter(
                                     mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(sizeBits)),
                                 ),
                             )
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         value
                     }
@@ -2064,16 +2063,16 @@ class TvmInterpreter(
 
         scope.sliceLoadBitArrayTlb(
             lesserSlice,
-            scope.calcOnState { allocSliceFromCell(allocEmptyCell()) },
+//            scope.calcOnState { allocSliceFromCell(allocEmptyCell()) },
             lesserSliceLength,
-        ) { lesserSliceRelevantPart ->
+        ) { (lesserSliceRelevantPart, _) ->
             sliceLoadBitArrayTlb(
                 greaterSlice,
-                calcOnState { allocSliceFromCell(allocEmptyCell()) },
+//                calcOnState { allocSliceFromCell(allocEmptyCell()) },
                 lesserSliceLength,
-            ) { greaterSliceRelevantPart ->
+            ) { (greaterSliceRelevantPart, _) ->
                 val isPrefix =
-                    slicesAreEqual(lesserSliceRelevantPart, greaterSliceRelevantPart)
+                    slicesAreEqual(lesserSliceRelevantPart.value, greaterSliceRelevantPart.value)
                         ?: return@sliceLoadBitArrayTlb
 
                 calcOnState {

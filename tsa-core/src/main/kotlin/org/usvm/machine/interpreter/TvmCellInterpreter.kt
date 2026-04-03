@@ -129,6 +129,7 @@ import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.checkCellDataUnderflow
 import org.usvm.machine.state.checkCellOverflow
 import org.usvm.machine.state.checkCellRefsUnderflow
+import org.usvm.machine.state.checkCellUnderflow
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
@@ -141,10 +142,11 @@ import org.usvm.machine.state.mockCellDepth
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceCell
-import org.usvm.machine.state.readSliceDataPos
-import org.usvm.machine.state.readSliceRefPos
+import org.usvm.machine.state.readSliceLeftLength
+import org.usvm.machine.state.readSliceLeftRefs
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceCopy
+import org.usvm.machine.state.sliceDeepCopy
 import org.usvm.machine.state.sliceLoadBitArrayTlb
 import org.usvm.machine.state.sliceLoadIntTlb
 import org.usvm.machine.state.sliceLoadRefTlb
@@ -153,6 +155,7 @@ import org.usvm.machine.state.sliceMoveRefPtr
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.state.slicePreloadRef
+import org.usvm.machine.state.slicePreloadRefNoChecks
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.state.takeLastBuilder
 import org.usvm.machine.state.takeLastCell
@@ -161,8 +164,7 @@ import org.usvm.machine.state.takeLastRef
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.state.takeLastSliceOrThrowTypeError
 import org.usvm.machine.state.unsignedIntegerFitsBits
-import org.usvm.machine.state.writeSliceCell
-import org.usvm.machine.state.writeSliceRefPos
+import org.usvm.machine.state.writeCellRef
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataIntegerRead
@@ -171,7 +173,6 @@ import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.TvmSliceType
-import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.assertEndOfCell
 import org.usvm.machine.types.copyTlbToNewBuilder
 import org.usvm.machine.types.makeCellToSlice
@@ -790,46 +791,76 @@ class TvmCellInterpreter(
         stmt: TvmCellParseSplitInst,
     ) {
         scope.consumeDefaultGas(stmt)
-        val r =
-            with(ctx) {
-                scope.takeLastIntOrThrowTypeError()?.extractToSizeSort()
-            }
+        val rRaw =
+            scope.takeLastIntOrThrowTypeError()
                 ?: return
-        val l =
-            with(ctx) {
-                scope
-                    .takeLastIntOrThrowTypeError()
-                    ?.extractToSizeSort()
-            }
+        val lRaw =
+            scope
+                .takeLastIntOrThrowTypeError()
                 ?: return
+
         val s =
             scope.takeLastSliceOrThrowTypeError()
                 ?: return
-        val sCellSopy =
-            scope
-                .calcOnState { allocEmptyCell() }
-                .also { scope.builderCopy(scope.calcOnState { readSliceCell(s) }, it) }
-        val sLeft = scope.calcOnState { allocSliceFromCell(sCellSopy) }.asSliceRef()
-        scope.calcOnState {
-            val actualRefs = with(ctx) { readSliceRefPos(s) bvAdd r }
-            val actualDataLength = with(ctx) { readSliceDataPos(s) bvAdd l }
-            fieldManagers.cellDataLengthFieldManager.writeCellDataLength(this, sCellSopy, actualDataLength, null)
-            fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(this, sCellSopy, actualRefs)
 
-            writeSliceCell(sLeft, sCellSopy)
-            writeSliceRefPos(sLeft, readSliceRefPos(s))
-        }
-
-        val rightPart =
+        val (sliceBits, sliceRefs) =
             scope.calcOnState {
-                memory.allocConcrete(TvmSliceType).also { sliceCopy(s, it) }
+                readSliceLeftLength(s) to readSliceLeftRefs(s)
             }
-        scope.sliceLoadBitArrayTlb(s, rightPart, l) { _ ->
+
+        val inIntRangeRange =
+            with(ctx) {
+                mkAnd(
+                    lRaw bvUle 1023.toBv257(),
+                    rRaw bvUle 4.toBv257(),
+                )
+            }
+
+        val noUnderflow =
+            with(ctx) {
+                mkAnd(
+                    lRaw bvUle sliceBits.signedExtendToInteger(),
+                    rRaw bvUle sliceRefs.signedExtendToInteger(),
+                )
+            }
+
+        checkOutOfRange(inIntRangeRange, scope)
+            ?: return
+        checkCellUnderflow(noUnderflow, scope)
+            ?: return
+        val r = with(ctx) { rRaw.extractToSizeSort() }
+        val l = with(ctx) { lRaw.extractToSizeSort() }
+        scope.sliceLoadBitArrayTlb(s, l) { (leftDataBits, sRight) ->
             calcOnState {
-                sliceMoveRefPtr(rightPart, r)
-                sliceMoveDataPtr(rightPart, l)
+                sliceMoveRefPtr(sRight.value, r)
+                val sLeft =
+                    if (r.intValueOrNull == 0) {
+                        leftDataBits.value
+                    } else {
+                        val copy =
+                            calcOnState {
+                                memory.allocConcrete(TvmSliceType).also { sliceDeepCopy(leftDataBits.value, it) }
+                            }
+                        val copiedCell = readSliceCell(copy)
+                        for (i in 0..4) {
+                            val ref = this@sliceLoadBitArrayTlb.slicePreloadRefNoChecks(s, ctx.mkSizeExpr(i))
+                            writeCellRef(
+                                copiedCell,
+                                ctx.mkSizeExpr(i),
+                                ref,
+                                with(ctx) { mkSizeExpr(i) bvUlt r },
+                            )
+                        }
+                        fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(
+                            this,
+                            copiedCell as UConcreteHeapRef,
+                            r,
+                        )
+                        copy
+                    }
+
                 stack.addSlice(sLeft)
-                stack.addSlice(rightPart)
+                stack.addSlice(sRight)
                 newStmt(stmt.nextStmt())
             }
         }

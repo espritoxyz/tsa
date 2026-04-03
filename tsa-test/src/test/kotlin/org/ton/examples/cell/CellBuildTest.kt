@@ -65,6 +65,6 @@ class CellBuildTest {
 
     @Test
     fun `test split functions`() {
-        compareSymbolicAndConcreteResultsFunc(splitFuncs, (0..5).toSet())
+        compareSymbolicAndConcreteResultsFunc(splitFuncs, (0..9).toSet())
     }
 }
