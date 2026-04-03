@@ -32,7 +32,7 @@ fun checkOutOfRange(
     )
 }
 
-fun checkOverflow(
+fun checkIntegerOverflow(
     noOverflowExpr: UBoolExpr,
     scope: TvmStepScopeManager,
 ): Unit? =
@@ -42,7 +42,7 @@ fun checkOverflow(
         blockOnFalseState = { ctx.throwIntegerOverflowError(this) },
     )
 
-fun checkUnderflow(
+fun checkIntegerUnderflow(
     noUnderflowExpr: UBoolExpr,
     scope: TvmStepScopeManager,
 ): Unit? =
