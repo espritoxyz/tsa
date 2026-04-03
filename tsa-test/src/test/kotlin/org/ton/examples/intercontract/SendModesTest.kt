@@ -3,6 +3,7 @@ package org.ton.examples.intercontract
 import org.junit.jupiter.api.Tag
 import org.ton.cell.CellBuilder
 import org.ton.cell.buildCell
+import org.ton.test.utils.assertInvariantsHold
 import org.ton.test.utils.assertPropertiesFound
 import org.ton.test.utils.checkInvariants
 import org.ton.test.utils.executionCode
@@ -67,6 +68,9 @@ class SendModesTest {
 
     private val symbolicModeChecker = "/intercontract/modes/symbolic-modes/checker.fc"
     private val symbolicModeSender = "/intercontract/modes/symbolic-modes/sender.fc"
+
+    private val forbidFailuresChecker = "/intercontract/modes/forbid-failures-in-action/checker.fc"
+    private val forbidFailuresSender = "/intercontract/modes/forbid-failures-in-action/sender.fc"
 
     @Test
     fun sendRemainingBalanceTest() {
@@ -528,5 +532,21 @@ class SendModesTest {
             )
 
         tests.assertPropertiesFound(hasExitCode(10000))
+    }
+
+    @Test
+    fun `forbid failures in action phase`() {
+        val checkerContract = extractCheckerContractFromResource(forbidFailuresChecker)
+        val analyzedContract = extractFuncContractFromResource(forbidFailuresSender)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract, analyzedContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = true, enableOutMessageAnalysis = true),
+            )
+
+        tests.assertInvariantsHold(hasExitCode(0))
     }
 }
