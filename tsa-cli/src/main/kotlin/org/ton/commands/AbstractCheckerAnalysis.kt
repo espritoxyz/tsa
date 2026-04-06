@@ -35,6 +35,8 @@ import org.ton.toCellAsFileContent
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.test.resolver.TvmSymbolicTestSuite
+import org.usvm.test.resolver.TvmTestCellValue
+import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.truncateSliceCell
 import java.nio.file.Path
 import kotlin.io.path.div
@@ -51,6 +53,7 @@ private data class ExportedInputs(
     val index: Int,
     val contractsC4: Map<Int, CellAsFileContent>,
     val additionalInputs: Map<Int, CellAsFileContent>,
+    val fetchedCells: Map<Int, CellAsFileContent>,
 )
 
 sealed class AbstractCheckerAnalysis(
@@ -258,6 +261,11 @@ sealed class AbstractCheckerAnalysis(
                 additionalInputsOutputFolder.toFile().mkdir()
                 msgBodyCell.dumpCellToFolder(additionalInputsOutputFolder)
             }
+            for ((valueId, fetchedCell) in singleExecutionAdditionalOutput.fetchedCells) {
+                val additionalInputsOutputFolder = executionOutputPath / "fetched_$valueId"
+                additionalInputsOutputFolder.toFile().mkdir()
+                fetchedCell.dumpCellToFolder(additionalInputsOutputFolder)
+            }
         }
     }
 
@@ -278,7 +286,24 @@ sealed class AbstractCheckerAnalysis(
                             ).copy(knownTypes = testInput.msgBody.cell.knownTypes)
                                 .toCellAsFileContent()
                     }
-            ExportedInputs(index, c4s, messageBodies)
+            val fetchedCells =
+                test.fetchedValues
+                    .filterValues {
+                        it is TvmTestCellValue || it is TvmTestSliceValue && it.dataPos == 0
+                    }.mapValues {
+                        when (val value = it.value) {
+                            is TvmTestCellValue -> {
+                                value.toCellAsFileContent()
+                            }
+                            is TvmTestSliceValue -> {
+                                truncateSliceCell(value)
+                                    .copy(knownTypes = value.cell.knownTypes)
+                                    .toCellAsFileContent()
+                            }
+                            else -> error("unexpected value: ${it.value}")
+                        }
+                    }
+            ExportedInputs(index, c4s, messageBodies, fetchedCells)
         }
 
     private fun setLogLevelToDebug() {
