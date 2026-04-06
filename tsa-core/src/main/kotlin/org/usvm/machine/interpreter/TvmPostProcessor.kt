@@ -12,11 +12,15 @@ import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
+import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
+import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
+import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
@@ -106,7 +110,11 @@ class TvmPostProcessor(
                     generateFwdFeeConstraints(scope, resolver)
                         ?: return@assertConstraints null
 
-                hashConstraint and depthConstraint and fwdFeeConstraint
+                val datasizeConstraint =
+                    generateDatasizeConstraints(scope, resolver)
+                        ?: return@assertConstraints null
+
+                hashConstraint and depthConstraint and fwdFeeConstraint and datasizeConstraint
             } ?: return null
 
             // must be asserted separately since it relies on correct hash values
@@ -147,6 +155,16 @@ class TvmPostProcessor(
 
                 acc and curConstraint
             }
+        }
+
+    private fun generateDatasizeConstraints(
+        scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val datasizeInfos = scope.calcOnState { cdatasizeInfos }
+
+            mkAnd(datasizeInfos.map { fixateCdatasizeInfo(scope, it, resolver) ?: return@with null })
         }
 
     private fun generateSignatureConstraints(
@@ -285,14 +303,17 @@ class TvmPostProcessor(
                 val cell = transformTestDataCellIntoCell(value)
                 calculateHashOfCell(cell)
             }
+
             is TvmTestDictCellValue -> {
                 val cell = transformTestDictCellIntoCell(value)
                 calculateHashOfCell(cell)
             }
+
             is TvmTestBuilderValue -> {
                 val cell = transformTestDataCellIntoCell(value.toCell())
                 calculateHashOfCell(cell)
             }
+
             is TvmTestSliceValue -> {
                 val restCell = truncateSliceCell(value)
                 calculateConcreteHash(restCell)
@@ -358,6 +379,48 @@ class TvmPostProcessor(
             val fwdFeeCond = fwdFeeInfo.symbolicFwdFee eq concreteFwdFee.toBv257()
 
             return fixateStateInitCond and fixateMsgBodyCond and fwdFeeCond
+        }
+
+    private fun fixateCdatasizeInfo(
+        scope: TvmStepScopeManager,
+        cdatasizeInfo: DataSizeInfo,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+            val analyzedCellFixationCondition =
+                fixator.fixateConcreteValue(scope, cdatasizeInfo.analyzedCell)
+                    ?: return@with null
+            val analyzedCell =
+                cdatasizeInfo.analyzedCell.let {
+                    resolver.resolveRef(it) as? TvmTestCellValue
+                        ?: error("Unexpected not-cell")
+                }
+            val restriction = resolver.resolveInt257(cdatasizeInfo.maximumCellCount)
+
+            val cells = listOf(transformTestCellIntoCell(analyzedCell))
+            val bits = calculateNumberOfBitsInUniqueCells(cells)
+            val uniqueCells = calculateNumberOfUniqueCells(cells)
+            val refs = calculateNumberOfCellRefsInUniqueCells(cells)
+            val cond =
+                if (cdatasizeInfo.hasEnoughMaxCellCount) {
+                    if (uniqueCells > restriction.value.toInt()) {
+                        ctx.falseExpr
+                    } else {
+                        mkAnd(
+                            cdatasizeInfo.distinctCells eq uniqueCells.toBv257(),
+                            cdatasizeInfo.cellRefs eq refs.toBv257(),
+                            cdatasizeInfo.dataBits eq bits.toBv257(),
+                        )
+                    }
+                } else {
+                    if (uniqueCells > restriction.value.toInt()) {
+                        ctx.trueExpr
+                    } else {
+                        ctx.falseExpr
+                    }
+                }
+            cond and analyzedCellFixationCondition and (cdatasizeInfo.maximumCellCount eq restriction.value.toBv257())
         }
 
     private fun calculateConcreteDepth(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =

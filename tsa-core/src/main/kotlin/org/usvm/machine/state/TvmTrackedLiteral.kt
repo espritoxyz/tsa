@@ -33,3 +33,9 @@ class TvmHash(
 class TvmDepth(
     val ref: UConcreteHeapRef,
 ) : TvmTrackedLiteral("tvm_depth")
+
+class CDataSizeDistinctCells : TvmTrackedLiteral("cdatasize-distinct-cells")
+
+class CDataSizeDataBits : TvmTrackedLiteral("cdatasize-data-bits")
+
+class CDataSizeCellRefs : TvmTrackedLiteral("cdatasize-cell-refs")

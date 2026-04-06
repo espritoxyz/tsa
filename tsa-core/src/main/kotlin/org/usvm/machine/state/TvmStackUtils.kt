@@ -118,6 +118,14 @@ fun TvmState.takeLastCell(): UHeapRef? =
 
 fun TvmStepScopeManager.takeLastCell(): UHeapRef? = calcOnState { takeLastCell() }
 
+fun TvmStepScopeManager.takeLastCellOrThrowTypeError(): UHeapRef? =
+    calcOnState {
+        takeLastCell() ?: run {
+            ctx.throwTypeCheckError(this)
+            null
+        }
+    }
+
 fun TvmState.takeLastSlice(): UHeapRef? =
     takeLastRef(TvmSliceType, TvmStackValue::sliceValue) {
         generateSymbolicSlice()
