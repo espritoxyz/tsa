@@ -74,6 +74,7 @@ class TvmComponents(
             KZ3Solver(ctx).apply {
                 configure {
                     optimizeForTheories(setOf(KTheory.UF, KTheory.Array, KTheory.LIA, KTheory.NIA))
+                    setIntParameter("bv.solver", 2)
                 }
             }
         val solver =
