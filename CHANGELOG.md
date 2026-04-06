@@ -1,5 +1,21 @@
 # TSA Changelog
 
+## v0.5.1 - v0.5.2
+
+* Replay tests for tutorial by @metametamoon in https://github.com/espritoxyz/tsa/pull/285
+* Several fixes and optimizations by @tochilinak in https://github.com/espritoxyz/tsa/pull/292
+* Increased default solver timeout by @tochilinak in https://github.com/espritoxyz/tsa/pull/294
+* Using TL-B memory in `TvmValueFixator` by @tochilinak in https://github.com/espritoxyz/tsa/pull/295
+* Improved int-blasting usage by @tochilinak in https://github.com/espritoxyz/tsa/pull/297
+* Fix CroutonFi test + solver timeout in CLI by @tochilinak in https://github.com/espritoxyz/tsa/pull/301
+* Fixed the unsigned index in get_next on input dicts by @metametamoon in https://github.com/espritoxyz/tsa/pull/298
+* Partial support of hash equality constraints by @tochilinak in https://github.com/espritoxyz/tsa/pull/303
+* Support for reserve operations by @metametamoon in https://github.com/espritoxyz/tsa/pull/302
+* Export fetched cells with option `--exported-inputs` by @tochilinak in https://github.com/espritoxyz/tsa/pull/305
+
+
+**Full Changelog**: https://github.com/espritoxyz/tsa/compare/v0.5.1...v0.5.2
+
 ## v0.5.0 - v0.5.1
 
 * Added soft constraints for balance and message value in https://github.com/espritoxyz/tsa/pull/288
