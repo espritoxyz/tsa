@@ -74,9 +74,21 @@ class TvmComponents(
             KZ3Solver(ctx).apply {
                 configure {
                     optimizeForTheories(setOf(KTheory.UF, KTheory.Array, KTheory.LIA, KTheory.NIA))
+                    setBoolParameter("auto_config", false)
+                    setIntParameter("phase_selection", 7)
+                    setIntParameter("case_split", 6)
+                    setBoolParameter("theory_aware_branching", true)
                     setIntParameter("bv.solver", 2)
+                    setIntParameter("arith.nl.delay", 100)
+                    setBoolParameter("arith.nl.expensive_patching", true)
+                    setBoolParameter("arith.nl.expp", true)
+                    setIntParameter("arith.nl.grobner_row_length_limit", 50)
+                    setIntParameter("arith.nl.horner_row_length_limit", 50)
+                    setIntParameter("arith.nl.grobner_expr_size_growth", 5)
+                    setIntParameter("arith.nl.grobner_expr_degree_growth", 5)
                 }
             }
+
         val solver =
             Bv2IntSolverWrapper(
                 options = options,
