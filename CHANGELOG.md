@@ -1,5 +1,11 @@
 # TSA Changelog
 
+## v0.5.2 - v0.5.3
+
+* Optimized Z3 + several small optimizations by @tochilinak in https://github.com/espritoxyz/tsa/pull/306
+
+**Full Changelog**: https://github.com/espritoxyz/tsa/compare/v0.5.2...v0.5.3
+
 ## v0.5.1 - v0.5.2
 
 * Replay tests for tutorial by @metametamoon in https://github.com/espritoxyz/tsa/pull/285
