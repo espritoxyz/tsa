@@ -53,6 +53,7 @@ fun main() {
                             dummyComponents.typeSystem,
                             TvmInputInfo(),
                             TvmManualStateProcessor(),
+                            interestingExitCodes = emptySet(),
                         )
                     val dummyState =
                         dummyInterpreter.getInitialState(
