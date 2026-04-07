@@ -206,15 +206,15 @@ data class StackFrameOfUnknown(
 
             inferenceManager.addInferredStruct(loadData.cellRef, path, newStructure)
 
-//            loadData.type.writeToNextLabelFields(
-//                scope.calcOnState {
-//                    this
-//                },
-//                loadData.cellRef,
-//                newPath,
-//                newStructure.id,
-//                dataSymbolic,
-//            )
+            loadData.type.writeToNextLabelFields(
+                scope.calcOnState {
+                    this
+                },
+                loadData.cellRef,
+                newPath,
+                newStructure.id,
+                dataSymbolic,
+            )
 
             val nextFrame =
                 buildFrameForStructure(ctx, newStructure, newPath, leftTlbDepth)

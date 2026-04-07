@@ -21,6 +21,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.dp.CalculatedTlbLabelInfo
+import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.UnknownBlockLengthField
 import org.usvm.mkSizeExpr
 import kotlin.math.max
@@ -232,9 +233,9 @@ class TvmReferenceToLabelMapper private constructor(
                     }
 
                 if (label.internalStructure is TlbStructure.Unknown && fillUnknownBlockField && guard.isTrue) {
-//                    val blockField = UnknownBlockField(TlbStructure.Unknown.id, persistentListOf())
-//                    val cellData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, ref)
-//                    state.memory.writeField(ref, blockField, blockField.getSort(this), cellData, guard = trueExpr)
+                    val blockField = UnknownBlockField(TlbStructure.Unknown.id, persistentListOf())
+                    val cellData = state.fieldManagers.cellDataFieldManager.readCellDataWithoutAsserts(state, ref)
+                    state.memory.writeField(ref, blockField, blockField.getSort(this), cellData, guard = trueExpr)
 
                     val sizeField = UnknownBlockLengthField(persistentListOf())
                     val cellDataLength = state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(state, ref)

@@ -79,7 +79,7 @@ class CroutonfiOldTest {
         )
     }
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+//    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun findTonDrainSymbolicC4() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)
