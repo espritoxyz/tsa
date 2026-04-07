@@ -17,7 +17,6 @@ import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
 import org.usvm.solver.UUnknownResult
 import org.usvm.solver.UUnsatResult
-import org.usvm.uctx
 
 class TvmStepScopeManager(
     private val originalState: TvmState,
@@ -472,45 +471,6 @@ class TvmStepScopeManager(
                     forkedStates.remove(forkedState)
                 }
             }
-        }
-
-        /**
-         * [forkWithBlackList] version which doesn't fork to the branches with statements
-         * banned by underlying [forkBlackList].
-         *
-         * @param trueStmt statement to fork on [condition].
-         * @param falseStmt statement to fork on ![condition].
-         */
-        fun forkWithBlackList(
-            condition: UBoolExpr,
-            trueStmt: TvmInst,
-            falseStmt: TvmInst,
-            blockOnTrueState: TvmState.() -> Unit = {},
-            blockOnFalseState: TvmState.() -> Unit = {},
-        ): Unit? {
-            check(canProcessFurtherOnCurrentStep)
-
-            val shouldForkOnTrue = forkBlackList.shouldForkTo(originalState, trueStmt)
-            val shouldForkOnFalse = forkBlackList.shouldForkTo(originalState, falseStmt)
-
-            if (!shouldForkOnTrue && !shouldForkOnFalse) {
-                stepScopeState = DEAD
-                // TODO: should it be null?
-                return null
-            }
-
-            if (shouldForkOnTrue && shouldForkOnFalse) {
-                return fork(condition, blockOnTrueState, blockOnFalseState)
-            }
-
-            // If condition is concrete there is no fork point possibility
-            val registerForkPoint = !condition.isConcrete
-
-            if (shouldForkOnTrue) {
-                return assert(condition, registerForkPoint, satBlock = blockOnTrueState)
-            }
-
-            return assert(condition.uctx.mkNot(condition), registerForkPoint, satBlock = blockOnFalseState)
         }
 
         /**

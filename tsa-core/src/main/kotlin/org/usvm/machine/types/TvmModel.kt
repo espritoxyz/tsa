@@ -43,7 +43,7 @@ class TvmModel(
     }
 }
 
-fun UModelBase<TvmType>.wrap(ctx: TvmContext) = TvmModel(ctx, this)
+fun UModelBase<TvmType>.wrap(ctx: TvmContext) = this as? TvmModel ?: TvmModel(ctx, this)
 
 class TvmMockEvaluator(
     private val underlyingMockEvaluator: UMockEvaluator,

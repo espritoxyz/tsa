@@ -192,6 +192,9 @@ fun TvmState.ensureSymbolicBuilderInitialized(ref: UHeapRef) = ensureSymbolicRef
 fun TvmStepScopeManager.assertIfSat(constraint: UBoolExpr): Boolean {
     val originalState = calcOnState { this }
     val (stateWithConstraint) = originalState.ctx.statesForkProvider.forkMulti(originalState, listOf(constraint))
+    stateWithConstraint?.let {
+        it.models = it.models.map { it.wrap(ctx) }
+    }
     return stateWithConstraint != null
 }
 
