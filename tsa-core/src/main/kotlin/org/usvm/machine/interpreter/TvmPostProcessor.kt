@@ -113,7 +113,7 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr?,
     ): Unit? {
-        val resolver = scope.calcOnState { TvmTestStateResolver(ctx, models.first(), this) }
+        val resolver = scope.calcOnState { TvmTestStateResolver(ctx, tvmModels.first(), this) }
         val constraints =
             constraintsBuilder(resolver)
                 ?: return null

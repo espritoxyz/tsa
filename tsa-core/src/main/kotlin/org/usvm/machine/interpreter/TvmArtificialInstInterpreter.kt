@@ -41,6 +41,7 @@ import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.TvmTime
 import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
@@ -513,7 +514,7 @@ class TvmArtificialInstInterpreter(
                 scope.calcOnState { receivedMessage?.getMsgBodySlice() }
                     ?: error("Unexpected null msg_body")
 
-            val model = scope.calcOnState { models.first() }
+            val model = scope.calcOnState { tvmModels.first() }
             val resolver =
                 TvmTestStateResolver(
                     ctx,
@@ -777,7 +778,11 @@ class TvmArtificialInstInterpreter(
             val oldTime = scope.calcOnState { time }
             val newTime =
                 scope.calcOnState {
-                    time = generateSymbolicTime()
+                    val literal = TvmTime()
+                    time = generateSymbolicTime(literal)
+                    tvmModels.forEach {
+                        it.addCustomValue(this, literal, it.eval(oldTime))
+                    }
                     time
                 }
             return scope.assert(

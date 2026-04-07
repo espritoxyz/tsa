@@ -1,7 +1,6 @@
 package org.usvm.machine
 
 import org.ton.bytecode.TvmInst
-import org.usvm.ForkCase
 import org.usvm.StepResult
 import org.usvm.UBoolExpr
 import org.usvm.forkblacklists.UForkBlackList
@@ -14,6 +13,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.c2IsDefault
 import org.usvm.machine.types.TvmStructuralConstraintsHolder
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
 import org.usvm.solver.UUnknownResult
 import org.usvm.solver.UUnsatResult
@@ -168,6 +168,9 @@ class TvmStepScopeManager(
         }
 
         val states = ctx.statesForkProvider.forkMulti(originalState, conditionsWithActions.map { it.condition })
+        states.filterNotNull().forEach {
+            it.models = it.models.map { it.wrap(ctx) }
+        }
         if (!doNotKillScopeOnDoWithConditions) {
             scope.stepScopeState = CANNOT_BE_PROCESSED
         }
@@ -373,56 +376,6 @@ class TvmStepScopeManager(
             return Unit
         }
 
-        /**
-         * Forks on a few disjoint conditions using `forkMulti` in `State.kt`
-         * and executes the corresponding block on each not-null state.
-         *
-         * NOTE: always sets the [stepScopeState] to the [CANNOT_BE_PROCESSED] value.
-         */
-        fun forkMulti(conditionsWithBlockOnStates: List<Pair<UBoolExpr, TvmState.() -> Unit>>) =
-            forkMulti(conditionsWithBlockOnStates, skipForkPointIfPossible = true)
-
-        /**
-         * @param skipForkPointIfPossible determines whether it is allowed to skip fork point registration.
-         * */
-        private fun forkMulti(
-            conditionsWithBlockOnStates: List<Pair<UBoolExpr, TvmState.() -> Unit>>,
-            skipForkPointIfPossible: Boolean,
-        ) {
-            check(canProcessFurtherOnCurrentStep)
-
-            val possibleForkPoint = originalState.pathNode
-
-            val conditions = conditionsWithBlockOnStates.map { it.first }
-
-            val conditionStates = ctx.statesForkProvider.forkMulti(originalState, conditions)
-
-            val forkedStates =
-                conditionStates.mapIndexedNotNull { idx, positiveState ->
-                    val block = conditionsWithBlockOnStates[idx].second
-
-                    positiveState?.apply(block)
-                }
-
-            stepScopeState = CANNOT_BE_PROCESSED
-            if (forkedStates.isEmpty()) {
-                stepScopeState = DEAD
-                return
-            }
-
-            val firstForkedState = forkedStates.first()
-            require(firstForkedState == originalState) {
-                "The original state $originalState was expected to become the first of forked states but $firstForkedState found"
-            }
-
-            // Interpret the first state as original and others as forked
-            this.forkedStates += forkedStates.subList(1, forkedStates.size)
-
-            if (skipForkPointIfPossible && forkedStates.size < 2) return
-
-            forkedStates.forEach { it.forkPoints += possibleForkPoint }
-        }
-
         fun assert(
             constraint: UBoolExpr,
             satBlock: TvmState.() -> Unit = {},
@@ -470,7 +423,7 @@ class TvmStepScopeManager(
 
                 when (solverResult) {
                     is USatResult -> {
-                        originalState.models = listOf(solverResult.model)
+                        originalState.models = listOf(solverResult.model.wrap(ctx))
                     }
 
                     is UUnsatResult -> {
@@ -561,32 +514,6 @@ class TvmStepScopeManager(
         }
 
         /**
-         * [forkMultiWithBlackList] version which doesn't fork to the branches with statements
-         * banned by underlying [forkBlackList].
-         */
-        fun forkMultiWithBlackList(forkCases: List<ForkCase<TvmState, TvmInst>>) {
-            check(canProcessFurtherOnCurrentStep)
-
-            val filteredConditionsWithBlockOnStates =
-                forkCases
-                    .mapNotNull { case ->
-                        if (!forkBlackList.shouldForkTo(originalState, case.stmt)) {
-                            return@mapNotNull null
-                        }
-                        case.condition to case.block
-                    }
-
-            if (filteredConditionsWithBlockOnStates.isEmpty()) {
-                stepScopeState = DEAD
-                return
-            }
-
-            // If all conditions are concrete there is no fork point possibility
-            val skipForkPoint = forkCases.all { it.condition.isConcrete }
-            return forkMulti(filteredConditionsWithBlockOnStates, skipForkPoint)
-        }
-
-        /**
          * @return [Unit] if this [condition] is satisfiable, and returns `null` otherwise.
          */
         @Suppress("MoveVariableDeclarationIntoWhen")
@@ -610,7 +537,7 @@ class TvmStepScopeManager(
             val solverResult = solver.check(constraints)
 
             return when (solverResult) {
-                is USatResult -> originalState.models += solverResult.model
+                is USatResult -> originalState.models += solverResult.model.wrap(ctx)
                 is UUnknownResult, is UUnsatResult -> null
             }
         }

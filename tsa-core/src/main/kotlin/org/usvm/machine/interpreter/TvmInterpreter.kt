@@ -247,12 +247,14 @@ import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmInitialStateData
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmRefEmptyValue
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTerminated
+import org.usvm.machine.state.TvmTime
 import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
@@ -330,6 +332,7 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
+import org.usvm.machine.types.wrap
 import org.usvm.memory.UMemory
 import org.usvm.memory.UWritableMemory
 import org.usvm.mkSizeExpr
@@ -349,6 +352,7 @@ class TvmInterpreter(
     private val inputInfo: TvmInputInfo,
     private val manualStateProcessor: TvmManualStateProcessor,
     var forkBlackList: UForkBlackList<TvmState, TvmInst> = UForkBlackList.createDefault(),
+    private val interestingExitCodes: Set<Int>,
 ) : UInterpreter<TvmState>() {
     companion object {
         val logger = object : KLogging() {}.logger
@@ -413,7 +417,7 @@ class TvmInterpreter(
                 additionalInputsConcreteData = additionalInputsConcreteData,
             )
 
-        state.time = state.generateSymbolicTime()
+        state.time = state.generateSymbolicTime(TvmTime())
         pathConstraints +=
             with(ctx) {
                 mkAnd(
@@ -587,7 +591,7 @@ class TvmInterpreter(
             solver.check(state.pathConstraints) as? USatResult
                 ?: error("Cannot construct model for initial state")
         val model = kModel.model
-        state.models = listOf(model)
+        state.models = listOf(model.wrap(ctx))
     }
 
     private fun UWritableMemory<TvmType>.initializeEmptyRefValues(fieldManagers: TvmFieldManagers): TvmRefEmptyValue =
@@ -643,6 +647,14 @@ class TvmInterpreter(
         }
 
     fun postProcessState(state: TvmState): List<TvmState> {
+        if (interestingExitCodes.isNotEmpty() &&
+            (state.result as? TvmResult.TvmFailure)?.exit?.exitCode !in interestingExitCodes &&
+            state.result !is TvmResult.TvmSoftFailure
+        ) {
+            // throw away uninteresting states
+            return emptyList()
+        }
+
         state.phase = TvmTerminated
 
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
@@ -697,7 +709,7 @@ class TvmInterpreter(
 
             // no contradiction can occur since [clonedOldState] is a clone of an ancestor of [stateAfterPostProcess]
             clonedOldState.models = stateAfterPostProcess.models
-            val resolver = TvmTestStateResolver(ctx, clonedOldState.models.first(), clonedOldState)
+            val resolver = TvmTestStateResolver(ctx, clonedOldState.tvmModels.first(), clonedOldState)
 
             val fixateCond =
                 clonedOldState.refsToBeIndependentFromRandomAddresses.fold(
@@ -732,6 +744,7 @@ class TvmInterpreter(
         val stmt = state.lastStmt
         logger.debug("Current contract: {}", state.currentContract)
         logger.debug("State id: {}", state.id)
+        logger.debug("Path depth: {}", state.pathNode.depth)
         logger.debug("Executing: {} (class {})", formatTsaInstruction(stmt), stmt.javaClass.name)
 
         val initialGasUsage = state.gasUsageHistory
@@ -1304,7 +1317,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkTvmAdd(firstOperand, secondOperand)
+                        mkBvAddExpr(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicMulInst -> {
@@ -1329,7 +1342,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkTvmAdd(firstOperand, secondOperand)
+                        mkBvAddExpr(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicMulconstInst -> {
@@ -1355,7 +1368,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkTvmAdd(firstOperand, secondOperand)
+                        mkBvAddExpr(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicDecInst -> {
@@ -1368,7 +1381,7 @@ class TvmInterpreter(
                         val resNoUnderflow = mkBvSubNoUnderflowExpr(firstOperand, secondOperand, isSigned = true)
                         checkUnderflow(resNoUnderflow, scope) ?: return
 
-                        mkTvmSub(firstOperand, secondOperand)
+                        mkBvSubExpr(firstOperand, secondOperand)
                     }
 
                     is TvmArithmBasicNegateInst -> {
@@ -1381,7 +1394,7 @@ class TvmInterpreter(
                             blockOnFalseState = throwIntegerOverflowError,
                         ) ?: return
 
-                        mkTvmNeg(operand)
+                        mkBvNegationExpr(operand)
                     }
 
                     is TvmArithmBasicSubInst -> {
@@ -1419,7 +1432,7 @@ class TvmInterpreter(
         checkUnderflow(resNoUnderflow, scope)
             ?: return null
 
-        return mkTvmSub(firstOperand, secondOperand)
+        return mkBvSubExpr(firstOperand, secondOperand)
     }
 
     private fun visitArithmeticLogicalInst(

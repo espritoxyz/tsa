@@ -75,17 +75,13 @@ class TvmComponents(
                 configure {
                     optimizeForTheories(setOf(KTheory.UF, KTheory.Array, KTheory.LIA, KTheory.NIA))
                     setBoolParameter("auto_config", false)
-                    setIntParameter("phase_selection", 7)
-                    setIntParameter("case_split", 6)
-                    setBoolParameter("theory_aware_branching", true)
                     setIntParameter("bv.solver", 2)
+                    setIntParameter("phase_selection", 3)
+                    setIntParameter("case_split", 1)
                     setIntParameter("arith.nl.delay", 100)
                     setBoolParameter("arith.nl.expensive_patching", true)
                     setBoolParameter("arith.nl.expp", true)
-                    setIntParameter("arith.nl.grobner_row_length_limit", 50)
-                    setIntParameter("arith.nl.horner_row_length_limit", 50)
-                    setIntParameter("arith.nl.grobner_expr_size_growth", 5)
-                    setIntParameter("arith.nl.grobner_expr_degree_growth", 5)
+                    setBoolParameter("candidate_models", true)
                 }
             }
 
@@ -134,6 +130,9 @@ class TvmComponents(
         override fun check(timeout: Duration): KSolverStatus =
             internalSolver.check(timeout).also { status ->
                 logger.debug("Forked with status: {}", status)
+                if (status == KSolverStatus.UNKNOWN) {
+                    println("here")
+                }
             }
 
         override fun checkWithAssumptions(

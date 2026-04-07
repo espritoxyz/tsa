@@ -26,7 +26,7 @@ data object TvmTestResolver {
         methodId: MethodId,
         state: TvmState,
     ): TvmSymbolicTest {
-        val model = state.models.first()
+        val model = state.tvmModels.first()
         val ctx = state.ctx
         val stateResolver =
             TvmTestStateResolver(ctx, model, state, ctx.tvmOptions.performAdditionalChecksWhileResolving)

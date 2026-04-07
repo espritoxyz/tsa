@@ -96,7 +96,7 @@ class CroutonfiOldTest {
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
                 timeout = 5.minutes,
-                solverTimeout = 5.seconds,
+                solverTimeout = 3.seconds,
             )
 
         val tests =
@@ -106,6 +106,7 @@ class CroutonfiOldTest {
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
                 additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(1000)),
+                interestingExitCodes = setOf(1000),
             )
 
         propertiesFound(

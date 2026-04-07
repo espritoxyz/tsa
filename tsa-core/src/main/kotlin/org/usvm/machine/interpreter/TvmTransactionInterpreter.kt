@@ -726,7 +726,7 @@ class TvmTransactionInterpreter(
         originalStmt: TsaArtificialActionParseInst,
     ): ValueOrDeadScope<List<Pair<ActionParseResult, UBoolExpr>>?> =
         with(scope.ctx) {
-            val model = scope.calcOnState { models.first() }
+            val model = scope.calcOnState { tvmModels.first() }
             val resolver =
                 TvmTestStateResolver(
                     ctx,

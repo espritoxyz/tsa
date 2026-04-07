@@ -66,6 +66,7 @@ import org.usvm.machine.types.TvmFinalReferenceType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.wrap
 import org.usvm.memory.GuardedExpr
 import org.usvm.memory.foldHeapRef
 import org.usvm.mkSizeAddExpr
@@ -825,9 +826,9 @@ private fun TvmState.mockNonNegativeInt(
         return unsignedPart.zeroExtendToSort(int257sort)
     }
 
-fun TvmState.generateSymbolicTime(): UExpr<TvmInt257Sort> =
+fun TvmState.generateSymbolicTime(literal: TvmTime): UExpr<TvmInt257Sort> =
     with(ctx) {
-        makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_UNIX_TIME)).zeroExtendToSort(int257sort)
+        makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_UNIX_TIME), literal).zeroExtendToSort(int257sort)
     }
 
 fun TvmState.applySoftConstraints() {
@@ -847,7 +848,7 @@ fun TvmState.applySoftConstraints() {
     val solver = ctx.solver<TvmType>()
     when (val solverResult = solver.checkWithSoftConstraints(pathConstraints, softConstraints)) {
         is USatResult -> {
-            models = listOf(solverResult.model)
+            models = listOf(solverResult.model.wrap(ctx))
         }
 
         is UUnsatResult -> {

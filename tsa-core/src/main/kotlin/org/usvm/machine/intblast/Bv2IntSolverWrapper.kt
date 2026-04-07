@@ -173,8 +173,23 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         }
 
         if (options.useIntBlasting) {
-            val bv2intRes = check()
-            return bv2intRes
+            val result = check()
+            if (result != KSolverStatus.UNKNOWN) return result
+
+            // Retry with different random seeds to stabilize NLA solving
+            for (retrySeed in RETRY_SEEDS) {
+                logger.debug("UNKNOWN result, retrying with random_seed={}", retrySeed)
+                bv2intSolver.configure { setIntParameter("random_seed", retrySeed) }
+                val retryResult = check()
+                if (retryResult != KSolverStatus.UNKNOWN) {
+                    // Reset seed back to default for subsequent checks
+                    bv2intSolver.configure { setIntParameter("random_seed", DEFAULT_SEED) }
+                    return retryResult
+                }
+            }
+            // Reset seed back to default even if all retries failed
+            bv2intSolver.configure { setIntParameter("random_seed", DEFAULT_SEED) }
+            return KSolverStatus.UNKNOWN
         }
 
         reassertExprsToBvSolver()
@@ -215,5 +230,8 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
 
     companion object {
         private val logger = object : KLogging() {}.logger
+
+        private const val DEFAULT_SEED = 0
+        private val RETRY_SEEDS = intArrayOf(42, 123)
     }
 }

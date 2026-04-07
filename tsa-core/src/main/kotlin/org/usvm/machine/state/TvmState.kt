@@ -44,6 +44,7 @@ import org.usvm.machine.types.TvmStructuralConstraintsHolder
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
+import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
 
 typealias ContractId = Int
@@ -60,7 +61,7 @@ class TvmState(
     callStack: UCallStack<TvmCodeBlock, TvmInst> = UCallStack(),
     override val pathConstraints: TvmPathConstraints,
     memory: UMemory<TvmType, TvmCodeBlock>,
-    models: List<TvmModel> = listOf(),
+    models: List<UModelBase<TvmType>> = listOf(),
     pathNode: PathNode<TvmInst> = PathNode.root(),
     forkPoints: PathNode<PathNode<TvmInst>> = PathNode.root(),
     var phase: TvmPhase = TvmComputePhase,
@@ -114,6 +115,13 @@ class TvmState(
         get() = gasUsageHistory.size
     val currentEventId: EventId
         get() = currentPhaseBeginTime
+
+    val tvmModels: List<TvmModel>
+        get() =
+            models.map {
+                it as? TvmModel
+                    ?: error("Unexpected Model: $it")
+            }
 
     /**
      * Semantically, we set it to `true` when no further processing of the state will be conducted.
