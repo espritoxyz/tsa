@@ -500,6 +500,7 @@ fun analyzeInterContract(
     manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
     concreteContractData: List<TvmConcreteContractData> = contracts.map { TvmConcreteContractData() },
     additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
+    interestingExitCodes: Set<Int> = emptySet(),
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
     val startContractCode = contracts[startContractId]
@@ -520,6 +521,7 @@ fun analyzeInterContract(
                 inputInfo = inputInfo,
                 additionalStopStrategy = additionalStopStrategy,
                 manualStateProcessor = manualStateProcessor,
+                interestingExitCodes = interestingExitCodes,
             )
         }
 
@@ -571,6 +573,7 @@ fun analyzeSpecificMethod(
     tvmOptions: TvmOptions = TvmOptions(),
     manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
     additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
+    interestingExitCodes: Set<Int> = emptySet(),
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = tvmOptions)
     val (states, coverage) =
@@ -589,6 +592,7 @@ fun analyzeSpecificMethod(
                     inputInfo,
                     manualStateProcessor,
                     additionalStopStrategy,
+                    interestingExitCodes,
                 )
             }
         }

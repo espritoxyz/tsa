@@ -79,7 +79,7 @@ class CroutonfiOldTest {
         )
     }
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+//    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun findTonDrainSymbolicC4() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)
@@ -96,7 +96,7 @@ class CroutonfiOldTest {
                 enableOutMessageAnalysis = true,
                 stopOnFirstError = false,
                 timeout = 5.minutes,
-                solverTimeout = 5.seconds,
+                solverTimeout = 3.seconds,
             )
 
         val tests =
@@ -106,6 +106,7 @@ class CroutonfiOldTest {
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = options,
                 additionalStopStrategy = ExploreExitCodesStopStrategy(setOf(1000)),
+                interestingExitCodes = setOf(1000),
             )
 
         propertiesFound(

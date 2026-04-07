@@ -17,6 +17,7 @@ import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestCellValue
@@ -64,7 +65,7 @@ class TvmPostProcessor(
             if (newPathConstraints != state.pathConstraints) {
                 val solverResult = solver<TvmType>().check(newPathConstraints)
                 val newModel =
-                    (solverResult as? USatResult)?.model
+                    (solverResult as? USatResult)?.model?.wrap(ctx)
                         ?: return@with null
 
                 val newState = state.clone(newPathConstraints)
@@ -113,7 +114,7 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr?,
     ): Unit? {
-        val resolver = scope.calcOnState { TvmTestStateResolver(ctx, models.first(), this) }
+        val resolver = scope.calcOnState { TvmTestStateResolver(ctx, tvmModels.first(), this) }
         val constraints =
             constraintsBuilder(resolver)
                 ?: return null

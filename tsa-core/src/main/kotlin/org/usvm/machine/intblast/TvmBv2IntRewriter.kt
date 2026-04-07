@@ -53,27 +53,6 @@ class TvmBv2IntRewriter(
             ctx.mkIntMod(arg0, arg1)
         }
 
-    override fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort> =
-        transformExprAfterTransformedBv2Int(
-            expr = expr,
-            dependency0 = expr.lhs,
-            dependency1 = expr.rhs,
-            preprocessMode = NORMALIZED_SIGNED,
-            postRewriteMode = NORMALIZED_SIGNED,
-        ) { arg0: KExpr<KIntSort>, arg1: KExpr<KIntSort> ->
-            ctx.mkArithAdd(arg0, arg1)
-        }
-
-    override fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort> =
-        transformExprAfterTransformedBv2Int(
-            expr = expr,
-            dependency = expr.arg,
-            preprocessMode = NORMALIZED_SIGNED,
-            postRewriteMode = NORMALIZED_SIGNED,
-        ) { arg: KExpr<KIntSort> ->
-            ctx.mkArithUnaryMinus(arg)
-        }
-
     override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
         error("Should be removed by now")
     }

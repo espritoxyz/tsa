@@ -51,6 +51,7 @@ class CalculatedTlbLabelInfoTest {
             dummyComponents.typeSystem,
             TvmInputInfo(),
             TvmManualStateProcessor(),
+            interestingExitCodes = emptySet(),
         )
     private val dummyState =
         dummyInterpreter.getInitialState(

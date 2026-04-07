@@ -54,6 +54,7 @@ class TvmMachine(
         inputInfo: TvmInputInfo = TvmInputInfo(),
         manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
         additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
+        interestingExitCodes: Set<Int>,
     ): List<TvmState> =
         analyze(
             listOf(contractCode),
@@ -65,6 +66,7 @@ class TvmMachine(
             inputInfo,
             manualStateProcessor = manualStateProcessor,
             additionalStopStrategy = additionalStopStrategy,
+            interestingExitCodes,
         )
 
     fun analyze(
@@ -77,6 +79,7 @@ class TvmMachine(
         inputInfo: TvmInputInfo = TvmInputInfo(),
         manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),
         additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
+        interestingExitCodes: Set<Int>,
     ): List<TvmState> {
         val interpreter =
             TvmInterpreter(
@@ -85,6 +88,7 @@ class TvmMachine(
                 typeSystem = components.typeSystem,
                 inputInfo = inputInfo,
                 manualStateProcessor,
+                interestingExitCodes = interestingExitCodes,
             )
         logger.debug("{}.analyze({})", this, contractsCode)
 

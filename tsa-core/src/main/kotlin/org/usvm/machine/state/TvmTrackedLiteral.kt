@@ -14,3 +14,5 @@ class TvmSignatureCheckLiteral : TvmTrackedLiteral("signature_check")
 class TvmCreatedAt : TvmTrackedLiteral("created_at")
 
 class TvmCreatedLt : TvmTrackedLiteral("created_lt")
+
+class TvmTime : TvmTrackedLiteral("time")

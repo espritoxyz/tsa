@@ -188,6 +188,7 @@ fun performAnalysisInterContract(
             inputInfo = inputInfo,
             concreteContractData = concreteContractData,
             additionalStopStrategy = additionalStopStrategy,
+            interestingExitCodes = analysisOptions.stopWhenExitCodesFound.toSet(),
         )
 
     writeCoveredInstructions(analysisOptions, result)

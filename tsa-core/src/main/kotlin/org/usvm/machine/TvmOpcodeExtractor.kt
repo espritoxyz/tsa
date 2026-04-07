@@ -50,6 +50,7 @@ class TvmOpcodeExtractor(
                     concreteGeneralData = TvmConcreteGeneralData(),
                     concreteContractData = TvmConcreteContractData(),
                     manualStateProcessor = StatePostprocessor(opcodes, this),
+                    interestingExitCodes = emptySet(),
                 )
 
             states.forEach { state ->

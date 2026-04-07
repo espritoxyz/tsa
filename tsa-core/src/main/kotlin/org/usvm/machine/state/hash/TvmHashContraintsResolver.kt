@@ -36,9 +36,7 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.intblast.TvmAddition
 import org.usvm.machine.intblast.TvmMultiplication
-import org.usvm.machine.intblast.TvmNegation
 import org.usvm.machine.intblast.TvmSignedDivision
 import org.usvm.machine.intblast.TvmSignedModulo
 import org.usvm.machine.intblast.TvmTransformer
@@ -120,7 +118,7 @@ class TvmHashConstraintsResolver(
                 return null
             }
 
-            val resolver = TvmTestStateResolver(ctx, state.models.first(), state)
+            val resolver = TvmTestStateResolver(ctx, state.tvmModels.first(), state)
             val value =
                 resolver.resolveRef(concreteRef) as? TvmTestCellValue
                     ?: error("Unexpected resolver value")
@@ -214,10 +212,6 @@ class TvmHashConstraintsResolver(
         override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> = expr
 
         override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> = expr
-
-        override fun <Sort : KBvSort> transform(expr: TvmAddition<Sort>): UExpr<Sort> = expr
-
-        override fun <Sort : KBvSort> transform(expr: TvmNegation<Sort>): UExpr<Sort> = expr
 
         override fun <Sort : USort> transform(expr: URegisterReading<Sort>): KExpr<Sort> = expr
 

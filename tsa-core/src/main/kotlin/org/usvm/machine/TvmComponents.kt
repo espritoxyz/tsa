@@ -74,8 +74,17 @@ class TvmComponents(
             KZ3Solver(ctx).apply {
                 configure {
                     optimizeForTheories(setOf(KTheory.UF, KTheory.Array, KTheory.LIA, KTheory.NIA))
+                    setBoolParameter("auto_config", false)
+                    setIntParameter("bv.solver", 2)
+                    setIntParameter("phase_selection", 3)
+                    setIntParameter("case_split", 1)
+                    setIntParameter("arith.nl.delay", 100)
+                    setBoolParameter("arith.nl.expensive_patching", true)
+                    setBoolParameter("arith.nl.expp", true)
+                    setBoolParameter("candidate_models", true)
                 }
             }
+
         val solver =
             Bv2IntSolverWrapper(
                 options = options,
@@ -121,6 +130,9 @@ class TvmComponents(
         override fun check(timeout: Duration): KSolverStatus =
             internalSolver.check(timeout).also { status ->
                 logger.debug("Forked with status: {}", status)
+                if (status == KSolverStatus.UNKNOWN) {
+                    println("here")
+                }
             }
 
         override fun checkWithAssumptions(
