@@ -24,7 +24,7 @@ dependencies {
 }
 
 tasks.test {
-    maxHeapSize = "2048m"
+    maxHeapSize = "4096m"
     testLogging {
         showStandardStreams = true
         events = setOf(TestLogEvent.PASSED, TestLogEvent.FAILED, TestLogEvent.SKIPPED, TestLogEvent.STARTED)
