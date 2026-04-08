@@ -1,5 +1,6 @@
 package org.ton.examples.cell
 
+import org.junit.jupiter.api.Disabled
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.compareSymbolicAndConcreteFromResource
@@ -18,6 +19,7 @@ class CellBuildTest {
     private val splitFuncs: String = "/cell/split.fc"
     private val cutfirstFunc: String = "/cell/scutfirst.fc"
     private val skipfirst: String = "/cell/sskipfirst.fc"
+    private val configParamFunc: String = "/cell/config-param.fc"
     private val cdatasizeqFunc: String = "/cell/cdatasizeq.fc"
 
     /**
@@ -84,5 +86,11 @@ class CellBuildTest {
     @Test
     fun `skip first functions`() {
         compareSymbolicAndConcreteResultsFunc(skipfirst, (0..8).toSet())
+    }
+
+    @Disabled
+    @Test
+    fun `config param`() {
+        compareSymbolicAndConcreteResultsFunc(configParamFunc, (0..0).toSet())
     }
 }
