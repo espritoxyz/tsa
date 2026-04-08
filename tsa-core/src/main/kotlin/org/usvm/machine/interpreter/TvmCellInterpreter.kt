@@ -83,6 +83,7 @@ import org.ton.bytecode.TvmCellParsePlduxInst
 import org.ton.bytecode.TvmCellParsePlduxqInst
 import org.ton.bytecode.TvmCellParseSbitrefsInst
 import org.ton.bytecode.TvmCellParseSbitsInst
+import org.ton.bytecode.TvmCellParseScutfirstInst
 import org.ton.bytecode.TvmCellParseScutlastInst
 import org.ton.bytecode.TvmCellParseSdbeginsInst
 import org.ton.bytecode.TvmCellParseSdbeginsqInst
@@ -96,6 +97,7 @@ import org.ton.bytecode.TvmCellParseSdskiplastInst
 import org.ton.bytecode.TvmCellParseSdsubstrInst
 import org.ton.bytecode.TvmCellParseSplitInst
 import org.ton.bytecode.TvmCellParseSrefsInst
+import org.ton.bytecode.TvmCellParseSskipfirstInst
 import org.ton.bytecode.TvmCellParseSskiplastInst
 import org.ton.bytecode.TvmCellParseXctosInst
 import org.ton.bytecode.TvmInst
@@ -165,6 +167,7 @@ import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.state.takeLastSliceOrThrowTypeError
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.machine.state.writeCellRef
+import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataIntegerRead
@@ -173,6 +176,7 @@ import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.TvmSliceType
+import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.assertEndOfCell
 import org.usvm.machine.types.copyTlbToNewBuilder
 import org.usvm.machine.types.makeCellToSlice
@@ -685,6 +689,14 @@ class TvmCellInterpreter(
                     visitSplitInst(scope, stmt)
                 }
 
+                is TvmCellParseScutfirstInst -> {
+                    visitCutFirst(scope, stmt)
+                }
+
+                is TvmCellParseSskipfirstInst -> {
+                    visitSkipFirst(scope, stmt)
+                }
+
                 else -> {
                     TODO("Unknown stmt: $stmt")
                 }
@@ -786,9 +798,13 @@ class TvmCellInterpreter(
         )
     }
 
-    fun visitSplitInst(
+    /**
+     * @param doWithParts `leftSlice, rightSlice -> [stack operations]`
+     */
+    fun performSliceAndRefsCut(
         scope: TvmStepScopeManager,
-        stmt: TvmCellParseSplitInst,
+        stmt: TvmCellParseInst,
+        doWithParts: TvmState.(SliceRef, SliceRef) -> Unit,
     ) {
         scope.consumeDefaultGas(stmt)
         val rRaw =
@@ -859,10 +875,37 @@ class TvmCellInterpreter(
                         copy
                     }
 
-                stack.addSlice(sLeft)
-                stack.addSlice(sRight)
+                doWithParts(sLeft.asSliceRef(), sRight)
                 newStmt(stmt.nextStmt())
             }
+        }
+    }
+
+    fun visitSplitInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmCellParseSplitInst,
+    ) {
+        performSliceAndRefsCut(scope, stmt) { left, right ->
+            stack.addSlice(left)
+            stack.addSlice(right)
+        }
+    }
+
+    fun visitCutFirst(
+        scope: TvmStepScopeManager,
+        stmt: TvmCellParseScutfirstInst,
+    ) {
+        performSliceAndRefsCut(scope, stmt) { left, _ ->
+            stack.addSlice(left)
+        }
+    }
+
+    fun visitSkipFirst(
+        scope: TvmStepScopeManager,
+        stmt: TvmCellParseSskipfirstInst,
+    ) {
+        performSliceAndRefsCut(scope, stmt) { _, right ->
+            stack.addSlice(right)
         }
     }
 

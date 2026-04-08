@@ -1481,7 +1481,7 @@ fun TvmStepScopeManager.sliceLoadBitArrayTlb(
                 val bits = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
                 val cell = calcOnState { allocEmptyCell() }
 
-                builderStoreDataBits(cell, cell, bits, ctx.mkSizeExpr(bits.sort.sizeBits.toInt()))
+                builderStoreDataBits(cell, cell, bits, sizeBits)
                     ?: return@makeSliceTypeLoad
 
                 calcOnState { allocSliceFromCell(cell) }

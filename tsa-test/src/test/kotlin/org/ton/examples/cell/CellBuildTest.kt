@@ -16,6 +16,8 @@ class CellBuildTest {
     private val sdpfxFunc: String = "/cell/sdpfx.fc"
     private val sdpfxrevFunc: String = "/cell/sdpfxrev.fc"
     private val splitFuncs: String = "/cell/split.fc"
+    private val cutfirstFunc: String = "/cell/scutfirst.fc"
+    private val skipfirst: String = "/cell/sskipfirst.fc"
     private val cdatasizeqFunc: String = "/cell/cdatasizeq.fc"
 
     /**
@@ -72,5 +74,15 @@ class CellBuildTest {
     @Test
     fun `test split functions`() {
         compareSymbolicAndConcreteResultsFunc(splitFuncs, (0..9).toSet())
+    }
+
+    @Test
+    fun `cut first functions`() {
+        compareSymbolicAndConcreteResultsFunc(cutfirstFunc, (0..8).toSet())
+    }
+
+    @Test
+    fun `skip first functions`() {
+        compareSymbolicAndConcreteResultsFunc(skipfirst, (0..8).toSet())
     }
 }
