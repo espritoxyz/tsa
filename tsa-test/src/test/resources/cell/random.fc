@@ -1,0 +1,52 @@
+#include "../imports/stdlib.fc";
+
+
+(int) test0() impure method_id (0) {
+    set_seed(0);
+    var value = random();
+    throw(value & 0xFFFF);
+    return 0;
+}
+
+(int) test1() impure method_id (1) {
+    set_seed(100);
+    var value = random();
+    throw(value & 0xFFFF);
+    return 0;
+}
+
+(int) test2() impure method_id (2) {
+    set_seed(100);
+    set_seed(200);
+    var value = random();
+    throw(value & 0xFFFF);
+    return 0;
+}
+
+(int) test3() impure method_id (3) {
+    set_seed(100);
+    var value1 = random();
+    var value2 = random();
+    throw((value1 + value2) & 0xFFFF);
+    return 0;
+}
+
+(int) test4() impure method_id (4) {
+    set_seed(100);
+    randomize(50);
+    var value = random();
+    throw(value & 0xFFFF);
+    return 0;
+}
+
+(int) test5() impure method_id (5) {
+    set_seed(100);
+    var value = rand(100);
+    throw(value);
+    return 0;
+}
+
+(int) test6() impure method_id (6) {
+    set_seed(-1);
+    return 0;
+}

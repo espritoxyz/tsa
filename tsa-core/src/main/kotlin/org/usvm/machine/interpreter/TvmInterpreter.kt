@@ -4,6 +4,7 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
+import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -29,6 +30,9 @@ import org.ton.bytecode.TvmAppGasInst
 import org.ton.bytecode.TvmAppGlobalInst
 import org.ton.bytecode.TvmAppRndAddrandInst
 import org.ton.bytecode.TvmAppRndInst
+import org.ton.bytecode.TvmAppRndRandInst
+import org.ton.bytecode.TvmAppRndRandu256Inst
+import org.ton.bytecode.TvmAppRndSetrandInst
 import org.ton.bytecode.TvmAppMiscCdatasizeqInst
 import org.ton.bytecode.TvmArithmBasicAddInst
 import org.ton.bytecode.TvmArithmBasicAddconstInst
@@ -228,6 +232,7 @@ import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
@@ -256,6 +261,7 @@ import org.usvm.machine.state.CDataSizeDistinctCells
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TvmInitialStateData
+import org.usvm.machine.state.TvmIntegerOutOfRangeError
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmResult
@@ -285,6 +291,7 @@ import org.usvm.machine.state.callMethod
 import org.usvm.machine.state.checkIntegerOverflow
 import org.usvm.machine.state.checkIntegerUnderflow
 import org.usvm.machine.state.checkOutOfRange
+import org.usvm.machine.state.consumeConstantGas
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.createSliceIsEmptyConstraint
@@ -327,6 +334,7 @@ import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setContractInfoParam
+import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceLoadBitArrayTlb
@@ -859,15 +867,18 @@ class TvmInterpreter(
         }
     }
 
+    private fun ByteArray.toUnsignedBigInt(): BigInteger = BigInteger(1, this)
+
     private fun visitRandInst(
         stmt: TvmAppRndInst,
         scope: TvmStepScopeManager,
     ) {
         when (stmt) {
             is TvmAppRndAddrandInst -> {
+                scope.consumeConstantGas(26)
                 val currentSeedStackValue =
                     scope.calcOnState {
-                        getContractInfoParam(SEED_PARAMETER_IDX)
+                        getContractInfoParam(SEED_PARAMETER_IDX).intValue
                     }
                 val currentSeed =
                     (currentSeedStackValue as? KBitVecValue<*>)
@@ -882,30 +893,151 @@ class TvmInterpreter(
                         ?.toBigIntegerUnsigned()
                         ?: error("Only concrete arguments are supported for rnd")
 
-                val digest =
+                val sha256 =
                     MessageDigest.getInstance("SHA-256")
                         ?: error("Failed to extract SHA-256 digester")
                 val concat =
-                    currentSeed.toByteArray().toList().padByteArrayTo256bit() +
-                        concreteArgument.toByteArray().toList().padByteArrayTo256bit()
-                val result = BigInteger(digest.digest(concat.toByteArray()))
+                    currentSeed.toByteArray().toList().toBigEndianTo32Bytes() +
+                        concreteArgument.toByteArray().toList().toBigEndianTo32Bytes()
+                val newSeed = sha256.digest(concat.toByteArray()).toUnsignedBigInt()
                 scope.calcOnState {
-                    setContractInfoParam(
-                        SEED_PARAMETER_IDX,
-                        TvmConcreteStackEntry(TvmStack.TvmStackIntValue(with(ctx) { result.toBv257() })),
-                    )
+                    setSeed(newSeed)
+                    newStmt(stmt.nextStmt())
                 }
             }
 
-            else -> {
-                TODO("$stmt")
+            is TvmAppRndSetrandInst -> {
+                scope.consumeConstantGas(26)
+                val argument =
+                    scope.calcOnState {
+                        takeLastIntOrThrowTypeError()
+                    } ?: return
+                require(argument is KBitVecValue<*>) {
+                    "Only concrete arguments are supported for rnd"
+                }
+
+                scope.calcOnState {
+                    setSeed(argument)
+                    newStmt(stmt.nextStmt())
+                }
+            }
+
+            is TvmAppRndRandu256Inst -> {
+                scope.consumeConstantGas(26)
+                val currentSeedStackValue = scope.calcOnState { getContractInfoParam(SEED_PARAMETER_IDX).intValue }
+                val currentSeed =
+                    (currentSeedStackValue as? KBitVecValue<*>)
+                        ?.toBigIntegerSigned()
+                        ?: error("Seed is not a concrete integer")
+
+                check(currentSeed >= 0.toBigInteger()) {
+                    "Seed must always be non-negative"
+                }
+                val (newSeed, newValue) = extractRandomFromSeed(currentSeed)
+                scope.calcOnState {
+                    setSeed(newSeed)
+                    stack.addInt(with(ctx) { newValue.toBv257() })
+                    newStmt(stmt.nextStmt())
+                }
+            }
+
+            is TvmAppRndRandInst -> {
+                scope.consumeConstantGas(26)
+                val bound =
+                    scope.calcOnState {
+                        takeLastIntOrThrowTypeError()
+                    } ?: return
+                val currentSeedStackValue =
+                    scope.calcOnState { getContractInfoParam(SEED_PARAMETER_IDX).intValue }
+                val currentSeed =
+                    (currentSeedStackValue as? KBitVecValue<*>)
+                        ?.toBigIntegerSigned()
+                        ?: error("Seed is not a concrete integer")
+
+                check(currentSeed >= 0.toBigInteger()) {
+                    scope.calcOnState {
+                        ctx.setFailure(TvmIntegerOutOfRangeError)
+                    }
+                    return
+                }
+                val (newSeed, newValue) = extractRandomFromSeed(currentSeed)
+                scope.calcOnState { setSeed(newSeed) }
+
+                val option1 = true
+                val result =
+                    if (option1) {
+                        with(ctx) {
+                            require(bound is KBitVecValue<*>) {
+                                "Only concrete bound is supported"
+                            }
+                            (bound.bigIntValue() * newValue).div(2.toBigInteger().pow(256)).toBv257()
+                        }
+                    } else {
+                        with(ctx) {
+                            val mulExtended =
+                                mkBvMulExpr(
+                                    bound.signExtendToSort(int257Ext256Sort),
+                                    newValue.toBv257().signExtendToSort(int257Ext256Sort),
+                                )
+
+                            val t =
+                                mkBvShiftLeftExpr(
+                                    oneValue.signExtendToSort(int257Ext256Sort),
+                                    256.toBv257().signExtendToSort(int257Ext256Sort),
+                                )
+                            val div = makeDiv(mulExtended, t)
+                            div.value.extractToInt257Sort()
+                        }
+                    }
+
+                scope.calcOnState {
+                    stack.addInt(result)
+                    newStmt(stmt.nextStmt())
+                }
             }
         }
     }
 
-    private fun List<Byte>.padByteArrayTo256bit(): List<Byte> {
-        val left = 32 - this.size
-        return this + List(left) { 0.toByte() }
+    private fun TvmState.setSeed(newSeed: BigInteger) {
+        setContractInfoParam(
+            SEED_PARAMETER_IDX,
+            TvmConcreteStackEntry(TvmStack.TvmStackIntValue(with(ctx) { newSeed.toBv257() })),
+        )
+    }
+
+    private fun TvmState.setSeed(newSeed: Int257Expr) {
+        setContractInfoParam(
+            SEED_PARAMETER_IDX,
+            TvmConcreteStackEntry(TvmStack.TvmStackIntValue(with(ctx) { newSeed })),
+        )
+    }
+
+    /**
+     * @return `(newSeed, extractedValue)`
+     */
+    private fun extractRandomFromSeed(currentSeed: BigInteger): Pair<BigInteger, BigInteger> {
+        val sha512 =
+            MessageDigest.getInstance("SHA-512")
+                ?: error("Failed to extract SHA-512 digester")
+        val result =
+            sha512
+                .digest(
+                    currentSeed
+                        .toByteArray()
+                        .toList()
+                        .toBigEndianTo32Bytes()
+                        .toByteArray(),
+                ).toList()
+        val newSeed = result.subList(0, 32).toByteArray().toUnsignedBigInt()
+        val newValue = result.subList(32, 64).toByteArray().toUnsignedBigInt()
+        return Pair(newSeed, newValue)
+    }
+
+    private fun List<Byte>.toBigEndianTo32Bytes(): List<Byte> {
+        val clearedLeadingZeros = this.dropWhile { it == 0.toByte() }
+        val left = 32 - clearedLeadingZeros.size
+        check(left >= 0) { "failed to cast big endian" }
+        return List(left) { 0.toByte() } + clearedLeadingZeros
     }
 
     private fun visitCdatasizeInst(

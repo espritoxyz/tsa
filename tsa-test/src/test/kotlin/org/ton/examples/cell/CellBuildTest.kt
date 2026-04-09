@@ -20,6 +20,7 @@ class CellBuildTest {
     private val cutfirstFunc: String = "/cell/scutfirst.fc"
     private val skipfirst: String = "/cell/sskipfirst.fc"
     private val configParamFunc: String = "/cell/config-param.fc"
+    private val randomFunc: String = "/cell/random.fc"
     private val cdatasizeqFunc: String = "/cell/cdatasizeq.fc"
 
     /**
@@ -92,5 +93,16 @@ class CellBuildTest {
     @Test
     fun `config param`() {
         compareSymbolicAndConcreteResultsFunc(configParamFunc, (0..0).toSet())
+    }
+
+    /**
+     * Sandbox (i.e. `TvmExecutor.executeGeneratedTests`) is used here for proper initialization of c7 register
+     */
+    @Test
+    fun `random instructions`() {
+        val path = extractResource(randomFunc)
+        val results = funcCompileAndAnalyzeAllMethods(path)
+        assert(results.testSuites.all { it.tests.size == 1 }) // concrete execution
+        TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
     }
 }
