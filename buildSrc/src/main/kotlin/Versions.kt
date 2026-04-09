@@ -2,7 +2,7 @@ object Versions {
     const val klogging = "1.8.3"
     const val slf4j = "2.0.16"
     const val ksmt = "0.6.3"
-    const val ksmtBv2Int = "c831f10cba"
+    const val ksmtBv2Int = "de63aa87ae"
     const val clikt = "4.3.0"
     const val collections = "0.3.5"
     const val kotlinx_serialization = "1.4.1"

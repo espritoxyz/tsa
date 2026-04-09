@@ -160,11 +160,8 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         assertions.clear()
         trackedAssertions.clear()
 
-        if (transformer.visitedHardExpression && !isRewriteSolver) {
-            logger.debug("Switched to int solver")
-            isRewriteSolver = true
-            encounterdBvExpr = false
-        }
+        transformer.visitedHardExpression = false
+        encounterdBvExpr = false
     }
 
     private inline fun wrappedCheck(check: () -> KSolverStatus): KSolverStatus {
