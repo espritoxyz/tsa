@@ -1,8 +1,10 @@
 package org.usvm.machine.interpreter
 
+import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
+import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentMap
@@ -13,6 +15,7 @@ import org.ton.TvmParameterInfo
 import org.ton.TvmParameterInfo.CellInfo
 import org.ton.TvmParameterInfo.SliceInfo
 import org.ton.bytecode.MethodId
+import org.ton.bytecode.SEED_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialExecuteContInst
 import org.ton.bytecode.TsaArtificialLoopEntranceInst
 import org.ton.bytecode.TsaArtificialPostprocessInst
@@ -24,6 +27,8 @@ import org.ton.bytecode.TvmAppCryptoInst
 import org.ton.bytecode.TvmAppCurrencyInst
 import org.ton.bytecode.TvmAppGasInst
 import org.ton.bytecode.TvmAppGlobalInst
+import org.ton.bytecode.TvmAppRndAddrandInst
+import org.ton.bytecode.TvmAppRndInst
 import org.ton.bytecode.TvmAppMiscCdatasizeqInst
 import org.ton.bytecode.TvmArithmBasicAddInst
 import org.ton.bytecode.TvmArithmBasicAddconstInst
@@ -254,6 +259,7 @@ import org.usvm.machine.state.TvmInitialStateData
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmResult
+import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackSliceValue
@@ -302,6 +308,7 @@ import org.usvm.machine.state.doXchg3
 import org.usvm.machine.state.generateSymbolicCell
 import org.usvm.machine.state.generateSymbolicTime
 import org.usvm.machine.state.getBalance
+import org.usvm.machine.state.getContractInfoParam
 import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.initContractInfo
@@ -319,6 +326,7 @@ import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
+import org.usvm.machine.state.setContractInfoParam
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceLoadBitArrayTlb
@@ -352,6 +360,7 @@ import org.usvm.solver.USatResult
 import org.usvm.targets.UTargetsSet
 import org.usvm.test.resolver.TvmTestStateResolver
 import java.math.BigInteger
+import java.security.MessageDigest
 
 // TODO there are a lot of `scope.calcOnState` and `scope.doWithState` invocations that are not inline - optimize it
 class TvmInterpreter(
@@ -844,9 +853,59 @@ class TvmInterpreter(
             is TvmAppGasInst -> gasInterpreter.visitGasInst(scope, stmt)
             is TvmAppGlobalInst -> globalsInterpreter.visitGlobalInst(scope, stmt)
             is TvmContStackInst -> contStackInterpreter.visitContStackInst(scope, stmt)
+            is TvmAppRndInst -> visitRandInst(stmt, scope)
             is TvmAppMiscCdatasizeqInst -> visitCdatasizeInst(scope, stmt)
             else -> TODO("$stmt")
         }
+    }
+
+    private fun visitRandInst(
+        stmt: TvmAppRndInst,
+        scope: TvmStepScopeManager,
+    ) {
+        when (stmt) {
+            is TvmAppRndAddrandInst -> {
+                val currentSeedStackValue =
+                    scope.calcOnState {
+                        getContractInfoParam(SEED_PARAMETER_IDX)
+                    }
+                val currentSeed =
+                    (currentSeedStackValue as? KBitVecValue<*>)
+                        ?.toBigIntegerUnsigned()
+                        ?: error("Seed is not a concrete integer")
+                val argument =
+                    scope.calcOnState {
+                        takeLastIntOrThrowTypeError()
+                    } ?: return
+                val concreteArgument =
+                    (argument as? KBitVecValue<*>)
+                        ?.toBigIntegerUnsigned()
+                        ?: error("Only concrete arguments are supported for rnd")
+
+                val digest =
+                    MessageDigest.getInstance("SHA-256")
+                        ?: error("Failed to extract SHA-256 digester")
+                val concat =
+                    currentSeed.toByteArray().toList().padByteArrayTo256bit() +
+                        concreteArgument.toByteArray().toList().padByteArrayTo256bit()
+                val result = BigInteger(digest.digest(concat.toByteArray()))
+                scope.calcOnState {
+                    setContractInfoParam(
+                        SEED_PARAMETER_IDX,
+                        TvmConcreteStackEntry(TvmStack.TvmStackIntValue(with(ctx) { result.toBv257() })),
+                    )
+                }
+            }
+
+            else -> {
+                TODO("$stmt")
+            }
+        }
+    }
+
+    private fun List<Byte>.padByteArrayTo256bit(): List<Byte> {
+        val left = 32 - this.size
+        return this + List(left) { 0.toByte() }
     }
 
     private fun visitCdatasizeInst(
