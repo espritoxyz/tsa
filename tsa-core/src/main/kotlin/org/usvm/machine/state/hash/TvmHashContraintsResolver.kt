@@ -239,17 +239,19 @@ class TvmHashConstraintsResolver(
 
         override fun <T : USort> transform(expr: KEqExpr<T>): KExpr<KBoolSort> =
             transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-                val groups = groupIntoParts(l.uncheckedCast(), r.uncheckedCast())
-                if (groups != null && groups.size > 1) {
-                    val propagated =
-                        groups.map {
-                            processHashEquality(it.first, it.second)
-                                ?: ctx.mkEq(it.first, it.second)
-                        }
-                    return propagated
-                        .reduce { acc, expr ->
-                            ctx.mkAnd(acc, expr)
-                        }.uncheckedCast()
+                if (l.sort is KBvSort && r.sort is KBvSort) {
+                    val groups = groupIntoParts(l.uncheckedCast(), r.uncheckedCast())
+                    if (groups != null && groups.size > 1) {
+                        val propagated =
+                            groups.map {
+                                processHashEquality(it.first, it.second)
+                                    ?: ctx.mkEq(it.first, it.second)
+                            }
+                        return propagated
+                            .reduce { acc, expr ->
+                                ctx.mkAnd(acc, expr)
+                            }.uncheckedCast()
+                    }
                 }
 
                 processHashEquality(l, r)

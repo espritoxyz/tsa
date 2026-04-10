@@ -28,7 +28,6 @@ class CroutonfiOldTest {
     private val poolCodePath = "/intercontract/croutonfi-old/pool_code.boc"
     private val poolDataPath = "/intercontract/croutonfi-old/pool_data.boc"
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun findTonDrain() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)
