@@ -293,4 +293,7 @@ data class TvmUserDefinedFailure(
     override fun toString(): String = "TVM user defined error with exit code $exitCode"
 }
 
-fun TvmResult.isExceptional(): Boolean = this is TvmResult.TvmFailure || this is TvmStructuralError
+fun TvmResult.isExceptional(): Boolean =
+    this is TvmResult.TvmFailure ||
+        this is TvmStructuralError ||
+        this is TvmAbstractSoftFailure

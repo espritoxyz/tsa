@@ -107,7 +107,7 @@ data class TlbCommonMessageInfo(
                     }
                 scope.fork(
                     condition = with(scope.ctx) { destSliceSize bvUgt 2.toSizeSort() },
-                    falseStateIsExceptional = false, // soft failure
+                    falseStateIsExceptional = true,
                     blockOnFalseState = { throwBadDestinationAddress(this) },
                 ) ?: return@extractFromSlice null
 

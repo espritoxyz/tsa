@@ -32,6 +32,7 @@ import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
+import org.usvm.machine.state.TvmFailureType
 import org.usvm.machine.state.TvmFwdFee
 import org.usvm.machine.state.TvmReserveMode4NotFirst
 import org.usvm.machine.state.TvmResult
@@ -323,6 +324,7 @@ class TvmTransactionInterpreter(
                         currentMessageHandlingState,
                         head,
                         calcOnState { currentContract },
+                        definitelyNotIgnoreError = false,
                     ) { newState ->
                         handleActionsImpl(tail, newState, restActions)
                     }
@@ -351,6 +353,7 @@ class TvmTransactionInterpreter(
             initMsgValue = messageValue,
             currentState = currentMessageHandlingState,
             currentMessage = currentMessage,
+            sendIgnoreErrors = sendIgnoreErrors,
         ) { newCurrentState ->
             val actions =
                 listOf(
@@ -399,6 +402,7 @@ class TvmTransactionInterpreter(
         currentMessageHandlingState: MessageHandlingState,
         reserveAction: ParsedReserveAction,
         currentContractId: ContractId,
+        definitelyNotIgnoreError: Boolean,
         restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
     ) {
         val mode = ReserveMode(reserveAction.mode)
@@ -454,6 +458,7 @@ class TvmTransactionInterpreter(
             this,
             currentMessageHandlingState,
             listOf(transformation),
+            definitelyNotIgnoreError,
         ) { newCurrentState: MessageHandlingState ->
             restActions(newCurrentState)
         }
@@ -635,6 +640,7 @@ class TvmTransactionInterpreter(
         scope: TvmStepScopeManager,
         currentState: MessageHandlingState,
         transformations: List<List<CondTransform>>,
+        definitelyNotIgnoreError: Boolean,
         restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
     ) {
         if (currentState is MessageHandlingState.Failure) {
@@ -652,15 +658,48 @@ class TvmTransactionInterpreter(
                 if (predicate.isFalse) {
                     return@mapNotNull null
                 }
+                val updatedMessageHandlingState = currentState.applyTransform(it.transform)
+                val error =
+                    when (updatedMessageHandlingState) {
+                        is MessageHandlingState.RealFailure -> {
+                            TvmResult.TvmFailure(
+                                updatedMessageHandlingState.exit,
+                                TvmFailureType.UnknownError,
+                                scope.calcOnState { phase },
+                                scope.calcOnState { pathNode },
+                            )
+                        }
+
+                        is MessageHandlingState.SoftFailure -> {
+                            TvmResult.TvmSoftFailure(updatedMessageHandlingState.exit, scope.calcOnState { phase })
+                        }
+
+                        is MessageHandlingState.Ok -> {
+                            null
+                        }
+                    }
+                val (isActionExceptional, action) =
+                    if (error != null && definitelyNotIgnoreError) {
+                        true to
+
+                            fun TvmState.() {
+                                setExit(error)
+                            }
+                    } else {
+                        false to
+
+                            fun TvmState.() {}
+                    }
+
                 TvmStepScopeManager.ActionOnCondition(
-                    {},
-                    false,
+                    action,
+                    isActionExceptional,
                     predicate,
-                    currentState.applyTransform(it.transform),
+                    updatedMessageHandlingState,
                 )
             }
         scope.doWithConditions(actions) { updatedState ->
-            applyConsecutiveTransformations(this, updatedState, tail, restActions)
+            applyConsecutiveTransformations(this, updatedState, tail, definitelyNotIgnoreError, restActions)
         }
     }
 
@@ -673,6 +712,7 @@ class TvmTransactionInterpreter(
         initMsgValue: Int257Expr,
         currentState: MessageHandlingState,
         currentMessage: ParsedMessageWithResolvedReceiver,
+        sendIgnoreErrors: UBoolExpr,
         restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
     ) {
         val fwdFeeSymbolic =
@@ -697,6 +737,7 @@ class TvmTransactionInterpreter(
         scope.doWithState {
             forwardFees = forwardFees.add(fwdFeeInfo)
         }
+        val isDefinitelyNotIgnoreError = sendIgnoreErrors.isFalse
 
         when (currentState) {
             is MessageHandlingState.Failure -> {
@@ -720,6 +761,7 @@ class TvmTransactionInterpreter(
                     scope,
                     initialState,
                     transformations,
+                    isDefinitelyNotIgnoreError,
                     restActions,
                 )
             }
