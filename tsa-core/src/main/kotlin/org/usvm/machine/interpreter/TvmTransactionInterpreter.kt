@@ -31,6 +31,7 @@ import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
+import org.usvm.machine.state.TvmFwdFee
 import org.usvm.machine.state.TvmReserveMode4NotFirst
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmState
@@ -673,7 +674,12 @@ class TvmTransactionInterpreter(
     ) {
         val fwdFeeSymbolic =
             scope.calcOnState {
-                with(ctx) { makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_FWD_FEE)).zeroExtendToSort(int257sort) }
+                with(ctx) {
+                    makeSymbolicPrimitive(
+                        mkBvSort(TvmContext.BITS_FOR_FWD_FEE),
+                        TvmFwdFee(),
+                    ).zeroExtendToSort(int257sort)
+                }
             }
         val content = currentMessage.content
         requireNotNull(content) {

@@ -254,7 +254,7 @@ fun TvmState.initContractInfo(
 
         val initialBalance =
             if (concreteData.initialBalance == null) {
-                makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE)).zeroExtendToSort(int257sort)
+                makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE), TvmBalance()).zeroExtendToSort(int257sort)
             } else {
                 concreteData.initialBalance.toBv257()
             }

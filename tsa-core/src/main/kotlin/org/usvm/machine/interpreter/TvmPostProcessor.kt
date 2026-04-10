@@ -8,6 +8,7 @@ import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
@@ -63,10 +64,20 @@ class TvmPostProcessor(
                 hashEqualityTransformer.generateNewPathConstraints()
                     ?: return null
             if (newPathConstraints != state.pathConstraints) {
-                val solverResult = solver<TvmType>().check(newPathConstraints)
                 val newModel =
-                    (solverResult as? USatResult)?.model?.wrap(ctx)
-                        ?: return@with null
+                    if (newPathConstraints.tvmConstraintsSequence().all {
+                            state.models
+                                .first()
+                                .eval(it)
+                                .isTrue
+                        }
+                    ) {
+                        state.models.first()
+                    } else {
+                        val solverResult = solver<TvmType>().check(newPathConstraints)
+                        (solverResult as? USatResult)?.model?.wrap(ctx)
+                            ?: return@with null
+                    }
 
                 val newState = state.clone(newPathConstraints)
                 newState.models = listOf(newModel)

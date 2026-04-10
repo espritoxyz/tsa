@@ -655,8 +655,6 @@ class TvmInterpreter(
             return emptyList()
         }
 
-        state.phase = TvmTerminated
-
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 
         val clonedOldState =
@@ -685,6 +683,9 @@ class TvmInterpreter(
                 processAddressRandomization(clonedOldState, state)
             } else {
                 newStates.also {
+                    it.forEach { state ->
+                        state.phase = TvmTerminated
+                    }
                     if (ctx.tvmOptions.useSoftConstraints) {
                         it.forEach { state ->
                             state.applySoftConstraints()
