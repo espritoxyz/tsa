@@ -2,12 +2,15 @@ package org.ton.examples.hash
 
 import org.ton.test.gen.dsl.render.TsRenderer.ContractType
 import org.ton.test.utils.TvmTestExecutor
+import org.ton.test.utils.extractCheckerContractFromResource
+import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.TlbOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
+import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Ignore
 import kotlin.test.Test
@@ -15,6 +18,9 @@ import kotlin.test.Test
 class HashEqualityTest {
     private val hashEqPath = "/hash/hash_eq.fc"
     private val hashEqConcretePath = "/hash/hash_eq_concrete.fc"
+
+    private val drainWithStateInitChecker = "/hash/drain-check/drain_checker_stateinit.fc"
+    private val vulnerableContract = "/hash/drain-check/vulnerable.fc"
 
     @Ignore("Current implementation of hashes doesn't solve such constraints")
     @Test
@@ -73,5 +79,33 @@ class HashEqualityTest {
         )
 
         TvmTestExecutor.executeGeneratedTests(tests, path, ContractType.Func)
+    }
+
+    @Test
+    fun testDrainWithStateInit() {
+        val checker = extractCheckerContractFromResource(drainWithStateInitChecker)
+        val contract = extractFuncContractFromResource(vulnerableContract)
+
+        val options =
+            TvmOptions(
+                stopOnFirstError = false,
+                enableOutMessageAnalysis = true,
+            )
+
+        val tests =
+            analyzeInterContract(
+                listOf(checker, contract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = options,
+            )
+
+        propertiesFound(
+            tests,
+            listOf(
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 500 },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+            ),
+        )
     }
 }

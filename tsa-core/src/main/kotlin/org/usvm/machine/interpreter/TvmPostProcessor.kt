@@ -75,7 +75,7 @@ class TvmPostProcessor(
                         state.models.first()
                     } else {
                         val solverResult = solver<TvmType>().check(newPathConstraints)
-                        (solverResult as? USatResult)?.model
+                        (solverResult as? USatResult)?.model?.wrap(ctx)
                             ?: return@with null
                     }
 

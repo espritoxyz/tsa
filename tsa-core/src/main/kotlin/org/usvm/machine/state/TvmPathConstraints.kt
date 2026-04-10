@@ -55,13 +55,12 @@ class TvmPathConstraints(
         )
     }
 
-    // exclude type constraints
+    // exclude type and equality constraints
     fun tvmConstraintsSequence(): Sequence<UBoolExpr> {
         if (isFalse) {
             return emptySequence()
         }
         return logicalConstraints.asSequence() +
-            equalityConstraints.constraints() +
             numericConstraints.constraints()
     }
 }

@@ -31,8 +31,8 @@ import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmCellUnderflowError
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
-import org.usvm.machine.state.TvmReserveMode4NotFirst
 import org.usvm.machine.state.TvmFwdFee
+import org.usvm.machine.state.TvmReserveMode4NotFirst
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocSliceFromCell

@@ -1,0 +1,44 @@
+#include "../../imports/stdlib.fc";
+
+const op::do_sale = 0x0fe0ede;
+
+() recv_internal(int balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore empty messages
+        return ();
+    }
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+
+    if (flags & 1) {  ;; ignore all bounced messages
+        return ();
+    }
+    slice sender_address = cs~load_msg_addr();
+
+    int op = in_msg_body~load_uint(32);
+
+    if (op == 555) { ;; got nft for deploy
+        int query_id = in_msg_body~load_uint(64);
+        var prev_owner = in_msg_body~load_msg_addr();
+        int sub_op = in_msg_body~load_uint(32);
+        throw_if(404, sub_op != op::do_sale);
+        (cell state_init, cell body) = (in_msg_body~load_ref(), in_msg_body~load_ref());
+        in_msg_body.end_parse();
+        int state_init_hash = cell_hash(state_init);
+        slice dest_address = begin_cell().store_int(0, 8).store_uint(state_init_hash, 256).end_cell().begin_parse();
+
+        var msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_uint(4, 3).store_slice(dest_address)
+            .store_grams(20000000) ;; 0.02 TON
+            .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+            .store_ref(state_init)
+            .store_ref(body)
+            .end_cell();
+
+        send_raw_message(msg, 64);
+
+        return ();
+    }
+
+    throw(0xffff);
+}
