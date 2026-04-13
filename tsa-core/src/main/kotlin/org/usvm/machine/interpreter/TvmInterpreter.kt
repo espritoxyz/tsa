@@ -24,6 +24,7 @@ import org.ton.bytecode.TvmAppCryptoInst
 import org.ton.bytecode.TvmAppCurrencyInst
 import org.ton.bytecode.TvmAppGasInst
 import org.ton.bytecode.TvmAppGlobalInst
+import org.ton.bytecode.TvmAppMiscCdatasizeqInst
 import org.ton.bytecode.TvmArithmBasicAddInst
 import org.ton.bytecode.TvmArithmBasicAddconstInst
 import org.ton.bytecode.TvmArithmBasicDecInst
@@ -243,7 +244,11 @@ import org.usvm.machine.state.C3Register
 import org.usvm.machine.state.C4Register
 import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.C7Register
+import org.usvm.machine.state.CDataSizeCellRefs
+import org.usvm.machine.state.CDataSizeDataBits
+import org.usvm.machine.state.CDataSizeDistinctCells
 import org.usvm.machine.state.ContractId
+import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TvmInitialStateData
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmRefEmptyValue
@@ -255,6 +260,7 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTerminated
 import org.usvm.machine.state.TvmTime
+import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
@@ -317,6 +323,7 @@ import org.usvm.machine.state.sliceLoadBitArrayTlb
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.state.takeLastCell
+import org.usvm.machine.state.takeLastCellOrThrowTypeError
 import org.usvm.machine.state.takeLastContinuation
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastSlice
@@ -828,7 +835,70 @@ class TvmInterpreter(
             is TvmAppGasInst -> gasInterpreter.visitGasInst(scope, stmt)
             is TvmAppGlobalInst -> globalsInterpreter.visitGlobalInst(scope, stmt)
             is TvmContStackInst -> contStackInterpreter.visitContStackInst(scope, stmt)
+            is TvmAppMiscCdatasizeqInst -> visitCdatasizeInst(scope, stmt)
             else -> TODO("$stmt")
+        }
+    }
+
+    private fun visitCdatasizeInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppMiscCdatasizeqInst,
+    ) {
+        scope.consumeDefaultGas(stmt)
+
+        val n =
+            scope.takeLastIntOrThrowTypeError()
+                ?: return
+        val cell =
+            scope.takeLastCellOrThrowTypeError()
+                ?: return
+        val freshPrimitive = { tracked: TvmTrackedLiteral ->
+            scope.calcOnState {
+                with(ctx) {
+                    makeSymbolicPrimitive(ctx.sizeSort, tracked).zeroExtendToSort(ctx.int257sort)
+                }
+            }
+        }
+        val info =
+            DataSizeInfo(
+                analyzedCell = cell,
+                maximumCellCount = n,
+                hasEnoughMaxCellCount = true,
+                distinctCells = freshPrimitive(CDataSizeDistinctCells()),
+                dataBits = freshPrimitive(CDataSizeDataBits()),
+                cellRefs = freshPrimitive(CDataSizeCellRefs()),
+            )
+
+        // the distinction between these variants happens during the postprocess phase
+        val actions =
+            listOf(
+                TvmStepScopeManager.ActionOnCondition(
+                    {},
+                    caseIsExceptional = false,
+                    condition = ctx.trueExpr,
+                    paramForDoForAllBlock = true,
+                ),
+                TvmStepScopeManager.ActionOnCondition(
+                    {},
+                    caseIsExceptional = false,
+                    condition = ctx.trueExpr,
+                    paramForDoForAllBlock = false,
+                ),
+            )
+        scope.doWithConditions(actions) { isSuccess ->
+            val actualInfo = info.copy(hasEnoughMaxCellCount = isSuccess)
+            calcOnState {
+                cdatasizeInfos = cdatasizeInfos.add(actualInfo)
+                if (isSuccess) {
+                    addOnStack(actualInfo.distinctCells, TvmIntegerType)
+                    addOnStack(actualInfo.dataBits, TvmIntegerType)
+                    addOnStack(actualInfo.cellRefs, TvmIntegerType)
+                    addOnStack(ctx.trueValue, TvmIntegerType)
+                } else {
+                    addOnStack(ctx.falseValue, TvmIntegerType)
+                }
+                newStmt(stmt.nextStmt())
+            }
         }
     }
 

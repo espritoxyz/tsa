@@ -43,7 +43,7 @@ fun calculateConcreteForwardFee(
 internal fun TvmContext.calculateTwoThirdLikeInTVM(value: Int257Expr): Int257Expr =
     value bvSub mkBvLogicalShiftRightExpr((value bvMul FIRST_FRAC.toBv257()), 16.toBv257())
 
-private fun calculateNumberOfBitsInUniqueCells(cells: List<Cell>): Int {
+fun calculateNumberOfBitsInUniqueCells(cells: List<Cell>): Int {
     val hashes = hashSetOf<String>()
     var result = 0
     cells.forEach {
@@ -54,7 +54,18 @@ private fun calculateNumberOfBitsInUniqueCells(cells: List<Cell>): Int {
     return result
 }
 
-private fun calculateNumberOfUniqueCells(cells: List<Cell>): Int {
+fun calculateNumberOfCellRefsInUniqueCells(cells: List<Cell>): Int {
+    val hashes = hashSetOf<String>()
+    var result = 0
+    cells.forEach {
+        visitUniqueCells(it, hashes) { cell ->
+            result += cell.refs.size
+        }
+    }
+    return result
+}
+
+fun calculateNumberOfUniqueCells(cells: List<Cell>): Int {
     val hashes = hashSetOf<String>()
     cells.forEach {
         visitUniqueCells(it, hashes) {}

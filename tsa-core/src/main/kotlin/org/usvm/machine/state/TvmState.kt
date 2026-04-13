@@ -100,6 +100,7 @@ class TvmState(
     var currentComputeFeeUsed: UExpr<TvmContext.TvmInt257Sort>? = null,
     val debugInfo: TvmStateDebugInfo = TvmStateDebugInfo(),
     var inputDictionaryStorage: InputDictionaryStorage = InputDictionaryStorage(),
+    var cdatasizeInfos: PersistentSet<DataSizeInfo> = persistentSetOf(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -238,6 +239,7 @@ class TvmState(
             addressesToBeRandomized = addressesToBeRandomized,
             refsToBeIndependentFromRandomAddresses = refsToBeIndependentFromRandomAddresses,
             fixatedRandomAddresses = fixatedRandomAddresses,
+            cdatasizeInfos = cdatasizeInfos,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
