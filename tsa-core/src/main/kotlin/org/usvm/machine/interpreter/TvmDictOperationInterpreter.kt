@@ -2865,6 +2865,7 @@ class TvmDictOperationInterpreter(
                     val status =
                         if (keyLengthForAssertingDictType != null) {
                             scope.assertDictType(it, keyLengthForAssertingDictType)
+                                ?: return@let null to null
                         } else {
                             Unit
                         }
