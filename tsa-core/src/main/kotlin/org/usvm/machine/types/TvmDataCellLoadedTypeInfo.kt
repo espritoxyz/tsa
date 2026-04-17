@@ -24,6 +24,9 @@ class TvmDataCellLoadedTypeInfo(
         val cellRef: UConcreteHeapRef
     }
 
+    /**
+     * @param cellRef is one of the leaves from reading the (possibly ite expression) "cell" field of a slice
+     */
     class LoadData<ReadResult>(
         override val guard: UBoolExpr,
         override val cellRef: UConcreteHeapRef,

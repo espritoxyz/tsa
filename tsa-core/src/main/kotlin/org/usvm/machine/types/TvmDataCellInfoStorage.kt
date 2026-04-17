@@ -32,17 +32,20 @@ class TvmDataCellInfoStorage private constructor(
         }
     }
 
-    fun getLabelForFreshSlice(cellRef: UHeapRef): Map<TvmParameterInfo.CellInfo, UBoolExpr> =
+    fun getLabelForFreshSlice(cellRef: UHeapRef): Map<TvmParameterInfo.CellInfo, Map<UConcreteHeapRef, UBoolExpr>> =
         with(ctx) {
             val concreteRefs = flattenReferenceIte(cellRef, extractAllocated = true)
-            val result = hashMapOf<TvmParameterInfo.CellInfo, UBoolExpr>()
+            val result = hashMapOf<TvmParameterInfo.CellInfo, MutableMap<UConcreteHeapRef, UBoolExpr>>()
 
             concreteRefs.forEach { (guard, ref) ->
                 val labelInfo =
                     mapper.getLabelInfo(ref) ?: LabelInfo(mapOf(TvmParameterInfo.UnknownCellInfo to trueExpr))
                 labelInfo.variants.forEach { (info, innerGuard) ->
-                    val oldGuard = result[info] ?: falseExpr
-                    result[info] = oldGuard or (guard and innerGuard)
+                    val cellConds =
+                        result[info]
+                            ?: mutableMapOf()
+                    cellConds[ref] = cellConds.getOrElse(ref, { ctx.trueExpr }) and innerGuard and guard
+                    result[info] = cellConds
                 }
             }
 
@@ -110,6 +113,7 @@ class TvmDataCellInfoStorage private constructor(
                         is TlbStructure.Unknown -> {
                             innerAcc
                         }
+
                         is TlbStructure.Empty -> {
                             val newGuard = mkSizeLeExpr(loadRef.refNumber, sizeInfo.refsLength)
                             innerAcc and ((guard and sizeInfo.guard) implies newGuard)
