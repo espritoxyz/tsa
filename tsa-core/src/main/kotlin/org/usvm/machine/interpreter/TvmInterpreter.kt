@@ -28,12 +28,12 @@ import org.ton.bytecode.TvmAppCryptoInst
 import org.ton.bytecode.TvmAppCurrencyInst
 import org.ton.bytecode.TvmAppGasInst
 import org.ton.bytecode.TvmAppGlobalInst
+import org.ton.bytecode.TvmAppMiscCdatasizeqInst
 import org.ton.bytecode.TvmAppRndAddrandInst
 import org.ton.bytecode.TvmAppRndInst
 import org.ton.bytecode.TvmAppRndRandInst
 import org.ton.bytecode.TvmAppRndRandu256Inst
 import org.ton.bytecode.TvmAppRndSetrandInst
-import org.ton.bytecode.TvmAppMiscCdatasizeqInst
 import org.ton.bytecode.TvmArithmBasicAddInst
 import org.ton.bytecode.TvmArithmBasicAddconstInst
 import org.ton.bytecode.TvmArithmBasicDecInst

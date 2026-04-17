@@ -1,7 +1,5 @@
 package org.usvm.machine.state
 
-import io.ksmt.expr.KExpr
-import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
@@ -12,7 +10,6 @@ import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellData
 import org.usvm.UBoolExpr
-import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -21,15 +18,11 @@ import org.usvm.api.writeField
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
-import org.usvm.machine.TvmContext.Companion.ADDRESS_BITS
 import org.usvm.machine.TvmContext.Companion.CONFIG_KEY_LENGTH
-import org.usvm.machine.TvmContext.Companion.GRAMS_LENGTH_BITS
-import org.usvm.machine.TvmContext.Companion.HASH_BITS
 import org.usvm.machine.TvmContext.Companion.INT_BITS
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.maxUnsignedValue
 import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackIntValue
@@ -40,7 +33,6 @@ import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
-import java.math.BigInteger
 
 fun TvmState.getContractInfoParam(idx: Int): TvmStackValue {
     require(idx in 0..17) {
@@ -192,26 +184,26 @@ fun TvmState.initC7(contractInfo: TvmStackTupleValue): TvmStackTupleValueConcret
 
 fun TvmState.getInboundMessageValue(): Int257Expr? = getContractInfoParam(INBOUND_MESSAGE_VALUE_PARAMETER_IDX).intValue
 
-const val BIT_PRICE_PS = 1
-const val CELL_PRICE_PS = 500
-const val MC_BIT_PRICE_PS = 1000
-const val MC_CELL_PRICE_PS = 500000
+val BIT_PRICE_PS: Long get() = TvmConfigBoc.storagePrices.bitPricePs
+val CELL_PRICE_PS: Long get() = TvmConfigBoc.storagePrices.cellPricePs
+val MC_BIT_PRICE_PS: Long get() = TvmConfigBoc.storagePrices.mcBitPricePs
+val MC_CELL_PRICE_PS: Long get() = TvmConfigBoc.storagePrices.mcCellPricePs
 
-const val LUMP_PRICE_MASTERCHAIN = 10000000
-const val FIRST_FRAC_MASTERCHAIN = 21845
-const val BIT_PRICE_MASTERCHAIN = 655360000
-const val CELL_PRICE_MASTERCHAIN = 65536000000
-const val FLAT_GAS_LIMIT_MASTERCHAIN = 100
-const val FLAT_GAS_PRICE_MASTERCHAIN = 1000000
-const val GAS_PRICE_MASTERCHAIN = 655360000
+val LUMP_PRICE_MASTERCHAIN: Long get() = TvmConfigBoc.masterchainMsgPrices.lumpPrice
+val FIRST_FRAC_MASTERCHAIN: Long get() = TvmConfigBoc.masterchainMsgPrices.firstFrac
+val BIT_PRICE_MASTERCHAIN: Long get() = TvmConfigBoc.masterchainMsgPrices.bitPrice
+val CELL_PRICE_MASTERCHAIN: Long get() = TvmConfigBoc.masterchainMsgPrices.cellPrice
+val FLAT_GAS_LIMIT_MASTERCHAIN: Long get() = TvmConfigBoc.masterchainGasPrices.flatGasLimit
+val FLAT_GAS_PRICE_MASTERCHAIN: Long get() = TvmConfigBoc.masterchainGasPrices.flatGasPrice
+val GAS_PRICE_MASTERCHAIN: Long get() = TvmConfigBoc.masterchainGasPrices.gasPrice
 
-const val LUMP_PRICE = 400000
-const val FIRST_FRAC = 21845
-const val BIT_PRICE = 26214400
-const val CELL_PRICE = 2621440000
-const val FLAT_GAS_LIMIT = 100
-const val FLAT_GAS_PRICE = 40000
-const val GAS_PRICE = 26214400
+val LUMP_PRICE: Long get() = TvmConfigBoc.basechainMsgPrices.lumpPrice
+val FIRST_FRAC: Long get() = TvmConfigBoc.basechainMsgPrices.firstFrac
+val BIT_PRICE: Long get() = TvmConfigBoc.basechainMsgPrices.bitPrice
+val CELL_PRICE: Long get() = TvmConfigBoc.basechainMsgPrices.cellPrice
+val FLAT_GAS_LIMIT: Long get() = TvmConfigBoc.basechainGasPrices.flatGasLimit
+val FLAT_GAS_PRICE: Long get() = TvmConfigBoc.basechainGasPrices.flatGasPrice
+val GAS_PRICE: Long get() = TvmConfigBoc.basechainGasPrices.gasPrice
 
 fun makeBalanceEntry(
     ctx: TvmContext,
@@ -346,299 +338,11 @@ fun TvmState.initContractInfo(
 private fun TvmState.initConfigRoot(): UHeapRef =
     with(ctx) {
         val configDict = allocDict(keyLength = CONFIG_KEY_LENGTH)
-
-        val hexBits = 4u
-        val hexAddressBits = ADDRESS_BITS / hexBits.toInt()
-        val addressBits = ADDRESS_BITS.toUInt()
-        val tagBits = hexBits * 2u
-        val uint8Bits = 8u
-        val uint16Bits = 16u
-        val uint32Bits = 32u
-        val uint64Bits = 64u
-
-        // https://explorer.toncoin.org/config
-        // https://tonviewer.com/config
-        // https://github.com/ton-blockchain/ton/blob/d2b418bb703ed6ccd89b7d40f9f1e44686012014/crypto/block/block.tlb
-
-        /**
-         * Index: 0
-         */
-        val configAddr = mkBvHex("5".repeat(hexAddressBits), addressBits)
-        addDictEntry(configDict, 0, allocDataCellFromData(configAddr))
-
-        /**
-         * Index: 1
-         */
-        val electorAddr = mkBvHex("3".repeat(hexAddressBits), addressBits)
-        addDictEntry(configDict, 1, allocDataCellFromData(electorAddr))
-
-        /**
-         * Index: 8
-         */
-        val networkVersion =
-            allocCellFromFields(
-                mkBvHex("c4", tagBits), // capabilities tag
-                mkBv(12, uint32Bits), // version
-                mkBv(494, uint64Bits), // capabilities
-            )
-        addDictEntry(configDict, 8, networkVersion)
-
-        /**
-         * Index: 12
-         */
-        val workchainDescr =
-            allocCellFromFields(
-                mkBvHex("a6", tagBits), // workchain tag
-                mkBv(1573821854, uint32Bits), // enabled_since
-                mkBv(0, uint8Bits), // actual_min_split
-                mkBv(2, uint8Bits), // min_split
-                mkBv(8, uint8Bits), // max_split
-                mkBv(7, sizeBits = 3u), // basic active accept_msgs
-                mkBv(0, sizeBits = 13u), // flags
-                // zerostate_root_hash
-                mkBvHex("55b13f6d0e1d0c34c9c2160f6f918e92d82bf9ddcf8de2e4c94a3fdf39d15446", HASH_BITS),
-                // zerostate_file_hash
-                mkBvHex("ee0bedfe4b32761fb35e9e1d8818ea720cad1a0e7b4d2ed673c488e72e910342", HASH_BITS),
-                mkBv(0, sizeBits = 32u), // version
-                mkBvHex("1", hexBits), // wfmt_basic tag
-                mkBv(-1, uint32Bits), // vm_version
-                mkBv(0, uint64Bits), // vm_mode
-            )
-        val workchainsDict = allocDict(keyLength = 32)
-        addDictEntry(workchainsDict, 0, allocSliceFromCell(workchainDescr), isCellValue = false)
-
-        val workchainsMaybeDict = allocDataCellFromData(oneBit)
-        builderStoreNextRefNoOverflowCheck(workchainsMaybeDict, workchainsDict)
-
-        addDictEntry(configDict, 12, workchainsMaybeDict)
-
-        /**
-         * Index: 13
-         */
-        val complaintPrices =
-            allocCellFromFields(
-                mkBvHex(value = "1a", tagBits), // complaint_prices tag
-                mkBvGrams(value = 1000000000L), // deposit
-                mkBvGrams(value = 1L), // bit_price
-                mkBvGrams(value = 500L), // cell_price
-            )
-        addDictEntry(configDict, 13, complaintPrices)
-
-        /**
-         * Index: 15
-         */
-        val elections =
-            allocCellFromFields(
-                mkBv(65536, uint32Bits), // validators_elected_for
-                mkBv(32768, uint32Bits), // elections_start_before
-                mkBv(8192, uint32Bits), // elections_end_before
-                mkBv(32768, uint32Bits), // stake_held_for
-            )
-        addDictEntry(configDict, 15, elections)
-
-        /**
-         * Index: 16
-         */
-        val validatorsLimits =
-            allocCellFromFields(
-                mkBv(400, uint16Bits), // max_validators
-                mkBv(100, uint16Bits), // max_main_validators
-                mkBv(75, uint16Bits), // min_validators
-            )
-        addDictEntry(configDict, 16, validatorsLimits)
-
-        /**
-         * Index: 17
-         */
-        val stakeLimits =
-            allocCellFromFields(
-                mkBvGrams(value = 300000000000000L), // min_stake
-                mkBvGrams(value = 10000000000000000L), // max_stake
-                mkBvGrams(value = 75000000000000000L), // min_total_stake
-                mkBv(value = 196608, uint32Bits), // max_stake_factor
-            )
-        addDictEntry(configDict, 17, stakeLimits)
-
-        /**
-         * Index: 18
-         */
-        val storagePrices =
-            allocCellFromFields(
-                mkBvHex(value = "cc", tagBits), // gas_prices tag
-                mkBv(value = 0, uint32Bits), // utime_since
-                mkBv(BIT_PRICE_PS, uint64Bits), // bit_price_ps
-                mkBv(CELL_PRICE_PS, uint64Bits), // cell_price_ps
-                mkBv(MC_BIT_PRICE_PS, uint64Bits), // mc_bit_price_ps
-                mkBv(MC_CELL_PRICE_PS, uint64Bits), // mc_cell_price_ps
-            )
-        val storagePricesSlice = allocSliceFromCell(storagePrices)
-        val storagePricesDict = allocDict(keyLength = 32)
-
-        addDictEntry(storagePricesDict, 0, storagePricesSlice, isCellValue = false)
-        addDictEntry(configDict, 18, storagePricesDict)
-
-        /**
-         * Index: 20
-         */
-        val masterchainGasPrices =
-            allocCellFromFields(
-                mkBvHex("d1", tagBits), // gas_flat_pfx tag
-                mkBv(FLAT_GAS_LIMIT_MASTERCHAIN, uint64Bits), // flag_gas_limit
-                mkBv(FLAT_GAS_PRICE_MASTERCHAIN, uint64Bits), // flag_gas_price
-                mkBvHex("de", tagBits), // gas_prices_ext tag
-                mkBv(GAS_PRICE_MASTERCHAIN, uint64Bits), // gas_price
-                mkBv(1000000, uint64Bits), // gas_limit
-                mkBv(35000000, uint64Bits), // special_gas_limit
-                mkBv(10000, uint64Bits), // gas_credit
-                mkBv(2500000, uint64Bits), // block_gas_limit
-                mkBv(100000000, uint64Bits), // freeze_due_limit
-                mkBv(1000000000, uint64Bits), // delete_due_limit
-            )
-        addDictEntry(configDict, 20, masterchainGasPrices)
-
-        /**
-         * Index: 21
-         */
-        val gasPrices =
-            allocCellFromFields(
-                mkBvHex("d1", tagBits), // gas_flat_pfx tag
-                mkBv(FLAT_GAS_LIMIT, uint64Bits), // flag_gas_limit
-                mkBv(FLAT_GAS_PRICE, uint64Bits), // flag_gas_price
-                mkBvHex("de", tagBits), // gas_prices_ext tag
-                mkBv(GAS_PRICE, uint64Bits), // gas_price
-                mkBv(1000000, uint64Bits), // gas_limit
-                mkBv(1000000, uint64Bits), // special_gas_limit
-                mkBv(10000, uint64Bits), // gas_credit
-                mkBv(10000000, uint64Bits), // block_gas_limit
-                mkBv(100000000, uint64Bits), // freeze_due_limit
-                mkBv(1000000000, uint64Bits), // delete_due_limit
-            )
-        addDictEntry(configDict, 21, gasPrices)
-
-        /**
-         * Index: 24
-         */
-        val masterchainMsgPrices =
-            allocCellFromFields(
-                mkBvHex("ea", tagBits), // msg_forward_prices tag
-                mkBv(LUMP_PRICE_MASTERCHAIN, uint64Bits), // lump_price
-                mkBv(BIT_PRICE_MASTERCHAIN, uint64Bits), // bit_price
-                mkBv(CELL_PRICE_MASTERCHAIN, uint64Bits), // cell_price
-                mkBv(98304, uint32Bits), // ihr_price_factor
-                mkBv(FIRST_FRAC_MASTERCHAIN, uint16Bits), // first_frac
-                mkBv(21845, uint16Bits), // next_frac
-            )
-        addDictEntry(configDict, 24, masterchainMsgPrices)
-
-        /**
-         * Index: 25
-         */
-        val msgPrices =
-            allocCellFromFields(
-                mkBvHex("ea", tagBits), // msg_forward_prices tag
-                mkBv(LUMP_PRICE, uint64Bits), // lump_price
-                mkBv(BIT_PRICE, uint64Bits), // bit_price
-                mkBv(CELL_PRICE, uint64Bits), // cell_price
-                mkBv(98304, uint32Bits), // ihr_price_factor
-                mkBv(FIRST_FRAC, uint16Bits), // first_frac
-                mkBv(21845, uint16Bits), // next_frac
-            )
-        addDictEntry(configDict, 25, msgPrices)
-
-        /**
-         * Index: 34
-         */
-        val validatorSet =
-            allocCellFromFields(
-                mkBvHex("12", tagBits), // validators_ext tag
-                mkBv(1717587720, uint32Bits), // utime_since
-                mkBv(1717653256, uint32Bits), // utime_until
-                mkBv(345, uint16Bits), // total
-                mkBv(100, uint16Bits), // main
-                mkBv(1152921504606846802, uint64Bits), // total_weight
-                // TODO real dict
-                mkBv(0, sizeBits = 1u), // list
-            )
-        addDictEntry(configDict, 34, validatorSet)
-
-        /**
-         * Index: 40
-         */
-        val defaultFlatFineValue = BigInteger.valueOf(101) * BigInteger.valueOf(10).pow(9) // 101 TON
-        val gramsLen = mkBv(5, sizeBits = 4u)
-        val gramsValue = mkBv(defaultFlatFineValue, 5u * 8u)
-        val defaultFlatFine = mkBvConcatExpr(gramsLen, gramsValue)
-
-        // TODO get real values
-        val punishmentSuffix = makeSymbolicPrimitive(mkBvSort(sizeBits = uint32Bits + 7u * uint16Bits))
-
-        val misbehaviourPunishment =
-            allocCellFromFields(
-                mkBvHex(value = "01", tagBits), // misbehaviour_punishment_config_v1 tag
-                defaultFlatFine, // default_flat_fine
-                punishmentSuffix, // default_proportional_fine, severity_flat_mult, ...
-            )
-        addDictEntry(configDict, 40, misbehaviourPunishment)
-
-        /**
-         * Index: 71
-         */
-        val ethereumBridge =
-            allocCellFromFields(
-                // bridge_addr
-                mkBvHex("dd24c4a1f2b88f8b7053513b5cc6c5a31bc44b2a72dcb4d8c0338af0f0d37ec5", addressBits),
-                // oracle_multisig_address
-                mkBvHex("3b9bbfd0ad5338b9700f0833380ee17d463e51c1ae671ee6f08901bde899b202", addressBits),
-                // TODO real dict
-                mkBv(0, sizeBits = 1u), // oracles
-                // external_chain_address
-                mkBvHex("000000000000000000000000582d872a1b094fc48f5de31d3b73f2d9be47def1", addressBits),
-            )
-        addDictEntry(configDict, 71, ethereumBridge)
-
-        /**
-         * Index: 80
-         */
-        val dns = // TODO: find documentation
-            allocCellFromFields(
-                // TODO real dict
-                mkBv(0, sizeBits = 1u), // ???
-            )
-        addDictEntry(configDict, 80, dns)
-
+        for ((key, cellValue) in TvmConfigBoc.entries) {
+            val cellRef = allocateCell(cellValue)
+            addDictEntry(configDict, key, cellRef)
+        }
         configDict
-    }
-
-private fun TvmContext.mkBvGrams(value: Long): UExpr<UBvSort> {
-    if (value == 0L) {
-        return mkBv(value = 0, sizeBits = GRAMS_LENGTH_BITS)
-    }
-
-    val bigIntValue = value.toBigInteger()
-
-    // var_uint$_ {n:#} len:(#< 16) value:(uint (len * 8))
-    val length =
-        (1u..15u).firstOrNull {
-            val prevValueBits = (it - 1u) * 8u
-            val valueBits = it * 8u
-
-            maxUnsignedValue(prevValueBits) < bigIntValue && bigIntValue <= maxUnsignedValue(valueBits)
-        } ?: error("Provided value $value doesn't fit into grams")
-
-    return mkBvConcatExpr(
-        mkBv(length.toInt(), GRAMS_LENGTH_BITS),
-        mkBv(value, length),
-    )
-}
-
-private fun TvmState.allocCellFromFields(vararg fields: KExpr<KBvSort>): UHeapRef =
-    with(ctx) {
-        val data =
-            fields.reduce { acc, field ->
-                mkBvConcatExpr(acc, field)
-            }
-
-        allocDataCellFromData(data)
     }
 
 private fun TvmState.allocDict(keyLength: Int): UConcreteHeapRef =
@@ -652,16 +356,9 @@ private fun TvmState.addDictEntry(
     dict: UHeapRef,
     key: Int,
     value: UHeapRef,
-    isCellValue: Boolean = true,
 ) = with(ctx) {
-    val sliceValue =
-        if (isCellValue) {
-            val builder = allocEmptyCell().also { builderStoreNextRefNoOverflowCheck(it, value) }
-            allocSliceFromCell(builder)
-        } else {
-            value
-        }
-
+    val builder = allocEmptyCell().also { builderStoreNextRefNoOverflowCheck(it, value) }
+    val sliceValue = allocSliceFromCell(builder)
     dictAddKeyValue(
         dict,
         DictId(CONFIG_KEY_LENGTH),
