@@ -37,6 +37,7 @@ import org.usvm.test.resolver.transformTestDataCellIntoCell
 import org.usvm.test.resolver.transformTestDictCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
+import kotlin.math.sign
 import kotlin.random.Random
 
 class TvmPostProcessor(
@@ -95,6 +96,11 @@ class TvmPostProcessor(
             assertConstraints(scope) { resolver ->
                 generateRandomAddressConstraint(scope, resolver)
                     ?: return@assertConstraints null
+            } ?: return null
+
+            // In some cases, public keys may be included in the hashed values
+            assertConstraints(scope) { resolver ->
+                generatePublicKeyConstraints(scope, resolver)
             } ?: return null
 
             assertConstraints(scope) { resolver ->
@@ -167,6 +173,20 @@ class TvmPostProcessor(
             mkAnd(datasizeInfos.map { fixateCdatasizeInfo(scope, it, resolver) ?: return@with null })
         }
 
+    private fun generatePublicKeyConstraints(
+        scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr =
+        with(ctx) {
+            val signatureChecks = scope.calcOnState { signatureChecks }
+
+            signatureChecks.fold(trueExpr as UBoolExpr) { acc, signatureCheck ->
+                val curConstraint = fixatePublicKey(signatureCheck, resolver)
+
+                acc and curConstraint
+            }
+        }
+
     private fun generateSignatureConstraints(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
@@ -236,6 +256,15 @@ class TvmPostProcessor(
         return TvmTestSliceValue(cell = TvmTestDataCellValue(prefix + mainPart))
     }
 
+    private fun fixatePublicKey(
+        signatureCheck: TvmSignatureCheck,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr =
+        with(ctx) {
+            val concreteKey = mkBvHex(publicKeyHex, int257sort.sizeBits)
+            concreteKey eq signatureCheck.publicKey.uncheckedCast()
+        }
+
     @OptIn(ExperimentalStdlibApi::class)
     private fun fixateSignatureCheck(
         signatureCheck: TvmSignatureCheck,
@@ -250,11 +279,9 @@ class TvmPostProcessor(
                     .hexToByteArray()
             val signatureHex = privateKey.sign(hashAsByteArray).toHexString()
             val concreteHash = mkBv(hash.value, int257sort)
-            val concreteKey = mkBvHex(publicKeyHex, int257sort.sizeBits)
             val concreteSignature = mkBvHex(signatureHex, signatureCheck.signature.sort.sizeBits)
 
             val fixateHashCond = concreteHash eq signatureCheck.hash
-            val fixateKeyCond = concreteKey eq signatureCheck.publicKey.uncheckedCast()
 
             val signatureCond =
                 if (signatureCheck.checkPassed) {
@@ -263,7 +290,7 @@ class TvmPostProcessor(
                     concreteSignature neq signatureCheck.signature
                 }
 
-            return fixateHashCond and fixateKeyCond and signatureCond
+            return fixateHashCond and signatureCond
         }
 
     fun fixateValue(

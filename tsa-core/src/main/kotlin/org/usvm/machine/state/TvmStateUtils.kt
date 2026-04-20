@@ -698,7 +698,7 @@ fun TvmState.switchToFirstMethodInContract(
 fun TvmState.switchDirectlyToMethodInContract(method: TvmMethod) = newStmt(method.instList.first())
 
 // second value is workchain
-fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort>> =
+fun TvmState.generateSymbolicAddressCell(literal: TvmTrackedLiteral): Pair<UConcreteHeapRef, UExpr<UBvSort>> =
     with(ctx) {
         val workchain = mkBv(0, 8u) // TODO: consider other workchains?
         val address =
@@ -711,7 +711,7 @@ fun TvmState.generateSymbolicAddressCell(): Pair<UConcreteHeapRef, UExpr<UBvSort
                         workchain,
                     ),
                     // address:bits256
-                    makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt()), TvmMessageSender()),
+                    makeSymbolicPrimitive(mkBvSort(ADDRESS_BITS.toUInt()), literal),
                 ),
             )
         return address to workchain

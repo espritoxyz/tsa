@@ -26,6 +26,8 @@ class TvmBalance : TvmTrackedLiteral("tvm_balance")
 
 class TvmMessageSender : TvmTrackedLiteral("tvm_sender")
 
+class TvmContractAddress : TvmTrackedLiteral("tvm_contr_addr")
+
 class TvmHash(
     val ref: UConcreteHeapRef,
 ) : TvmTrackedLiteral("tvm_hash")

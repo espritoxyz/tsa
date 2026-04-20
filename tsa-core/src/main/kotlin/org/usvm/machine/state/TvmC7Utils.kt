@@ -263,7 +263,7 @@ fun TvmState.initContractInfo(
 
         val (addrValue, workchain) =
             if (concreteData.addressBits == null) {
-                generateSymbolicAddressCell()
+                generateSymbolicAddressCell(TvmContractAddress())
             } else {
                 val address = allocateCell(TvmCell(data = TvmCellData(concreteData.addressBits), refs = emptyList()))
                 val workchain =

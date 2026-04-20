@@ -89,6 +89,14 @@ data class TvmStructuralError(
     override val phase: TvmPhase,
 ) : TvmAbstractSoftFailure
 
+data object TvmSymbolicC5 : TvmResult.TvmSoftFailureExit {
+    override val ruleId = "symbolic-c5"
+}
+
+data object TvmUsageOfBless : TvmResult.TvmSoftFailureExit {
+    override val ruleId = "usage-of-bless"
+}
+
 data object TvmUsageOfAnycastAddress : TvmResult.TvmSoftFailureExit {
     override val ruleId = "anycast-address-usage"
 }

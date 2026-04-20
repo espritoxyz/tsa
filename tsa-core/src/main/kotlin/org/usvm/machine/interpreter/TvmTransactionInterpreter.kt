@@ -21,6 +21,7 @@ import org.usvm.logger
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.OP_BITS
+import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.dropFirstWithoutChecks
@@ -35,6 +36,7 @@ import org.usvm.machine.state.TvmFwdFee
 import org.usvm.machine.state.TvmReserveMode4NotFirst
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.TvmSymbolicC5
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getCellContractInfoParam
@@ -57,6 +59,7 @@ import org.usvm.machine.state.messages.calculateTwoThirdLikeInTVM
 import org.usvm.machine.state.messages.scopeDied
 import org.usvm.machine.state.messages.unwrap
 import org.usvm.machine.state.newStmt
+import org.usvm.machine.state.setExit
 import org.usvm.machine.state.sliceLoadGramsTlbNoFork
 import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
 import org.usvm.machine.state.sliceLoadRefNoFork
@@ -848,39 +851,38 @@ class TvmTransactionInterpreter(
     fun extractListOfActions(
         scope: TvmStepScopeManager,
         actionsCell: UHeapRef,
-    ): List<SliceRef>? =
-        with(ctx) {
-            var cur = actionsCell.asCellRef()
-            val actionList = mutableListOf<SliceRef>()
+    ): List<SliceRef>? {
+        var cur = actionsCell.asCellRef()
+        val actionList = mutableListOf<SliceRef>()
 
-            while (true) {
-                val slice = scope.calcOnState { allocSliceFromCell(cur) }
-                val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice.value) }
+        while (true) {
+            val slice = scope.calcOnState { allocSliceFromCell(cur) }
+            val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice.value) }
 
-                val isEnd =
-                    scope.checkCondition(remainingRefs eq zeroSizeExpr)
-                        ?: return null
-                if (isEnd) {
-                    // TODO check that `remainingBits` is also zero
-                    break
-                }
-
-                val action =
-                    sliceLoadRefNoFork(scope, slice.value)?.let {
-                        cur = it.second
-                        it.first
-                    }
-                        ?: return null
-                actionList.add(action.asSliceRef())
-
-                if (actionList.size > TvmContext.MAX_ACTIONS) {
-                    // TODO set error code
-                    return null
-                }
+            val isEnd =
+                scope.checkHasNextAction(remainingRefs)
+                    ?: return null
+            if (isEnd) {
+                // TODO check that `remainingBits` is also zero
+                break
             }
 
-            return actionList.reversed()
+            val action =
+                sliceLoadRefNoFork(scope, slice.value)?.let {
+                    cur = it.second
+                    it.first
+                }
+                    ?: return null
+            actionList.add(action.asSliceRef())
+
+            if (actionList.size > TvmContext.MAX_ACTIONS) {
+                // TODO set error code
+                return null
+            }
         }
+
+        return actionList.reversed()
+    }
 
     /**
      * @return a list of possible parse results for [slice] paired with corresponding guards
@@ -1023,17 +1025,21 @@ class TvmTransactionInterpreter(
             return messageContent
         }
 
-    private fun TvmStepScopeManager.checkCondition(cond: UBoolExpr): Boolean? =
+    private fun TvmStepScopeManager.checkHasNextAction(remainingRefs: UExpr<TvmSizeSort>): Boolean? =
         with(ctx) {
+            val cond = remainingRefs eq zeroSizeExpr
             val checkRes = checkSat(cond)
             val invertedRes = checkSat(cond.not())
 
-            require(checkRes == null || invertedRes == null) {
-                error("Symbolic actions are not supported")
+            if (checkRes != null && invertedRes != null) {
+                doWithState {
+                    setExit(TvmResult.TvmSoftFailure(TvmSymbolicC5, phase))
+                }
+                return null
             }
 
             if (checkRes == null && invertedRes == null) {
-                return null
+                error("Should not be reachable")
             }
 
             checkRes != null
