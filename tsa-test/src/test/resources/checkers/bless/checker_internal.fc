@@ -1,0 +1,15 @@
+#include "../../imports/tsa_functions.fc";
+#include "../../imports/stdlib.fc";
+
+() on_internal_message_send(cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    slice cs = in_msg_full.begin_parse();
+    cs~load_uint(4); ;; flags
+    slice sender = cs~load_msg_addr();
+
+    ;; PLACE YOUR ADDRESS HERE
+    tsa_assert(equal_slice_bits(sender, "UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"a));
+}
+
+() main() {
+    tsa_send_internal_message(1, 0);
+}

@@ -15,6 +15,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.asIntValue
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmFwdFee
+import org.usvm.machine.state.TvmMessageSender
 import org.usvm.machine.state.TvmMsgValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocEmptyBuilderWithTlb
@@ -52,7 +53,7 @@ class RecvInternalInput(
 
     override val srcAddressSlice: UConcreteHeapRef =
         if (messageConcreteData.senderBits == null) {
-            state.allocSliceFromCell(state.generateSymbolicAddressCell().first)
+            state.allocSliceFromCell(state.generateSymbolicAddressCell(TvmMessageSender()).first)
         } else {
             state.allocSliceFromData(
                 state.ctx.mkBv(

@@ -129,6 +129,7 @@ import org.ton.bytecode.TvmContConditionalIfrefelseInst
 import org.ton.bytecode.TvmContConditionalIfrefelserefInst
 import org.ton.bytecode.TvmContConditionalIfretInst
 import org.ton.bytecode.TvmContConditionalInst
+import org.ton.bytecode.TvmContCreateInst
 import org.ton.bytecode.TvmContDictCalldictInst
 import org.ton.bytecode.TvmContDictCalldictLongInst
 import org.ton.bytecode.TvmContDictInst
@@ -261,6 +262,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTerminated
 import org.usvm.machine.state.TvmTime
 import org.usvm.machine.state.TvmTrackedLiteral
+import org.usvm.machine.state.TvmUsageOfBless
 import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
@@ -318,6 +320,7 @@ import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
+import org.usvm.machine.state.setExit
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceLoadBitArrayTlb
 import org.usvm.machine.state.slicesAreEqual
@@ -804,6 +807,13 @@ class TvmInterpreter(
         stmt: TvmInst,
     ) {
         when (stmt) {
+            is TvmContCreateInst -> {
+                // BLESS
+                scope.doWithState {
+                    setExit(TvmResult.TvmSoftFailure(TvmUsageOfBless, phase))
+                    consumeDefaultGas(stmt)
+                }
+            }
             is TvmArtificialInst -> artificialInstInterpreter.visit(scope, stmt)
             is TvmStackBasicInst -> visitBasicStackInst(scope, stmt)
             is TvmStackComplexInst -> visitComplexStackInst(scope, stmt)

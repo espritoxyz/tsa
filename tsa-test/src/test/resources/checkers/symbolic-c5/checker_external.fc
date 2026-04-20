@@ -1,0 +1,6 @@
+#include "../../imports/tsa_functions.fc";
+#include "../../imports/stdlib.fc";
+
+() main() {
+    tsa_send_external_message(1, 0);
+}

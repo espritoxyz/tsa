@@ -1,0 +1,14 @@
+#include "../../imports/stdlib.fc";
+
+() set_c5_actions(cell action_list) impure asm "c5 POP";
+
+() main() {
+    ;; nothing
+}
+
+() recv_external(slice msg) {
+    var c5 = msg~load_ref();
+    set_c5_actions(c5);
+
+    ;; not vulnerable, because no ACCEPT
+}
