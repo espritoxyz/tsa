@@ -25,6 +25,7 @@ import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmOrdContinuation
 import org.ton.cell.Cell
 import org.ton.hashmap.HashMapE
+import org.ton.tlb.exception.UnknownTlbConstructorException
 import org.usvm.NULL_ADDRESS
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
@@ -433,18 +434,24 @@ private fun TvmState.transformToConcreteDictIfPossible(
                 }.getOrElse {
                     return false
                 }
+//        During the HashmapE codec loading, the part of hashmap apart from the constructor is parsed lazily via CellRefImpl which stores codec and and cell and lazily applies the loading upon request to delegated property `CellRefImpl.value`.
+//        As such, we can accept even malformed dictionary forms here.
+//        For instance, when the `cell` is empty, the constructor in `codec.loadTlb` will be successfully parsed (as it is explicitly provided), however, the `content` will trigger the further loading and will cause an exception.
+//        To work around it, we introduce this try-catch block.
+        val content =
+            try {
+                parsedDict.map { (keyBitString, valueCell) ->
+                    val cellRef = allocateCell(valueCell.toTvmCell())
+                    val sliceValue = allocSliceFromCell(cellRef)
+                    val key = mkBv(keyBitString.toBinary(), keyLength.toUInt())
+                    key to sliceValue
+                }
+            } catch (_: UnknownTlbConstructorException) {
+                return false
+            }
 
         memory.types.allocate(ref.address, TvmDictCellType)
         memory.writeField(ref, dictKeyLengthField, sizeSort, mkSizeExpr(keyLength), guard = trueExpr)
-
-        val content =
-            parsedDict.map { (keyBitString, valueCell) ->
-                val cellRef = allocateCell(valueCell.toTvmCell())
-                val sliceValue = allocSliceFromCell(cellRef)
-                val key = mkBv(keyBitString.toBinary(), keyLength.toUInt())
-                key to sliceValue
-            }
-
         initializeConcreteDict(ref, DictId(keyLength), content, mkBvSort(keyLength.toUInt()))
 
         return true
