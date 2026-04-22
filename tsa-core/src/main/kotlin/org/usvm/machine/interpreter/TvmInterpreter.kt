@@ -334,8 +334,8 @@ import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
 import org.usvm.machine.state.setContractInfoParam
-import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.setExit
+import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceLoadBitArrayTlb
 import org.usvm.machine.state.slicesAreEqual
@@ -830,40 +830,142 @@ class TvmInterpreter(
                     consumeDefaultGas(stmt)
                 }
             }
-            is TvmArtificialInst -> artificialInstInterpreter.visit(scope, stmt)
-            is TvmStackBasicInst -> visitBasicStackInst(scope, stmt)
-            is TvmStackComplexInst -> visitComplexStackInst(scope, stmt)
-            is TvmConstIntInst -> visitConstantIntInst(scope, stmt)
-            is TvmConstDataInst -> visitConstantDataInst(scope, stmt)
-            is TvmArithmBasicInst -> visitArithmeticInst(scope, stmt)
-            is TvmArithmDivInst -> arithDivInterpreter.visitArithmeticDivInst(scope, stmt)
-            is TvmArithmLogicalInst -> visitArithmeticLogicalInst(scope, stmt)
-            is TvmCompareIntInst -> visitComparisonIntInst(scope, stmt)
-            is TvmCompareOtherInst -> visitComparisonOtherInst(scope, stmt)
-            is TvmCellBuildInst -> cellInterpreter.visitCellBuildInst(scope, stmt)
-            is TvmCellParseInst -> cellInterpreter.visitCellParseInst(scope, stmt)
-            is TvmContBasicInst -> visitTvmBasicControlFlowInst(scope, stmt)
-            is TvmContConditionalInst -> visitTvmConditionalControlFlowInst(scope, stmt)
-            is TvmContRegistersInst -> visitTvmSaveControlFlowInst(scope, stmt)
-            is TvmContDictInst -> visitTvmDictionaryJumpInst(scope, stmt)
-            is TvmDebugInst -> visitDebugInst(scope, stmt)
-            is TvmCodepageInst -> visitCodepageInst(scope, stmt)
-            is TvmDictSpecialInst -> visitDictControlFlowInst(scope, stmt)
-            is TvmExceptionsInst -> exceptionsInterpreter.visitExceptionInst(scope, stmt)
-            is TvmTupleInst -> tupleInterpreter.visitTvmTupleInst(scope, stmt)
-            is TvmDictInst -> dictOperationInterpreter.visitTvmDictInst(scope, stmt)
-            is TvmContLoopsInst -> loopsInterpreter.visitTvmContLoopsInst(scope, stmt)
-            is TvmAppAddrInst -> msgAddrInterpreter.visitAddrInst(scope, stmt)
-            is TvmAppCurrencyInst -> currencyInterpreter.visitCurrencyInst(scope, stmt)
-            is TvmAppConfigInst -> configInterpreter.visitConfigInst(scope, stmt)
-            is TvmAppActionsInst -> actionsInterpreter.visitActionsStmt(scope, stmt)
-            is TvmAppCryptoInst -> cryptoInterpreter.visitCryptoStmt(scope, stmt)
-            is TvmAppGasInst -> gasInterpreter.visitGasInst(scope, stmt)
-            is TvmAppGlobalInst -> globalsInterpreter.visitGlobalInst(scope, stmt)
-            is TvmContStackInst -> contStackInterpreter.visitContStackInst(scope, stmt)
-            is TvmAppRndInst -> visitRandInst(stmt, scope)
-            is TvmAppMiscCdatasizeqInst -> visitCdatasizeInst(scope, stmt)
-            else -> TODO("$stmt")
+
+            is TvmArtificialInst -> {
+                artificialInstInterpreter.visit(scope, stmt)
+            }
+
+            is TvmStackBasicInst -> {
+                visitBasicStackInst(scope, stmt)
+            }
+
+            is TvmStackComplexInst -> {
+                visitComplexStackInst(scope, stmt)
+            }
+
+            is TvmConstIntInst -> {
+                visitConstantIntInst(scope, stmt)
+            }
+
+            is TvmConstDataInst -> {
+                visitConstantDataInst(scope, stmt)
+            }
+
+            is TvmArithmBasicInst -> {
+                visitArithmeticInst(scope, stmt)
+            }
+
+            is TvmArithmDivInst -> {
+                arithDivInterpreter.visitArithmeticDivInst(scope, stmt)
+            }
+
+            is TvmArithmLogicalInst -> {
+                visitArithmeticLogicalInst(scope, stmt)
+            }
+
+            is TvmCompareIntInst -> {
+                visitComparisonIntInst(scope, stmt)
+            }
+
+            is TvmCompareOtherInst -> {
+                visitComparisonOtherInst(scope, stmt)
+            }
+
+            is TvmCellBuildInst -> {
+                cellInterpreter.visitCellBuildInst(scope, stmt)
+            }
+
+            is TvmCellParseInst -> {
+                cellInterpreter.visitCellParseInst(scope, stmt)
+            }
+
+            is TvmContBasicInst -> {
+                visitTvmBasicControlFlowInst(scope, stmt)
+            }
+
+            is TvmContConditionalInst -> {
+                visitTvmConditionalControlFlowInst(scope, stmt)
+            }
+
+            is TvmContRegistersInst -> {
+                visitTvmSaveControlFlowInst(scope, stmt)
+            }
+
+            is TvmContDictInst -> {
+                visitTvmDictionaryJumpInst(scope, stmt)
+            }
+
+            is TvmDebugInst -> {
+                visitDebugInst(scope, stmt)
+            }
+
+            is TvmCodepageInst -> {
+                visitCodepageInst(scope, stmt)
+            }
+
+            is TvmDictSpecialInst -> {
+                visitDictControlFlowInst(scope, stmt)
+            }
+
+            is TvmExceptionsInst -> {
+                exceptionsInterpreter.visitExceptionInst(scope, stmt)
+            }
+
+            is TvmTupleInst -> {
+                tupleInterpreter.visitTvmTupleInst(scope, stmt)
+            }
+
+            is TvmDictInst -> {
+                dictOperationInterpreter.visitTvmDictInst(scope, stmt)
+            }
+
+            is TvmContLoopsInst -> {
+                loopsInterpreter.visitTvmContLoopsInst(scope, stmt)
+            }
+
+            is TvmAppAddrInst -> {
+                msgAddrInterpreter.visitAddrInst(scope, stmt)
+            }
+
+            is TvmAppCurrencyInst -> {
+                currencyInterpreter.visitCurrencyInst(scope, stmt)
+            }
+
+            is TvmAppConfigInst -> {
+                configInterpreter.visitConfigInst(scope, stmt)
+            }
+
+            is TvmAppActionsInst -> {
+                actionsInterpreter.visitActionsStmt(scope, stmt)
+            }
+
+            is TvmAppCryptoInst -> {
+                cryptoInterpreter.visitCryptoStmt(scope, stmt)
+            }
+
+            is TvmAppGasInst -> {
+                gasInterpreter.visitGasInst(scope, stmt)
+            }
+
+            is TvmAppGlobalInst -> {
+                globalsInterpreter.visitGlobalInst(scope, stmt)
+            }
+
+            is TvmContStackInst -> {
+                contStackInterpreter.visitContStackInst(scope, stmt)
+            }
+
+            is TvmAppRndInst -> {
+                visitRandInst(stmt, scope)
+            }
+
+            is TvmAppMiscCdatasizeqInst -> {
+                visitCdatasizeInst(scope, stmt)
+            }
+
+            else -> {
+                TODO("$stmt")
+            }
         }
     }
 
@@ -2335,12 +2437,10 @@ class TvmInterpreter(
 
         scope.sliceLoadBitArrayTlb(
             lesserSlice,
-//            scope.calcOnState { allocSliceFromCell(allocEmptyCell()) },
             lesserSliceLength,
         ) { (lesserSliceRelevantPart, _) ->
             sliceLoadBitArrayTlb(
                 greaterSlice,
-//                calcOnState { allocSliceFromCell(allocEmptyCell()) },
                 lesserSliceLength,
             ) { (greaterSliceRelevantPart, _) ->
                 val isPrefix =

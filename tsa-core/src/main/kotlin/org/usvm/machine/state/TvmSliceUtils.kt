@@ -1460,9 +1460,6 @@ data class BitArrayReadResult(
     val sliceLeftAreRead: SliceRef,
 )
 
-/**
- * @param restActions takes in a read slice
- */
 fun TvmStepScopeManager.sliceLoadBitArrayTlb(
     slice: UHeapRef,
     sizeBits: SizeExpr,

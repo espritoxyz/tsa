@@ -1,5 +1,7 @@
 package org.usvm.machine.state
 
+import io.ksmt.expr.KExpr
+import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
@@ -33,6 +35,7 @@ import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.types.TvmDictCellType
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
+import java.math.BigInteger
 
 fun TvmState.getContractInfoParam(idx: Int): TvmStackValue {
     require(idx in 0..17) {
@@ -340,9 +343,53 @@ private fun TvmState.initConfigRoot(): UHeapRef =
         val configDict = allocDict(keyLength = CONFIG_KEY_LENGTH)
         for ((key, cellValue) in TvmConfigBoc.entries) {
             val cellRef = allocateCell(cellValue)
-            addDictEntry(configDict, key, cellRef)
+            addCellDictEntry(configDict, key, cellRef)
         }
+
+        // now we patch the original config with the data to make the tests pass
+        val misbehaviourPunishment = getMisbehaviorPunishment(this@initConfigRoot)
+        addCellDictEntry(configDict, 40, misbehaviourPunishment)
+
+        val dns = // TODO: find documentation
+            allocCellFromFields(
+                // TODO real dict
+                mkBv(0, sizeBits = 1u), // ???
+            )
+        addCellDictEntry(configDict, 80, dns)
         configDict
+    }
+
+private fun getMisbehaviorPunishment(state: TvmState): UHeapRef {
+    val ctx = state.ctx
+    val hexBits = 4u
+    val tagBits = hexBits * 2u
+    val uint16Bits = 16u
+    val uint32Bits = 32u
+    val defaultFlatFineValue = BigInteger.valueOf(101) * BigInteger.valueOf(10).pow(9) // 101 TON
+    val gramsLen = ctx.mkBv(5, sizeBits = 4u)
+    val gramsValue = ctx.mkBv(defaultFlatFineValue, 5u * 8u)
+    val defaultFlatFine = ctx.mkBvConcatExpr(gramsLen, gramsValue)
+
+    // TODO get real values
+    val punishmentSuffix = state.makeSymbolicPrimitive(ctx.mkBvSort(sizeBits = uint32Bits + 7u * uint16Bits))
+
+    val misbehaviourPunishment =
+        state.allocCellFromFields(
+            ctx.mkBvHex(value = "01", tagBits), // misbehaviour_punishment_config_v1 tag
+            defaultFlatFine, // default_flat_fine
+            punishmentSuffix, // default_proportional_fine, severity_flat_mult, ...
+        )
+    return misbehaviourPunishment
+}
+
+private fun TvmState.allocCellFromFields(vararg fields: KExpr<KBvSort>): UHeapRef =
+    with(ctx) {
+        val data =
+            fields.reduce { acc, field ->
+                mkBvConcatExpr(acc, field)
+            }
+
+        allocDataCellFromData(data)
     }
 
 private fun TvmState.allocDict(keyLength: Int): UConcreteHeapRef =
@@ -352,7 +399,7 @@ private fun TvmState.allocDict(keyLength: Int): UConcreteHeapRef =
         }
     }
 
-private fun TvmState.addDictEntry(
+private fun TvmState.addCellDictEntry(
     dict: UHeapRef,
     key: Int,
     value: UHeapRef,

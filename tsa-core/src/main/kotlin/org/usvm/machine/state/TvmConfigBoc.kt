@@ -13,8 +13,8 @@ import org.ton.bytecode.TvmCell as InternalTvmCell
 object TvmConfigBoc {
     private val configCell: Cell by lazy {
         val bocBytes =
-            javaClass.getResourceAsStream("/config.boc")
-                ?: error("config.boc resource not found")
+            javaClass.getResourceAsStream("/config-mainnet-2026-04-16.boc")
+                ?: error("config-mainnet-2026-04-16.boc resource not found")
         BagOfCells(bocBytes.readBytes()).roots.single()
     }
 
