@@ -476,7 +476,7 @@ private fun TvmStepScopeManager.assertConcreteCellType(
         }
     fork(
         ctx.mkNot(badCellTypeGuard),
-        falseStateIsExceptional = false,
+        falseStateIsExceptional = true,
         blockOnFalseState = {
             setExit(TvmResult.TvmSoftFailure(exit, calcOnState { phase }))
         },
