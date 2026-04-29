@@ -16,11 +16,7 @@ class CellBuildTest {
     private val storeOnesFunc: String = "/cell/cell-build/StonesSymbolicSize.fc"
     private val sdpfxFunc: String = "/cell/sdpfx.fc"
     private val sdpfxrevFunc: String = "/cell/sdpfxrev.fc"
-    private val splitFuncs: String = "/cell/split.fc"
-    private val cutfirstFunc: String = "/cell/scutfirst.fc"
-    private val skipfirst: String = "/cell/sskipfirst.fc"
     private val configParamFunc: String = "/cell/config-param.fc"
-    private val randomFunc: String = "/cell/random.fc"
     private val cdatasizeqFunc: String = "/cell/cdatasizeq.fc"
 
     /**
@@ -74,35 +70,9 @@ class CellBuildTest {
         compareSymbolicAndConcreteResultsFunc(cdatasizeqFunc, (0..5).toSet())
     }
 
-    @Test
-    fun `test split functions`() {
-        compareSymbolicAndConcreteResultsFunc(splitFuncs, (0..9).toSet())
-    }
-
-    @Test
-    fun `cut first functions`() {
-        compareSymbolicAndConcreteResultsFunc(cutfirstFunc, (0..8).toSet())
-    }
-
-    @Test
-    fun `skip first functions`() {
-        compareSymbolicAndConcreteResultsFunc(skipfirst, (0..8).toSet())
-    }
-
     @Disabled
     @Test
     fun `config param`() {
         compareSymbolicAndConcreteResultsFunc(configParamFunc, (0..0).toSet())
-    }
-
-    /**
-     * Sandbox (i.e. `TvmExecutor.executeGeneratedTests`) is used here for proper initialization of c7 register
-     */
-    @Test
-    fun `random instructions`() {
-        val path = extractResource(randomFunc)
-        val results = funcCompileAndAnalyzeAllMethods(path)
-        assert(results.testSuites.all { it.tests.size == 1 }) // concrete execution
-        TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
     }
 }

@@ -15,6 +15,7 @@ import org.usvm.machine.state.TvmResult.TvmFailure
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmStructuralExit
+import java.math.BigInteger
 
 data object TvmTestResolver {
     fun resolve(
@@ -73,6 +74,7 @@ data object TvmTestResolver {
                     state.debugInfo.tlbMemoryMisses.size,
                 ),
             eventsList = events,
+            initialSeed = state.initialRandomSeed,
         )
     }
 
@@ -157,6 +159,7 @@ data class TvmSymbolicTest(
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
     val eventsList: List<TvmMessageDrivenContractExecutionTestEntry>,
+    val initialSeed: BigInteger?,
     val debugInfo: TvmTestDebugInfo,
 ) {
     val initialRootContractState: TvmContractState

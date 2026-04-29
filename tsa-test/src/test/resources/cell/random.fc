@@ -50,3 +50,10 @@
     set_seed(-1);
     return 0;
 }
+
+(int) test7() impure method_id (7) {
+    ;; seed set from the run parameters
+    var value = rand(100);
+    throw(value);
+    return 0;
+}

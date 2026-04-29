@@ -827,8 +827,10 @@ class TvmCellInterpreter(
         val inIntRangeRange =
             with(ctx) {
                 mkAnd(
-                    lRaw bvUle 1023.toBv257(),
-                    rRaw bvUle 4.toBv257(),
+                    0.toBv257() bvSle lRaw,
+                    lRaw bvSle 1023.toBv257(),
+                    0.toBv257() bvSle rRaw,
+                    rRaw bvSle 4.toBv257(),
                 )
             }
 

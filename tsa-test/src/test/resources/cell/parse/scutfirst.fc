@@ -1,4 +1,4 @@
-#include "../imports/stdlib.fc";
+#include "../../imports/stdlib.fc";
 
 (slice, slice) split(slice s, int l, int r) asm "SPLIT";
 (slice) cut_first(slice s, int l, int r) asm "SCUTFIRST";

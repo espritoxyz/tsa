@@ -32,10 +32,14 @@ data class ExcludedOpcodes(
 // msg body is shorter than opcode length (32 bits)
 data object NoOpcode : OpcodeInfo
 
+/**
+ * @param initialSeed must be specified on the first contract
+ */
 data class TvmConcreteContractData(
     val contractC4: Cell? = null,
     val initialBalance: BigInteger? = null,
     val addressBits: String? = null,
+    val initialSeed: BigInteger? = null,
 ) {
     init {
         checkAddressBits(addressBits)

@@ -245,7 +245,12 @@ fun TvmState.initContractInfo(
         // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/smc-envelope/SmartContract.cpp#L157
         val transactionLogicTime = TvmStackIntValue(zeroValue)
 
-        val randomSeed = TvmStackIntValue(makeSymbolicPrimitive(int257sort))
+        val randomSeed =
+            if (concreteData.initialSeed != null) {
+                TvmStackIntValue(with(ctx) { concreteData.initialSeed.toBv257() })
+            } else {
+                TvmStackIntValue(makeSymbolicPrimitive(int257sort))
+            }
 
         val initialBalance =
             if (concreteData.initialBalance == null) {

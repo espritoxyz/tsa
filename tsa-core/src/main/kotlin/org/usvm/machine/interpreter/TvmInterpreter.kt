@@ -4,7 +4,6 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
-import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -441,6 +440,7 @@ class TvmInterpreter(
                 fieldManagers = fieldManagers,
                 intercontractPath = persistentListOf(startContractId),
                 additionalInputsConcreteData = additionalInputsConcreteData,
+                initialRandomSeed = concreteContractData.first().initialSeed,
             )
 
         state.time = state.generateSymbolicTime(TvmTime())
@@ -982,10 +982,7 @@ class TvmInterpreter(
                     scope.calcOnState {
                         getContractInfoParam(SEED_PARAMETER_IDX).intValue
                     }
-                val currentSeed =
-                    (currentSeedStackValue as? KBitVecValue<*>)
-                        ?.toBigIntegerUnsigned()
-                        ?: error("Seed is not a concrete integer")
+                val currentSeed = currentSeedStackValue.asConcreteIntegerOrThrow()
                 val argument =
                     scope.calcOnState {
                         takeLastIntOrThrowTypeError()
@@ -1027,10 +1024,7 @@ class TvmInterpreter(
             is TvmAppRndRandu256Inst -> {
                 scope.consumeConstantGas(26)
                 val currentSeedStackValue = scope.calcOnState { getContractInfoParam(SEED_PARAMETER_IDX).intValue }
-                val currentSeed =
-                    (currentSeedStackValue as? KBitVecValue<*>)
-                        ?.toBigIntegerSigned()
-                        ?: error("Seed is not a concrete integer")
+                val currentSeed = currentSeedStackValue.asConcreteIntegerOrThrow()
 
                 check(currentSeed >= 0.toBigInteger()) {
                     "Seed must always be non-negative"
@@ -1051,10 +1045,7 @@ class TvmInterpreter(
                     } ?: return
                 val currentSeedStackValue =
                     scope.calcOnState { getContractInfoParam(SEED_PARAMETER_IDX).intValue }
-                val currentSeed =
-                    (currentSeedStackValue as? KBitVecValue<*>)
-                        ?.toBigIntegerSigned()
-                        ?: error("Seed is not a concrete integer")
+                val currentSeed = currentSeedStackValue.asConcreteIntegerOrThrow()
 
                 check(currentSeed >= 0.toBigInteger()) {
                     scope.calcOnState {
@@ -1065,31 +1056,12 @@ class TvmInterpreter(
                 val (newSeed, newValue) = extractRandomFromSeed(currentSeed)
                 scope.calcOnState { setSeed(newSeed) }
 
-                val option1 = true
                 val result =
-                    if (option1) {
-                        with(ctx) {
-                            require(bound is KBitVecValue<*>) {
-                                "Only concrete bound is supported"
-                            }
-                            (bound.bigIntValue() * newValue).div(2.toBigInteger().pow(256)).toBv257()
+                    with(ctx) {
+                        require(bound is KBitVecValue<*>) {
+                            "Only concrete bound is supported"
                         }
-                    } else {
-                        with(ctx) {
-                            val mulExtended =
-                                mkBvMulExpr(
-                                    bound.signExtendToSort(int257Ext256Sort),
-                                    newValue.toBv257().signExtendToSort(int257Ext256Sort),
-                                )
-
-                            val t =
-                                mkBvShiftLeftExpr(
-                                    oneValue.signExtendToSort(int257Ext256Sort),
-                                    256.toBv257().signExtendToSort(int257Ext256Sort),
-                                )
-                            val div = makeDiv(mulExtended, t)
-                            div.value.extractToInt257Sort()
-                        }
+                        (bound.bigIntValue() * newValue).div(2.toBigInteger().pow(256)).toBv257()
                     }
 
                 scope.calcOnState {
@@ -1099,6 +1071,13 @@ class TvmInterpreter(
             }
         }
     }
+
+    private fun UExpr<TvmInt257Sort>?.asConcreteIntegerOrThrow(): BigInteger =
+        (
+            (this as? KBitVecValue<*>)
+                ?.toBigIntegerUnsigned()
+                ?: error("Seed is not a concrete integer")
+        )
 
     private fun TvmState.setSeed(newSeed: BigInteger) {
         setContractInfoParam(

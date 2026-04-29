@@ -1,4 +1,4 @@
-#include "../imports/stdlib.fc";
+#include "../../imports/stdlib.fc";
 
 (slice, slice) split(slice s, int l, int r) asm "SPLIT";
 
@@ -115,3 +115,26 @@
     return slice_hash(x);
 }
 
+(int) split_negative_l() impure method_id (10) {
+    slice a = begin_cell()
+        .store_uint(1, 4)
+        .store_ref(begin_cell().store_uint(1, 4).end_cell())
+        .store_ref(begin_cell().store_uint(2, 4).end_cell())
+        .store_ref(begin_cell().store_uint(3, 4).end_cell())
+        .end_cell()
+        .begin_parse();
+    (slice x, _) = split(a, -1, 0);
+    return slice_hash(x);
+}
+
+(int) split_negative_r() impure method_id (11) {
+    slice a = begin_cell()
+        .store_uint(1, 4)
+        .store_ref(begin_cell().store_uint(1, 4).end_cell())
+        .store_ref(begin_cell().store_uint(2, 4).end_cell())
+        .store_ref(begin_cell().store_uint(3, 4).end_cell())
+        .end_cell()
+        .begin_parse();
+    (slice x, _) = split(a, 0, -1);
+    return slice_hash(x);
+}

@@ -46,6 +46,7 @@ import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
+import java.math.BigInteger
 
 typealias ContractId = Int
 
@@ -101,6 +102,7 @@ class TvmState(
     val debugInfo: TvmStateDebugInfo = TvmStateDebugInfo(),
     var inputDictionaryStorage: InputDictionaryStorage = InputDictionaryStorage(),
     var cdatasizeInfos: PersistentSet<DataSizeInfo> = persistentSetOf(),
+    val initialRandomSeed: BigInteger?,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -240,6 +242,7 @@ class TvmState(
             refsToBeIndependentFromRandomAddresses = refsToBeIndependentFromRandomAddresses,
             fixatedRandomAddresses = fixatedRandomAddresses,
             cdatasizeInfos = cdatasizeInfos,
+            initialRandomSeed = initialRandomSeed,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

@@ -36,6 +36,7 @@ sealed interface TsElement {
             is TsObject -> visit(element)
             is TsSandboxContract<*> -> visit(element)
             is TsTransaction -> visit(element)
+            is TsBuffer -> visit(element)
             is TsArray<*> -> visit(element)
             is TsPredicate<*> -> visit(element)
         }
@@ -61,6 +62,7 @@ sealed interface TsElement {
             is TsIntValue -> visit(element)
             is TsBigintValue -> visit(element)
             is TsStringValue -> visit(element)
+            is TsQuotedStringValue -> visit(element)
             is TsDataCellValue -> visit(element)
             is TsDictValue -> visit(element)
             is TsSliceValue -> visit(element)
@@ -167,6 +169,13 @@ data class TsBigintValue(
 }
 
 data class TsStringValue(
+    val value: String,
+) : TsExpression<TsString> {
+    override val type: TsString
+        get() = TsString
+}
+
+data class TsQuotedStringValue(
     val value: String,
 ) : TsExpression<TsString> {
     override val type: TsString

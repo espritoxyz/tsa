@@ -1,4 +1,4 @@
-#include "../imports/stdlib.fc";
+#include "../../imports/stdlib.fc";
 
 (slice) skip_first(slice s, int l, int r) asm "SSKIPFIRST";
 
