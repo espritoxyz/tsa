@@ -295,5 +295,4 @@ data class TvmUserDefinedFailure(
 
 fun TvmResult.isExceptional(): Boolean =
     this is TvmResult.TvmFailure ||
-        this is TvmStructuralError ||
         this is TvmAbstractSoftFailure
