@@ -440,7 +440,7 @@ class TvmInterpreter(
                 fieldManagers = fieldManagers,
                 intercontractPath = persistentListOf(startContractId),
                 additionalInputsConcreteData = additionalInputsConcreteData,
-                initialRandomSeed = concreteContractData.first().initialSeed,
+                initialRandomSeed = concreteGeneralData.initialSeed,
             )
 
         state.time = state.generateSymbolicTime(TvmTime())
@@ -490,7 +490,7 @@ class TvmInterpreter(
         state.contractIdToFirstElementOfC7 =
             contractsCode
                 .mapIndexed { index, code ->
-                    index to state.initContractInfo(code, concreteContractData[index])
+                    index to state.initContractInfo(code, concreteContractData[index], concreteGeneralData)
                 }.toMap()
                 .toPersistentMap()
         state.contractIdToInitialData =
