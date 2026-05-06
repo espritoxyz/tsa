@@ -1,5 +1,17 @@
 # TSA Changelog
 
+## v0.5.3 - v0.5.4
+
+* Fixed CI (fix in int-blasting) by @tochilinak in https://github.com/espritoxyz/tsa/pull/309
+* Fuller support for partial hash constraints by @tochilinak in https://github.com/espritoxyz/tsa/pull/311
+* Implemented CDATASIZEQ by @metametamoon in https://github.com/espritoxyz/tsa/pull/308
+* Fixed the dictionary concretization failure by @metametamoon in https://github.com/espritoxyz/tsa/pull/313
+* Soft failures for symbolic C5 and BLESS by @tochilinak in https://github.com/espritoxyz/tsa/pull/314
+* Reduced the number of forks during handling message without IgnoreError flag by @metametamoon in https://github.com/espritoxyz/tsa/pull/312
+* SPLIT, SSKIPFIRST, SSKIPLAST, CONFIGPARAM, ADDRAND, RAND, SETRAND, RANDU256 instructions by @metametamoon in https://github.com/espritoxyz/tsa/pull/310
+
+**Full Changelog**: https://github.com/espritoxyz/tsa/compare/v0.5.3...v0.5.4
+
 ## v0.5.2 - v0.5.3
 
 * Optimized Z3 + several small optimizations by @tochilinak in https://github.com/espritoxyz/tsa/pull/306
