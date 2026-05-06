@@ -1,5 +1,6 @@
 package org.ton.examples.cell
 
+import org.junit.jupiter.api.Disabled
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.TvmTestExecutor
 import org.ton.test.utils.compareSymbolicAndConcreteFromResource
@@ -15,6 +16,7 @@ class CellBuildTest {
     private val storeOnesFunc: String = "/cell/cell-build/StonesSymbolicSize.fc"
     private val sdpfxFunc: String = "/cell/sdpfx.fc"
     private val sdpfxrevFunc: String = "/cell/sdpfxrev.fc"
+    private val configParamFunc: String = "/cell/config-param.fc"
     private val cdatasizeqFunc: String = "/cell/cdatasizeq.fc"
 
     /**
@@ -66,5 +68,11 @@ class CellBuildTest {
     @Test
     fun `test cdatasizeq`() {
         compareSymbolicAndConcreteResultsFunc(cdatasizeqFunc, (0..5).toSet())
+    }
+
+    @Disabled
+    @Test
+    fun `config param`() {
+        compareSymbolicAndConcreteResultsFunc(configParamFunc, (0..0).toSet())
     }
 }

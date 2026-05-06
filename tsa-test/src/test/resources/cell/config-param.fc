@@ -1,0 +1,10 @@
+#include "../imports/stdlib.fc";
+(cell, int) config_param_noopt(int x) asm "CONFIGPARAM" "NULLSWAPIFNOT";
+
+(int) test0() impure method_id (0) {
+    int param_idx = 34;
+    (var param, var found) = config_param_noopt(param_idx);
+    throw_if(300, ~ found);
+    var param2 = config_param(param_idx);
+    return param.cell_hash() == param2.cell_hash();
+}

@@ -1,8 +1,10 @@
 package org.usvm.machine.interpreter
 
+import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
+import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentMap
@@ -13,6 +15,7 @@ import org.ton.TvmParameterInfo
 import org.ton.TvmParameterInfo.CellInfo
 import org.ton.TvmParameterInfo.SliceInfo
 import org.ton.bytecode.MethodId
+import org.ton.bytecode.SEED_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialExecuteContInst
 import org.ton.bytecode.TsaArtificialLoopEntranceInst
 import org.ton.bytecode.TsaArtificialPostprocessInst
@@ -25,6 +28,11 @@ import org.ton.bytecode.TvmAppCurrencyInst
 import org.ton.bytecode.TvmAppGasInst
 import org.ton.bytecode.TvmAppGlobalInst
 import org.ton.bytecode.TvmAppMiscCdatasizeqInst
+import org.ton.bytecode.TvmAppRndAddrandInst
+import org.ton.bytecode.TvmAppRndInst
+import org.ton.bytecode.TvmAppRndRandInst
+import org.ton.bytecode.TvmAppRndRandu256Inst
+import org.ton.bytecode.TvmAppRndSetrandInst
 import org.ton.bytecode.TvmArithmBasicAddInst
 import org.ton.bytecode.TvmArithmBasicAddconstInst
 import org.ton.bytecode.TvmArithmBasicDecInst
@@ -223,6 +231,7 @@ import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmConcreteGeneralData
@@ -251,9 +260,11 @@ import org.usvm.machine.state.CDataSizeDistinctCells
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TvmInitialStateData
+import org.usvm.machine.state.TvmIntegerOutOfRangeError
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmRefEmptyValue
 import org.usvm.machine.state.TvmResult
+import org.usvm.machine.state.TvmStack
 import org.usvm.machine.state.TvmStack.TvmConcreteStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackSliceValue
@@ -267,7 +278,6 @@ import org.usvm.machine.state.addContinuation
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.addTuple
-import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocateCell
 import org.usvm.machine.state.applySoftConstraints
@@ -277,9 +287,10 @@ import org.usvm.machine.state.bvMinValueSignedExtended
 import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.callContinuationComplex
 import org.usvm.machine.state.callMethod
+import org.usvm.machine.state.checkIntegerOverflow
+import org.usvm.machine.state.checkIntegerUnderflow
 import org.usvm.machine.state.checkOutOfRange
-import org.usvm.machine.state.checkOverflow
-import org.usvm.machine.state.checkUnderflow
+import org.usvm.machine.state.consumeConstantGas
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.createSliceIsEmptyConstraint
@@ -303,6 +314,7 @@ import org.usvm.machine.state.doXchg3
 import org.usvm.machine.state.generateSymbolicCell
 import org.usvm.machine.state.generateSymbolicTime
 import org.usvm.machine.state.getBalance
+import org.usvm.machine.state.getContractInfoParam
 import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.initContractInfo
@@ -320,7 +332,9 @@ import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceLeftLength
 import org.usvm.machine.state.returnAltFromContinuation
 import org.usvm.machine.state.returnFromContinuation
+import org.usvm.machine.state.setContractInfoParam
 import org.usvm.machine.state.setExit
+import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceLoadBitArrayTlb
 import org.usvm.machine.state.slicesAreEqual
@@ -353,6 +367,7 @@ import org.usvm.solver.USatResult
 import org.usvm.targets.UTargetsSet
 import org.usvm.test.resolver.TvmTestStateResolver
 import java.math.BigInteger
+import java.security.MessageDigest
 
 // TODO there are a lot of `scope.calcOnState` and `scope.doWithState` invocations that are not inline - optimize it
 class TvmInterpreter(
@@ -425,6 +440,7 @@ class TvmInterpreter(
                 fieldManagers = fieldManagers,
                 intercontractPath = persistentListOf(startContractId),
                 additionalInputsConcreteData = additionalInputsConcreteData,
+                initialRandomSeed = concreteGeneralData.initialSeed,
             )
 
         state.time = state.generateSymbolicTime(TvmTime())
@@ -474,7 +490,7 @@ class TvmInterpreter(
         state.contractIdToFirstElementOfC7 =
             contractsCode
                 .mapIndexed { index, code ->
-                    index to state.initContractInfo(code, concreteContractData[index])
+                    index to state.initContractInfo(code, concreteContractData[index], concreteGeneralData)
                 }.toMap()
                 .toPersistentMap()
         state.contractIdToInitialData =
@@ -814,40 +830,295 @@ class TvmInterpreter(
                     consumeDefaultGas(stmt)
                 }
             }
-            is TvmArtificialInst -> artificialInstInterpreter.visit(scope, stmt)
-            is TvmStackBasicInst -> visitBasicStackInst(scope, stmt)
-            is TvmStackComplexInst -> visitComplexStackInst(scope, stmt)
-            is TvmConstIntInst -> visitConstantIntInst(scope, stmt)
-            is TvmConstDataInst -> visitConstantDataInst(scope, stmt)
-            is TvmArithmBasicInst -> visitArithmeticInst(scope, stmt)
-            is TvmArithmDivInst -> arithDivInterpreter.visitArithmeticDivInst(scope, stmt)
-            is TvmArithmLogicalInst -> visitArithmeticLogicalInst(scope, stmt)
-            is TvmCompareIntInst -> visitComparisonIntInst(scope, stmt)
-            is TvmCompareOtherInst -> visitComparisonOtherInst(scope, stmt)
-            is TvmCellBuildInst -> cellInterpreter.visitCellBuildInst(scope, stmt)
-            is TvmCellParseInst -> cellInterpreter.visitCellParseInst(scope, stmt)
-            is TvmContBasicInst -> visitTvmBasicControlFlowInst(scope, stmt)
-            is TvmContConditionalInst -> visitTvmConditionalControlFlowInst(scope, stmt)
-            is TvmContRegistersInst -> visitTvmSaveControlFlowInst(scope, stmt)
-            is TvmContDictInst -> visitTvmDictionaryJumpInst(scope, stmt)
-            is TvmDebugInst -> visitDebugInst(scope, stmt)
-            is TvmCodepageInst -> visitCodepageInst(scope, stmt)
-            is TvmDictSpecialInst -> visitDictControlFlowInst(scope, stmt)
-            is TvmExceptionsInst -> exceptionsInterpreter.visitExceptionInst(scope, stmt)
-            is TvmTupleInst -> tupleInterpreter.visitTvmTupleInst(scope, stmt)
-            is TvmDictInst -> dictOperationInterpreter.visitTvmDictInst(scope, stmt)
-            is TvmContLoopsInst -> loopsInterpreter.visitTvmContLoopsInst(scope, stmt)
-            is TvmAppAddrInst -> msgAddrInterpreter.visitAddrInst(scope, stmt)
-            is TvmAppCurrencyInst -> currencyInterpreter.visitCurrencyInst(scope, stmt)
-            is TvmAppConfigInst -> configInterpreter.visitConfigInst(scope, stmt)
-            is TvmAppActionsInst -> actionsInterpreter.visitActionsStmt(scope, stmt)
-            is TvmAppCryptoInst -> cryptoInterpreter.visitCryptoStmt(scope, stmt)
-            is TvmAppGasInst -> gasInterpreter.visitGasInst(scope, stmt)
-            is TvmAppGlobalInst -> globalsInterpreter.visitGlobalInst(scope, stmt)
-            is TvmContStackInst -> contStackInterpreter.visitContStackInst(scope, stmt)
-            is TvmAppMiscCdatasizeqInst -> visitCdatasizeInst(scope, stmt)
-            else -> TODO("$stmt")
+
+            is TvmArtificialInst -> {
+                artificialInstInterpreter.visit(scope, stmt)
+            }
+
+            is TvmStackBasicInst -> {
+                visitBasicStackInst(scope, stmt)
+            }
+
+            is TvmStackComplexInst -> {
+                visitComplexStackInst(scope, stmt)
+            }
+
+            is TvmConstIntInst -> {
+                visitConstantIntInst(scope, stmt)
+            }
+
+            is TvmConstDataInst -> {
+                visitConstantDataInst(scope, stmt)
+            }
+
+            is TvmArithmBasicInst -> {
+                visitArithmeticInst(scope, stmt)
+            }
+
+            is TvmArithmDivInst -> {
+                arithDivInterpreter.visitArithmeticDivInst(scope, stmt)
+            }
+
+            is TvmArithmLogicalInst -> {
+                visitArithmeticLogicalInst(scope, stmt)
+            }
+
+            is TvmCompareIntInst -> {
+                visitComparisonIntInst(scope, stmt)
+            }
+
+            is TvmCompareOtherInst -> {
+                visitComparisonOtherInst(scope, stmt)
+            }
+
+            is TvmCellBuildInst -> {
+                cellInterpreter.visitCellBuildInst(scope, stmt)
+            }
+
+            is TvmCellParseInst -> {
+                cellInterpreter.visitCellParseInst(scope, stmt)
+            }
+
+            is TvmContBasicInst -> {
+                visitTvmBasicControlFlowInst(scope, stmt)
+            }
+
+            is TvmContConditionalInst -> {
+                visitTvmConditionalControlFlowInst(scope, stmt)
+            }
+
+            is TvmContRegistersInst -> {
+                visitTvmSaveControlFlowInst(scope, stmt)
+            }
+
+            is TvmContDictInst -> {
+                visitTvmDictionaryJumpInst(scope, stmt)
+            }
+
+            is TvmDebugInst -> {
+                visitDebugInst(scope, stmt)
+            }
+
+            is TvmCodepageInst -> {
+                visitCodepageInst(scope, stmt)
+            }
+
+            is TvmDictSpecialInst -> {
+                visitDictControlFlowInst(scope, stmt)
+            }
+
+            is TvmExceptionsInst -> {
+                exceptionsInterpreter.visitExceptionInst(scope, stmt)
+            }
+
+            is TvmTupleInst -> {
+                tupleInterpreter.visitTvmTupleInst(scope, stmt)
+            }
+
+            is TvmDictInst -> {
+                dictOperationInterpreter.visitTvmDictInst(scope, stmt)
+            }
+
+            is TvmContLoopsInst -> {
+                loopsInterpreter.visitTvmContLoopsInst(scope, stmt)
+            }
+
+            is TvmAppAddrInst -> {
+                msgAddrInterpreter.visitAddrInst(scope, stmt)
+            }
+
+            is TvmAppCurrencyInst -> {
+                currencyInterpreter.visitCurrencyInst(scope, stmt)
+            }
+
+            is TvmAppConfigInst -> {
+                configInterpreter.visitConfigInst(scope, stmt)
+            }
+
+            is TvmAppActionsInst -> {
+                actionsInterpreter.visitActionsStmt(scope, stmt)
+            }
+
+            is TvmAppCryptoInst -> {
+                cryptoInterpreter.visitCryptoStmt(scope, stmt)
+            }
+
+            is TvmAppGasInst -> {
+                gasInterpreter.visitGasInst(scope, stmt)
+            }
+
+            is TvmAppGlobalInst -> {
+                globalsInterpreter.visitGlobalInst(scope, stmt)
+            }
+
+            is TvmContStackInst -> {
+                contStackInterpreter.visitContStackInst(scope, stmt)
+            }
+
+            is TvmAppRndInst -> {
+                visitRandInst(stmt, scope)
+            }
+
+            is TvmAppMiscCdatasizeqInst -> {
+                visitCdatasizeInst(scope, stmt)
+            }
+
+            else -> {
+                TODO("$stmt")
+            }
         }
+    }
+
+    private fun ByteArray.toUnsignedBigInt(): BigInteger = BigInteger(1, this)
+
+    private fun visitRandInst(
+        stmt: TvmAppRndInst,
+        scope: TvmStepScopeManager,
+    ) {
+        when (stmt) {
+            is TvmAppRndAddrandInst -> {
+                scope.consumeConstantGas(26)
+                val currentSeedStackValue =
+                    scope.calcOnState {
+                        getContractInfoParam(SEED_PARAMETER_IDX).intValue
+                    }
+                val currentSeed = currentSeedStackValue.asConcreteIntegerOrThrow()
+                val argument =
+                    scope.calcOnState {
+                        takeLastIntOrThrowTypeError()
+                    } ?: return
+                val concreteArgument =
+                    (argument as? KBitVecValue<*>)
+                        ?.toBigIntegerUnsigned()
+                        ?: error("Only concrete arguments are supported for rnd")
+
+                val sha256 =
+                    MessageDigest.getInstance("SHA-256")
+                        ?: error("Failed to extract SHA-256 digester")
+                val concat =
+                    currentSeed.toByteArray().toList().toBigEndianTo32Bytes() +
+                        concreteArgument.toByteArray().toList().toBigEndianTo32Bytes()
+                val newSeed = sha256.digest(concat.toByteArray()).toUnsignedBigInt()
+                scope.calcOnState {
+                    setSeed(newSeed)
+                    newStmt(stmt.nextStmt())
+                }
+            }
+
+            is TvmAppRndSetrandInst -> {
+                scope.consumeConstantGas(26)
+                val argument =
+                    scope.calcOnState {
+                        takeLastIntOrThrowTypeError()
+                    } ?: return
+                require(argument is KBitVecValue<*>) {
+                    "Only concrete arguments are supported for rnd"
+                }
+
+                scope.calcOnState {
+                    setSeed(argument)
+                    newStmt(stmt.nextStmt())
+                }
+            }
+
+            is TvmAppRndRandu256Inst -> {
+                scope.consumeConstantGas(26)
+                val currentSeedStackValue = scope.calcOnState { getContractInfoParam(SEED_PARAMETER_IDX).intValue }
+                val currentSeed = currentSeedStackValue.asConcreteIntegerOrThrow()
+
+                check(currentSeed >= 0.toBigInteger()) {
+                    "Seed must always be non-negative"
+                }
+                val (newSeed, newValue) = extractRandomFromSeed(currentSeed)
+                scope.calcOnState {
+                    setSeed(newSeed)
+                    stack.addInt(with(ctx) { newValue.toBv257() })
+                    newStmt(stmt.nextStmt())
+                }
+            }
+
+            is TvmAppRndRandInst -> {
+                scope.consumeConstantGas(26)
+                val bound =
+                    scope.calcOnState {
+                        takeLastIntOrThrowTypeError()
+                    } ?: return
+                val currentSeedStackValue =
+                    scope.calcOnState { getContractInfoParam(SEED_PARAMETER_IDX).intValue }
+                val currentSeed = currentSeedStackValue.asConcreteIntegerOrThrow()
+
+                check(currentSeed >= 0.toBigInteger()) {
+                    scope.calcOnState {
+                        ctx.setFailure(TvmIntegerOutOfRangeError)
+                    }
+                    return
+                }
+                val (newSeed, newValue) = extractRandomFromSeed(currentSeed)
+                scope.calcOnState { setSeed(newSeed) }
+
+                val result =
+                    with(ctx) {
+                        require(bound is KBitVecValue<*>) {
+                            "Only concrete bound is supported"
+                        }
+                        (bound.bigIntValue() * newValue).div(2.toBigInteger().pow(256)).toBv257()
+                    }
+
+                scope.calcOnState {
+                    stack.addInt(result)
+                    newStmt(stmt.nextStmt())
+                }
+            }
+        }
+    }
+
+    private fun UExpr<TvmInt257Sort>?.asConcreteIntegerOrThrow(): BigInteger =
+        (
+            (this as? KBitVecValue<*>)
+                ?.toBigIntegerUnsigned()
+                ?: error("Seed is not a concrete integer")
+        )
+
+    private fun TvmState.setSeed(newSeed: BigInteger) {
+        setContractInfoParam(
+            SEED_PARAMETER_IDX,
+            TvmConcreteStackEntry(TvmStack.TvmStackIntValue(with(ctx) { newSeed.toBv257() })),
+        )
+    }
+
+    private fun TvmState.setSeed(newSeed: Int257Expr) {
+        setContractInfoParam(
+            SEED_PARAMETER_IDX,
+            TvmConcreteStackEntry(TvmStack.TvmStackIntValue(with(ctx) { newSeed })),
+        )
+    }
+
+    /**
+     * @return `(newSeed, extractedValue)`
+     */
+    private fun extractRandomFromSeed(currentSeed: BigInteger): Pair<BigInteger, BigInteger> {
+        val sha512 =
+            MessageDigest.getInstance("SHA-512")
+                ?: error("Failed to extract SHA-512 digester")
+        val result =
+            sha512
+                .digest(
+                    currentSeed
+                        .toByteArray()
+                        .toList()
+                        .toBigEndianTo32Bytes()
+                        .toByteArray(),
+                ).toList()
+        val newSeed = result.subList(0, 32).toByteArray().toUnsignedBigInt()
+        val newValue = result.subList(32, 64).toByteArray().toUnsignedBigInt()
+        return Pair(newSeed, newValue)
+    }
+
+    private fun List<Byte>.toBigEndianTo32Bytes(): List<Byte> {
+        val clearedLeadingZeros = this.dropWhile { it == 0.toByte() }
+        val left = 32 - clearedLeadingZeros.size
+        check(left >= 0) { "failed to cast big endian" }
+        return List(left) { 0.toByte() } + clearedLeadingZeros
     }
 
     private fun visitCdatasizeInst(
@@ -1394,9 +1665,9 @@ class TvmInterpreter(
                         val firstOperand = scope.takeLastIntOrThrowTypeError() ?: return
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvAddNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkBvAddExpr(firstOperand, secondOperand)
                     }
@@ -1406,9 +1677,9 @@ class TvmInterpreter(
                         val firstOperand = scope.takeLastIntOrThrowTypeError() ?: return
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvMulNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvMulNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkTvmMul(firstOperand, secondOperand)
                     }
@@ -1419,9 +1690,9 @@ class TvmInterpreter(
 
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvAddNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkBvAddExpr(firstOperand, secondOperand)
                     }
@@ -1432,9 +1703,9 @@ class TvmInterpreter(
 
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvMulNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvMulNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkTvmMul(firstOperand, secondOperand)
                     }
@@ -1445,9 +1716,9 @@ class TvmInterpreter(
 
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvAddNoOverflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvAddNoUnderflowExpr(firstOperand, secondOperand)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkBvAddExpr(firstOperand, secondOperand)
                     }
@@ -1458,9 +1729,9 @@ class TvmInterpreter(
 
                         // TODO optimize using ksmt implementation?
                         val resNoOverflow = mkBvSubNoOverflowExpr(firstOperand, secondOperand)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
                         val resNoUnderflow = mkBvSubNoUnderflowExpr(firstOperand, secondOperand, isSigned = true)
-                        checkUnderflow(resNoUnderflow, scope) ?: return
+                        checkIntegerUnderflow(resNoUnderflow, scope) ?: return
 
                         mkBvSubExpr(firstOperand, secondOperand)
                     }
@@ -1507,10 +1778,10 @@ class TvmInterpreter(
 
         // TODO optimize using ksmt implementation?
         val resNoOverflow = mkBvSubNoOverflowExpr(firstOperand, secondOperand)
-        checkOverflow(resNoOverflow, scope)
+        checkIntegerOverflow(resNoOverflow, scope)
             ?: return null
         val resNoUnderflow = mkBvSubNoUnderflowExpr(firstOperand, secondOperand, isSigned = true)
-        checkUnderflow(resNoUnderflow, scope)
+        checkIntegerUnderflow(resNoUnderflow, scope)
             ?: return null
 
         return mkBvSubExpr(firstOperand, secondOperand)
@@ -1558,7 +1829,7 @@ class TvmInterpreter(
                         scope.consumeDefaultGas(stmt)
 
                         val value = scope.takeLastIntOrThrowTypeError() ?: return
-                        checkOverflow(mkBvNegationNoOverflowExpr(value), scope) ?: return
+                        checkIntegerOverflow(mkBvNegationNoOverflowExpr(value), scope) ?: return
 
                         mkIte(
                             mkBvSignedLessExpr(value, zeroValue),
@@ -1629,7 +1900,7 @@ class TvmInterpreter(
                         checkOutOfRange(notOutOfRangeExpr, scope) ?: return
 
                         val resNoOverflow = unsignedIntegerFitsBits(exp, 8u)
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         mkBvShiftLeftExpr(oneValue, exp)
                     }
@@ -1649,7 +1920,7 @@ class TvmInterpreter(
                                 mkBvSignedLessOrEqualExpr(minArgValue, value),
                                 mkBvSignedLessOrEqualExpr(value, maxArgValue),
                             )
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         mkBvShiftLeftExpr(value, shift.toBv257())
                     }
@@ -1671,7 +1942,7 @@ class TvmInterpreter(
                                 mkBvSignedLessOrEqualExpr(value, maxArgValue),
                             )
 
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         mkBvShiftLeftExpr(value, shift)
                     }
@@ -1705,7 +1976,7 @@ class TvmInterpreter(
                         check(sizeBits in 1..256) { "Unexpected sizeBits $sizeBits" }
 
                         val resNoOverflow = signedIntegerFitsBits(value, sizeBits.toUInt())
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         value
                     }
@@ -1726,7 +1997,7 @@ class TvmInterpreter(
                                     mkBvSignedLessOrEqualExpr(value, bvMaxValueSignedExtended(sizeBits)),
                                 ),
                             )
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         value
                     }
@@ -1739,7 +2010,7 @@ class TvmInterpreter(
                         check(sizeBits in 1..256) { "Unexpected sizeBits $sizeBits" }
 
                         val resNoOverflow = unsignedIntegerFitsBits(value, sizeBits.toUInt())
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         value
                     }
@@ -1763,7 +2034,7 @@ class TvmInterpreter(
                                     mkBvSignedLessOrEqualExpr(value, bvMaxValueUnsignedExtended(sizeBits)),
                                 ),
                             )
-                        checkOverflow(resNoOverflow, scope) ?: return
+                        checkIntegerOverflow(resNoOverflow, scope) ?: return
 
                         value
                     }
@@ -2145,16 +2416,14 @@ class TvmInterpreter(
 
         scope.sliceLoadBitArrayTlb(
             lesserSlice,
-            scope.calcOnState { allocSliceFromCell(allocEmptyCell()) },
             lesserSliceLength,
-        ) { lesserSliceRelevantPart ->
+        ) { (lesserSliceRelevantPart, _) ->
             sliceLoadBitArrayTlb(
                 greaterSlice,
-                calcOnState { allocSliceFromCell(allocEmptyCell()) },
                 lesserSliceLength,
-            ) { greaterSliceRelevantPart ->
+            ) { (greaterSliceRelevantPart, _) ->
                 val isPrefix =
-                    slicesAreEqual(lesserSliceRelevantPart, greaterSliceRelevantPart)
+                    slicesAreEqual(lesserSliceRelevantPart.value, greaterSliceRelevantPart.value)
                         ?: return@sliceLoadBitArrayTlb
 
                 calcOnState {

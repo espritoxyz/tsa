@@ -176,6 +176,22 @@ fun TsExpression<TsBlockchain>.now(): TsFieldAccess<TsBlockchain, TsInt> =
         type = TsInt,
     )
 
+fun TsExpression<TsBlockchain>.random(): TsFieldAccess<TsBlockchain, TsBuffer> =
+    TsFieldAccess(
+        receiver = this,
+        fieldName = "random",
+        type = TsBuffer,
+    )
+
+fun bufferFromHex(hex: String): TsMethodCall<TsBuffer> =
+    TsMethodCall(
+        caller = null,
+        executableName = "Buffer.from",
+        arguments = listOf(TsQuotedStringValue(hex), TsQuotedStringValue("hex")),
+        async = false,
+        type = TsBuffer,
+    )
+
 fun Boolean.toTsValue(): TsBooleanValue = TsBooleanValue(this)
 
 fun Int.toTsValue(): TsIntValue = TsIntValue(BigInteger.valueOf(this.toLong()))

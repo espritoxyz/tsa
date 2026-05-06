@@ -10,6 +10,7 @@ import org.ton.test.gen.dsl.models.TsBigintValue
 import org.ton.test.gen.dsl.models.TsBlockchain
 import org.ton.test.gen.dsl.models.TsBoolean
 import org.ton.test.gen.dsl.models.TsBooleanValue
+import org.ton.test.gen.dsl.models.TsBuffer
 import org.ton.test.gen.dsl.models.TsBuilder
 import org.ton.test.gen.dsl.models.TsBuilderValue
 import org.ton.test.gen.dsl.models.TsCell
@@ -35,6 +36,7 @@ import org.ton.test.gen.dsl.models.TsNumSub
 import org.ton.test.gen.dsl.models.TsObject
 import org.ton.test.gen.dsl.models.TsObjectInit
 import org.ton.test.gen.dsl.models.TsPredicate
+import org.ton.test.gen.dsl.models.TsQuotedStringValue
 import org.ton.test.gen.dsl.models.TsSandboxContract
 import org.ton.test.gen.dsl.models.TsSendMessageResult
 import org.ton.test.gen.dsl.models.TsSlice
@@ -80,6 +82,8 @@ interface TsVisitor<R> {
     fun visit(element: TsObject): R
 
     fun visit(element: TsTransaction): R
+
+    fun visit(element: TsBuffer): R
 
     fun <T : TsType> visit(element: TsPredicate<T>): R
 
@@ -129,6 +133,8 @@ interface TsVisitor<R> {
     fun visit(element: TsBigintValue): R
 
     fun visit(element: TsStringValue): R
+
+    fun visit(element: TsQuotedStringValue): R
 
     fun visit(element: TsDataCellValue): R
 

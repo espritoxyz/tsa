@@ -31,6 +31,9 @@ class TlbStructureBuilder private constructor(
         val empty = new()
     }
 
+    /**
+     * @param address is cell where the data is stored
+     */
     fun end(
         owner: TlbCompositeLabel,
         state: TvmState,
@@ -84,7 +87,9 @@ class TlbStructureBuilder private constructor(
                 return TlbStructureBuilder(labelBuilders.set(labelBuilders.lastIndex, updatedLast))
             }
 
-            else -> TlbStructureBuilder(labelBuilders.add(ConstantFieldBuilder(bitString)))
+            else -> {
+                TlbStructureBuilder(labelBuilders.add(ConstantFieldBuilder(bitString)))
+            }
         }
         return TlbStructureBuilder(labelBuilders.add(ConstantFieldBuilder(bitString)))
     }

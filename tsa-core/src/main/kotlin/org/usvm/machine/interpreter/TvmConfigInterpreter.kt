@@ -15,6 +15,7 @@ import org.ton.bytecode.TAG_PARAMETER_IDX
 import org.ton.bytecode.TIME_PARAMETER_IDX
 import org.ton.bytecode.TRANSACTION_TIME_PARAMETER_IDX
 import org.ton.bytecode.TvmAppConfigConfigoptparamInst
+import org.ton.bytecode.TvmAppConfigConfigparamInst
 import org.ton.bytecode.TvmAppConfigGetforwardfeeInst
 import org.ton.bytecode.TvmAppConfigGetforwardfeesimpleInst
 import org.ton.bytecode.TvmAppConfigGetgasfeeInst
@@ -79,6 +80,7 @@ class TvmConfigInterpreter(
         when (stmt) {
             is TvmAppConfigGetparamInst -> visitGetParamInst(scope, stmt)
             is TvmAppConfigConfigoptparamInst -> visitConfigParamInst(scope, stmt)
+            is TvmAppConfigConfigparamInst -> visitConfigNoOptInst(scope, stmt)
             is TvmAppConfigGetoriginalfwdfeeInst -> visitGetoriginalfwdfeeInst(scope, stmt)
             is TvmAppConfigGetprecompiledgasInst -> visitGetprecompiledgasInst(scope, stmt)
             is TvmAppConfigGetforwardfeesimpleInst -> visitGetforwardfeeInst(scope, stmt, isSimple = true)
@@ -103,6 +105,7 @@ class TvmConfigInterpreter(
 
                     stack.addInt(tag)
                 }
+
                 ACTIONS_PARAMETER_IDX -> { // ACTIONS
                     val actionNum =
                         scope.getIntContractInfoParam(i)
@@ -110,6 +113,7 @@ class TvmConfigInterpreter(
 
                     stack.addInt(actionNum)
                 }
+
                 MSGS_SENT_PARAMETER_IDX -> { // MSGS_SENT
                     val messagesSent =
                         scope.getIntContractInfoParam(i)
@@ -117,6 +121,7 @@ class TvmConfigInterpreter(
 
                     stack.addInt(messagesSent)
                 }
+
                 TIME_PARAMETER_IDX -> { // NOW
                     val now =
                         scope.getIntContractInfoParam(i)
@@ -124,6 +129,7 @@ class TvmConfigInterpreter(
 
                     stack.addInt(now)
                 }
+
                 BLOCK_TIME_PARAMETER_IDX -> { // BLOCK_LTIME
                     val blockLogicalTime =
                         scope.getIntContractInfoParam(i)
@@ -131,6 +137,7 @@ class TvmConfigInterpreter(
 
                     stack.addInt(blockLogicalTime)
                 }
+
                 TRANSACTION_TIME_PARAMETER_IDX -> { // LTIME
                     val logicalTime =
                         scope.getIntContractInfoParam(i)
@@ -138,6 +145,7 @@ class TvmConfigInterpreter(
 
                     stack.addInt(logicalTime)
                 }
+
                 SEED_PARAMETER_IDX -> { // RAND_SEED
                     val randomSeed =
                         scope.getIntContractInfoParam(i)
@@ -145,6 +153,7 @@ class TvmConfigInterpreter(
 
                     stack.addInt(randomSeed)
                 }
+
                 BALANCE_PARAMETER_IDX -> { // BALANCE
                     val balanceValue =
                         getContractInfoParam(i).tupleValue
@@ -152,6 +161,7 @@ class TvmConfigInterpreter(
 
                     stack.addTuple(balanceValue)
                 }
+
                 ADDRESS_PARAMETER_IDX -> { // MYADDR
                     val cell =
                         scope.getCellContractInfoParam(i)
@@ -161,6 +171,7 @@ class TvmConfigInterpreter(
                     scope.calcOnState { dataCellInfoStorage.mapper.addAddressSlice(slice) }
                     addOnStack(slice, TvmSliceType)
                 }
+
                 CONFIG_PARAMETER_IDX -> { // GLOBAL_CONFIG
                     val cell =
                         scope.getCellContractInfoParam(i)
@@ -168,6 +179,7 @@ class TvmConfigInterpreter(
 
                     addOnStack(cell, TvmCellType)
                 }
+
                 CODE_PARAMETER_IDX -> { // MYCODE
                     val cell =
                         getContractInfoParam(i).cellValue
@@ -175,6 +187,7 @@ class TvmConfigInterpreter(
 
                     addOnStack(cell, TvmCellType)
                 }
+
                 DUE_PAYMENT_IDX -> {
                     val duePayment =
                         scope.getIntContractInfoParam(i)
@@ -182,6 +195,7 @@ class TvmConfigInterpreter(
 
                     stack.addInt(duePayment)
                 }
+
                 STORAGE_FEES_PARAMETER_IDX -> {
                     val storageFee =
                         scope.getIntContractInfoParam(i)
@@ -189,7 +203,10 @@ class TvmConfigInterpreter(
 
                     stack.addInt(storageFee)
                 }
-                else -> TODO("$i GETPARAM")
+
+                else -> {
+                    TODO("$i GETPARAM")
+                }
             }
 
             newStmt(stmt.nextStmt())
@@ -233,6 +250,31 @@ class TvmConfigInterpreter(
 
         scope.doWithState {
             scope.addOnStack(result, TvmCellType)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun visitConfigNoOptInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppConfigConfigparamInst,
+    ) = with(ctx) {
+        val idx = scope.takeLastIntOrThrowTypeError() ?: return@with
+
+        val absIdx = mkIte(mkBvSignedGreaterOrEqualExpr(idx, zeroValue), idx, mkBvNegationExpr(idx))
+
+        val configContainsIdx = scope.calcOnState { configContainsParam(absIdx) }
+        scope.assert(
+            configContainsIdx,
+            unsatBlock = { error("Config doesn't contain idx: $absIdx") },
+        ) ?: return@with
+
+        val result =
+            scope.getConfigParam(absIdx)
+                ?: return@with
+
+        scope.doWithState {
+            scope.addOnStack(result, TvmCellType)
+            scope.addOnStack(ctx.oneValue, TvmIntegerType)
             newStmt(stmt.nextStmt())
         }
     }

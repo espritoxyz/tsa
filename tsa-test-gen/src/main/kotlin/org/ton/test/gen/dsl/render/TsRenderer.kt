@@ -12,6 +12,7 @@ import org.ton.test.gen.dsl.models.TsBlock
 import org.ton.test.gen.dsl.models.TsBlockchain
 import org.ton.test.gen.dsl.models.TsBoolean
 import org.ton.test.gen.dsl.models.TsBooleanValue
+import org.ton.test.gen.dsl.models.TsBuffer
 import org.ton.test.gen.dsl.models.TsBuilder
 import org.ton.test.gen.dsl.models.TsBuilderValue
 import org.ton.test.gen.dsl.models.TsCell
@@ -40,6 +41,7 @@ import org.ton.test.gen.dsl.models.TsNumSub
 import org.ton.test.gen.dsl.models.TsObject
 import org.ton.test.gen.dsl.models.TsObjectInit
 import org.ton.test.gen.dsl.models.TsPredicate
+import org.ton.test.gen.dsl.models.TsQuotedStringValue
 import org.ton.test.gen.dsl.models.TsSandboxContract
 import org.ton.test.gen.dsl.models.TsSendMessageResult
 import org.ton.test.gen.dsl.models.TsSlice
@@ -143,6 +145,10 @@ class TsRenderer(
 
     override fun visit(element: TsBigint) {
         printer.print("bigint")
+    }
+
+    override fun visit(element: TsBuffer) {
+        printer.print("Buffer")
     }
 
     override fun visit(element: TsObject) {
@@ -436,6 +442,10 @@ class TsRenderer(
         printer.print("String.raw`${element.value}`")
     }
 
+    override fun visit(element: TsQuotedStringValue) {
+        printer.print("'${element.value}'")
+    }
+
     override fun visit(element: TsDataCellValue) {
         printer.print(renderTestValue(element.value))
     }
@@ -504,6 +514,7 @@ class TsRenderer(
             is TsBigintValue -> maxPrecedence
             is TsBooleanValue -> maxPrecedence
             is TsStringValue -> maxPrecedence
+            is TsQuotedStringValue -> maxPrecedence
             is TsBuilderValue -> maxPrecedence
             is TsDataCellValue -> maxPrecedence
             is TsSliceValue -> maxPrecedence

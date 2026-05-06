@@ -22,6 +22,8 @@ data object TsSendMessageResult : TsType
 
 data object TsTransaction : TsType
 
+data object TsBuffer : TsType
+
 data class TsArray<T : TsType>(
     val elementType: T,
 ) : TsType

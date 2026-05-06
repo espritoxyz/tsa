@@ -1,0 +1,78 @@
+#include "../../imports/stdlib.fc";
+
+(slice, slice) split(slice s, int l, int r) asm "SPLIT";
+(slice) cut_first(slice s, int l, int r) asm "SCUTFIRST";
+(slice) skip_first(slice s, int l, int r) asm "SSKIPFIRST";
+
+(int) base_cut_first_test(slice s, int l, int r) impure method_id (100) {
+    return cut_first(s, l, r).slice_hash();
+}
+
+
+(int) test0() impure method_id (0) {
+    var s = begin_cell().end_cell().begin_parse();
+    (var length, var refs) = cut_first(s, 0, 0).slice_bits_refs();
+    return length * 100 + refs;
+}
+
+(int) test1() impure method_id (1) {
+    var s = begin_cell()
+        .store_uint(1, 10)
+        .end_cell()
+        .begin_parse();
+    (var length, var refs) = cut_first(s, 0, 0).slice_bits_refs();
+    return length * 100 + refs;
+}
+
+(int) test2() impure method_id (2) {
+    var s = begin_cell()
+        .store_uint(1, 10)
+        .end_cell()
+        .begin_parse();
+    (var length, var refs) = cut_first(s, 5, 0).slice_bits_refs();
+    return length * 100 + refs;
+}
+
+(int) test3() impure method_id (3) {
+    var s = begin_cell()
+        .store_uint(1, 10)
+        .end_cell()
+        .begin_parse();
+    (var length, var refs) = cut_first(s, 5, 1).slice_bits_refs();
+    return length * 100 + refs;
+}
+
+
+(slice) slice1() impure method_id (1000) {
+    return begin_cell()
+        .store_uint(1, 10)
+        .store_ref(begin_cell().end_cell())
+        .store_ref(begin_cell().end_cell())
+        .end_cell()
+        .begin_parse();
+}
+
+(int) test4() impure method_id (4) {
+    var s = slice1();
+    return cut_first(s, 0, 0).slice_hash();
+}
+
+(int) test5() impure method_id (5) {
+    var s = slice1();
+    return cut_first(s, 5, 1).slice_hash();
+}
+
+(int) test6() impure method_id (6) {
+    var s = slice1();
+    return cut_first(s, 5, 3).slice_hash();
+}
+
+(int) test7() impure method_id (7) {
+    var s = slice1();
+    return cut_first(s, 20, 1).slice_hash();
+}
+
+(int) test8() impure method_id (8) {
+    var s = slice1();
+    return cut_first(s, 10, 2).slice_hash();
+}

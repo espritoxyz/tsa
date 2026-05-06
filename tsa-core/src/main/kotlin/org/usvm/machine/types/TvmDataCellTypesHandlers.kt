@@ -25,11 +25,13 @@ import org.usvm.api.writeField
 import org.usvm.isAllocated
 import org.usvm.isTrue
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.sliceCellField
 import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.TvmStepScopeManager.ActionOnCondition
 import org.usvm.machine.intValue
+import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.MemoryAccessInformation
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
@@ -391,6 +393,32 @@ fun TvmStepScopeManager.makeSliceRefLoad(
     )
 }
 
+private fun joinGuardMaps(
+    lhs: Map<UConcreteHeapRef, UBoolExpr>,
+    rhs: Map<UConcreteHeapRef, UBoolExpr>,
+): Map<UConcreteHeapRef, UBoolExpr> {
+    val result = mutableMapOf<UConcreteHeapRef, UBoolExpr>()
+    for ((key, value) in lhs) {
+        result.addGuardedOutcome(key, value)
+    }
+    for ((key, value) in rhs) {
+        result.addGuardedOutcome(key, value)
+    }
+    return result
+}
+
+fun TvmContext.mkIteFromList(values: List<Pair<UConcreteHeapRef, UBoolExpr>>): UHeapRef {
+    val single = values.singleOrNull()
+    if (single != null) {
+        return single.first
+    }
+    val (head, tail) =
+        values.splitHeadTail()
+            ?: error("Empty values parameter")
+    val rightIte = mkIteFromList(tail)
+    return mkIte(head.second, head.first, rightIte)
+}
+
 fun TvmStepScopeManager.makeCellToSlice(
     cellAddress: UHeapRef,
     sliceAddress: UConcreteHeapRef,
@@ -398,19 +426,25 @@ fun TvmStepScopeManager.makeCellToSlice(
 ) {
     // One cell on a concrete address might both have and not have TL-B scheme for different constraints.
     // This is why absence of TL-B stack is a separate situation on which we have to fork.
-    // This is why type of the key is [TlbStack?]
-    val possibleLabels = mutableMapOf<TlbCompositeLabel?, UBoolExpr>()
+    // This is why type of the key is [TlbStack?].
+    // What's more, within each fork, we have to manually exclude the cells with incompatible TLb structure,
+    // as it can cause a symbolic read, which would be in an ITE with an unsatisfiable conditiion, but still
+    // breaks the invariants (such as that there are no input expressions of Address sort.
+    val possibleLabels = mutableMapOf<TlbCompositeLabel?, Map<UConcreteHeapRef, UBoolExpr>>()
 
     calcOnStateCtx {
         val infoVariants = dataCellInfoStorage.getLabelForFreshSlice(cellAddress)
-        infoVariants.forEach { (cellInfo, guard) ->
+        infoVariants.forEach { (cellInfo, cellsToGuards) ->
             val label = (cellInfo as? TvmParameterInfo.DataCellInfo)?.dataCellStructure
-            possibleLabels.addGuardedOutcome(label, guard)
+            val oldValue = possibleLabels[label] ?: mapOf()
+            possibleLabels[label] = joinGuardMaps(oldValue, cellsToGuards)
         }
     }
 
     doWithConditions(
-        possibleLabels.map { (label, guard) ->
+        possibleLabels.map { (label, cellGuards) ->
+            val ite = with(ctx) { mkIteFromList(cellGuards.toList()) }
+            val condition = ctx.mkOr(cellGuards.values.toList())
             ActionOnCondition(
                 action = {
                     label?.let {
@@ -420,8 +454,10 @@ fun TvmStepScopeManager.makeCellToSlice(
                             label,
                         )
                     }
+
+                    memory.writeField(sliceAddress, sliceCellField, ctx.addressSort, ite, ctx.trueExpr)
                 },
-                condition = guard,
+                condition = condition,
                 caseIsExceptional = false,
                 paramForDoForAllBlock = Unit,
             )

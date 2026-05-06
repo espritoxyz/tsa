@@ -4,10 +4,15 @@ import org.ton.boc.BagOfCells
 import org.ton.cell.Cell
 import java.math.BigInteger
 
+/**
+ * "General" in the name means "for all contracts", as opposed to [TvmConcreteContractData]
+ * @param initialSeed must be specified on the first contract
+ */
 data class TvmConcreteGeneralData(
     val initialInputConcreteData: MessageConcreteData = MessageConcreteData(),
     // map key - additional input id
     val inputData: Map<Int, MessageConcreteData> = emptyMap(),
+    val initialSeed: BigInteger = 0.toBigInteger(),
 )
 
 data class MessageConcreteData(

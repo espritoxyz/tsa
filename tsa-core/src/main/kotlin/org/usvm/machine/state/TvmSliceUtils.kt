@@ -227,6 +227,20 @@ fun checkCellOverflow(
         },
     )
 
+fun checkCellUnderflow(
+    noOverflowExpr: UBoolExpr,
+    scope: TvmStepScopeManager,
+    quietBlock: (TvmState.() -> Unit)? = null,
+): Unit? =
+    scope.fork(
+        noOverflowExpr,
+        falseStateIsExceptional = (quietBlock == null),
+        blockOnFalseState = {
+            quietBlock?.invoke(this)
+                ?: ctx.throwRealCellUnderflowError(this)
+        },
+    )
+
 fun setBuilderLengthOrThrowCellOverflow(
     scope: TvmStepScopeManager,
     oldBuilder: UHeapRef,
@@ -640,6 +654,21 @@ fun TvmStepScopeManager.slicePreloadRef(
         val minSize = mkBvAddExpr(refIdx, mkBv(1))
         checkCellRefsUnderflow(this@slicePreloadRef, cell, minSize = minSize, quietBlock = quietBlock)
             ?: return@calcOnStateCtx null
+
+        readCellRef(cell, refIdx)
+    }
+
+fun TvmStepScopeManager.slicePreloadRefNoChecks(
+    slice: UHeapRef,
+    idx: UExpr<TvmSizeSort>,
+): UHeapRef =
+    calcOnStateCtx {
+        val cell = memory.readField(slice, sliceCellField, addressSort)
+
+        val sliceRefPos = memory.readField(slice, sliceRefPosField, sizeSort)
+        val refIdx = mkSizeAddExpr(sliceRefPos, idx)
+
+        val minSize = mkBvAddExpr(refIdx, mkBv(1))
 
         readCellRef(cell, refIdx)
     }
@@ -1426,30 +1455,39 @@ fun sliceLoadIntTlb(
     }
 }
 
+data class BitArrayReadResult(
+    val readBits: SliceRef,
+    val sliceLeftAreRead: SliceRef,
+)
+
 fun TvmStepScopeManager.sliceLoadBitArrayTlb(
     slice: UHeapRef,
-    newSlice: UConcreteHeapRef,
     sizeBits: SizeExpr,
-    restActions: TvmStepScopeManager.(UHeapRef) -> Unit,
+    restActions: TvmStepScopeManager.(BitArrayReadResult) -> Unit,
 ) {
+    val sliceCopy = calcOnState { memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) } }
     makeSliceTypeLoad(
         slice,
         TvmCellDataBitArrayRead(sizeBits),
-        newSlice,
+        sliceCopy,
         badCellSizeIsExceptional = true, // TODO: quiet version
         onBadCellSize = ctx.throwCellUnderflowErrorBasedOnContext,
     ) { valueFromTlb ->
-        val result =
+        val readValue =
             valueFromTlb?.expr ?: let {
                 val bits = slicePreloadDataBits(slice, sizeBits) ?: return@makeSliceTypeLoad
                 val cell = calcOnState { allocEmptyCell() }
 
-                builderStoreDataBits(cell, cell, bits, ctx.mkSizeExpr(bits.sort.sizeBits.toInt()))
+                builderStoreDataBits(cell, cell, bits, sizeBits)
                     ?: return@makeSliceTypeLoad
 
                 calcOnState { allocSliceFromCell(cell) }
             }
-        restActions(result)
+        calcOnState {
+            sliceMoveDataPtr(sliceCopy, sizeBits)
+        }
+
+        restActions(BitArrayReadResult(readValue.asSliceRef(), sliceCopy.asSliceRef()))
     }
 }
 
@@ -1670,6 +1708,15 @@ fun TvmState.readSliceLeftLength(slice: UHeapRef): KExpr<TvmSizeSort> {
     return length
 }
 
+fun TvmState.readSliceLeftRefs(slice: UHeapRef): KExpr<TvmSizeSort> {
+    val cell = readSliceCell(slice)
+    val refs =
+        fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell)
+    val refsPos = readSliceRefPos(slice)
+    val length = with(ctx) { mkBvSubExpr(refs, refsPos) }
+    return length
+}
+
 @Suppress("Unused")
 fun TvmStepScopeManager.readCellData(cell: UHeapRef): UExpr<TvmCellDataSort>? =
     calcOnState { fieldManagers.cellDataFieldManager.readCellData(this@readCellData, cell) }
@@ -1683,6 +1730,21 @@ fun TvmState.readCellRefsCount(cell: CellRef): SizeExpr =
     fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, cell.value)
 
 fun TvmState.readSliceRefPos(slice: SliceRef): SizeExpr = memory.readField(slice.value, sliceRefPosField, ctx.sizeSort)
+
+fun TvmState.writeSliceRefPos(
+    slice: SliceRef,
+    newRefPos: SizeExpr,
+) = memory.writeField(slice.value, sliceRefPosField, ctx.sizeSort, newRefPos, ctx.trueExpr)
+
+fun TvmState.writeSliceCell(
+    slice: SliceRef,
+    newRefPos: UHeapRef,
+) = memory.writeField(slice.value, sliceCellField, ctx.addressSort, newRefPos, ctx.trueExpr)
+
+fun TvmState.writeSliceDataPos(
+    slice: SliceRef,
+    newDataPos: SizeExpr,
+) = memory.writeField(slice.value, sliceRefPosField, ctx.sizeSort, newDataPos, ctx.trueExpr)
 
 fun TvmState.readSliceRefPos(slice: UHeapRef): SizeExpr = readSliceRefPos(slice.asSliceRef())
 

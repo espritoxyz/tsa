@@ -8,10 +8,12 @@ import org.ton.test.gen.dsl.models.TsCell
 import org.ton.test.gen.dsl.models.TsTestFile
 import org.ton.test.gen.dsl.models.TsVariable
 import org.ton.test.gen.dsl.models.blockchainCreate
+import org.ton.test.gen.dsl.models.bufferFromHex
 import org.ton.test.gen.dsl.models.compileContract
 import org.ton.test.gen.dsl.models.now
 import org.ton.test.gen.dsl.models.openContract
 import org.ton.test.gen.dsl.models.parseAddress
+import org.ton.test.gen.dsl.models.random
 import org.ton.test.gen.dsl.models.toInt
 import org.ton.test.gen.dsl.models.toTsValue
 import org.ton.test.gen.dsl.render.TsRenderer
@@ -189,6 +191,11 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
                 ctx.test.time
                     .toTsValue()
                     .toInt()
+            val initialSeed = ctx.test.initialSeed
+            if (initialSeed != null) {
+                val seedHex = initialSeed.toString(16).padStart(64, '0')
+                ctx.blockchain.random() assign bufferFromHex(seedHex)
+            }
 
             emptyLine()
 
@@ -272,6 +279,11 @@ private fun TsTestFileBuilder.registerRecvExternalTests(
                 ctx.test.time
                     .toTsValue()
                     .toInt()
+            val initialSeed = ctx.test.initialSeed
+            if (initialSeed != null) {
+                val seedHex = initialSeed.toString(16).padStart(64, '0')
+                ctx.blockchain.random() assign bufferFromHex(seedHex)
+            }
 
             emptyLine()
 
