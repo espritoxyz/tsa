@@ -130,6 +130,7 @@ private fun List<TvmSymbolicTest>.toSarifResult(
                             .map { (contractId, contractState) -> contractId to contractState.balance }
                             .toMap(),
                     ),
+                "msgIds" to json.encodeToJsonElement(it.messageIdentifierMapping),
             ).toMap(),
         )
 

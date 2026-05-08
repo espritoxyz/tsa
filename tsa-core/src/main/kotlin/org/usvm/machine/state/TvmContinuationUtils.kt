@@ -298,7 +298,7 @@ fun TvmContinuation.defineC5(cell: UHeapRef): TvmContinuation {
         return this
     }
 
-    return update(newSavelist = savelist.copy(c5 = C5Register(TvmCellValue(cell))))
+    return update(newSavelist = savelist.copy(c5 = C5Register(TvmCellValue(cell), null)))
 }
 
 fun TvmContinuation.defineC7(tuple: TvmStackTupleValue): TvmContinuation {

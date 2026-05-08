@@ -2820,7 +2820,7 @@ class TvmInterpreter(
                     takeLastCell()
                         ?: return@doWithStateCtx throwTypeCheckError(this)
 
-                registers.c5 = C5Register(TvmCellValue(newData))
+                registers.c5 = C5Register(TvmCellValue(newData), null)
             }
 
             7 -> {

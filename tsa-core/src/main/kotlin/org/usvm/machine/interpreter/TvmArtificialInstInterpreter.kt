@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialActionParseInst
 import org.ton.bytecode.TsaArtificialActionPhaseStartInst
@@ -74,6 +75,7 @@ import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.messages.TlbStateInit
 import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.messages.getOrElse
+import org.usvm.machine.state.messages.withId
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceCell
@@ -207,7 +209,14 @@ class TvmArtificialInstInterpreter(
             val pushArgsOnStack: TvmState.() -> Unit? = {
                 val constructedMessageCells = head.content.toStackArgs()
                 val messageCounter = stmt.messageOrderNumber
+                val identifier = head.identifier
+                var hashCode = 0
+                if (identifier != null) {
+                    hashCode = identifier.hash()
+                    messageIdentifierMapping = messageIdentifierMapping.put(hashCode, identifier)
+                }
                 with(ctx) {
+                    stack.addInt(hashCode.toBv257())
                     stack.addInt(messageCounter.toBv257())
                     stack.addCell(constructedMessageCells.fullMessage)
                     stack.addSlice(constructedMessageCells.messageBody)
@@ -376,7 +385,8 @@ class TvmArtificialInstInterpreter(
                 setExit(TvmResult.TvmSoftFailure(TvmConstructedMessageCellOverflow, phase))
             },
         ) { msgCells ->
-            val msg = DispatchedMessage(head.receiver, DispatchedMessageContent(head.content, msgCells))
+            val msg =
+                DispatchedMessage(head.receiver, DispatchedMessageContent(head.content, msgCells), head.identifier)
             constructMessageCells(
                 tail,
                 acc + msg,
@@ -455,6 +465,13 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
+        val headAndTailIds = stmt.identifiers?.splitHeadTail()
+        if (stmt.identifiers != null) {
+            check(stmt.identifiers.size == stmt.yetUnparsedActions.size) {
+                "Mismatch occurred"
+            }
+        }
+
         val possibleParsedHeads =
             transactionInterpreter
                 .parseSingleActionSlice(scope, head, stmt)
@@ -468,7 +485,9 @@ class TvmArtificialInstInterpreter(
                         val newStmt =
                             stmt.copy(
                                 yetUnparsedActions = tail,
-                                parsedAndPreprocessedActions = updatedParsedAndPreprocessed + parsedHead,
+                                parsedAndPreprocessedActions =
+                                    updatedParsedAndPreprocessed + parsedHead.withId(headAndTailIds?.first),
+                                identifiers = headAndTailIds?.second,
                             )
                         newStmt(newStmt)
                     },
@@ -501,9 +520,18 @@ class TvmArtificialInstInterpreter(
                 phase = TvmActionPhase(stmt.computePhaseResult)
             }
             val commitedActions = scope.calcOnState { commitedState.c5.value.value }
+            val identifiers =
+                scope.calcOnState {
+                    commitedState.c5.identifierList
+                        ?.reversed()
+                        ?.toImmutableList()
+                }
             val actions =
                 transactionInterpreter.extractListOfActions(scope, commitedActions)
                     ?: return
+            check(identifiers == null || identifiers.size == actions.size) {
+                "Mismatch between identifies and actually stored messages in c5"
+            }
 
             val scheme = ctx.tvmOptions.intercontractOptions.communicationScheme
 
@@ -542,6 +570,7 @@ class TvmArtificialInstInterpreter(
                         stmt.computePhaseResult,
                         lastStmt.location,
                         actions,
+                        identifiers,
                         persistentListOf(),
                         handler,
                     ),

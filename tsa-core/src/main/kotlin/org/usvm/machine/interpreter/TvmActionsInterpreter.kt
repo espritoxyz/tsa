@@ -6,13 +6,14 @@ import org.ton.bytecode.TvmAppActionsSendmsgInst
 import org.ton.bytecode.TvmAppActionsSendrawmsgInst
 import org.ton.bytecode.TvmAppActionsSetcodeInst
 import org.ton.bytecode.TvmCellValue
-import org.ton.bytecode.TvmInst
+import org.ton.bytecode.TvmRealInst
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.addInt
@@ -148,7 +149,8 @@ class TvmActionsInterpreter(
             scope.builderStoreDataBits(updatedActions, zeroBit)
                 ?: return@doWithState
 
-            registers.c5 = C5Register(TvmCellValue(updatedActions))
+            val updatedList = registers.c5.identifierList?.add(0, C5ActionIdentifier.Reserve)
+            registers.c5 = C5Register(TvmCellValue(updatedActions), updatedList)
 
             newStmt(stmt.nextStmt())
         }
@@ -158,7 +160,7 @@ class TvmActionsInterpreter(
         scope: TvmStepScopeManager,
         msg: UHeapRef,
         mode: UExpr<TvmInt257Sort>,
-        stmt: TvmInst,
+        stmt: TvmRealInst,
     ): Unit =
         with(ctx) {
             scope.doWithStateCtx {
@@ -180,7 +182,16 @@ class TvmActionsInterpreter(
                 } ?: return@doWithStateCtx
                 builderStoreNextRefNoOverflowCheck(updatedActions, msg)
 
-                registers.c5 = C5Register(TvmCellValue(updatedActions))
+                val callstack =
+                    callStack.stackTrace(stmt).mapNotNull { (it.instruction as? TvmRealInst)?.physicalLocation }
+                val timesCallStackWasSeen = callstackCounter[callstack] ?: 0
+                val updatedList =
+                    registers.c5.identifierList?.add(
+                        0,
+                        C5ActionIdentifier.MsgIdentifier(callstack, timesCallStackWasSeen),
+                    )
+                callstackCounter = callstackCounter.put(callstack, timesCallStackWasSeen + 1)
+                registers.c5 = C5Register(TvmCellValue(updatedActions), updatedList)
 
                 newStmt(stmt.nextStmt())
             }
