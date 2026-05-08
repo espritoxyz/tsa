@@ -176,7 +176,7 @@ data class TsaArtificialJmpToContInst(
     override val cont: TvmContinuation,
     override val location: TvmInstLocation,
 ) : TsaArtificialContInst {
-    override val mnemonic: String get() = "artificial_jmp_to_$cont"
+    override val mnemonic: String get() = "artificial_jmp_to_cont"
 
     init {
         checkLocationInitialized()
@@ -187,7 +187,7 @@ class TsaArtificialExecuteContInst(
     override val cont: TvmContinuation,
     override val location: TvmInstLocation,
 ) : TsaArtificialContInst {
-    override val mnemonic: String get() = "artificial_execute_$cont"
+    override val mnemonic: String get() = "artificial_execute_cont"
 
     init {
         checkLocationInitialized()
