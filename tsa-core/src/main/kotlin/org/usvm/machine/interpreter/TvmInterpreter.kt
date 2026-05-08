@@ -773,7 +773,9 @@ class TvmInterpreter(
         logger.debug("Current contract: {}", state.currentContract)
         logger.debug("State id: {}", state.id)
         logger.debug("Path depth: {}", state.pathNode.depth)
-        logger.debug("Executing: {} (class {})", formatTsaInstruction(stmt), stmt.javaClass.name)
+        logger.debug {
+            "Executing: ${formatTsaInstruction(stmt)} (class ${stmt.javaClass.name})"
+        }
 
         val initialGasUsage = state.gasUsageHistory
 
