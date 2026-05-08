@@ -1,10 +1,12 @@
 package org.ton.bytecode
 
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.serialization.Serializable
 import org.ton.DestinationDescription
 import org.usvm.machine.interpreter.DispatchedMessage
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
 import org.usvm.machine.interpreter.TvmTransactionInterpreter
+import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
 import org.usvm.machine.state.TvmComputePhase
@@ -70,6 +72,7 @@ data class TsaArtificialActionParseInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
     val yetUnparsedActions: List<SliceRef>,
+    val identifiers: ImmutableList<C5ActionIdentifier>?,
     val parsedAndPreprocessedActions: List<ActionParseResult>,
     val destinationResolver: DestinationDescription?,
 ) : TsaArtificialInst {

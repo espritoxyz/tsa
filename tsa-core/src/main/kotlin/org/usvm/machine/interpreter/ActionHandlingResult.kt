@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import org.usvm.machine.Int257Expr
+import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.messages.ConstructedMessageCells
@@ -26,6 +27,7 @@ data class DispatchedMessageContent(
 data class DispatchedUnconstructedMessage(
     val receiver: ContractId?,
     val content: TlbInternalMessageContent,
+    val identifier: C5ActionIdentifier.MsgIdentifier?,
 )
 
 /**
@@ -34,6 +36,7 @@ data class DispatchedUnconstructedMessage(
 data class DispatchedMessage(
     val receiver: ContractId?,
     val content: DispatchedMessageContent,
+    val identifier: C5ActionIdentifier.MsgIdentifier?,
 )
 
 interface ActionHandlingResult {

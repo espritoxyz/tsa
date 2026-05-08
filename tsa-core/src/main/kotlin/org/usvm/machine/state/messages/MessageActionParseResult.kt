@@ -2,6 +2,7 @@ package org.usvm.machine.state.messages
 
 import org.usvm.UHeapRef
 import org.usvm.machine.Int257Expr
+import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.types.CellRef
 import org.usvm.machine.types.SliceRef
@@ -22,12 +23,28 @@ data class MessageActionParseResult(
     val content: TlbInternalMessageContent?,
     val sendMessageMode: Int257Expr,
     val resolvedReceiver: ContractId?,
+    val identifier: C5ActionIdentifier.MsgIdentifier?,
 ) : ActionParseResult
 
 data class ReserveAction(
     val mode: Int,
     val grams: Int257Expr,
 ) : ActionParseResult
+
+fun ActionParseResult.withId(id: C5ActionIdentifier?) =
+    when (this) {
+        is MessageActionParseResult -> {
+            if (id is C5ActionIdentifier.MsgIdentifier?) {
+                copy(identifier = id)
+            } else {
+                error("Unexpected identifier of RESERVE for a message")
+            }
+        }
+
+        is ReserveAction -> {
+            this
+        }
+    }
 
 /**
  * represents the arguments that are used in `recv_internal_message` / `recv_external_message`.

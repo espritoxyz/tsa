@@ -9,6 +9,7 @@ import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
+import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmResult.TvmFailure
@@ -75,6 +76,7 @@ data object TvmTestResolver {
                 ),
             eventsList = events,
             initialSeed = state.initialRandomSeed,
+            messageIdentifierMapping = state.messageIdentifierMapping,
         )
     }
 
@@ -161,6 +163,7 @@ data class TvmSymbolicTest(
     val eventsList: List<TvmMessageDrivenContractExecutionTestEntry>,
     val initialSeed: BigInteger?,
     val debugInfo: TvmTestDebugInfo,
+    val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
 ) {
     val initialRootContractState: TvmContractState
         get() =
