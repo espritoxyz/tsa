@@ -33,7 +33,10 @@ data class FollowTrace(
         /**
          * Serializes [locations] into [file], one location per line in `<cellHashHex> <offset>` format.
          */
-        fun save(file: File, locations: List<Pair<String, Int>>) {
+        fun save(
+            file: File,
+            locations: List<Pair<String, Int>>,
+        ) {
             val text = locations.joinToString(separator = "\n") { (hash, offset) -> "$hash $offset" }
             file.writeText(text)
         }

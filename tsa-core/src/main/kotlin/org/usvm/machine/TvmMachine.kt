@@ -271,7 +271,12 @@ class TvmMachine(
                     state.pathNode.allStatements
                         .toList()
                         .asReversed()
-                        .mapNotNull { inst -> (inst as? TvmRealInst)?.physicalLocation?.let { it.cellHashHex to it.offset } }
+                        .mapNotNull { inst ->
+                            (inst as? TvmRealInst)?.physicalLocation?.let {
+                                it.cellHashHex to
+                                    it.offset
+                            }
+                        }
                 return trace.locations.take(curTrace.size) == curTrace
             }
 
