@@ -70,6 +70,26 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
         .path()
         .help("File to write covered TVM instructions (in hash+offset format).")
 
+    val followTracePath by option("--follow-trace")
+        .path()
+        .help(
+            "Enable a special analysis mode that explores only the single trace stored in the given file. " +
+                "The file must be produced by --save-trace-path on a previous normal run.",
+        )
+
+    val saveTracePath by option("--save-trace-path")
+        .path()
+        .help(
+            "File to which a single trace (covered instructions of one test) will be written. " +
+                "Requires --save-trace-exit-code to pick the test.",
+        )
+
+    val saveTraceExitCode by option("--save-trace-exit-code")
+        .int()
+        .help(
+            "Pick the first test with this exit code and dump its covered-instructions trace via --save-trace-path.",
+        )
+
     val noIntBlasting by option("--no-int-blasting")
         .flag(default = false)
         .help("Use int-blasting optimization")

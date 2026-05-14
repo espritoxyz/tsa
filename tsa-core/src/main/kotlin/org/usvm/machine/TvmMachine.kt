@@ -5,6 +5,7 @@ import org.ton.TvmInputInfo
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmInst
+import org.ton.bytecode.TvmRealInst
 import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
 import org.usvm.UMachineOptions
@@ -99,7 +100,7 @@ class TvmMachine(
             return diff.coerceAtLeast(Duration.ZERO)
         }
 
-        val pathSelector =
+        val rawPathSelector =
             if (tvmOptions.divideTimeBetweenOpcodes == null) {
                 val initialState =
                     interpreter.getInitialState(
@@ -143,6 +144,10 @@ class TvmMachine(
                     },
                 )
             }
+
+        val pathSelector =
+            tvmOptions.followTrace?.let { wrapPathSelectorToChooseSpecificTrace(rawPathSelector, it) }
+                ?: rawPathSelector
 
         val stepLimit = options.stepLimit
         val stepsStatistics = StepsStatistics<TvmCodeBlock, TvmState>()
@@ -247,6 +252,44 @@ class TvmMachine(
     }
 
     private fun isStateTerminated(state: TvmState): Boolean = state.isTerminated
+
+    private fun wrapPathSelectorToChooseSpecificTrace(
+        pathSelector: UPathSelector<TvmState>,
+        trace: FollowTrace,
+    ): UPathSelector<TvmState> {
+        return object : UPathSelector<TvmState> {
+            override fun isEmpty(): Boolean = pathSelector.isEmpty()
+
+            override fun peek(): TvmState = pathSelector.peek()
+
+            override fun remove(state: TvmState) = pathSelector.remove(state)
+
+            override fun add(states: Collection<TvmState>) = states.forEach(::addOne)
+
+            private fun takeState(state: TvmState): Boolean {
+                val curTrace =
+                    state.pathNode.allStatements
+                        .toList()
+                        .asReversed()
+                        .mapNotNull { inst -> (inst as? TvmRealInst)?.physicalLocation?.let { it.cellHashHex to it.offset } }
+                return trace.locations.take(curTrace.size) == curTrace
+            }
+
+            private fun addOne(state: TvmState) {
+                if (takeState(state)) {
+                    pathSelector.add(listOf(state))
+                }
+            }
+
+            override fun update(state: TvmState) {
+                if (takeState(state)) {
+                    pathSelector.update(state)
+                } else {
+                    pathSelector.remove(state)
+                }
+            }
+        }
+    }
 
     companion object {
         private val logger = object : KLogging() {}.logger
