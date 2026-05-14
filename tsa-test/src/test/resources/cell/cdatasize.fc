@@ -1,0 +1,78 @@
+#include "../imports/stdlib.fc";
+
+(int, int, int) cdatasize(cell, int) impure asm "CDATASIZE";
+
+
+(int) test_general(cell c, int n) impure method_id (100) {
+    (var x, var y, var z) = cdatasize(c, n);
+    return x * 100 + y * 10 + z;
+}
+
+(int) test0() impure method_id (0) {
+    return test_general(
+        begin_cell().end_cell(),
+        4
+    );
+}
+
+(int) test1() impure method_id (1) {
+    return test_general(
+        begin_cell()
+            .store_ref(begin_cell().end_cell())
+            .store_ref(begin_cell().end_cell())
+            .store_ref(begin_cell().end_cell())
+            .end_cell(),
+        4
+    );
+}
+
+(int) test2() impure method_id (2) {
+    return test_general(
+        begin_cell()
+            .store_ref(
+                begin_cell()
+                    .store_ref(begin_cell().end_cell())
+                    .end_cell()
+            )
+            .store_ref(begin_cell().end_cell())
+            .store_ref(begin_cell().end_cell())
+            .end_cell(),
+        4
+    );
+}
+
+(int) test3() impure method_id (3) {
+    return test_general(
+        begin_cell()
+            .store_ref(begin_cell().store_uint(0, 10).end_cell())
+            .store_ref(begin_cell().store_uint(0, 10).end_cell())
+            .store_ref(begin_cell().store_uint(0, 10).end_cell())
+            .end_cell(),
+        4
+    );
+}
+
+(int) test4() impure method_id (4) {
+    return test_general(
+        begin_cell()
+            .store_ref(begin_cell().store_uint(0, 20).end_cell())
+            .store_ref(begin_cell().store_uint(0, 10).end_cell())
+            .store_ref(begin_cell().store_uint(0, 10).end_cell())
+            .end_cell(),
+        4
+    );
+}
+
+
+;; Triggers cell overflow exception (8): the DAG has more cells than max_cells.
+(int) test_overflow() impure method_id (5) {
+    return test_general(
+        begin_cell()
+            .store_ref(begin_cell().store_uint(1, 10).end_cell())
+            .store_ref(begin_cell().store_uint(2, 10).end_cell())
+            .store_ref(begin_cell().store_uint(3, 10).end_cell())
+            .end_cell(),
+        2
+    );
+}
+

@@ -18,6 +18,7 @@ class CellBuildTest {
     private val sdpfxrevFunc: String = "/cell/sdpfxrev.fc"
     private val configParamFunc: String = "/cell/config-param.fc"
     private val cdatasizeqFunc: String = "/cell/cdatasizeq.fc"
+    private val cdatasizeFunc: String = "/cell/cdatasize.fc"
 
     /**
      * pp = proper prefix
@@ -68,6 +69,11 @@ class CellBuildTest {
     @Test
     fun `test cdatasizeq`() {
         compareSymbolicAndConcreteResultsFunc(cdatasizeqFunc, (0..5).toSet())
+    }
+
+    @Test
+    fun `test cdatasize`() {
+        compareSymbolicAndConcreteResultsFunc(cdatasizeFunc, (0..5).toSet())
     }
 
     @Disabled
