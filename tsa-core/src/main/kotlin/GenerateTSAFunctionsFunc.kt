@@ -96,6 +96,14 @@ fun main() {
         () tsa_send_external_message_with_body(slice body, int contract_id, int input_id) impure method_id(15) {
             ;; do nothing
         }
+        
+        () tsa_assert_slice_is_functionally_dependent(slice arg) impure method_id(16) {
+            ;; do nothing
+        }
+        
+        () tsa_assert_slice_functionally_determines(slice arg) impure method_id(17) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

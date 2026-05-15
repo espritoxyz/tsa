@@ -76,6 +76,14 @@ int tsa_input_was_accepted(int input_id) impure method_id(13) {
     ;; do nothing
 }
 
+() tsa_assert_slice_is_functionally_dependent(slice arg) impure method_id(16) {
+    ;; do nothing
+}
+
+() tsa_assert_slice_functionally_determines(slice arg) impure method_id(17) {
+    ;; do nothing
+}
+
 ;; making symbolic values API functions
 
 int tsa_mk_int(int bits, int signed) impure method_id(100) {

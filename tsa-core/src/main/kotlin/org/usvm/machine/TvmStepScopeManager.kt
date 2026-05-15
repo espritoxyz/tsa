@@ -56,7 +56,8 @@ class TvmStepScopeManager(
         satBlock: TvmState.() -> Unit = {},
         unsatBlock: TvmState.() -> Unit = {},
         unknownBlock: TvmState.() -> Unit = {},
-    ) = scope.assert(constraint, satBlock, unsatBlock, unknownBlock)
+        doNotAddConstraint: Boolean = false,
+    ) = scope.assert(constraint, satBlock, unsatBlock, unknownBlock, doNotAddConstraint)
 
     val ctx: TvmContext
         get() = originalState.ctx
