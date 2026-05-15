@@ -47,6 +47,11 @@ data class TvmOptions(
     val pathSelectionStrategies: List<PathSelectionStrategy> = listOf(PathSelectionStrategy.DFS),
     val divideTimeBetweenOpcodes: TimeDivisionBetweenOpcodes? = null,
     val collectNonTerminatedState: Boolean = false,
+    /**
+     * If non-null, the analysis explores only the states whose path is a prefix of (or equal to)
+     * the locations specified in this trace. Useful for replaying a previously observed execution.
+     */
+    val followTrace: FollowTrace? = null,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
