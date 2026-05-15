@@ -106,6 +106,11 @@ class TvmState(
     val initialRandomSeed: BigInteger?,
     var messageIdentifierMapping: PersistentMap<Int, C5ActionIdentifier.MsgIdentifier> = persistentMapOf(),
     var callstackCounter: PersistentMap<List<TvmPhysicalInstLocation>, Int> = persistentMapOf(),
+    val functionalDependencyAssertion: FunctionalDependencyAssertion =
+        FunctionalDependencyAssertion(
+            persistentSetOf(),
+            persistentSetOf(),
+        ),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -248,6 +253,7 @@ class TvmState(
             initialRandomSeed = initialRandomSeed,
             messageIdentifierMapping = messageIdentifierMapping,
             callstackCounter = callstackCounter,
+            functionalDependencyAssertion = functionalDependencyAssertion,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -338,3 +344,9 @@ class TvmStateDebugInfo(
             tlbMemoryMisses,
         )
 }
+
+data class FunctionalDependencyAssertion(
+    var dependentRefs: PersistentSet<UHeapRef> = persistentSetOf(),
+    var determinerRefs: PersistentSet<UHeapRef> = persistentSetOf(),
+    var areDeterminersFixed: Boolean = false,
+)

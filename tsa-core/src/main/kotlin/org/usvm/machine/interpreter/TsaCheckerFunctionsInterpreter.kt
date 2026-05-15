@@ -190,6 +190,14 @@ class TsaCheckerFunctionsInterpreter(
                 performRecvExternalCallWithBody(scope, stmt)
             }
 
+            ASSERT_SLICE_IS_DEPENDENT -> {
+                performAssertSliceIsDependent(scope, stmt)
+            }
+
+            ASSERT_SLICE_DETERMINES -> {
+                performAssertSliceDetermines(scope, stmt)
+            }
+
             else -> {
                 return Unit
             }
@@ -736,6 +744,34 @@ class TsaCheckerFunctionsInterpreter(
 
         scope.doWithState {
             addressesToBeRandomized = addressesToBeRandomized.add(addressSlice)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performAssertSliceIsDependent(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val slice =
+            scope.takeLastSliceOrThrowTypeError()
+                ?: return
+        scope.doWithState {
+            this.functionalDependencyAssertion.dependentRefs =
+                this.functionalDependencyAssertion.dependentRefs.add(slice)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performAssertSliceDetermines(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val slice =
+            scope.takeLastSliceOrThrowTypeError()
+                ?: return
+        scope.doWithState {
+            this.functionalDependencyAssertion.determinerRefs =
+                this.functionalDependencyAssertion.determinerRefs.add(slice)
             newStmt(stmt.nextStmt())
         }
     }

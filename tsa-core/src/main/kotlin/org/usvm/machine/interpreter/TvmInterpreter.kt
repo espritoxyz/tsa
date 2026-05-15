@@ -684,8 +684,17 @@ class TvmInterpreter(
 
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 
+        check(state.addressesToBeRandomized.isEmpty() || state.functionalDependencyAssertion.determinerRefs.isEmpty()) {
+            "cannot support both modes"
+        }
+
         val clonedOldState =
-            if (state.addressesToBeRandomized.isNotEmpty()) {
+            if (state.addressesToBeRandomized.isNotEmpty() ||
+                (
+                    state.functionalDependencyAssertion.determinerRefs.isNotEmpty() &&
+                        !state.functionalDependencyAssertion.areDeterminersFixed
+                )
+            ) {
                 check(states.size == 1 && states.single() == state) {
                     "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
                 }
@@ -694,20 +703,23 @@ class TvmInterpreter(
                 null
             }
 
-        val filtered =
+        val postProcessedStates =
             states.mapNotNull { state ->
                 postProcessor.postProcessState(state)
             }
 
-        return filtered.flatMap { state ->
+        return postProcessedStates.flatMap { state ->
             val newStates = manualStateProcessor.postProcessAfterPartialConcretization(state)
 
             if (clonedOldState != null) {
                 check(newStates.size == 1 && newStates.single() == state) {
                     "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
                 }
-
-                processAddressRandomization(clonedOldState, state)
+                if (clonedOldState.functionalDependencyAssertion.dependentRefs.isNotEmpty()) {
+                    processFunctionalDependencyAssertion(clonedOldState, state)
+                } else {
+                    processAddressRandomization(clonedOldState, state)
+                }
             } else {
                 newStates.also {
                     it.forEach { state ->
@@ -722,6 +734,44 @@ class TvmInterpreter(
             }
         }
     }
+
+    private fun processFunctionalDependencyAssertion(
+        clonedOldState: TvmState,
+        stateAfterPostProcess: TvmState,
+    ): List<TvmState> =
+        with(clonedOldState.ctx) {
+            val scope =
+                TvmStepScopeManager(clonedOldState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+
+            // no contradiction can occur since [clonedOldState] is a clone of an ancestor of [stateAfterPostProcess]
+            clonedOldState.models = stateAfterPostProcess.models
+            val resolver = TvmTestStateResolver(ctx, clonedOldState.tvmModels.first(), clonedOldState)
+
+            val fixateCond =
+                clonedOldState.functionalDependencyAssertion.determinerRefs.fold(
+                    trueExpr as UBoolExpr,
+                ) { acc, independentRef ->
+                    val fixateCondCur =
+                        postProcessor.fixateValue(scope, resolver, independentRef)
+                            ?: return emptyList()
+
+                    acc and fixateCondCur
+                }
+
+            // TODO: soft constraints for values with taken hashes
+            scope.assert(fixateCond)
+                ?: return@with emptyList()
+            for (expr in clonedOldState.functionalDependencyAssertion.dependentRefs) {
+                val model = resolver.eval(expr)
+                val equalityCs =
+                    scope.slicesAreEqual(expr, model)
+                        ?: return listOf()
+                scope.assert(with(ctx) { equalityCs.not() }, doNotAddConstraint = true)
+                    ?: return listOf()
+            }
+            clonedOldState.functionalDependencyAssertion.areDeterminersFixed = true
+            return postProcessState(clonedOldState)
+        }
 
     private fun processAddressRandomization(
         clonedOldState: TvmState,
