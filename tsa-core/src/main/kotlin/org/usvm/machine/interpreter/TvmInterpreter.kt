@@ -1156,7 +1156,6 @@ class TvmInterpreter(
                 cellRefs = freshPrimitive(CDataSizeCellRefs()),
             )
 
-        // the distinction between these variants happens during the postprocess phase
         val failureAction: TvmState.() -> Unit =
             if (isQuiet) {
                 {
@@ -1170,6 +1169,8 @@ class TvmInterpreter(
                     ctx.throwCellOverflowError(this)
                 }
             }
+
+        // the distinction between these variants happens during the postprocess phase
         val actions =
             listOf(
                 TvmStepScopeManager.ActionOnCondition(
