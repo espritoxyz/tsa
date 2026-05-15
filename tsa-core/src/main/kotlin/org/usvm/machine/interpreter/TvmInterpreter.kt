@@ -27,6 +27,7 @@ import org.ton.bytecode.TvmAppCryptoInst
 import org.ton.bytecode.TvmAppCurrencyInst
 import org.ton.bytecode.TvmAppGasInst
 import org.ton.bytecode.TvmAppGlobalInst
+import org.ton.bytecode.TvmAppMiscCdatasizeInst
 import org.ton.bytecode.TvmAppMiscCdatasizeqInst
 import org.ton.bytecode.TvmAppRndAddrandInst
 import org.ton.bytecode.TvmAppRndInst
@@ -960,7 +961,11 @@ class TvmInterpreter(
             }
 
             is TvmAppMiscCdatasizeqInst -> {
-                visitCdatasizeInst(scope, stmt)
+                visitCdatasizeInst(scope, stmt, isQuiet = true)
+            }
+
+            is TvmAppMiscCdatasizeInst -> {
+                visitCdatasizeInst(scope, stmt, isQuiet = false)
             }
 
             else -> {
@@ -1123,7 +1128,8 @@ class TvmInterpreter(
 
     private fun visitCdatasizeInst(
         scope: TvmStepScopeManager,
-        stmt: TvmAppMiscCdatasizeqInst,
+        stmt: TvmInst,
+        isQuiet: Boolean,
     ) {
         scope.consumeDefaultGas(stmt)
 
@@ -1150,6 +1156,20 @@ class TvmInterpreter(
                 cellRefs = freshPrimitive(CDataSizeCellRefs()),
             )
 
+        val failureAction: TvmState.() -> Unit =
+            if (isQuiet) {
+                {
+                    cdatasizeInfos = cdatasizeInfos.add(info.copy(hasEnoughMaxCellCount = false))
+                    addOnStack(ctx.falseValue, TvmIntegerType)
+                    newStmt(stmt.nextStmt())
+                }
+            } else {
+                {
+                    cdatasizeInfos = cdatasizeInfos.add(info.copy(hasEnoughMaxCellCount = false))
+                    ctx.throwCellOverflowError(this)
+                }
+            }
+
         // the distinction between these variants happens during the postprocess phase
         val actions =
             listOf(
@@ -1160,23 +1180,26 @@ class TvmInterpreter(
                     paramForDoForAllBlock = true,
                 ),
                 TvmStepScopeManager.ActionOnCondition(
-                    {},
-                    caseIsExceptional = false,
+                    failureAction,
+                    caseIsExceptional = !isQuiet,
                     condition = ctx.trueExpr,
                     paramForDoForAllBlock = false,
                 ),
             )
         scope.doWithConditions(actions) { isSuccess ->
-            val actualInfo = info.copy(hasEnoughMaxCellCount = isSuccess)
+            if (!isSuccess) {
+                // for non-quiet failure case, action already handled state via throwCellOverflowError;
+                // for quiet failure case, action already pushed stack and advanced PC.
+                return@doWithConditions
+            }
+            val actualInfo = info.copy(hasEnoughMaxCellCount = true)
             calcOnState {
                 cdatasizeInfos = cdatasizeInfos.add(actualInfo)
-                if (isSuccess) {
-                    addOnStack(actualInfo.distinctCells, TvmIntegerType)
-                    addOnStack(actualInfo.dataBits, TvmIntegerType)
-                    addOnStack(actualInfo.cellRefs, TvmIntegerType)
+                addOnStack(actualInfo.distinctCells, TvmIntegerType)
+                addOnStack(actualInfo.dataBits, TvmIntegerType)
+                addOnStack(actualInfo.cellRefs, TvmIntegerType)
+                if (isQuiet) {
                     addOnStack(ctx.trueValue, TvmIntegerType)
-                } else {
-                    addOnStack(ctx.falseValue, TvmIntegerType)
                 }
                 newStmt(stmt.nextStmt())
             }
