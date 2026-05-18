@@ -253,7 +253,7 @@ class TvmState(
             initialRandomSeed = initialRandomSeed,
             messageIdentifierMapping = messageIdentifierMapping,
             callstackCounter = callstackCounter,
-            functionalDependencyAssertion = functionalDependencyAssertion,
+            functionalDependencyAssertion = functionalDependencyAssertion.copy(),
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
