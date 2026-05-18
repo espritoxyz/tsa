@@ -570,7 +570,7 @@ fun initializeContractExecutionMemory(
                         }
 
                         INBOUND_MESSAGE_VALUE_PARAMETER_IDX -> {
-                            TvmStack.TvmConcreteStackEntry(TvmStackIntValue(newMsgValue))
+                            TvmStack.TvmConcreteStackEntry(makeIncomingValueEntry(ctx, newMsgValue))
                         }
 
                         TIME_PARAMETER_IDX -> {

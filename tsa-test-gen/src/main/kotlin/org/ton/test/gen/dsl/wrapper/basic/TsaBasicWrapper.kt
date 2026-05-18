@@ -78,11 +78,23 @@ fun TsExpression<TsSandboxContract<TsBasicWrapper>>.external(
 fun TsExpression<TsSandboxContract<TsBasicWrapper>>.initializeContract(
     blockchain: TsExpression<TsBlockchain>,
     balance: TsExpression<TsBigint>,
+    duePayment: TsExpression<TsBigint>? = null,
+    storageUsedCells: TsExpression<TsBigint>? = null,
+    storageUsedBits: TsExpression<TsBigint>? = null,
+    storageLastPaidDelta: TsExpression<TsInt>? = null,
 ): TsExpression<TsVoid> =
     TsMethodCall(
         caller = this,
         executableName = "initializeContract",
-        arguments = listOf(blockchain, balance),
+        arguments =
+            listOfNotNull(
+                blockchain,
+                balance,
+                duePayment,
+                storageUsedCells,
+                storageUsedBits,
+                storageLastPaidDelta,
+            ),
         async = true,
         type = TsVoid,
     )

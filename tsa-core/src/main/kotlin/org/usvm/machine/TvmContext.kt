@@ -945,6 +945,15 @@ class TvmContext(
 
         const val MAX_FWD_FEE = 1166940800
 
+        /** 1 TON in nanotons. */
+        const val NANOTONS_IN_TON: Long = 1_000_000_000
+
+        /** Upper bound (exclusive) for the symbolic storage phase fee in c7[12]: 10 TON. */
+        const val MAX_STORAGE_PHASE_FEES: Long = 10L * NANOTONS_IN_TON
+
+        /** Upper bound (exclusive) for the symbolic due payment in c7[15]: 0.1 TON. */
+        const val MAX_DUE_PAYMENT: Long = NANOTONS_IN_TON / 10
+
         const val BITS_FOR_BALANCE = 64u
         const val BITS_FOR_UNIX_TIME = 32u
         const val BITS_FOR_FWD_FEE = 31u

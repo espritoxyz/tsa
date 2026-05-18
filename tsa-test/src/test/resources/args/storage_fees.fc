@@ -1,0 +1,20 @@
+#include "../imports/stdlib.fc";
+
+int storage_fees() asm "STORAGEFEES";
+
+;;; Branches on the symbolic value of c7[12] STORAGEFEES. We expect the
+;;; symbolic engine to explore both branches because the initial value of
+;;; this parameter is bounded by [0, 10 TONs).
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg) impure {
+    int sf = storage_fees();
+
+    if (sf == 0) {
+        throw(101);
+    }
+
+    if (sf >= 5000000000) { ;; 5 TON
+        throw(102);
+    }
+
+    throw(103);
+}
