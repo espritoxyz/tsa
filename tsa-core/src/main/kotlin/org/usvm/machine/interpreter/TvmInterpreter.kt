@@ -719,10 +719,12 @@ class TvmInterpreter(
                 check(newStates.size == 1 && newStates.single() == state) {
                     "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
                 }
-                if (clonedOldState.functionalDependencyAssertion.dependentRefs.isNotEmpty()) {
+                if (clonedOldState.functionalDependencyAssertion.determinerRefs.isNotEmpty()) {
                     processFunctionalDependencyAssertion(clonedOldState, state)
-                } else {
+                } else if (clonedOldState.addressesToBeRandomized.isNotEmpty()) {
                     processAddressRandomization(clonedOldState, state)
+                } else {
+                    listOf(state)
                 }
             } else {
                 newStates.also {

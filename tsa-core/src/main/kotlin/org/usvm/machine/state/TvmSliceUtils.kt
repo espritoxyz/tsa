@@ -1742,7 +1742,9 @@ fun TvmState.writeSliceCell(
 fun TvmState.writeSliceDataPos(
     slice: SliceRef,
     newDataPos: SizeExpr,
-) = memory.writeField(slice.value, sliceRefPosField, ctx.sizeSort, newDataPos, ctx.trueExpr)
+) {
+    fieldManagers.cellDataLengthFieldManager.writeSliceDataPos(this, slice.value, newDataPos)
+}
 
 fun TvmState.readSliceRefPos(slice: UHeapRef): SizeExpr = readSliceRefPos(slice.asSliceRef())
 
