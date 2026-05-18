@@ -347,6 +347,8 @@ import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.state.takeLastTuple
 import org.usvm.machine.state.unsignedIntegerFitsBits
+import org.usvm.machine.state.writeSliceDataPos
+import org.usvm.machine.state.writeSliceRefPos
 import org.usvm.machine.toMethodId
 import org.usvm.machine.toTvmCell
 import org.usvm.machine.tryCatchIf
@@ -357,6 +359,7 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
+import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.wrap
 import org.usvm.memory.UMemory
 import org.usvm.memory.UWritableMemory
@@ -367,6 +370,7 @@ import org.usvm.sizeSort
 import org.usvm.solver.USatResult
 import org.usvm.targets.UTargetsSet
 import org.usvm.test.resolver.TvmTestStateResolver
+import org.usvm.test.resolver.toTvmCell
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -762,12 +766,17 @@ class TvmInterpreter(
             scope.assert(fixateCond)
                 ?: return@with emptyList()
             for (expr in clonedOldState.functionalDependencyAssertion.dependentRefs) {
-                val model = resolver.eval(expr)
+                val model = resolver.resolveSlice(expr)
+                val modelSlice = clonedOldState.allocSliceFromCell(model.cell.toTvmCell())
+                clonedOldState.writeSliceDataPos(modelSlice.asSliceRef(), with(ctx) { model.dataPos.toSizeSort() })
+                clonedOldState.writeSliceRefPos(modelSlice.asSliceRef(), with(ctx) { model.refPos.toSizeSort() })
                 val equalityCs =
-                    scope.slicesAreEqual(expr, model)
+                    scope.slicesAreEqual(expr, modelSlice)
                         ?: return listOf()
-                scope.assert(with(ctx) { equalityCs.not() }, doNotAddConstraint = true)
-                    ?: return listOf()
+                val isInequalitySat = scope.assert(with(ctx) { equalityCs.not() }, doNotAddConstraint = true) != null
+                if (isInequalitySat) {
+                    return listOf()
+                }
             }
             clonedOldState.functionalDependencyAssertion.areDeterminersFixed = true
             return postProcessState(clonedOldState)

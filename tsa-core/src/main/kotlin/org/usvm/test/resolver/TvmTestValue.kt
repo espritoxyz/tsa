@@ -9,6 +9,8 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.ton.Endian
+import org.ton.bytecode.TvmCell
+import org.ton.bytecode.TvmCellData
 import java.math.BigInteger
 
 @Serializable
@@ -58,6 +60,20 @@ data class TvmTestDataCellValue(
             1 + (childrenDepths.maxOrNull() ?: 0)
         }
 }
+
+fun TvmTestCellValue.toTvmCell(): TvmCell =
+    when (this) {
+        is TvmTestDataCellValue -> {
+            TvmCell(
+                data = TvmCellData(this.data),
+                refs = this.refs.map { it.toTvmCell() },
+            )
+        }
+
+        is TvmTestDictCellValue -> {
+            TODO()
+        }
+    }
 
 @Serializable
 data class TvmTestBuilderValue(
