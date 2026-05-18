@@ -12,6 +12,7 @@ import org.ton.options.SarifOptions
 import org.ton.options.SpecificMethod
 import org.ton.options.TlbCLIOptions
 import org.usvm.machine.ExploreExitCodesStopStrategy
+import org.usvm.machine.FollowTrace
 import org.usvm.machine.IntercontractOptions
 import org.usvm.machine.NoAdditionalStopStrategy
 import org.usvm.machine.TimeDivisionBetweenOpcodes
@@ -68,6 +69,7 @@ private fun createTvmOptions(
             divideTimeBetweenOpcodes = divideTimeBetweenOpcodes,
             useIntBlasting = !analysisOptions.noIntBlasting,
             solverTimeout = analysisOptions.solverTimeout.seconds,
+            followTrace = analysisOptions.followTracePath?.toFile()?.let { FollowTrace.load(it) },
         )
 
     if (interContractSchemePath != null) {
@@ -144,6 +146,7 @@ fun <SourcesDescription> performAnalysis(
         }
 
     writeCoveredInstructions(analysisOptions, result)
+    writeTraceForExitCode(analysisOptions, result)
 
     return TvmContractSymbolicTestResult(result.testSuites.map { testSuite -> filterTests(testSuite, sarifOptions) })
 }
@@ -192,6 +195,7 @@ fun performAnalysisInterContract(
         )
 
     writeCoveredInstructions(analysisOptions, result)
+    writeTraceForExitCode(analysisOptions, result)
 
     return filterTests(result, sarifOptions)
 }
