@@ -1,0 +1,14 @@
+{
+  "projects": [
+    {
+      "name": "ResponseFromData",
+      "path": "./response-dest-from-data.tact",
+      "output": "./output"
+    },
+    {
+      "name": "ResponseFromMessage",
+      "path": "./response-dest-from-message.tact",
+      "output": "./output"
+    }
+  ]
+}
