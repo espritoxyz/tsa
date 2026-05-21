@@ -442,7 +442,7 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialActionParseInst,
     ) {
-        val (head, tail) =
+        val (actionToParse, restUnparsedActions) =
             stmt.yetUnparsedActions.splitHeadTail() ?: return run {
                 transactionInterpreter.resolveMessageReceivers(
                     scope,
@@ -455,19 +455,19 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
-        val possibleParsedHeads =
+        val parsedVariants =
             transactionInterpreter
-                .parseSingleActionSlice(scope, head, stmt)
+                .parseSingleActionSlice(scope, actionToParse, stmt)
                 .getOrElse { return }
                 ?: return
         val actions =
-            possibleParsedHeads.map { (parsedHead, condition) ->
+            parsedVariants.map { (parsedHead, condition) ->
                 TvmStepScopeManager.ActionOnCondition(
                     action = {
                         val updatedParsedAndPreprocessed = stmt.parsedAndPreprocessedActions
                         val newStmt =
                             stmt.copy(
-                                yetUnparsedActions = tail,
+                                yetUnparsedActions = restUnparsedActions,
                                 parsedAndPreprocessedActions = updatedParsedAndPreprocessed + parsedHead,
                             )
                         newStmt(newStmt)

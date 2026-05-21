@@ -7,6 +7,7 @@ import org.usvm.UHeapRef
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.types.CellRef
+import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.makeCellToSlice
@@ -40,6 +41,14 @@ fun makeCellToSliceTlbNoFork(
     val slice = scope.calcOnState { allocSliceFromCell(cell) }
     makeCellToSliceTlbNoFork(scope, cell, slice)
     return slice
+}
+
+fun makeCellToSliceTlbNoFork(
+    scope: TvmStepScopeManager,
+    cell: CellRef,
+): SliceRef {
+    val slice = makeCellToSliceTlbNoFork(scope, cell.value)
+    return SliceRef(slice)
 }
 
 fun sliceLoadIntTlbNoForkAndNoRegister(
