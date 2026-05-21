@@ -183,7 +183,11 @@ class TvmActionsInterpreter(
                 builderStoreNextRefNoOverflowCheck(updatedActions, msg)
 
                 val callstack =
-                    callStack.stackTrace(stmt).mapNotNull { (it.instruction as? TvmRealInst)?.physicalLocation }
+                    callStack.stackTrace(stmt).map {
+                        val callStackInst = it.instruction as? TvmRealInst
+                        checkNotNull(callStackInst) { "Unexpected artificial function $callStackInst in the callstack" }
+                        callStackInst.physicalLocation
+                    }
                 val timesCallStackWasSeen = callstackCounter[callstack] ?: 0
                 val updatedList =
                     registers.c5.identifierList?.add(

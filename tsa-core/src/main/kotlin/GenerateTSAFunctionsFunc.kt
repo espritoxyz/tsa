@@ -101,6 +101,7 @@ fun main() {
             ;; do nothing
         }
         
+        ;; is incompatible with `tsa_make_address_random` and `tsa_make_slice_independent_from_random_addresses`
         () tsa_assert_slice_functionally_determines(slice arg) impure method_id(17) {
             ;; do nothing
         }

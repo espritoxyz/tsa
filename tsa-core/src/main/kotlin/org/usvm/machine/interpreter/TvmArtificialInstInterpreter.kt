@@ -468,7 +468,7 @@ class TvmArtificialInstInterpreter(
         val headAndTailIds = stmt.identifiers?.splitHeadTail()
         if (stmt.identifiers != null) {
             check(stmt.identifiers.size == stmt.yetUnparsedActions.size) {
-                "Mismatch occurred"
+                "The size of registered message identifiers does not match the length of yet not processed message identifiers"
             }
         }
 

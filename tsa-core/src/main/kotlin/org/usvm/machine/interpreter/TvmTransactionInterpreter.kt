@@ -1060,10 +1060,10 @@ class TvmTransactionInterpreter(
                 }
 
             MessageActionParseResult(
-                messageContent,
-                sendMsgMode,
-                possibleReceiver,
-                null, // will be set by the caller
+                content = messageContent,
+                sendMessageMode = sendMsgMode,
+                resolvedReceiver = possibleReceiver,
+                identifier = null, // will be set by the caller
             ) to equality
         }
     }

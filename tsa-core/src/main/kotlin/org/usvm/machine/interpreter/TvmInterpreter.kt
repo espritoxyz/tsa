@@ -5,6 +5,7 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
+import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentMap
@@ -226,6 +227,7 @@ import org.usvm.StepResult
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.UInterpreter
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
@@ -700,7 +702,8 @@ class TvmInterpreter(
                 )
             ) {
                 check(states.size == 1 && states.single() == state) {
-                    "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
+                    "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract " +
+                        "OR tsa_assert_functionally_determines"
                 }
                 state.clone()
             } else {
@@ -746,27 +749,15 @@ class TvmInterpreter(
         stateAfterPostProcess: TvmState,
     ): List<TvmState> =
         with(clonedOldState.ctx) {
-            val scope =
-                TvmStepScopeManager(clonedOldState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+            val refsToFix = clonedOldState.functionalDependencyAssertion.determinerRefs
+            val (scope, resolver) =
+                setModelsFromDescendantStateAndFixateRefs(
+                    clonedOldState,
+                    stateAfterPostProcess,
+                    refsToFix,
+                )
+                    ?: return emptyList()
 
-            // no contradiction can occur since [clonedOldState] is a clone of an ancestor of [stateAfterPostProcess]
-            clonedOldState.models = stateAfterPostProcess.models
-            val resolver = TvmTestStateResolver(ctx, clonedOldState.tvmModels.first(), clonedOldState)
-
-            val fixateCond =
-                clonedOldState.functionalDependencyAssertion.determinerRefs.fold(
-                    trueExpr as UBoolExpr,
-                ) { acc, independentRef ->
-                    val fixateCondCur =
-                        postProcessor.fixateValue(scope, resolver, independentRef)
-                            ?: return emptyList()
-
-                    acc and fixateCondCur
-                }
-
-            // TODO: soft constraints for values with taken hashes
-            scope.assert(fixateCond)
-                ?: return@with emptyList()
             for (expr in clonedOldState.functionalDependencyAssertion.dependentRefs) {
                 val model = resolver.resolveSlice(expr)
                 val modelSlice = clonedOldState.allocSliceFromCell(model.cell.toTvmCell())
@@ -784,6 +775,35 @@ class TvmInterpreter(
             return postProcessState(clonedOldState)
         }
 
+    private fun TvmContext.setModelsFromDescendantStateAndFixateRefs(
+        clonedOldState: TvmState,
+        stateAfterPostProcess: TvmState,
+        refsToFix: PersistentSet<UHeapRef>,
+    ): Pair<TvmStepScopeManager, TvmTestStateResolver>? {
+        val scope =
+            TvmStepScopeManager(clonedOldState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+
+        // no contradiction can occur since [clonedOldState] is a clone of an ancestor of [stateAfterPostProcess]
+        clonedOldState.models = stateAfterPostProcess.models
+        val resolver = TvmTestStateResolver(ctx, clonedOldState.tvmModels.first(), clonedOldState)
+
+        val fixateCond =
+            refsToFix.fold(
+                trueExpr as UBoolExpr,
+            ) { acc, independentRef ->
+                val fixateCondCur =
+                    postProcessor.fixateValue(scope, resolver, independentRef)
+                        ?: return null
+
+                acc and fixateCondCur
+            }
+
+        // TODO: soft constraints for values with taken hashes
+        scope.assert(fixateCond)
+            ?: return null
+        return Pair(scope, resolver)
+    }
+
     private fun processAddressRandomization(
         clonedOldState: TvmState,
         stateAfterPostProcess: TvmState,
@@ -793,27 +813,14 @@ class TvmInterpreter(
                 "Random addresses shouldn't be fixated at this point"
             }
 
-            val scope =
-                TvmStepScopeManager(clonedOldState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
-
-            // no contradiction can occur since [clonedOldState] is a clone of an ancestor of [stateAfterPostProcess]
-            clonedOldState.models = stateAfterPostProcess.models
-            val resolver = TvmTestStateResolver(ctx, clonedOldState.tvmModels.first(), clonedOldState)
-
-            val fixateCond =
-                clonedOldState.refsToBeIndependentFromRandomAddresses.fold(
-                    trueExpr as UBoolExpr,
-                ) { acc, independentRef ->
-                    val fixateCondCur =
-                        postProcessor.fixateValue(scope, resolver, independentRef)
-                            ?: return emptyList()
-
-                    acc and fixateCondCur
-                }
-
-            // TODO: soft constraints for values with taken hashes
-            scope.assert(fixateCond)
-                ?: return@with emptyList()
+            val refsToFix = clonedOldState.refsToBeIndependentFromRandomAddresses
+            val (_, _) =
+                setModelsFromDescendantStateAndFixateRefs(
+                    clonedOldState,
+                    stateAfterPostProcess,
+                    refsToFix,
+                )
+                    ?: return emptyList()
 
             clonedOldState.fixatedRandomAddresses = clonedOldState.addressesToBeRandomized
             clonedOldState.addressesToBeRandomized = persistentSetOf()
