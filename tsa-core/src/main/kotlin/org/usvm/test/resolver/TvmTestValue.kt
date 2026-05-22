@@ -10,7 +10,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.ton.Endian
 import org.ton.bytecode.TvmCell
-import org.ton.bytecode.TvmCellData
+import org.usvm.machine.toTvmCell
 import java.math.BigInteger
 
 @Serializable
@@ -61,19 +61,7 @@ data class TvmTestDataCellValue(
         }
 }
 
-fun TvmTestCellValue.toTvmCell(): TvmCell =
-    when (this) {
-        is TvmTestDataCellValue -> {
-            TvmCell(
-                data = TvmCellData(this.data),
-                refs = this.refs.map { it.toTvmCell() },
-            )
-        }
-
-        is TvmTestDictCellValue -> {
-            TODO()
-        }
-    }
+fun TvmTestCellValue.toTvmCell(): TvmCell = transformTestCellIntoCell(this).toTvmCell()
 
 @Serializable
 data class TvmTestBuilderValue(

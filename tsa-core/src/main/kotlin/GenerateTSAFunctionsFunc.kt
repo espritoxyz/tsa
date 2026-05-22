@@ -97,12 +97,12 @@ fun main() {
             ;; do nothing
         }
         
-        () tsa_assert_slice_is_functionally_dependent(slice arg) impure method_id(16) {
+        () tsa_assert_belongs_to_functionally_dependent_scope(slice arg) impure method_id(16) {
             ;; do nothing
         }
         
         ;; is incompatible with `tsa_make_address_random` and `tsa_make_slice_independent_from_random_addresses`
-        () tsa_assert_slice_functionally_determines(slice arg) impure method_id(17) {
+        () tsa_assert_belongs_to_functionally_determiners_scope(slice arg) impure method_id(17) {
             ;; do nothing
         }
         """.trimIndent()

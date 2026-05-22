@@ -233,6 +233,20 @@ class TvmArtificialInstInterpreter(
             )
         }
 
+    /**
+     * Stack after on_out_message:
+     * ```
+     * <bot>
+     * msg_id_hash: int
+     * msg_counter: int
+     * msg: cell
+     * msg_body: slice
+     * receiver: int
+     * sender: int
+     * <top>
+     * ```
+     * The stack is set up in [doCallOnOutMessageIfRequired]
+     */
     private fun visitOnOutMessageHandlerCall(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialOnOutMessageHandlerCallInst,
@@ -465,7 +479,7 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
-        val headAndTailIds = stmt.identifiers?.splitHeadTail()
+        val (currentMsgId, restMsgId) = stmt.identifiers?.splitHeadTail() ?: (null to null)
         if (stmt.identifiers != null) {
             check(stmt.identifiers.size == stmt.yetUnparsedActions.size) {
                 "The size of registered message identifiers does not match the length of yet not processed message identifiers"
@@ -486,8 +500,8 @@ class TvmArtificialInstInterpreter(
                             stmt.copy(
                                 yetUnparsedActions = tail,
                                 parsedAndPreprocessedActions =
-                                    updatedParsedAndPreprocessed + parsedHead.withId(headAndTailIds?.first),
-                                identifiers = headAndTailIds?.second,
+                                    updatedParsedAndPreprocessed + parsedHead.withId(currentMsgId),
+                                identifiers = restMsgId,
                             )
                         newStmt(newStmt)
                     },

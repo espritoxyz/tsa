@@ -10,8 +10,8 @@ slice mychoos(slice a, slice b) impure method_id(213){
     slice left = msg~load_msg_addr();
     slice right = msg~load_msg_addr();
     slice result = mychoos(left, right);
-    tsa_assert_slice_functionally_determines(left);
-    tsa_assert_slice_is_functionally_dependent(result); ;; should succeed
+    tsa_assert_belongs_to_functionally_determiners_scope(left);
+    tsa_assert_belongs_to_functionally_dependent_scope(result); ;; should succeed
     throw(1000);
 }
 
