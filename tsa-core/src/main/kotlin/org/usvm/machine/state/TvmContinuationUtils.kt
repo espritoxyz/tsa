@@ -1,5 +1,6 @@
 package org.usvm.machine.state
 
+import kotlinx.collections.immutable.PersistentList
 import org.ton.bytecode.TsaArtificialCheckerReturn
 import org.ton.bytecode.TsaArtificialJmpToContInst
 import org.ton.bytecode.TvmAgainContinuation
@@ -293,12 +294,15 @@ fun TvmContinuation.defineC4(cell: UHeapRef): TvmContinuation {
     return update(newSavelist = savelist.copy(c4 = C4Register(TvmCellValue(cell))))
 }
 
-fun TvmContinuation.defineC5(cell: UHeapRef): TvmContinuation {
+fun TvmContinuation.defineC5(
+    cell: UHeapRef,
+    identifierList: PersistentList<C5ActionIdentifier>?,
+): TvmContinuation {
     if (savelist.c5 != null) {
         return this
     }
 
-    return update(newSavelist = savelist.copy(c5 = C5Register(TvmCellValue(cell), identifierList = null)))
+    return update(newSavelist = savelist.copy(c5 = C5Register(TvmCellValue(cell), identifierList = identifierList)))
 }
 
 fun TvmContinuation.defineC7(tuple: TvmStackTupleValue): TvmContinuation {
