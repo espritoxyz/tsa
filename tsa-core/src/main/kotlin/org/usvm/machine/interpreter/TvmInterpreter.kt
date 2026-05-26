@@ -2689,8 +2689,8 @@ class TvmInterpreter(
                 }
 
                 5 -> {
-                    val c5 = registers.c5.value.value
-                    c0.defineC5(c5)
+                    val c5 = registers.c5
+                    c0.defineC5(c5.value.value, c5.identifierList)
                 }
 
                 7 -> {
@@ -2766,7 +2766,7 @@ class TvmInterpreter(
                         takeLastCell()
                             ?: return@doWithStateCtx throwTypeCheckError(this)
 
-                    cont.defineC5(cell)
+                    cont.defineC5(cell, identifierList = null)
                 }
 
                 7 -> {
@@ -2814,7 +2814,7 @@ class TvmInterpreter(
             cont = cont.defineC4(regs.c4.value.value)
         }
         if (isBitSet(5)) {
-            cont = cont.defineC5(regs.c5.value.value)
+            cont = cont.defineC5(regs.c5.value.value, regs.c5.identifierList)
         }
         // there is no 6th register
         if (isBitSet(7)) {
