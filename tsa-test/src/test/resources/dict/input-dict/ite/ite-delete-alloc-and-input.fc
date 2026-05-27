@@ -1,0 +1,35 @@
+#include "../../../imports/stdlib.fc";
+#include "../util.fc";
+
+() test(slice in_msg, int index) impure method_id (1) {
+
+    cell dict_1 = new_dict()
+        .udict_set(64, 1, wrap_in_cell(100))
+        .udict_set(64, 2, wrap_in_cell(100));
+    cell dict_2 = in_msg~load_dict();
+    dict_2 = dict_2
+        .udict_set(64, 1, wrap_in_cell(200))
+        .udict_set(64, 2, wrap_in_cell(200));
+    cell ite_dict = my_mk_ite(dict_1, dict_2, index);
+
+    (cell rem_dict, int ok) = udict_delete?(ite_dict, 64, 1);
+    throw_unless(400, ok);
+
+    (_, int found_deleted) = rem_dict.udict_get?(64, 1);
+    throw_unless(401, ~ found_deleted);
+
+    (slice value, int found_kept) = rem_dict.udict_get?(64, 2);
+    throw_unless(402, found_kept);
+
+    int result = value.unwrap();
+    throw_if(500, result == 100);
+    throw_if(501, result == 200);
+    throw(400);
+}
+
+
+() main(slice in_msg) {
+    int index = in_msg~load_int(64);
+    test(in_msg, index);
+    return ();
+}
