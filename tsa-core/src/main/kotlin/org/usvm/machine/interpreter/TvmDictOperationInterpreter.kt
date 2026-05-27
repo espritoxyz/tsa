@@ -1635,35 +1635,44 @@ class TvmDictOperationInterpreter(
 
         val dictId = DictId(keyLength)
         val keySort = ctx.mkBvSort(keyLength.toUInt())
-        val isInput = checkDictIsInput(scope, dictCellRef, dictId, keySort)
-        if (isInput) {
-            doSetInstOnInputDict(
-                scope = scope,
-                getOldValue = getOldValue,
-                dictCellRef = dictCellRef,
-                keySort = keySort,
-                keyKind = keyKind,
-                mode = mode,
-                key = key,
-                keyLength = keyLength,
-                value = value,
-                inst = inst,
-                valueType,
-            )
-            return
-        }
 
-        doSetInstOnAllocatedDict(
-            scope,
-            dictCellRef,
-            key,
-            keyLength,
-            value,
-            valueType,
-            mode,
-            getOldValue,
-            inst,
-        )
+        val options =
+            dictCellRef?.let {
+                flattenDictIte(scope, it).map { (guard, leafRef) ->
+                    TvmStepScopeManager.ActionOnCondition(condition = guard, paramForDoForAllBlock = leafRef)
+                }
+            } ?: listOf(TvmStepScopeManager.ActionOnCondition(condition = ctx.trueExpr, paramForDoForAllBlock = null))
+
+        scope.doWithConditions(options) { leafRef ->
+            val isInput = checkDictIsInput(this, leafRef, dictId, keySort)
+            if (isInput) {
+                doSetInstOnInputDict(
+                    scope = this,
+                    getOldValue = getOldValue,
+                    dictCellRef = leafRef,
+                    keySort = keySort,
+                    keyKind = keyKind,
+                    mode = mode,
+                    key = key,
+                    keyLength = keyLength,
+                    value = value,
+                    inst = inst,
+                    valueType,
+                )
+            } else {
+                doSetInstOnAllocatedDict(
+                    this,
+                    leafRef,
+                    key,
+                    keyLength,
+                    value,
+                    valueType,
+                    mode,
+                    getOldValue,
+                    inst,
+                )
+            }
+        }
     }
 
     private fun doSetInstOnAllocatedDict(
@@ -1766,7 +1775,7 @@ class TvmDictOperationInterpreter(
         val dictId = keyLength.asDictId()
         val dictOriginalConcrete =
             dictCellRef as? UConcreteHeapRef
-                ?: TODO("ites are not supported yet")
+                ?: error("Unexpected concrete ref on input dict operation")
         val baseInputDict =
             scope.calcOnState {
                 readInputDictionary(dictOriginalConcrete, keySort, keyKind)
@@ -2117,6 +2126,11 @@ class TvmDictOperationInterpreter(
             },
         )
     }
+
+    private fun flattenDictIte(
+        scope: TvmStepScopeManager,
+        dict: UHeapRef,
+    ): List<Pair<UBoolExpr, UConcreteHeapRef>> = scope.ctx.flattenReferenceIte(dict, extractAllocated = true)
 
     private fun doDeleteInstOnInputDict(
         scope: TvmStepScopeManager,
