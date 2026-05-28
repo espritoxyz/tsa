@@ -103,11 +103,15 @@ class TvmPostProcessor(
                 generatePublicKeyConstraints(scope, resolver)
             } ?: return null
 
+            // forward fees might depennd on the hashes, so we must fixate the hashes first
             assertConstraints(scope) { resolver ->
                 val hashConstraint =
                     generateHashConstraint(scope, resolver)
                         ?: return@assertConstraints null
+                hashConstraint
+            } ?: return null
 
+            assertConstraints(scope) { resolver ->
                 val depthConstraint =
                     generateDepthConstraint(scope, resolver)
                         ?: return@assertConstraints null
@@ -120,7 +124,7 @@ class TvmPostProcessor(
                     generateDatasizeConstraints(scope, resolver)
                         ?: return@assertConstraints null
 
-                hashConstraint and depthConstraint and fwdFeeConstraint and datasizeConstraint
+                depthConstraint and fwdFeeConstraint and datasizeConstraint
             } ?: return null
 
             // must be asserted separately since it relies on correct hash values
