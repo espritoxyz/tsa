@@ -477,7 +477,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
                 var falseState: TvmState? = null
                 fork(
                     assumeConstraint,
-                    falseStateIsExceptional = false,
+                    falseStateIsExceptional = true,
                     blockOnFalseState = {
                         falseState = this
                         setExit(TvmResult.TvmSoftFailure(failure, phase))
