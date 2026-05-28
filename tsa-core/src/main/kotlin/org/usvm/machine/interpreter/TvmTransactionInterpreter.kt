@@ -24,7 +24,6 @@ import org.usvm.machine.TvmContext.Companion.OP_BITS
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
-import org.usvm.machine.dropFirstWithoutChecks
 import org.usvm.machine.intValue
 import org.usvm.machine.splitHeadTail
 import org.usvm.machine.state.ContractId
@@ -66,6 +65,7 @@ import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
 import org.usvm.machine.state.sliceLoadRefNoFork
 import org.usvm.machine.state.slicePreloadNextRef
 import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.tailUnsafe
 import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.asSliceRef
@@ -950,7 +950,7 @@ class TvmTransactionInterpreter(
             val nextStmt =
                 originalStmt.copy(
                     yetUnparsedActions =
-                        originalStmt.yetUnparsedActions.dropFirstWithoutChecks(),
+                        originalStmt.yetUnparsedActions.tailUnsafe(),
                     parsedAndPreprocessedActions =
                         originalStmt.parsedAndPreprocessedActions +
                             MessageActionParseResult(
