@@ -1,8 +1,10 @@
 package org.ton.examples.contracts
 
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.ton.RUN_HARD_TESTS_REGEX
 import org.ton.RUN_HARD_TESTS_VAR
+import org.ton.boc.BagOfCells
 import org.ton.bytecode.MethodId
 import org.ton.test.gen.dsl.render.TsRenderer
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
@@ -14,6 +16,7 @@ import org.ton.test.utils.funcAnalyzer
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.BocAnalyzer
 import org.usvm.machine.FiftAnalyzer
+import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.toMethodId
@@ -66,6 +69,8 @@ class ContractsTest {
     private val pumpersPath: String = "/contracts/EQCV_FsDSymN83YeKZKj_7sgwQHV0jJhCTvX5SkPHHxVOi0D.boc"
     private val jettonWalletWithConfigInstsPath: String =
         "/contracts/EQCnKexvdRR56OpxG2jpSUk0Dn6XpcgwHqE5A5plDz3TOQOt.boc"
+    private val tinuLockerCode: String = "/contracts/tinu-locker-ton.boc"
+    private val tinuLockerData: String = "/contracts/tinu-locker-ton.data.boc"
 
     @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
@@ -76,6 +81,18 @@ class ContractsTest {
          * TODO: enable test generation when resolve the issue above is fixed
          */
         analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
+    }
+
+    @Disabled("Fails with stack overflow and some sort of test generation problem caused by big output")
+    @Test
+    fun `tinu-locker-ton concrete c4`() {
+        val c4 = BagOfCells.of(extractResource(tinuLockerData).toFile().readBytes())
+        analyzeSpecificMethodBoc(
+            tinuLockerCode,
+            MethodId.ZERO,
+            enableTestGeneration = true,
+            concreteData = TvmConcreteContractData(contractC4 = c4.roots.single()),
+        )
     }
 
     @Test
@@ -372,6 +389,7 @@ class ContractsTest {
         methodId: MethodId,
         enableTestGeneration: Boolean,
         options: TvmOptions? = null,
+        concreteData: TvmConcreteContractData = TvmConcreteContractData(),
     ) {
         val bocPath = getResourcePath<ContractsTest>(contractPath)
         val tests =
@@ -379,6 +397,7 @@ class ContractsTest {
                 bocPath,
                 methodId,
                 tvmOptions = options ?: TvmOptions(quietMode = false),
+                concreteContractData = concreteData,
             )
         assertTrue { tests.isNotEmpty() }
 
