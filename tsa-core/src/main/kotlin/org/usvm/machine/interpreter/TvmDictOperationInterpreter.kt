@@ -1647,6 +1647,9 @@ class TvmDictOperationInterpreter(
         scope.doWithConditions(options) { leafRef ->
             val isInput = checkDictIsInput(calcOnState { this }, leafRef, dictId, keySort)
             if (isInput) {
+                require(leafRef is UConcreteHeapRef) {
+                    "Unexpected ITE input dict ref after ite split"
+                }
                 doSetInstOnInputDict(
                     scope = this,
                     getOldValue = getOldValue,
@@ -1768,7 +1771,7 @@ class TvmDictOperationInterpreter(
     private fun doSetInstOnInputDict(
         scope: TvmStepScopeManager,
         getOldValue: Boolean,
-        dictCellRef: UHeapRef?,
+        dictCellRef: UConcreteHeapRef,
         keySort: KBvSort,
         keyKind: DictKeyKind,
         mode: DictSetMode,
@@ -1780,12 +1783,9 @@ class TvmDictOperationInterpreter(
     ) {
         val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
         val dictId = keyLength.asDictId()
-        val dictOriginalConcrete =
-            dictCellRef as? UConcreteHeapRef
-                ?: error("Unexpected concrete ref on input dict operation")
         val baseInputDict =
             scope.calcOnState {
-                readInputDictionary(dictOriginalConcrete, keySort, keyKind)
+                readInputDictionary(dictCellRef, keySort, keyKind)
             }
         val inRange = ctx.trueExpr // we quit at the start if outOfRange
         val keyExists =
@@ -1805,7 +1805,7 @@ class TvmDictOperationInterpreter(
             ?: return
 
         scope.calcOnState {
-            val dictKeyLength = memory.readField(dictOriginalConcrete, dictKeyLengthField, ctx.sizeSort)
+            val dictKeyLength = memory.readField(dictCellRef, dictKeyLengthField, ctx.sizeSort)
             scope.assert(with(ctx) { mkEq(dictKeyLength.zeroExtendToSort(sizeSort), keyLength.toBv(sizeSort)) })
                 ?: return@calcOnState
             memory.writeField(resultDict, dictKeyLengthField, ctx.sizeSort, dictKeyLength, guard = ctx.trueExpr)
@@ -1814,7 +1814,7 @@ class TvmDictOperationInterpreter(
             val dictValueRegion = memory.dictValueRegion(dictValueRegionId)
             val updatedValues =
                 dictValueRegion
-                    .copyRefValues(dictOriginalConcrete, resultDict)
+                    .copyRefValues(dictCellRef, resultDict)
                     .writeRefValue(resultDict, key, value.asExpr(ctx.addressSort), guard = conditionToStore)
             memory.setRegion(dictValueRegionId, updatedValues)
         }
@@ -2064,6 +2064,9 @@ class TvmDictOperationInterpreter(
             val isInput =
                 checkDictIsInput(calcOnState<TvmState> { this }, leafRef, dictId, keySort)
             if (isInput) {
+                require(leafRef is UConcreteHeapRef) {
+                    "Unexpected ITE input dict ref after ite split"
+                }
                 doDeleteInstOnInputDict(
                     scope = this,
                     dictCellRef = leafRef,
@@ -2184,7 +2187,7 @@ class TvmDictOperationInterpreter(
 
     private fun doDeleteInstOnInputDict(
         scope: TvmStepScopeManager,
-        dictCellRef: UHeapRef,
+        dictCellRef: UConcreteHeapRef,
         keySort: KBvSort,
         keyKind: DictKeyKind,
         key: UExpr<UBvSort>,
@@ -2194,12 +2197,9 @@ class TvmDictOperationInterpreter(
         inst: TvmDictDeleteInst,
     ) {
         val resultDictRef = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
-        val dictOriginalConcreteRef =
-            dictCellRef as? UConcreteHeapRef
-                ?: error("Unexpected ite ref in input dict operation")
         val initInputDict =
             scope.calcOnState {
-                readInputDictionary(dictOriginalConcreteRef, keySort, keyKind)
+                readInputDictionary(dictCellRef, keySort, keyKind)
             }
 
         val queryKeyExists =
@@ -2208,7 +2208,7 @@ class TvmDictOperationInterpreter(
         val appliedModification = Modification.Remove(TypedDictKey(key, keyKind))
         val newInputDict = initInputDict.withModification(appliedModification)
         scope.calcOnStateCtx {
-            copyDictValuesMemoryRepresentation(dictOriginalConcreteRef, resultDictRef, dictId, keySort)
+            copyDictValuesMemoryRepresentation(dictCellRef, resultDictRef, dictId, keySort)
             inputDictionaryStorage = inputDictionaryStorage.createDictEntry(resultDictRef, newInputDict)
         }
 
@@ -2365,6 +2365,9 @@ class TvmDictOperationInterpreter(
             scope.doWithConditions(options) { dictCellRef ->
                 val isInput = checkDictIsInput(calcOnState<TvmState> { this }, dictCellRef, dictId, keySort)
                 if (isInput) {
+                    require(dictCellRef is UConcreteHeapRef) {
+                        "Unexpected ITE input dict ref after ite split"
+                    }
                     doMinMaxInstOnInputDict(
                         scope = this,
                         dictCellRef = dictCellRef,
@@ -2488,7 +2491,7 @@ class TvmDictOperationInterpreter(
 
     private fun doMinMaxInstOnInputDict(
         scope: TvmStepScopeManager,
-        dictCellRef: UHeapRef,
+        dictCellRef: UConcreteHeapRef,
         keySort: KBvSort,
         keyKind: DictKeyKind,
         mode: DictMinMaxMode,
@@ -2497,11 +2500,8 @@ class TvmDictOperationInterpreter(
         removeKey: Boolean,
         inst: TvmDictMinInst,
     ) {
-        val dictConcreteRef =
-            dictCellRef as? UConcreteHeapRef
-                ?: error("Unexpecte ite ref in input dict operation")
         val inputDict =
-            scope.calcOnState { readInputDictionary(dictConcreteRef, keySort, keyKind) }
+            scope.calcOnState { readInputDictionary(dictCellRef, keySort, keyKind) }
         val keyResultSymbol =
             doInputDictMinMax(
                 scope,
@@ -2524,7 +2524,7 @@ class TvmDictOperationInterpreter(
             val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
             scope.calcOnState {
                 copyDictValuesMemoryRepresentation(
-                    dictConcreteRef,
+                    dictCellRef,
                     resultDict,
                     dictId,
                     keySort,
@@ -2630,6 +2630,9 @@ class TvmDictOperationInterpreter(
             // since these entries were stored during execution, value overflow constraints have already been asserted
             val isInput = checkDictIsInput(calcOnState<TvmState> { this }, leafDictRef, dictId, keySort)
             if (isInput) {
+                require(leafDictRef is UConcreteHeapRef) {
+                    "Unexpected leafRef after ite split"
+                }
                 doNextPrevInstOnInputDict(
                     dictCellRef = leafDictRef,
                     scope = this,
@@ -2770,7 +2773,7 @@ class TvmDictOperationInterpreter(
     }
 
     private fun doNextPrevInstOnInputDict(
-        dictCellRef: UHeapRef,
+        dictCellRef: UConcreteHeapRef,
         scope: TvmStepScopeManager,
         keySort: KBvSort,
         keyKind: DictKeyKind,
@@ -2781,12 +2784,9 @@ class TvmDictOperationInterpreter(
         valueType: DictValueType,
         inst: TvmDictNextInst,
     ) {
-        val dictConcreteRef =
-            dictCellRef as? UConcreteHeapRef
-                ?: error("Unexpected concrete ref in input dict operation")
         val inputDict =
             scope.calcOnState {
-                readInputDictionary(dictConcreteRef, keySort, keyKind)
+                readInputDictionary(dictCellRef, keySort, keyKind)
             }
         doInputDictNextPrev(
             scope,
