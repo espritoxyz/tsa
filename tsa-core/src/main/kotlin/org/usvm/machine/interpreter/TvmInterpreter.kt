@@ -766,7 +766,7 @@ class TvmInterpreter(
                 val equalityCs =
                     scope.slicesAreEqual(expr, modelSlice)
                         ?: return listOf()
-                val isInequalitySat = scope.assert(with(ctx) { equalityCs.not() }, doNotAddConstraint = true) != null
+                val isInequalitySat = scope.checkSat(with(ctx) { equalityCs.not() }) != null
                 if (isInequalitySat) {
                     return listOf()
                 }
