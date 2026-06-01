@@ -1,6 +1,5 @@
 package org.ton.bytecode
 
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.serialization.Serializable
 import org.ton.DestinationDescription
 import org.usvm.machine.interpreter.DispatchedMessage
@@ -62,6 +61,11 @@ data class TsaArtificialActionPhaseStartInst(
     }
 }
 
+data class UnparsedAction(
+    val slice: SliceRef,
+    val identifier: C5ActionIdentifier?,
+)
+
 /**
  * Handles the parsing and preprocessing of actions from the action list (stored in C5 register).
  * Works with a single action ([yetUnparsedActions]`.first()`) per instruction.
@@ -71,8 +75,7 @@ data class TsaArtificialActionPhaseStartInst(
 data class TsaArtificialActionParseInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
-    val yetUnparsedActions: List<SliceRef>,
-    val identifiers: ImmutableList<C5ActionIdentifier>?,
+    val yetUnparsedActions: List<UnparsedAction>,
     val parsedAndPreprocessedActions: List<ActionParseResult>,
     val destinationResolver: DestinationDescription?,
 ) : TsaArtificialInst {

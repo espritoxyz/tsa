@@ -9,6 +9,7 @@ import org.ton.LinearDestinations
 import org.ton.OpcodeToDestination
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialActionParseInst
+import org.ton.bytecode.UnparsedAction
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -788,10 +789,11 @@ class TvmTransactionInterpreter(
      */
     fun parseSingleActionSlice(
         scope: TvmStepScopeManager,
-        actionSlice: SliceRef,
+        unparsedAction: UnparsedAction,
         originalStmt: TsaArtificialActionParseInst,
     ): ValueOrDeadScope<List<Pair<ActionParseResult, UBoolExpr>>?> =
         with(scope.ctx) {
+            val actionSlice = unparsedAction.slice
             val model = scope.calcOnState { tvmModels.first() }
             val resolver =
                 TvmTestStateResolver(
@@ -819,6 +821,7 @@ class TvmTransactionInterpreter(
                             actionBody,
                             originalStmt,
                             originalStmt.destinationResolver,
+                            unparsedAction.identifier,
                         )
                             ?: return scopeDied
 
@@ -955,6 +958,7 @@ class TvmTransactionInterpreter(
         slice: UHeapRef,
         originalStmt: TsaArtificialActionParseInst,
         handler: DestinationDescription?,
+        identifier: C5ActionIdentifier?,
     ): List<Pair<MessageActionParseResult, UBoolExpr>>? {
         val (_, sendMsgMode) =
             sliceLoadIntTlbNoForkAndNoRegister(scope, slice, 8, false)
@@ -1058,12 +1062,15 @@ class TvmTransactionInterpreter(
                         ctx.trueExpr
                     }
                 }
+            if (identifier is C5ActionIdentifier.Reserve) {
+                error("Bad type")
+            }
 
             MessageActionParseResult(
                 content = messageContent,
                 sendMessageMode = sendMsgMode,
                 resolvedReceiver = possibleReceiver,
-                identifier = null, // will be set by the caller
+                identifier = identifier as? C5ActionIdentifier.MsgIdentifier,
             ) to equality
         }
     }

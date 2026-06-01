@@ -744,6 +744,9 @@ class TvmInterpreter(
         }
     }
 
+    /**
+     * @return the postprocessed states that survive the functional dependency assertions
+     */
     private fun processFunctionalDependencyAssertion(
         clonedOldState: TvmState,
         stateAfterPostProcess: TvmState,

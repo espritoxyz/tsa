@@ -19,6 +19,7 @@ import org.ton.bytecode.TsaArtificialOnOutMessageHandlerCallInst
 import org.ton.bytecode.TsaArtificialPostprocessInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
+import org.ton.bytecode.UnparsedAction
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
@@ -75,7 +76,6 @@ import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.messages.TlbStateInit
 import org.usvm.machine.state.messages.getMsgBodySlice
 import org.usvm.machine.state.messages.getOrElse
-import org.usvm.machine.state.messages.withId
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.readSliceCell
@@ -466,7 +466,7 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialActionParseInst,
     ) {
-        val (head, tail) =
+        val (currentAction, restActions) =
             stmt.yetUnparsedActions.splitHeadTail() ?: return run {
                 transactionInterpreter.resolveMessageReceivers(
                     scope,
@@ -479,29 +479,20 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
-        val (currentMsgId, restMsgId) = stmt.identifiers?.splitHeadTail() ?: (null to null)
-        if (stmt.identifiers != null) {
-            check(stmt.identifiers.size == stmt.yetUnparsedActions.size) {
-                "The size of registered message identifiers does not match the length of yet not processed message identifiers"
-            }
-        }
-
         val possibleParsedHeads =
             transactionInterpreter
-                .parseSingleActionSlice(scope, head, stmt)
+                .parseSingleActionSlice(scope, currentAction, stmt)
                 .getOrElse { return }
                 ?: return
         val actions =
-            possibleParsedHeads.map { (parsedHead, condition) ->
+            possibleParsedHeads.map { (parsedCurrentAction, condition) ->
                 TvmStepScopeManager.ActionOnCondition(
                     action = {
                         val updatedParsedAndPreprocessed = stmt.parsedAndPreprocessedActions
                         val newStmt =
                             stmt.copy(
-                                yetUnparsedActions = tail,
-                                parsedAndPreprocessedActions =
-                                    updatedParsedAndPreprocessed + parsedHead.withId(currentMsgId),
-                                identifiers = restMsgId,
+                                yetUnparsedActions = restActions,
+                                parsedAndPreprocessedActions = updatedParsedAndPreprocessed + parsedCurrentAction,
                             )
                         newStmt(newStmt)
                     },
@@ -577,14 +568,18 @@ class TvmArtificialInstInterpreter(
                     (null to Unit)
                 }
             status ?: return
+            if (identifiers != null && actions.size != identifiers.size) {
+                error("bad!")
+            }
+            val identifiersTrue = identifiers ?: List(actions.size) { null }
+            val yetUnparsedActions = actions.zip(identifiersTrue) { x, y -> UnparsedAction(x, y) }
 
             scope.calcOnState {
                 newStmt(
                     TsaArtificialActionParseInst(
                         stmt.computePhaseResult,
                         lastStmt.location,
-                        actions,
-                        identifiers,
+                        yetUnparsedActions,
                         persistentListOf(),
                         handler,
                     ),

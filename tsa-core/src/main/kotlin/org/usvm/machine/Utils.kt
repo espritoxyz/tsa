@@ -94,4 +94,5 @@ fun <T> ImmutableList<T>.splitHeadTail(): Pair<T, ImmutableList<T>>? =
     if (isEmpty()) null else first() to subList(1, size)
 
 fun <T> List<T>.dropFirstWithoutChecks(): List<T> = subList(1, size)
+
 fun <T> List<T>.tailUnsafe(): List<T> = subList(1, size)
