@@ -161,6 +161,10 @@ class TvmActionsInterpreter(
         builderStoreGramsTlb(scope, resultBuilder, resultBuilder, grams)
             ?: error("Unexpected cell overflow during RAWRESERVE instruction")
 
+        // extra currency
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, value = zeroValue, sizeBits = oneSizeExpr)
+            ?: error("Unexpected cell overflow during RAWRESERVE instruction")
+
         val updatedActions =
             scope.calcOnState {
                 builderToCell(resultBuilder)
