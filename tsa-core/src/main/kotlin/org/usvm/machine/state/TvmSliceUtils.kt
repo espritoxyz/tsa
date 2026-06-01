@@ -1268,8 +1268,6 @@ fun TvmState.allocEmptyCell() =
         }
     }
 
-fun TvmState.allocSliceFromCell(cell: CellRef): SliceRef = allocSliceFromCell(cell.value).asSliceRef()
-
 fun TvmState.allocSliceFromCell(cell: UHeapRef) =
     with(ctx) {
         memory.allocConcrete(TvmSliceType).also { slice ->
@@ -1636,7 +1634,7 @@ fun builderStoreIntTlb(
     value: UExpr<TvmInt257Sort>,
     sizeBits: UExpr<TvmSizeSort>,
     isSigned: Boolean = false,
-    endian: Endian,
+    endian: Endian = Endian.BigEndian,
 ): Unit? =
     scope.doWithCtx {
         scope.doWithState {

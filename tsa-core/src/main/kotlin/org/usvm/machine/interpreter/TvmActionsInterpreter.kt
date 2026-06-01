@@ -16,11 +16,14 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.C5Register
 import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.addInt
+import org.usvm.machine.state.allocEmptyBuilderWithTlb
 import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.builderStoreDataBits
-import org.usvm.machine.state.builderStoreGrams
+import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.builderStoreInt
+import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
+import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.checkCellOverflow
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
@@ -30,6 +33,7 @@ import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.unsignedIntegerFitsBits
+import org.usvm.mkSizeExpr
 
 class TvmActionsInterpreter(
     private val ctx: TvmContext,
@@ -131,25 +135,47 @@ class TvmActionsInterpreter(
         val notOutOfRangeGrams = unsignedIntegerFitsBits(grams, TvmContext.MAX_GRAMS_BITS)
         checkCellOverflow(notOutOfRangeGrams, scope) ?: return
 
-        scope.doWithState {
-            val registers = registersOfCurrentContract
-            val actions = registers.c5.value.value
-            val updatedActions = allocEmptyCell()
+        val registers =
+            scope.calcOnState {
+                registersOfCurrentContract
+            }
+        val actions = registers.c5.value.value
 
+        val resultBuilder =
+            scope.calcOnState {
+                allocEmptyBuilderWithTlb()
+            }
+
+        builderStoreIntTlb(
+            scope,
+            resultBuilder,
+            resultBuilder,
+            reserveActionTag.zeroExtendToSort(int257sort),
+            sizeBits = mkSizeExpr(reserveActionTag.sort.sizeBits.toInt()),
+        )
+            ?: error("Unexpected cell overflow during RAWRESERVE instruction")
+
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, mode, sizeBits = eightSizeExpr)
+            ?: error("Unexpected cell overflow during RAWRESERVE instruction")
+
+        builderStoreGramsTlb(scope, resultBuilder, resultBuilder, grams)
+            ?: error("Unexpected cell overflow during RAWRESERVE instruction")
+
+        // extra currency
+        builderStoreIntTlb(scope, resultBuilder, resultBuilder, value = zeroValue, sizeBits = oneSizeExpr)
+            ?: error("Unexpected cell overflow during RAWRESERVE instruction")
+
+        val updatedActions =
+            scope.calcOnState {
+                builderToCell(resultBuilder)
+            }
+        scope.calcOnState {
             builderStoreNextRefNoOverflowCheck(updatedActions, actions)
-            scope.builderStoreDataBits(updatedActions, reserveActionTag)
-                ?: error("Unexpected cell overflow during RAWRESERVE instruction")
-            scope.builderStoreInt(updatedActions, updatedActions, mode, sizeBits = eightSizeExpr, isSigned = false) {
-                error("Unexpected cell overflow during RAWRESERVE instruction")
-            } ?: return@doWithState
-            scope.builderStoreGrams(updatedActions, updatedActions, grams)
-                ?: return@doWithState
-            // empty ExtraCurrencyCollection
-            scope.builderStoreDataBits(updatedActions, zeroBit)
-                ?: return@doWithState
+        }
 
-            registers.c5 = C5Register(TvmCellValue(updatedActions))
+        registers.c5 = C5Register(TvmCellValue(updatedActions))
 
+        scope.doWithState {
             newStmt(stmt.nextStmt())
         }
     }

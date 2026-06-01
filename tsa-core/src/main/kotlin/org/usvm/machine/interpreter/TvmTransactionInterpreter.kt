@@ -898,7 +898,7 @@ class TvmTransactionInterpreter(
         val actionList = mutableListOf<SliceRef>()
 
         while (true) {
-            val slice = scope.calcOnState { allocSliceFromCell(cur) }
+            val slice = makeCellToSliceTlbNoFork(scope, cur)
             val remainingRefs = scope.calcOnState { getSliceRemainingRefsCount(slice.value) }
 
             val isEnd =
