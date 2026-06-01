@@ -89,4 +89,4 @@ fun Path.getParentNonNullAbsolutePath(): Path = (parent ?: Paths.get("")).toAbso
 
 fun <T> List<T>.splitHeadTail(): Pair<T, List<T>>? = if (isEmpty()) null else first() to subList(1, size)
 
-fun <T> List<T>.dropFirstWithoutChecks(): List<T> = subList(1, size)
+fun <T> List<T>.tailUnsafe(): List<T> = subList(1, size)

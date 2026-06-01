@@ -131,6 +131,7 @@ private data class Guard(
                                 mkAnd(acc, (symbol neq elem), flat = false)
                             }
                         }
+
                         1 -> {
                             val value = values.specificValues.single()
                             if (value in values.forbiddenValues) {
@@ -139,6 +140,7 @@ private data class Guard(
                                 symbol eq value
                             }
                         }
+
                         else -> {
                             falseExpr
                         }
@@ -274,7 +276,10 @@ fun <Sort : USort> UExpr<Sort>.tryTransformToIteWithConcreteLeaves(depth: Int = 
     if (depth > MAX_RECURSION_DEPTH) return null
     return with(ctx.tctx()) {
         when (this@tryTransformToIteWithConcreteLeaves) {
-            is KInterpretedValue -> this@tryTransformToIteWithConcreteLeaves
+            is KInterpretedValue -> {
+                this@tryTransformToIteWithConcreteLeaves
+            }
+
             is KBvConcatExpr -> {
                 val newArg0 =
                     arg0.tryTransformToIteWithConcreteLeaves(depth + 1)
@@ -305,6 +310,7 @@ fun <Sort : USort> UExpr<Sort>.tryTransformToIteWithConcreteLeaves(depth: Int = 
                 }
                 null
             }
+
             is KIteExpr -> {
                 val newTrueBranch =
                     trueBranch.tryTransformToIteWithConcreteLeaves(depth + 1)
@@ -315,11 +321,15 @@ fun <Sort : USort> UExpr<Sort>.tryTransformToIteWithConcreteLeaves(depth: Int = 
 
                 mkIte(condition, newTrueBranch, newFalseBranch)
             }
+
             is KBvZeroExtensionExpr -> {
                 val asConcat = mkBvConcatExpr(mkBv(0, extensionSize.toUInt()), value)
                 asConcat.tryTransformToIteWithConcreteLeaves(depth + 1).uncheckedCast()
             }
-            else -> null
+
+            else -> {
+                null
+            }
         }
     }
 }
@@ -354,12 +364,16 @@ fun unpackConcat(
                 val unpacked = unpackConcat(expr.value, depth + 1) ?: return null
                 List(expr.extensionSize) { mkBv(0, 1u) } + unpacked
             }
+
             is KBvConcatExpr -> {
                 val unpackedArg0 = unpackConcat(expr.arg0, depth + 1) ?: return null
                 val unpackedArg1 = unpackConcat(expr.arg1, depth + 1) ?: return null
                 unpackedArg0 + unpackedArg1
             }
-            else -> listOf(expr)
+
+            else -> {
+                listOf(expr)
+            }
         }
     }
 }

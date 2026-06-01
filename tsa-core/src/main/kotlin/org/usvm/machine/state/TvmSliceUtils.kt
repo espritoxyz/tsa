@@ -436,13 +436,13 @@ fun TvmStepScopeManager.slicePreloadIntWithoutChecks(
 private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
     slice: UHeapRef,
 ): Pair<UBoolExpr, UExpr<TvmSizeSort>>? =
-    doWithCtx {
+    with(ctx) {
         // addr_var$11 anycast:(Maybe Anycast) addr_len:(## 9) workchain_id:int32
         // addr_std$10 anycast:(Maybe Anycast) workchain_id:int8 ...
         val prefixLen = 44
         val data =
             slicePreloadDataBitsWithoutChecks(slice, sizeBits = prefixLen)
-                ?: return@doWithCtx null
+                ?: return@with null
 
         // addr_std$10
         // addr_var$11
@@ -477,12 +477,12 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
                 var falseState: TvmState? = null
                 fork(
                     assumeConstraint,
-                    falseStateIsExceptional = false,
+                    falseStateIsExceptional = true,
                     blockOnFalseState = {
                         falseState = this
                         setExit(TvmResult.TvmSoftFailure(failure, phase))
                     },
-                ) ?: return@doWithCtx null
+                ) ?: return@with null
 
                 // if reached this, then we found state with [assumeConstraint], and we can get rid of [falseState]
                 // TODO: maybe keep false state only if true state is unsat?
@@ -496,7 +496,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
                     unknownBlock = {
                         error("Must not be reachable")
                     },
-                ) ?: return@doWithCtx null
+                ) ?: return@with null
             }
         }
 
@@ -504,7 +504,7 @@ private fun TvmStepScopeManager.slicePreloadInternalAddrLengthConstraint(
             mkAnd(
                 stdConstraint implies stdWorkchainConstraint,
             ),
-        ) ?: return@doWithCtx null
+        ) ?: return@with null
 
         stdConstraint to stdLength
     }

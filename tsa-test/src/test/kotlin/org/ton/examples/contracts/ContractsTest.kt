@@ -66,6 +66,7 @@ class ContractsTest {
     private val pumpersPath: String = "/contracts/EQCV_FsDSymN83YeKZKj_7sgwQHV0jJhCTvX5SkPHHxVOi0D.boc"
     private val jettonWalletWithConfigInstsPath: String =
         "/contracts/EQCnKexvdRR56OpxG2jpSUk0Dn6XpcgwHqE5A5plDz3TOQOt.boc"
+    private val tinuLockerTest: String = "/contracts/tin-locker-ton.boc"
 
     @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
@@ -76,6 +77,11 @@ class ContractsTest {
          * TODO: enable test generation when resolve the issue above is fixed
          */
         analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
+    }
+
+    @Test
+    fun `tinu-locker-ton`() {
+        analyzeSpecificMethodBoc(tinuLockerTest, MethodId.ZERO, enableTestGeneration = true)
     }
 
     @Test
