@@ -2,6 +2,7 @@ package org.usvm.machine.interpreter
 
 import io.ksmt.utils.uncheckedCast
 import org.ton.api.pk.PrivateKeyEd25519
+import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
@@ -37,7 +38,6 @@ import org.usvm.test.resolver.transformTestDataCellIntoCell
 import org.usvm.test.resolver.transformTestDictCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
-import kotlin.math.sign
 import kotlin.random.Random
 
 class TvmPostProcessor(
@@ -107,6 +107,13 @@ class TvmPostProcessor(
             assertConstraints(scope) { resolver ->
                 val hashConstraint =
                     generateHashConstraint(scope, resolver)
+                        ?: return@assertConstraints null
+                hashConstraint
+            } ?: return null
+
+            assertConstraints(scope) { resolver ->
+                val hashConstraint =
+                    generateSha256Constraints(scope, resolver)
                         ?: return@assertConstraints null
                 hashConstraint
             } ?: return null
@@ -215,6 +222,21 @@ class TvmPostProcessor(
             addressToDepth.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
                 val curConstraint =
                     fixateValueAndDepth(scope, mkConcreteHeapRef(ref), depth, resolver)
+                        ?: return@with null
+                acc and curConstraint
+            }
+        }
+
+    private fun generateSha256Constraints(
+        scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val refToSha256 = scope.calcOnState { refToSha256 }
+
+            refToSha256.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
+                val curConstraint =
+                    fixateValueAndSha256(scope, mkConcreteHeapRef(ref), depth, resolver)
                         ?: return@with null
                 acc and curConstraint
             }
@@ -356,6 +378,22 @@ class TvmPostProcessor(
         return ctx.mkBv(hash, ctx.int257sort)
     }
 
+    private fun fixateValueAndSha256(
+        scope: TvmStepScopeManager,
+        ref: UHeapRef,
+        sha256: UExpr<TvmInt257Sort>,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val value = resolver.resolveRef(ref)
+            val fixateValueCond =
+                fixateValue(scope, resolver, ref)
+                    ?: return@with null
+            val concreteDepth = calculateConcreteSha256(value)
+            val sha256Cs = sha256 eq concreteDepth
+            return fixateValueCond and sha256Cs
+        }
+
     private fun fixateValueAndDepth(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
@@ -452,6 +490,34 @@ class TvmPostProcessor(
                     }
                 }
             cond and analyzedCellFixationCondition and (cdatasizeInfo.maximumCellCount eq restriction.value.toBv257())
+        }
+
+    private fun calculateConcreteSha256(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =
+        with(ctx) {
+            when (value) {
+                is TvmTestSliceValue -> {
+                    val databits = value.cell.data.drop(value.dataPos)
+                    val sha256 =
+                        run {
+                            val bytes = BitString(databits.map { it == '1' }).toByteArray()
+                            BigInteger(
+                                1,
+                                java.security.MessageDigest
+                                    .getInstance("SHA-256")
+                                    .digest(bytes),
+                            )
+                        }
+                    with(ctx) { mkBv(sha256, int257sort) }
+                }
+
+                is TvmTestCellValue -> {
+                    error("Bad type; slice expected")
+                }
+
+                is TvmTestBuilderValue -> {
+                    error("Bad type; slice expected")
+                }
+            }
         }
 
     private fun calculateConcreteDepth(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =

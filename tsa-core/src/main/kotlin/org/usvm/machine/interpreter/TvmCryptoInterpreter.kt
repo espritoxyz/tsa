@@ -6,6 +6,7 @@ import org.ton.bytecode.TvmAppCryptoHashcuInst
 import org.ton.bytecode.TvmAppCryptoHashextSha256Inst
 import org.ton.bytecode.TvmAppCryptoHashsuInst
 import org.ton.bytecode.TvmAppCryptoInst
+import org.ton.bytecode.TvmAppCryptoSha256uInst
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
@@ -13,18 +14,19 @@ import org.usvm.machine.intValue
 import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmSignatureCheckLiteral
-import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.mockHash
+import org.usvm.machine.state.mockSha256
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastRef
 import org.usvm.machine.state.takeLastSlice
+import org.usvm.machine.state.takeLastSliceOrThrowTypeError
 import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
@@ -44,6 +46,7 @@ class TvmCryptoInterpreter(
             is TvmAppCryptoChksignuInst -> visitCheckSignatureInst(scope, stmt)
             is TvmAppCryptoHashextSha256Inst -> visitHashExtSha256Inst(scope, stmt)
             is TvmAppCryptoHashbuInst -> visitSingleHashInst(scope, stmt, operandType = TvmBuilderType)
+            is TvmAppCryptoSha256uInst -> visitSha256UInst(scope, stmt)
             else -> TODO("$stmt")
         }
     }
@@ -130,6 +133,22 @@ class TvmCryptoInterpreter(
         }
     }
 
+    private fun visitSha256UInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmAppCryptoSha256uInst,
+    ) = with(ctx) {
+        // TODO fix gas
+        scope.doWithState { consumeGas(256) }
+        val slice =
+            scope.takeLastSliceOrThrowTypeError()
+                ?: return@with
+        scope.calcOnState {
+            val hash = mockSha256(slice)
+            stack.addInt(hash)
+            newStmt(stmt.nextStmt())
+        }
+    }
+
     private fun visitHashExtSha256Inst(
         scope: TvmStepScopeManager,
         stmt: TvmAppCryptoHashextSha256Inst,
@@ -140,18 +159,14 @@ class TvmCryptoInterpreter(
         val refsToTake =
             scope.takeLastIntOrThrowTypeError()?.intValue()
                 ?: return@with
-
+        if (refsToTake != 1) {
+            TODO("HASHEXT_SHA256 is only supports a single parameter")
+        }
+        val lastSlice =
+            scope.takeLastSliceOrThrowTypeError()
+                ?: return@with
         scope.calcOnState {
-            // TODO correct implementation
-            repeat(refsToTake) { stack.takeLastEntry() }
-
-            val hash = makeSymbolicPrimitive(ctx.int257sort, TvmTrackedLiteral("hash_of_many"))
-            // Hash is a 256-bit unsigned integer
-            scope.assert(
-                ctx.unsignedIntegerFitsBits(hash, 256u),
-                unsatBlock = { error("Cannot make hash fit in 256 bits") },
-            ) ?: return@calcOnState
-
+            val hash = mockSha256(lastSlice)
             stack.addInt(hash)
             newStmt(stmt.nextStmt())
         }

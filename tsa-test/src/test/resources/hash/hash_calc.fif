@@ -10,6 +10,10 @@ PROGRAM{
   5 DECLMETHOD dict_hash_2
   6 DECLMETHOD simple_hashbu
   7 DECLMETHOD ref_hashbu
+  8 DECLMETHOD sha256_0
+  9 DECLMETHOD sha256_with_ref
+  10 DECLMETHOD hashext_sha256_1
+
   simple_cell_hash PROC:<{
       NEWC
       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
@@ -70,5 +74,29 @@ PROGRAM{
       NEWC
       STREF
       HASHBU
+    }>
+  sha256_0 PROC:<{
+    x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
+    SHA256U
+  }>
+
+  sha256_with_ref PROC:<{
+    x{646676686a7364667662736a64616261} PUSHSLICE
+    NEWC
+    STSLICE
+    ENDC // some ref
+
+    13 PUSHINT
+    NEWC
+    4 STI
+    STREF
+
+    SHA256U
+  }>
+
+  hashext_sha256_1 PROC:<{
+        x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
+        1 PUSHINT
+        HASHEXT_SHA256
     }>
 }END>c

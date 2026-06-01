@@ -25,6 +25,7 @@ import org.usvm.UState
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
@@ -86,7 +87,8 @@ class TvmState(
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
     // post-process fields
     var refToHash: PersistentMap<UConcreteHeapAddress, TvmHashSymbol> = persistentMapOf(),
-    var refToDepth: PersistentMap<UConcreteHeapAddress, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
+    var refToSha256: PersistentMap<UConcreteHeapAddress, Int257Expr> = persistentMapOf(),
+    var refToDepth: PersistentMap<UConcreteHeapAddress, Int257Expr> = persistentMapOf(),
     var forwardFees: PersistentSet<FwdFeeInfo> = persistentSetOf(),
     var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),
     var addressesToBeRandomized: PersistentSet<UHeapRef> = persistentSetOf(),
@@ -226,6 +228,7 @@ class TvmState(
             contractStack = contractStack,
             currentContract = currentContract,
             refToHash = refToHash,
+            refToSha256 = refToSha256,
             refToDepth = refToDepth,
             signatureChecks = signatureChecks,
             fetchedValues = fetchedValues,
