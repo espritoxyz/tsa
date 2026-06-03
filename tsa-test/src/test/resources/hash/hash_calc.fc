@@ -1,0 +1,17 @@
+#include "../imports/stdlib.fc";
+
+() main() impure method_id (0) {
+    return ();
+}
+
+
+;; dies in the postprocess if we fix excessive stuff
+int no_unnecessary_fixes() impure method_id (1) {
+    var cell1 = begin_cell().store_int(137, 64).end_cell();
+    var cell1_hash = string_hash(cell1.begin_parse());
+    var cell2 = begin_cell().store_int(2, 64).store_ref(
+        begin_cell().store_uint(cell1_hash, 256).end_cell()
+    ).end_cell();
+    var cell2_hash = string_hash(cell2.begin_parse());
+    return cell1_hash + cell2_hash;
+}

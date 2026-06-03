@@ -7,6 +7,7 @@ import org.ton.bytecode.TvmAppCryptoHashextSha256Inst
 import org.ton.bytecode.TvmAppCryptoHashsuInst
 import org.ton.bytecode.TvmAppCryptoInst
 import org.ton.bytecode.TvmAppCryptoSha256uInst
+import org.usvm.UHeapRef
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
@@ -162,9 +163,17 @@ class TvmCryptoInterpreter(
         if (refsToTake != 1) {
             TODO("HASHEXT_SHA256 is only supports a single parameter")
         }
-        val lastSlice =
-            scope.takeLastSliceOrThrowTypeError()
-                ?: return@with
+        val lastSliceEntr = scope.calcOnState { stack.takeLastEntry() }
+        val entry = lastSliceEntr.cell(scope.calcOnState { stack })
+        val lastSlice: UHeapRef =
+            if (entry?.sliceValue != null) {
+                entry.sliceValue!!
+            } else if (entry?.builderValue != null) {
+                entry.builderValue!!
+            } else {
+                throwTypeCheckError(scope.calcOnState { this })
+                return
+            }
         scope.calcOnState {
             val hash = mockSha256(lastSlice)
             stack.addInt(hash)

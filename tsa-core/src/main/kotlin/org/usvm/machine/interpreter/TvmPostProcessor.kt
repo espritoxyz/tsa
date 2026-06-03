@@ -38,6 +38,7 @@ import org.usvm.test.resolver.transformTestDataCellIntoCell
 import org.usvm.test.resolver.transformTestDictCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
+import java.security.MessageDigest
 import kotlin.random.Random
 
 class TvmPostProcessor(
@@ -323,10 +324,11 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
         ref: UHeapRef,
+        enableRefComparison: Boolean = true,
     ): UBoolExpr? {
         val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
         val fixateValueCond =
-            fixator.fixateConcreteValue(scope, ref)
+            fixator.fixateConcreteValue(scope, ref, enableRefComparison)
                 ?: return null
         return fixateValueCond
     }
@@ -387,10 +389,10 @@ class TvmPostProcessor(
         with(ctx) {
             val value = resolver.resolveRef(ref)
             val fixateValueCond =
-                fixateValue(scope, resolver, ref)
+                fixateValue(scope, resolver, ref, enableRefComparison = false)
                     ?: return@with null
-            val concreteDepth = calculateConcreteSha256(value)
-            val sha256Cs = sha256 eq concreteDepth
+            val actualSha256 = calculateConcreteSha256(value)
+            val sha256Cs = sha256 eq actualSha256
             return fixateValueCond and sha256Cs
         }
 
@@ -500,12 +502,7 @@ class TvmPostProcessor(
                     val sha256 =
                         run {
                             val bytes = BitString(databits.map { it == '1' }).toByteArray()
-                            BigInteger(
-                                1,
-                                java.security.MessageDigest
-                                    .getInstance("SHA-256")
-                                    .digest(bytes),
-                            )
+                            shaFromBytes(bytes)
                         }
                     with(ctx) { mkBv(sha256, int257sort) }
                 }
@@ -515,10 +512,24 @@ class TvmPostProcessor(
                 }
 
                 is TvmTestBuilderValue -> {
-                    error("Bad type; slice expected")
+                    val databits = value.data
+                    val sha256 =
+                        run {
+                            val bytes = BitString(databits.map { it == '1' }).toByteArray()
+                            shaFromBytes(bytes)
+                        }
+                    with(ctx) { mkBv(sha256, int257sort) }
                 }
             }
         }
+
+    private fun shaFromBytes(bytes: ByteArray): BigInteger =
+        BigInteger(
+            // signum =
+            1,
+            // magnitude =
+            MessageDigest.getInstance("SHA-256").digest(bytes),
+        )
 
     private fun calculateConcreteDepth(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =
         with(ctx) {

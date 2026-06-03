@@ -13,6 +13,11 @@ PROGRAM{
   8 DECLMETHOD sha256_0
   9 DECLMETHOD sha256_with_ref
   10 DECLMETHOD hashext_sha256_1
+  11 DECLMETHOD hashext_sha256_builder
+  12 DECLMETHOD hashext_sha256_cell
+  13 DECLMETHOD sha256_builder
+  14 DECLMETHOD sha256_cell
+  15 DECLMETHOD no_unnecessary_fixes
 
   simple_cell_hash PROC:<{
       NEWC
@@ -99,4 +104,55 @@ PROGRAM{
         1 PUSHINT
         HASHEXT_SHA256
     }>
+  hashext_sha256_builder PROC:<{
+    13 PUSHINT
+    NEWC
+    64 STU
+    1 PUSHINT
+    HASHEXT_SHA256
+  }>
+
+  hashext_sha256_cell PROC:<{
+    13 PUSHINT
+    NEWC
+    64 STU
+    ENDC
+    1 PUSHINT
+    HASHEXT_SHA256
+  }>
+
+  sha256_builder PROC:<{
+    13 PUSHINT
+    NEWC
+    64 STU
+    SHA256U
+  }>
+
+  sha256_cell PROC:<{
+    13 PUSHINT
+    NEWC
+    64 STU
+    ENDC
+    SHA256U
+  }>
+
+  no_unnecessary_fixes PROC:<{
+    137 PUSHINT
+    NEWC
+    64 STI
+    ENDC
+    DUP
+    CTOS
+    SHA256U
+    2 PUSHINT
+    NEWC
+    64 STI
+    s1 s2 XCHG
+    STREF
+    ENDC
+    CTOS
+    SHA256U
+    ADD
+  }>
+
 }END>c
