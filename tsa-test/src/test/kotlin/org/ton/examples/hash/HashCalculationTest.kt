@@ -25,7 +25,7 @@ class HashCalculationTest {
     }
 
     @Test
-    fun `test prefix functions`() {
+    fun `test no excessive fixation`() {
         compareSymbolicAndConcreteResultsFunc(funcPath, (0..1).toSet())
     }
 }
