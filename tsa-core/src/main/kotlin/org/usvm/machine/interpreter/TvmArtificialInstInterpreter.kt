@@ -569,7 +569,7 @@ class TvmArtificialInstInterpreter(
                 }
             status ?: return
             if (identifiers != null && actions.size != identifiers.size) {
-                error("bad!")
+                error("Size of actions does not match the size of recorded action identifiers")
             }
             val identifiersTrue = identifiers ?: List(actions.size) { null }
             val yetUnparsedActions = actions.zip(identifiersTrue) { x, y -> UnparsedAction(x, y) }
