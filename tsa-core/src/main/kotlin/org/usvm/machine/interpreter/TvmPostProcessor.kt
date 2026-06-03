@@ -1,6 +1,8 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.utils.uncheckedCast
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toPersistentMap
 import org.ton.api.pk.PrivateKeyEd25519
 import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
@@ -14,14 +16,20 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.DataSizeInfo
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.ValuesForModelEnumerating
+import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
+import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.toTvmCell
+import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
@@ -144,6 +152,46 @@ class TvmPostProcessor(
             structuralConstraintsHolder.applyTo(scope)
                 ?: return null
 
+            val fetchedValuesForModelEnum = state.fetchedValuesForModelEnum
+            check(fetchedValuesForModelEnum is ValuesForModelEnumerating.Processing)
+            val result = state.result
+            val data =
+                if (result is TvmResult.TvmFailure && result.exit.exitCode == 1000) {
+                    fetchedValuesForModelEnum.map
+                        .mapValues { (index, slice) ->
+                            val scope =
+                                TvmStepScopeManager(
+                                    state.clone(),
+                                    UForkBlackList.Companion.createDefault(),
+                                    allowFailuresOnCurrentStep = false,
+                                )
+                            val models = mutableListOf<TvmTestSliceValue>()
+                            while (true) {
+                                val model = scope.calcOnState { this.models.first() }
+                                val resolver = TvmTestStateResolver(ctx, model as TvmModel, state)
+                                val value = resolver.resolveSlice(slice)
+                                models.add(value)
+                                val modelledSlice =
+                                    scope.calcOnState {
+                                        allocSliceFromCell(
+                                            transformTestCellIntoCell(
+                                                value.cell.copy(data = value.cell.data.drop(value.dataPos)),
+                                            ).toTvmCell(),
+                                        )
+                                    }
+                                val equality = scope.slicesAreEqual(slice.value, modelledSlice)!!
+                                scope.assert(ctx.mkNot(equality))
+                                    ?: break
+                                if (models.size > 5) {
+                                    break
+                                }
+                            }
+                            models
+                        }.toPersistentMap()
+                } else {
+                    persistentMapOf() // ignore all the other codes
+                }
+            state.fetchedValuesForModelEnum = ValuesForModelEnumerating.Enumerated(data)
             return state
         }
 

@@ -47,6 +47,7 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.ValuesForModelEnumerating
 import org.usvm.machine.state.allocatedDictContainsKey
 import org.usvm.machine.state.calcConsumedGas
 import org.usvm.machine.state.calcPhaseConsumedGas
@@ -193,6 +194,9 @@ class TvmTestStateResolver(
 
             resolveStackValue(value)
         }
+
+    fun resolveFetchedEnumModelValues(): Map<Int, List<TvmTestSliceValue>> =
+        (state.fetchedValuesForModelEnum as ValuesForModelEnumerating.Enumerated).map
 
     fun resolveInitialData(): Map<ContractId, TvmTestCellValue> =
         state.contractIdToInitialData.entries.associate { (key, value) ->
@@ -525,7 +529,7 @@ class TvmTestStateResolver(
         return TvmTestBuilderValue(cell.data, cell.refs)
     }
 
-    private fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
+    fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
 
     fun resolveSlice(
         slice: UHeapRef,
