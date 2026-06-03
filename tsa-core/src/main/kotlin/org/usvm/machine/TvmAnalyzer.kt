@@ -363,7 +363,7 @@ class FiftAnalyzer(
         bocFilePath: Path,
         stdinContent: String,
     ) {
-        val tmpStdinFile = createTempFile(".txt")
+        val tmpStdinFile = createTempFile(suffix = ".txt")
         try {
             tmpStdinFile.writeText(stdinContent)
 

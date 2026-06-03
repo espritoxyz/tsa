@@ -5,6 +5,7 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
+import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentMap
@@ -226,6 +227,7 @@ import org.usvm.StepResult
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.UInterpreter
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
@@ -347,6 +349,8 @@ import org.usvm.machine.state.takeLastIntOrThrowTypeError
 import org.usvm.machine.state.takeLastSlice
 import org.usvm.machine.state.takeLastTuple
 import org.usvm.machine.state.unsignedIntegerFitsBits
+import org.usvm.machine.state.writeSliceDataPos
+import org.usvm.machine.state.writeSliceRefPos
 import org.usvm.machine.toMethodId
 import org.usvm.machine.toTvmCell
 import org.usvm.machine.tryCatchIf
@@ -357,6 +361,7 @@ import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.TvmTypeSystem
+import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.wrap
 import org.usvm.memory.UMemory
 import org.usvm.memory.UWritableMemory
@@ -367,6 +372,7 @@ import org.usvm.sizeSort
 import org.usvm.solver.USatResult
 import org.usvm.targets.UTargetsSet
 import org.usvm.test.resolver.TvmTestStateResolver
+import org.usvm.test.resolver.toTvmCell
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -684,30 +690,45 @@ class TvmInterpreter(
 
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 
+        check(state.addressesToBeRandomized.isEmpty() || state.functionalDependencyAssertion.determinerRefs.isEmpty()) {
+            "cannot support both modes"
+        }
+
         val clonedOldState =
-            if (state.addressesToBeRandomized.isNotEmpty()) {
+            if (state.addressesToBeRandomized.isNotEmpty() ||
+                (
+                    state.functionalDependencyAssertion.determinerRefs.isNotEmpty() &&
+                        !state.functionalDependencyAssertion.areDeterminersFixed
+                )
+            ) {
                 check(states.size == 1 && states.single() == state) {
-                    "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
+                    "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract " +
+                        "OR tsa_assert_functionally_determines"
                 }
                 state.clone()
             } else {
                 null
             }
 
-        val filtered =
+        val postProcessedStates =
             states.mapNotNull { state ->
                 postProcessor.postProcessState(state)
             }
 
-        return filtered.flatMap { state ->
+        return postProcessedStates.flatMap { state ->
             val newStates = manualStateProcessor.postProcessAfterPartialConcretization(state)
 
             if (clonedOldState != null) {
                 check(newStates.size == 1 && newStates.single() == state) {
                     "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
                 }
-
-                processAddressRandomization(clonedOldState, state)
+                if (clonedOldState.functionalDependencyAssertion.determinerRefs.isNotEmpty()) {
+                    processFunctionalDependencyAssertion(clonedOldState, state)
+                } else if (clonedOldState.addressesToBeRandomized.isNotEmpty()) {
+                    processAddressRandomization(clonedOldState, state)
+                } else {
+                    listOf(state)
+                }
             } else {
                 newStates.also {
                     it.forEach { state ->
@@ -723,6 +744,69 @@ class TvmInterpreter(
         }
     }
 
+    /**
+     * @return the postprocessed states that survive the functional dependency assertions
+     */
+    private fun processFunctionalDependencyAssertion(
+        clonedOldState: TvmState,
+        stateAfterPostProcess: TvmState,
+    ): List<TvmState> =
+        with(clonedOldState.ctx) {
+            val refsToFix = clonedOldState.functionalDependencyAssertion.determinerRefs
+            val (scope, resolver) =
+                setModelsFromDescendantStateAndFixateRefs(
+                    clonedOldState,
+                    stateAfterPostProcess,
+                    refsToFix,
+                )
+                    ?: return emptyList()
+
+            for (expr in clonedOldState.functionalDependencyAssertion.dependentRefs) {
+                val model = resolver.resolveSlice(expr)
+                val modelSlice = clonedOldState.allocSliceFromCell(model.cell.toTvmCell())
+                clonedOldState.writeSliceDataPos(modelSlice.asSliceRef(), with(ctx) { model.dataPos.toSizeSort() })
+                clonedOldState.writeSliceRefPos(modelSlice.asSliceRef(), with(ctx) { model.refPos.toSizeSort() })
+                val equalityCs =
+                    scope.slicesAreEqual(expr, modelSlice)
+                        ?: return listOf()
+                val isInequalitySat = scope.checkSat(with(ctx) { equalityCs.not() }) != null
+                if (isInequalitySat) {
+                    return listOf()
+                }
+            }
+            clonedOldState.functionalDependencyAssertion.areDeterminersFixed = true
+            return postProcessState(clonedOldState)
+        }
+
+    private fun TvmContext.setModelsFromDescendantStateAndFixateRefs(
+        clonedOldState: TvmState,
+        stateAfterPostProcess: TvmState,
+        refsToFix: PersistentSet<UHeapRef>,
+    ): Pair<TvmStepScopeManager, TvmTestStateResolver>? {
+        val scope =
+            TvmStepScopeManager(clonedOldState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+
+        // no contradiction can occur since [clonedOldState] is a clone of an ancestor of [stateAfterPostProcess]
+        clonedOldState.models = stateAfterPostProcess.models
+        val resolver = TvmTestStateResolver(ctx, clonedOldState.tvmModels.first(), clonedOldState)
+
+        val fixateCond =
+            refsToFix.fold(
+                trueExpr as UBoolExpr,
+            ) { acc, independentRef ->
+                val fixateCondCur =
+                    postProcessor.fixateValue(scope, resolver, independentRef)
+                        ?: return null
+
+                acc and fixateCondCur
+            }
+
+        // TODO: soft constraints for values with taken hashes
+        scope.assert(fixateCond)
+            ?: return null
+        return Pair(scope, resolver)
+    }
+
     private fun processAddressRandomization(
         clonedOldState: TvmState,
         stateAfterPostProcess: TvmState,
@@ -732,27 +816,14 @@ class TvmInterpreter(
                 "Random addresses shouldn't be fixated at this point"
             }
 
-            val scope =
-                TvmStepScopeManager(clonedOldState, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
-
-            // no contradiction can occur since [clonedOldState] is a clone of an ancestor of [stateAfterPostProcess]
-            clonedOldState.models = stateAfterPostProcess.models
-            val resolver = TvmTestStateResolver(ctx, clonedOldState.tvmModels.first(), clonedOldState)
-
-            val fixateCond =
-                clonedOldState.refsToBeIndependentFromRandomAddresses.fold(
-                    trueExpr as UBoolExpr,
-                ) { acc, independentRef ->
-                    val fixateCondCur =
-                        postProcessor.fixateValue(scope, resolver, independentRef)
-                            ?: return emptyList()
-
-                    acc and fixateCondCur
-                }
-
-            // TODO: soft constraints for values with taken hashes
-            scope.assert(fixateCond)
-                ?: return@with emptyList()
+            val refsToFix = clonedOldState.refsToBeIndependentFromRandomAddresses
+            val (_, _) =
+                setModelsFromDescendantStateAndFixateRefs(
+                    clonedOldState,
+                    stateAfterPostProcess,
+                    refsToFix,
+                )
+                    ?: return emptyList()
 
             clonedOldState.fixatedRandomAddresses = clonedOldState.addressesToBeRandomized
             clonedOldState.addressesToBeRandomized = persistentSetOf()
@@ -773,7 +844,9 @@ class TvmInterpreter(
         logger.debug("Current contract: {}", state.currentContract)
         logger.debug("State id: {}", state.id)
         logger.debug("Path depth: {}", state.pathNode.depth)
-        logger.debug("Executing: {} (class {})", formatTsaInstruction(stmt), stmt.javaClass.name)
+        logger.debug {
+            "Executing: ${formatTsaInstruction(stmt)} (class ${stmt.javaClass.name})"
+        }
 
         val initialGasUsage = state.gasUsageHistory
 
@@ -2619,8 +2692,8 @@ class TvmInterpreter(
                 }
 
                 5 -> {
-                    val c5 = registers.c5.value.value
-                    c0.defineC5(c5)
+                    val c5 = registers.c5
+                    c0.defineC5(c5.value.value, c5.identifierList)
                 }
 
                 7 -> {
@@ -2696,7 +2769,7 @@ class TvmInterpreter(
                         takeLastCell()
                             ?: return@doWithStateCtx throwTypeCheckError(this)
 
-                    cont.defineC5(cell)
+                    cont.defineC5(cell, identifierList = null)
                 }
 
                 7 -> {
@@ -2744,7 +2817,7 @@ class TvmInterpreter(
             cont = cont.defineC4(regs.c4.value.value)
         }
         if (isBitSet(5)) {
-            cont = cont.defineC5(regs.c5.value.value)
+            cont = cont.defineC5(regs.c5.value.value, regs.c5.identifierList)
         }
         // there is no 6th register
         if (isBitSet(7)) {
@@ -2818,7 +2891,7 @@ class TvmInterpreter(
                     takeLastCell()
                         ?: return@doWithStateCtx throwTypeCheckError(this)
 
-                registers.c5 = C5Register(TvmCellValue(newData))
+                registers.c5 = C5Register(TvmCellValue(newData), null)
             }
 
             7 -> {

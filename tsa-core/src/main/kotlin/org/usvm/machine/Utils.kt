@@ -4,6 +4,7 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.powerOfTwo
 import io.ksmt.utils.toBigInteger
+import kotlinx.collections.immutable.ImmutableList
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellData
@@ -88,5 +89,10 @@ fun maxUnsignedValue(bits: UInt): BigInteger = powerOfTwo(bits).minus(BigInteger
 fun Path.getParentNonNullAbsolutePath(): Path = (parent ?: Paths.get("")).toAbsolutePath()
 
 fun <T> List<T>.splitHeadTail(): Pair<T, List<T>>? = if (isEmpty()) null else first() to subList(1, size)
+
+fun <T> ImmutableList<T>.splitHeadTail(): Pair<T, ImmutableList<T>>? =
+    if (isEmpty()) null else first() to subList(1, size)
+
+fun <T> List<T>.dropFirstWithoutChecks(): List<T> = subList(1, size)
 
 fun <T> List<T>.tailUnsafe(): List<T> = subList(1, size)

@@ -9,6 +9,7 @@ import org.ton.LinearDestinations
 import org.ton.OpcodeToDestination
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialActionParseInst
+import org.ton.bytecode.UnparsedAction
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -26,6 +27,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.bigIntValue
 import org.usvm.machine.intValue
 import org.usvm.machine.splitHeadTail
+import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.IncompatibleMessageModes
 import org.usvm.machine.state.InsufficientFunds
@@ -93,6 +95,7 @@ class TvmTransactionInterpreter(
         val receiver: ContractId?
         val content: TlbInternalMessageContent?
         val sendMessageMode: Int257Expr
+        val msgIdentifier: C5ActionIdentifier.MsgIdentifier?
 
         companion object {
             fun construct(
@@ -100,9 +103,18 @@ class TvmTransactionInterpreter(
                 outMessage: MessageActionParseResult,
             ): ParsedMessageWithResolvedReceiver =
                 if (receiver == null) {
-                    ParsedMessageWithResolvedNullReceiver(outMessage.sendMessageMode, outMessage.content)
+                    ParsedMessageWithResolvedNullReceiver(
+                        outMessage.sendMessageMode,
+                        outMessage.content,
+                        outMessage.identifier,
+                    )
                 } else {
-                    ParsedMessageWithResolvedNonnullReceiver(receiver, outMessage.sendMessageMode, outMessage.content)
+                    ParsedMessageWithResolvedNonnullReceiver(
+                        receiver,
+                        outMessage.sendMessageMode,
+                        outMessage.content,
+                        outMessage.identifier,
+                    )
                 }
         }
     }
@@ -110,6 +122,7 @@ class TvmTransactionInterpreter(
     data class ParsedMessageWithResolvedNullReceiver(
         override val sendMessageMode: Int257Expr,
         override val content: TlbInternalMessageContent?,
+        override val msgIdentifier: C5ActionIdentifier.MsgIdentifier?,
     ) : ParsedMessageWithResolvedReceiver {
         override val receiver: ContractId? = null
     }
@@ -118,6 +131,7 @@ class TvmTransactionInterpreter(
         override val receiver: ContractId,
         override val sendMessageMode: Int257Expr,
         override val content: TlbInternalMessageContent?,
+        override val msgIdentifier: C5ActionIdentifier.MsgIdentifier?,
     ) : ParsedMessageWithResolvedReceiver
 
     /**
@@ -607,6 +621,7 @@ class TvmTransactionInterpreter(
                                         receiver = currentMessage.receiver,
                                         content =
                                             content.copy(commonMessageInfo = updatedCommonMessageInfo),
+                                        identifier = currentMessage.msgIdentifier,
                                     ),
                                 )
                             build()
@@ -769,14 +784,16 @@ class TvmTransactionInterpreter(
     }
 
     /**
+     * Does not store a message identifier in the returned value.
      * @return the possible results
      */
     fun parseSingleActionSlice(
         scope: TvmStepScopeManager,
-        actionSlice: SliceRef,
+        unparsedAction: UnparsedAction,
         originalStmt: TsaArtificialActionParseInst,
     ): ValueOrDeadScope<List<Pair<ActionParseResult, UBoolExpr>>?> =
         with(scope.ctx) {
+            val actionSlice = unparsedAction.slice
             val model = scope.calcOnState { tvmModels.first() }
             val resolver =
                 TvmTestStateResolver(
@@ -804,6 +821,7 @@ class TvmTransactionInterpreter(
                             actionBody,
                             originalStmt,
                             originalStmt.destinationResolver,
+                            unparsedAction.identifier,
                         )
                             ?: return scopeDied
 
@@ -864,7 +882,12 @@ class TvmTransactionInterpreter(
                         is MessageActionParseResult -> {
                             ParsedMessageWithResolvedReceiver.construct(
                                 it.resolvedReceiver,
-                                MessageActionParseResult(it.content, it.sendMessageMode, it.resolvedReceiver),
+                                MessageActionParseResult(
+                                    it.content,
+                                    it.sendMessageMode,
+                                    it.resolvedReceiver,
+                                    it.identifier,
+                                ),
                             )
                         }
                     }
@@ -935,6 +958,7 @@ class TvmTransactionInterpreter(
         slice: UHeapRef,
         originalStmt: TsaArtificialActionParseInst,
         handler: DestinationDescription?,
+        identifier: C5ActionIdentifier?,
     ): List<Pair<MessageActionParseResult, UBoolExpr>>? {
         val (_, sendMsgMode) =
             sliceLoadIntTlbNoForkAndNoRegister(scope, slice, 8, false)
@@ -954,9 +978,10 @@ class TvmTransactionInterpreter(
                     parsedAndPreprocessedActions =
                         originalStmt.parsedAndPreprocessedActions +
                             MessageActionParseResult(
-                                null,
-                                sendMsgMode,
-                                null,
+                                content = null,
+                                sendMessageMode = sendMsgMode,
+                                resolvedReceiver = null,
+                                identifier = null,
                             ),
                 )
             newStmt(nextStmt)
@@ -1037,11 +1062,15 @@ class TvmTransactionInterpreter(
                         ctx.trueExpr
                     }
                 }
+            if (identifier is C5ActionIdentifier.Reserve) {
+                error("Bad type")
+            }
 
             MessageActionParseResult(
-                messageContent,
-                sendMsgMode,
-                possibleReceiver,
+                content = messageContent,
+                sendMessageMode = sendMsgMode,
+                resolvedReceiver = possibleReceiver,
+                identifier = identifier as? C5ActionIdentifier.MsgIdentifier,
             ) to equality
         }
     }

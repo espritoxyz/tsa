@@ -1,0 +1,22 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+slice choose(slice a, slice b) impure method_id (214) {
+    return b;
+}
+
+
+() on_internal_message_send(int balance, int msg_value, cell msg_full, slice msg, int input_id) impure method_id {
+    slice left = msg~load_msg_addr();
+    slice right = msg~load_msg_addr();
+    slice result = choose(left, right);
+    tsa_assert_belongs_to_functionally_determiners_scope(left);
+    tsa_assert_belongs_to_functionally_dependent_scope(result); ;; should succeed
+    throw(1000);
+}
+
+
+
+() main(slice msg) impure {
+    tsa_send_internal_message(0, 0);
+}

@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialActionParseInst
 import org.ton.bytecode.TsaArtificialActionPhaseStartInst
@@ -18,6 +19,7 @@ import org.ton.bytecode.TsaArtificialOnOutMessageHandlerCallInst
 import org.ton.bytecode.TsaArtificialPostprocessInst
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmArtificialInst
+import org.ton.bytecode.UnparsedAction
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
@@ -207,7 +209,14 @@ class TvmArtificialInstInterpreter(
             val pushArgsOnStack: TvmState.() -> Unit? = {
                 val constructedMessageCells = head.content.toStackArgs()
                 val messageCounter = stmt.messageOrderNumber
+                val identifier = head.identifier
+                var hashCode = 0
+                if (identifier != null) {
+                    hashCode = identifier.hash()
+                    messageIdentifierMapping = messageIdentifierMapping.put(hashCode, identifier)
+                }
                 with(ctx) {
+                    stack.addInt(hashCode.toBv257())
                     stack.addInt(messageCounter.toBv257())
                     stack.addCell(constructedMessageCells.fullMessage)
                     stack.addSlice(constructedMessageCells.messageBody)
@@ -224,6 +233,20 @@ class TvmArtificialInstInterpreter(
             )
         }
 
+    /**
+     * Stack after on_out_message:
+     * ```
+     * <bot>
+     * msg_id_hash: int
+     * msg_counter: int
+     * msg: cell
+     * msg_body: slice
+     * receiver: int
+     * sender: int
+     * <top>
+     * ```
+     * The stack is set up in [doCallOnOutMessageIfRequired]
+     */
     private fun visitOnOutMessageHandlerCall(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialOnOutMessageHandlerCallInst,
@@ -376,7 +399,8 @@ class TvmArtificialInstInterpreter(
                 setExit(TvmResult.TvmSoftFailure(TvmConstructedMessageCellOverflow, phase))
             },
         ) { msgCells ->
-            val msg = DispatchedMessage(head.receiver, DispatchedMessageContent(head.content, msgCells))
+            val msg =
+                DispatchedMessage(head.receiver, DispatchedMessageContent(head.content, msgCells), head.identifier)
             constructMessageCells(
                 tail,
                 acc + msg,
@@ -442,7 +466,7 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         stmt: TsaArtificialActionParseInst,
     ) {
-        val (actionToParse, restUnparsedActions) =
+        val (currentAction, restActions) =
             stmt.yetUnparsedActions.splitHeadTail() ?: return run {
                 transactionInterpreter.resolveMessageReceivers(
                     scope,
@@ -455,20 +479,20 @@ class TvmArtificialInstInterpreter(
                     }
                 }
             }
-        val parsedVariants =
+        val possibleParsedHeads =
             transactionInterpreter
-                .parseSingleActionSlice(scope, actionToParse, stmt)
+                .parseSingleActionSlice(scope, currentAction, stmt)
                 .getOrElse { return }
                 ?: return
         val actions =
-            parsedVariants.map { (parsedHead, condition) ->
+            possibleParsedHeads.map { (parsedCurrentAction, condition) ->
                 TvmStepScopeManager.ActionOnCondition(
                     action = {
                         val updatedParsedAndPreprocessed = stmt.parsedAndPreprocessedActions
                         val newStmt =
                             stmt.copy(
-                                yetUnparsedActions = restUnparsedActions,
-                                parsedAndPreprocessedActions = updatedParsedAndPreprocessed + parsedHead,
+                                yetUnparsedActions = restActions,
+                                parsedAndPreprocessedActions = updatedParsedAndPreprocessed + parsedCurrentAction,
                             )
                         newStmt(newStmt)
                     },
@@ -501,9 +525,18 @@ class TvmArtificialInstInterpreter(
                 phase = TvmActionPhase(stmt.computePhaseResult)
             }
             val commitedActions = scope.calcOnState { commitedState.c5.value.value }
+            val identifiers =
+                scope.calcOnState {
+                    commitedState.c5.identifierList
+                        ?.reversed()
+                        ?.toImmutableList()
+                }
             val actions =
                 transactionInterpreter.extractListOfActions(scope, commitedActions)
                     ?: return
+            check(identifiers == null || identifiers.size == actions.size) {
+                "Mismatch between identifies and actually stored messages in c5"
+            }
 
             val scheme = ctx.tvmOptions.intercontractOptions.communicationScheme
 
@@ -535,13 +568,18 @@ class TvmArtificialInstInterpreter(
                     (null to Unit)
                 }
             status ?: return
+            if (identifiers != null && actions.size != identifiers.size) {
+                error("Size of actions does not match the size of recorded action identifiers")
+            }
+            val identifiersTrue = identifiers ?: List(actions.size) { null }
+            val yetUnparsedActions = actions.zip(identifiersTrue) { x, y -> UnparsedAction(x, y) }
 
             scope.calcOnState {
                 newStmt(
                     TsaArtificialActionParseInst(
                         stmt.computePhaseResult,
                         lastStmt.location,
-                        actions,
+                        yetUnparsedActions,
                         persistentListOf(),
                         handler,
                     ),

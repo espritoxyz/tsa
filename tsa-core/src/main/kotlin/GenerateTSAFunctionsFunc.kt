@@ -96,6 +96,15 @@ fun main() {
         () tsa_send_external_message_with_body(slice body, int contract_id, int input_id) impure method_id(15) {
             ;; do nothing
         }
+        
+        () tsa_assert_belongs_to_functionally_dependent_scope(slice arg) impure method_id(16) {
+            ;; do nothing
+        }
+        
+        ;; is incompatible with `tsa_make_address_random` and `tsa_make_slice_independent_from_random_addresses`
+        () tsa_assert_belongs_to_functionally_determiners_scope(slice arg) impure method_id(17) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =
