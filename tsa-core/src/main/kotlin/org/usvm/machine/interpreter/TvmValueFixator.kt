@@ -44,25 +44,25 @@ class TvmValueFixator(
     fun fixateConcreteValue(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
-        enableRefComparison: Boolean = true,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? {
         val value = resolver.resolveRef(ref)
-        return fixateConcreteValue(scope, ref, value, enableRefComparison = enableRefComparison)
+        return fixateConcreteValue(scope, ref, value, compareRecursively = compareRecursively)
     }
 
     private fun fixateConcreteValue(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestReferenceValue,
-        enableRefComparison: Boolean = true,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? =
         when (value) {
             is TvmTestDataCellValue -> {
-                fixateConcreteValueForDataCell(scope, ref, value, enableRefComparison = enableRefComparison)
+                fixateConcreteValueForDataCell(scope, ref, value, compareRecursively = compareRecursively)
             }
 
             is TvmTestSliceValue -> {
-                fixateConcreteValueForSlice(scope, ref, value, enableRefComparison)
+                fixateConcreteValueForSlice(scope, ref, value, compareRecursively)
             }
 
             is TvmTestDictCellValue -> {
@@ -91,7 +91,7 @@ class TvmValueFixator(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestSliceValue,
-        enableRefComparison: Boolean = true,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? =
         with(ctx) {
             val modelRef = resolver.eval(ref) as UConcreteHeapRef
@@ -124,7 +124,7 @@ class TvmValueFixator(
                 val modelReadResult = readInModelFromTlbFields(cellRef, resolver, tlbStack, symbolicDataLength)
                 val children =
                     modelReadResult.missedSlices.map { (ref, value) ->
-                        fixateConcreteValue(scope, ref, value, enableRefComparison = enableRefComparison)
+                        fixateConcreteValue(scope, ref, value, compareRecursively = compareRecursively)
                             ?: return@with null
                     }
 
@@ -141,7 +141,7 @@ class TvmValueFixator(
                         TvmTestDataCellValue(data = "", refs),
                         dataOffset = cellLength,
                         refPosSymbolic,
-                        enableRefComparison = enableRefComparison,
+                        compareRecursively = compareRecursively,
                     ) ?: return null
 
                 return dataGuard and restGuard and (ref eq modelRef) and (resolver.eval(cellRef) eq cellRef)
@@ -165,11 +165,11 @@ class TvmValueFixator(
         value: TvmTestDataCellValue,
         dataOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
         refsOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
-        enableRefComparison: Boolean = true,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? =
         with(ctx) {
             val childrenCond =
-                if (enableRefComparison) {
+                if (compareRecursively) {
                     value.refs.foldIndexed(trueExpr as UBoolExpr) { index, acc, child ->
                         val childRef =
                             scope.calcOnState { readCellRef(ref, mkSizeAddExpr(mkSizeExpr(index), refsOffset)) }
@@ -183,7 +183,7 @@ class TvmValueFixator(
                 }
 
             val symbolicRefNumber =
-                if (enableRefComparison) {
+                if (compareRecursively) {
                     scope.calcOnState {
                         mkSizeSubExpr(
                             fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, ref),
@@ -194,7 +194,7 @@ class TvmValueFixator(
                     ctx.zeroSizeExpr
                 }
             val refCond =
-                if (enableRefComparison) {
+                if (compareRecursively) {
                     symbolicRefNumber eq mkSizeExpr(value.refs.size)
                 } else {
                     ctx.trueExpr
@@ -223,7 +223,7 @@ class TvmValueFixator(
                                             scope,
                                             ref,
                                             value,
-                                            enableRefComparison = enableRefComparison,
+                                            compareRecursively = compareRecursively,
                                         )
                                             ?: return@with null
                                     }

@@ -324,11 +324,11 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
         ref: UHeapRef,
-        enableRefComparison: Boolean = true,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? {
         val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
         val fixateValueCond =
-            fixator.fixateConcreteValue(scope, ref, enableRefComparison)
+            fixator.fixateConcreteValue(scope, ref, compareRecursively)
                 ?: return null
         return fixateValueCond
     }
@@ -389,7 +389,7 @@ class TvmPostProcessor(
         with(ctx) {
             val value = resolver.resolveRef(ref)
             val fixateValueCond =
-                fixateValue(scope, resolver, ref, enableRefComparison = false)
+                fixateValue(scope, resolver, ref, compareRecursively = false)
                     ?: return@with null
             val actualSha256 = calculateConcreteSha256(value)
             val sha256Cs = sha256 eq actualSha256

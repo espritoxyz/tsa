@@ -161,7 +161,7 @@ class TvmCryptoInterpreter(
             scope.takeLastIntOrThrowTypeError()?.intValue()
                 ?: return@with
         if (refsToTake != 1) {
-            TODO("HASHEXT_SHA256 is only supports a single parameter")
+            TODO("HASHEXT_SHA256 currently supports only a single parameter")
         }
         val lastSliceEntr = scope.calcOnState { stack.takeLastEntry() }
         val entry = lastSliceEntr.cell(scope.calcOnState { stack })
