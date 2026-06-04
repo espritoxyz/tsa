@@ -44,23 +44,25 @@ class TvmValueFixator(
     fun fixateConcreteValue(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? {
         val value = resolver.resolveRef(ref)
-        return fixateConcreteValue(scope, ref, value)
+        return fixateConcreteValue(scope, ref, value, compareRecursively = compareRecursively)
     }
 
     private fun fixateConcreteValue(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestReferenceValue,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? =
         when (value) {
             is TvmTestDataCellValue -> {
-                fixateConcreteValueForDataCell(scope, ref, value)
+                fixateConcreteValueForDataCell(scope, ref, value, compareRecursively = compareRecursively)
             }
 
             is TvmTestSliceValue -> {
-                fixateConcreteValueForSlice(scope, ref, value)
+                fixateConcreteValueForSlice(scope, ref, value, compareRecursively)
             }
 
             is TvmTestDictCellValue -> {
@@ -89,6 +91,7 @@ class TvmValueFixator(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         value: TvmTestSliceValue,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? =
         with(ctx) {
             val modelRef = resolver.eval(ref) as UConcreteHeapRef
@@ -121,7 +124,7 @@ class TvmValueFixator(
                 val modelReadResult = readInModelFromTlbFields(cellRef, resolver, tlbStack, symbolicDataLength)
                 val children =
                     modelReadResult.missedSlices.map { (ref, value) ->
-                        fixateConcreteValue(scope, ref, value)
+                        fixateConcreteValue(scope, ref, value, compareRecursively = compareRecursively)
                             ?: return@with null
                     }
 
@@ -138,6 +141,7 @@ class TvmValueFixator(
                         TvmTestDataCellValue(data = "", refs),
                         dataOffset = cellLength,
                         refPosSymbolic,
+                        compareRecursively = compareRecursively,
                     ) ?: return null
 
                 return dataGuard and restGuard and (ref eq modelRef) and (resolver.eval(cellRef) eq cellRef)
@@ -161,25 +165,40 @@ class TvmValueFixator(
         value: TvmTestDataCellValue,
         dataOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
         refsOffset: UExpr<TvmSizeSort> = ctx.zeroSizeExpr,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? =
         with(ctx) {
             val childrenCond =
-                value.refs.foldIndexed(trueExpr as UBoolExpr) { index, acc, child ->
-                    val childRef = scope.calcOnState { readCellRef(ref, mkSizeAddExpr(mkSizeExpr(index), refsOffset)) }
-                    val currentConstraint =
-                        fixateConcreteValue(scope, childRef, child)
-                            ?: return@with null
-                    acc and currentConstraint
+                if (compareRecursively) {
+                    value.refs.foldIndexed(trueExpr as UBoolExpr) { index, acc, child ->
+                        val childRef =
+                            scope.calcOnState { readCellRef(ref, mkSizeAddExpr(mkSizeExpr(index), refsOffset)) }
+                        val currentConstraint =
+                            fixateConcreteValue(scope, childRef, child)
+                                ?: return@with null
+                        acc and currentConstraint
+                    }
+                } else {
+                    ctx.trueExpr
                 }
 
             val symbolicRefNumber =
-                scope.calcOnState {
-                    mkSizeSubExpr(
-                        fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, ref),
-                        refsOffset,
-                    )
+                if (compareRecursively) {
+                    scope.calcOnState {
+                        mkSizeSubExpr(
+                            fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, ref),
+                            refsOffset,
+                        )
+                    }
+                } else {
+                    ctx.zeroSizeExpr
                 }
-            val refCond = symbolicRefNumber eq mkSizeExpr(value.refs.size)
+            val refCond =
+                if (compareRecursively) {
+                    symbolicRefNumber eq mkSizeExpr(value.refs.size)
+                } else {
+                    ctx.trueExpr
+                }
 
             val dataCond =
                 if (!structuralConstraintsOnly) {
@@ -200,7 +219,12 @@ class TvmValueFixator(
                                 val modelReadResult = readInModelFromTlbFields(ref, resolver, label.dataCellStructure)
                                 val children =
                                     modelReadResult.missedSlices.map { (ref, value) ->
-                                        fixateConcreteValue(scope, ref, value)
+                                        fixateConcreteValue(
+                                            scope,
+                                            ref,
+                                            value,
+                                            compareRecursively = compareRecursively,
+                                        )
                                             ?: return@with null
                                     }
                                 children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
