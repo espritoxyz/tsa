@@ -1,0 +1,18 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    var msg = in_msg_full.begin_parse();
+    msg~load_uint(4);
+    var sender = msg~load_msg_addr();
+    var dest = msg~load_msg_addr();
+    throw_unless(300, equal_slice_bits(dest, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a));
+}
+
+() main() impure {
+
+    tsa_set_address(1, begin_cell().store_slice("EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a).end_cell()); ;; just some address
+    tsa_send_internal_message(1, 0);
+    throw(1000);
+}

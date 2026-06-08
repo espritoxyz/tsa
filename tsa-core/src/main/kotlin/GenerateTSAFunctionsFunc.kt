@@ -105,6 +105,10 @@ fun main() {
         () tsa_assert_belongs_to_functionally_determiners_scope(slice arg) impure method_id(17) {
             ;; do nothing
         }
+        
+        () tsa_set_address(int contract_id, cell address) impure method_id(20) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =
