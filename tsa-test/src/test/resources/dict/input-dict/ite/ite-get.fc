@@ -3,7 +3,9 @@
 
 () test(slice in_msg, int index) impure method_id (1) {
 
-    cell conrete_dict = new_dict().udict_set(64, 10, begin_cell().store_int(13, 64).end_cell().begin_parse());
+    cell conrete_dict = new_dict()
+            .udict_set(64, 10, begin_cell()
+                .store_int(13, 64).end_cell().begin_parse());
 
     cell symbolic_dict = in_msg~load_dict();
     (slice result, int found) = symbolic_dict.udict_get?(64, 10);

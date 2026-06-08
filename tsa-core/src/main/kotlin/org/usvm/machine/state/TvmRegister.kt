@@ -1,9 +1,12 @@
 package org.usvm.machine.state
 
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.serialization.Serializable
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCellValue
 import org.ton.bytecode.TvmContinuation
 import org.ton.bytecode.TvmExceptionContinuation
+import org.ton.disasm.TvmPhysicalInstLocation
 import org.usvm.machine.TvmContext
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 
@@ -31,8 +34,28 @@ data class C4Register(
     val value: TvmCellValue,
 ) : TvmRegister
 
+sealed interface C5ActionIdentifier {
+    @Serializable
+    data class MsgIdentifier(
+        val callstack: List<TvmPhysicalInstLocation>,
+        val timesCallStackWasSeen: Int,
+    ) : C5ActionIdentifier {
+        fun hash(): Int = hashCode()
+    }
+
+    /**
+     * no identifier for reserve actions
+     */
+    data object Reserve : C5ActionIdentifier
+}
+
+/**
+ * @param identifierList is `null` iff there is no good data for actions in c5 (e.g. they were set manually instead of via
+ * instructions for sending message/reserving TONs)
+ */
 data class C5Register(
     val value: TvmCellValue,
+    val identifierList: PersistentList<C5ActionIdentifier>?,
 ) : TvmRegister
 
 data class C7Register(

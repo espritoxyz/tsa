@@ -75,10 +75,9 @@ class TvmComponents(
                 configure {
                     optimizeForTheories(setOf(KTheory.UF, KTheory.Array, KTheory.LIA, KTheory.NIA))
                     setBoolParameter("auto_config", false)
-                    setIntParameter("bv.solver", 2)
-                    setIntParameter("phase_selection", 3)
-                    setIntParameter("case_split", 1)
-                    setIntParameter("arith.nl.delay", 100)
+                    setBoolParameter("arith.nl.grobner", false)
+                    setBoolParameter("arith.nl.horner", false)
+                    setIntParameter("arith.nl.delay", 200)
                     setBoolParameter("arith.nl.expensive_patching", true)
                     setBoolParameter("arith.nl.expp", true)
                     setBoolParameter("candidate_models", true)

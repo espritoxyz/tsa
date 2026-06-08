@@ -11,6 +11,7 @@ import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmDisasmCodeBlock
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmRealInst
+import org.ton.disasm.TvmPhysicalInstLocation
 import org.ton.targets.TvmTarget
 import org.usvm.PathNode
 import org.usvm.UBoolExpr
@@ -24,6 +25,7 @@ import org.usvm.UState
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.constraints.UPathConstraints
 import org.usvm.isStaticHeapRef
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
@@ -85,7 +87,8 @@ class TvmState(
     var intercontractPath: PersistentList<ContractId> = persistentListOf(),
     // post-process fields
     var refToHash: PersistentMap<UConcreteHeapAddress, TvmHashSymbol> = persistentMapOf(),
-    var refToDepth: PersistentMap<UConcreteHeapAddress, UExpr<TvmContext.TvmInt257Sort>> = persistentMapOf(),
+    var refToSha256: PersistentMap<UConcreteHeapAddress, Int257Expr> = persistentMapOf(),
+    var refToDepth: PersistentMap<UConcreteHeapAddress, Int257Expr> = persistentMapOf(),
     var forwardFees: PersistentSet<FwdFeeInfo> = persistentSetOf(),
     var signatureChecks: PersistentList<TvmSignatureCheck> = persistentListOf(),
     var addressesToBeRandomized: PersistentSet<UHeapRef> = persistentSetOf(),
@@ -103,6 +106,13 @@ class TvmState(
     var inputDictionaryStorage: InputDictionaryStorage = InputDictionaryStorage(),
     var cdatasizeInfos: PersistentSet<DataSizeInfo> = persistentSetOf(),
     val initialRandomSeed: BigInteger?,
+    var messageIdentifierMapping: PersistentMap<Int, C5ActionIdentifier.MsgIdentifier> = persistentMapOf(),
+    var callstackCounter: PersistentMap<List<TvmPhysicalInstLocation>, Int> = persistentMapOf(),
+    val functionalDependencyAssertion: FunctionalDependencyAssertion =
+        FunctionalDependencyAssertion(
+            persistentSetOf(),
+            persistentSetOf(),
+        ),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -218,6 +228,7 @@ class TvmState(
             contractStack = contractStack,
             currentContract = currentContract,
             refToHash = refToHash,
+            refToSha256 = refToSha256,
             refToDepth = refToDepth,
             signatureChecks = signatureChecks,
             fetchedValues = fetchedValues,
@@ -243,6 +254,9 @@ class TvmState(
             fixatedRandomAddresses = fixatedRandomAddresses,
             cdatasizeInfos = cdatasizeInfos,
             initialRandomSeed = initialRandomSeed,
+            messageIdentifierMapping = messageIdentifierMapping,
+            callstackCounter = callstackCounter,
+            functionalDependencyAssertion = functionalDependencyAssertion.copy(),
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -333,3 +347,9 @@ class TvmStateDebugInfo(
             tlbMemoryMisses,
         )
 }
+
+data class FunctionalDependencyAssertion(
+    var dependentRefs: PersistentSet<UHeapRef> = persistentSetOf(),
+    var determinerRefs: PersistentSet<UHeapRef> = persistentSetOf(),
+    var areDeterminersFixed: Boolean = false,
+)

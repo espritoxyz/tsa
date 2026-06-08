@@ -539,7 +539,7 @@ class TvmTestStateResolver(
 
     private fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
 
-    private fun resolveSlice(
+    fun resolveSlice(
         slice: UHeapRef,
         fromTlbStack: Boolean = false,
     ): TvmTestSliceValue =

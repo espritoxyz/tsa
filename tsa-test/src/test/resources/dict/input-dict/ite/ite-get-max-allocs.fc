@@ -1,0 +1,27 @@
+#include "../../../imports/stdlib.fc";
+#include "../util.fc";
+
+() test(slice in_msg, int index) impure method_id (1) {
+
+    cell dict_1 = new_dict()
+        .udict_set(64, 3, wrap_in_cell(100))
+        .udict_set(64, 5, wrap_in_cell(100));
+    cell dict_2 = new_dict()
+        .udict_set(64, 6, wrap_in_cell(200))
+        .udict_set(64, 9, wrap_in_cell(200));
+    cell ite_dict = my_mk_ite(dict_1, dict_2, index);
+
+    (int max_key, _, int found) = ite_dict.udict_get_max?(64);
+    throw_unless(400, found);
+
+    throw_if(500, max_key == 5);
+    throw_if(501, max_key == 9);
+    throw(400);
+}
+
+
+() main(slice in_msg) {
+    int index = in_msg~load_int(64);
+    test(in_msg, index);
+    return ();
+}

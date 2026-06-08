@@ -1,0 +1,34 @@
+#include "../../../imports/stdlib.fc";
+#include "../util.fc";
+
+() test(slice in_msg, int index) impure method_id (1) {
+
+    cell dict_1 = new_dict()
+        .udict_set(64, 1, wrap_in_cell(100))
+        .udict_set(64, 2, wrap_in_cell(100));
+    cell dict_2 = new_dict()
+        .udict_set(64, 1, wrap_in_cell(200))
+        .udict_set(64, 2, wrap_in_cell(200));
+    cell ite_dict = my_mk_ite(dict_1, dict_2, index);
+
+    cell set_dict = ite_dict.udict_set(64, 1, wrap_in_cell(999));
+
+    (slice value_set, int found_set) = set_dict.udict_get?(64, 1);
+    throw_unless(400, found_set);
+    throw_unless(401, value_set.unwrap() == 999);
+
+    (slice value_kept, int found_kept) = set_dict.udict_get?(64, 2);
+    throw_unless(402, found_kept);
+
+    int result = value_kept.unwrap();
+    throw_if(500, result == 100);
+    throw_if(501, result == 200);
+    throw(400);
+}
+
+
+() main(slice in_msg) {
+    int index = in_msg~load_int(64);
+    test(in_msg, index);
+    return ();
+}

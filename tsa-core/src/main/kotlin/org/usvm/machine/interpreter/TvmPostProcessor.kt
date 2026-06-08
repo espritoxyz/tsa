@@ -2,6 +2,7 @@ package org.usvm.machine.interpreter
 
 import io.ksmt.utils.uncheckedCast
 import org.ton.api.pk.PrivateKeyEd25519
+import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
@@ -37,7 +38,7 @@ import org.usvm.test.resolver.transformTestDataCellIntoCell
 import org.usvm.test.resolver.transformTestDictCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
-import kotlin.math.sign
+import java.security.MessageDigest
 import kotlin.random.Random
 
 class TvmPostProcessor(
@@ -103,11 +104,22 @@ class TvmPostProcessor(
                 generatePublicKeyConstraints(scope, resolver)
             } ?: return null
 
+            // forward fees might depennd on the hashes, so we must fixate the hashes first
             assertConstraints(scope) { resolver ->
                 val hashConstraint =
                     generateHashConstraint(scope, resolver)
                         ?: return@assertConstraints null
+                hashConstraint
+            } ?: return null
 
+            assertConstraints(scope) { resolver ->
+                val hashConstraint =
+                    generateSha256Constraints(scope, resolver)
+                        ?: return@assertConstraints null
+                hashConstraint
+            } ?: return null
+
+            assertConstraints(scope) { resolver ->
                 val depthConstraint =
                     generateDepthConstraint(scope, resolver)
                         ?: return@assertConstraints null
@@ -120,7 +132,7 @@ class TvmPostProcessor(
                     generateDatasizeConstraints(scope, resolver)
                         ?: return@assertConstraints null
 
-                hashConstraint and depthConstraint and fwdFeeConstraint and datasizeConstraint
+                depthConstraint and fwdFeeConstraint and datasizeConstraint
             } ?: return null
 
             // must be asserted separately since it relies on correct hash values
@@ -216,6 +228,21 @@ class TvmPostProcessor(
             }
         }
 
+    private fun generateSha256Constraints(
+        scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val refToSha256 = scope.calcOnState { refToSha256 }
+
+            refToSha256.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
+                val curConstraint =
+                    fixateValueAndSha256(scope, mkConcreteHeapRef(ref), depth, resolver)
+                        ?: return@with null
+                acc and curConstraint
+            }
+        }
+
     private fun generateHashConstraint(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
@@ -297,10 +324,11 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
         ref: UHeapRef,
+        compareRecursively: Boolean = true,
     ): UBoolExpr? {
         val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
         val fixateValueCond =
-            fixator.fixateConcreteValue(scope, ref)
+            fixator.fixateConcreteValue(scope, ref, compareRecursively)
                 ?: return null
         return fixateValueCond
     }
@@ -351,6 +379,22 @@ class TvmPostProcessor(
         val hash = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
         return ctx.mkBv(hash, ctx.int257sort)
     }
+
+    private fun fixateValueAndSha256(
+        scope: TvmStepScopeManager,
+        ref: UHeapRef,
+        sha256: UExpr<TvmInt257Sort>,
+        resolver: TvmTestStateResolver,
+    ): UBoolExpr? =
+        with(ctx) {
+            val value = resolver.resolveRef(ref)
+            val fixateValueCond =
+                fixateValue(scope, resolver, ref, compareRecursively = false)
+                    ?: return@with null
+            val actualSha256 = calculateConcreteSha256(value)
+            val sha256Cs = sha256 eq actualSha256
+            return fixateValueCond and sha256Cs
+        }
 
     private fun fixateValueAndDepth(
         scope: TvmStepScopeManager,
@@ -449,6 +493,43 @@ class TvmPostProcessor(
                 }
             cond and analyzedCellFixationCondition and (cdatasizeInfo.maximumCellCount eq restriction.value.toBv257())
         }
+
+    private fun calculateConcreteSha256(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =
+        with(ctx) {
+            when (value) {
+                is TvmTestSliceValue -> {
+                    val databits = value.cell.data.drop(value.dataPos)
+                    val sha256 =
+                        run {
+                            val bytes = BitString(databits.map { it == '1' }).toByteArray()
+                            shaFromBytes(bytes)
+                        }
+                    with(ctx) { mkBv(sha256, int257sort) }
+                }
+
+                is TvmTestCellValue -> {
+                    error("Bad type; slice expected")
+                }
+
+                is TvmTestBuilderValue -> {
+                    val databits = value.data
+                    val sha256 =
+                        run {
+                            val bytes = BitString(databits.map { it == '1' }).toByteArray()
+                            shaFromBytes(bytes)
+                        }
+                    with(ctx) { mkBv(sha256, int257sort) }
+                }
+            }
+        }
+
+    private fun shaFromBytes(bytes: ByteArray): BigInteger =
+        BigInteger(
+            // signum =
+            1,
+            // magnitude =
+            MessageDigest.getInstance("SHA-256").digest(bytes),
+        )
 
     private fun calculateConcreteDepth(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =
         with(ctx) {

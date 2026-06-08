@@ -7,8 +7,10 @@ import org.ton.cell.Cell
 import org.ton.cell.CellBuilder
 import org.ton.communicationSchemeFromJson
 import org.ton.test.utils.FIFT_STDLIB_RESOURCE
+import org.ton.test.utils.assertInvariantsHold
 import org.ton.test.utils.assertPropertiesFound
 import org.ton.test.utils.checkInvariants
+import org.ton.test.utils.doesNotEndWithExitCode
 import org.ton.test.utils.exitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractFuncContractFromResource
@@ -113,6 +115,11 @@ class CheckersTest {
     private object SendWithBodyInternalTestData {
         const val CHECKER = "/checkers/send-with-body/checker_internal.fc"
         const val CONTRACT = "/checkers/send-with-body/contract_with_internal.fc"
+    }
+
+    private object FunctionalDepsTestData {
+        const val OK = "/checkers/functional-deps/ok.fc"
+        const val FAIL = "/checkers/functional-deps/fail.fc"
     }
 
     @Test
@@ -726,5 +733,35 @@ class CheckersTest {
             tests,
             listOf { test -> test.exitCode() != 1000 },
         )
+    }
+
+    @Test
+    fun funcDepsOk() {
+        val checkerContract = extractCheckerContractFromResource(FunctionalDepsTestData.OK)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = true),
+            )
+
+        tests.assertPropertiesFound(hasExitCode(1000))
+    }
+
+    @Test
+    fun funcDepsFail() {
+        val checkerContract = extractCheckerContractFromResource(FunctionalDepsTestData.FAIL)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+                options = TvmOptions(stopOnFirstError = true),
+            )
+
+        tests.assertInvariantsHold(doesNotEndWithExitCode(1000))
     }
 }

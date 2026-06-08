@@ -5,6 +5,7 @@ import org.ton.DestinationDescription
 import org.usvm.machine.interpreter.DispatchedMessage
 import org.usvm.machine.interpreter.TsaCheckerFunctionsInterpreter
 import org.usvm.machine.interpreter.TvmTransactionInterpreter
+import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.TvmActionPhase
 import org.usvm.machine.state.TvmBouncePhase
 import org.usvm.machine.state.TvmComputePhase
@@ -60,6 +61,11 @@ data class TsaArtificialActionPhaseStartInst(
     }
 }
 
+data class UnparsedAction(
+    val slice: SliceRef,
+    val identifier: C5ActionIdentifier?,
+)
+
 /**
  * Handles the parsing and preprocessing of actions from the action list (stored in C5 register).
  * Works with a single action ([yetUnparsedActions]`.first()`) per instruction.
@@ -69,7 +75,7 @@ data class TsaArtificialActionPhaseStartInst(
 data class TsaArtificialActionParseInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     override val location: TvmInstLocation,
-    val yetUnparsedActions: List<SliceRef>,
+    val yetUnparsedActions: List<UnparsedAction>,
     val parsedAndPreprocessedActions: List<ActionParseResult>,
     val destinationResolver: DestinationDescription?,
 ) : TsaArtificialInst {
@@ -176,7 +182,7 @@ data class TsaArtificialJmpToContInst(
     override val cont: TvmContinuation,
     override val location: TvmInstLocation,
 ) : TsaArtificialContInst {
-    override val mnemonic: String get() = "artificial_jmp_to_$cont"
+    override val mnemonic: String get() = "artificial_jmp_to_cont"
 
     init {
         checkLocationInitialized()
@@ -187,7 +193,7 @@ class TsaArtificialExecuteContInst(
     override val cont: TvmContinuation,
     override val location: TvmInstLocation,
 ) : TsaArtificialContInst {
-    override val mnemonic: String get() = "artificial_execute_$cont"
+    override val mnemonic: String get() = "artificial_execute_cont"
 
     init {
         checkLocationInitialized()

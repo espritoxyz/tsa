@@ -40,6 +40,10 @@ class TvmDepth(
     val ref: UConcreteHeapRef,
 ) : TvmTrackedLiteral("tvm_depth")
 
+class TvmSha256(
+    val ref: UConcreteHeapRef,
+) : TvmTrackedLiteral("tvm_sha")
+
 class CDataSizeDistinctCells : TvmTrackedLiteral("cdatasize-distinct-cells")
 
 class CDataSizeDataBits : TvmTrackedLiteral("cdatasize-data-bits")

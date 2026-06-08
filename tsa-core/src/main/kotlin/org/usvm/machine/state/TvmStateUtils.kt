@@ -601,7 +601,7 @@ fun initializeContractExecutionMemory(
             C2Register(TvmExceptionContinuation),
             C3Register(TvmOrdContinuation(contractCode.mainMethod, contractCode.codeCell), contractCode),
             c4,
-            C5Register(TvmCellValue(state.allocEmptyCell())),
+            C5Register(TvmCellValue(state.allocEmptyCell()), persistentListOf()),
             C7Register(state.initC7(firstElementOfC7)),
         ),
     )
@@ -811,6 +811,8 @@ fun TvmState.mockHash(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(ref
 
 fun TvmState.mockCellDepth(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(ref) { mockCellDepth(it) }
 
+fun TvmState.mockSha256(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(ref) { mockSha256(it) }
+
 fun TvmState.mockHash(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
     refToHash[ref.address]?.let {
         with(ctx) { it.zeroExtendToSort(int257sort) }
@@ -823,6 +825,11 @@ fun TvmState.mockHash(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
 fun TvmState.mockCellDepth(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
     refToDepth[ref.address] ?: mockNonNegativeInt(TvmDepth(ref)).also {
         refToDepth = refToDepth.put(ref.address, it)
+    }
+
+fun TvmState.mockSha256(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
+    refToSha256[ref.address] ?: mockNonNegativeInt(TvmSha256(ref)).also {
+        refToSha256 = refToSha256.put(ref.address, it)
     }
 
 private fun TvmState.mockNonNegativeInt(
