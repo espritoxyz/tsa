@@ -27,7 +27,7 @@ import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
-import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.state.slicesDataBitsAreEqual
 import org.usvm.machine.toTvmCell
 import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmType
@@ -179,10 +179,11 @@ class TvmPostProcessor(
                                             ).toTvmCell(),
                                         )
                                     }
-                                val equality = scope.slicesAreEqual(slice.value, modelledSlice)!!
+                                val equality = scope.slicesDataBitsAreEqual(slice.value, modelledSlice)!!
                                 scope.assert(ctx.mkNot(equality))
                                     ?: break
-                                if (models.size > 5) {
+                                val infinity = 5
+                                if (models.size > infinity) {
                                     break
                                 }
                             }
@@ -299,9 +300,45 @@ class TvmPostProcessor(
             val addressToHash = scope.calcOnState { refToHash }
 
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
+                val isHashInCsStringy =
+                    scope.calcOnState { pathConstraints }.constraintSequence().any {
+                        it.toString().contains(hash.toString()) // lol
+                    }
+//                TODO understand and use the nonrecursive transformer
+//                val transformer =
+//                    object : TvmDefaultTransformer(ctx) {
+//                        var foundHashSymbol = false
+//
+//                        override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
+//                            if (expr == hash) {
+//                                foundHashSymbol = true
+//                            }
+//                            return expr
+//                        }
+//                    }
+//                for (cs in scope.calcOnState { pathConstraints }.constraintSequence()) {
+//                    transformer.foundHashSymbol = false
+//                    cs.accept(transformer)
+//                    val foundVisitory = transformer.foundHashSymbol
+//                    val foundStringy = cs.toString().contains(hash.toString())
+//                    if (foundStringy != foundVisitory) {
+//                        println(cs)
+//                        println("bad!")
+//                        cs.accept(transformer)
+//                    }
+//                }
+//                val isHashInCsVisitory = transformer.foundHashSymbol
+//                if (isHashInCsVisitory != isHashInCsStringy) {
+//                    logger.warn { "Mismatch!!!" }
+//                }
+//
                 val curConstraint =
-                    fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash.zeroExtendToSort(int257sort), resolver)
-                        ?: return null
+                    if (isHashInCsStringy) {
+                        fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash.zeroExtendToSort(int257sort), resolver)
+                            ?: return null
+                    } else {
+                        ctx.trueExpr
+                    }
                 acc and curConstraint
             }
         }

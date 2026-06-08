@@ -37,6 +37,7 @@ import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.ReceivedMessage
+import org.usvm.machine.types.ConcreteSliceRef
 import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellInfoStorage
@@ -127,6 +128,7 @@ class TvmState(
             persistentSetOf(),
             persistentSetOf(),
         ),
+    var givenAddressForNextInput: ConcreteSliceRef? = null,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -272,6 +274,7 @@ class TvmState(
             callstackCounter = callstackCounter,
             functionalDependencyAssertion = functionalDependencyAssertion.copy(),
             fetchedValuesForModelEnum = fetchedValuesForModelEnum,
+            givenAddressForNextInput = givenAddressForNextInput,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

@@ -59,6 +59,7 @@ import org.usvm.machine.state.messages.msgValue
 import org.usvm.machine.state.messages.srcAddressSlice
 import org.usvm.machine.state.messages.stateInit
 import org.usvm.machine.toTvmCell
+import org.usvm.machine.types.ConcreteCellRef
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmDataCellType
@@ -67,6 +68,7 @@ import org.usvm.machine.types.TvmFinalReferenceType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.wrap
 import org.usvm.memory.GuardedExpr
 import org.usvm.memory.foldHeapRef
@@ -696,6 +698,35 @@ fun TvmState.switchToFirstMethodInContract(
 }
 
 fun TvmState.switchDirectlyToMethodInContract(method: TvmMethod) = newStmt(method.instList.first())
+
+/**
+ * @return (address, code, data)
+ */
+fun TvmState.generateSymbolicAddressCellAsHash(): Triple<ConcreteCellRef, ConcreteCellRef, ConcreteCellRef> =
+    with(ctx) {
+        val workchain = mkBv(0, 8u) // TODO: consider other workchains?
+        val code = generateSymbolicCell()
+        val data = generateSymbolicCell()
+        val stateInitBuilder = allocEmptyBuilder()
+        builderStoreNextRefNoOverflowCheck(stateInitBuilder, code)
+        builderStoreNextRefNoOverflowCheck(stateInitBuilder, data)
+        val stateInit = builderToCell(stateInitBuilder)
+        val hash = mockHash(stateInit)
+        val address =
+            allocDataCellFromData(
+                mkBvConcatExpr(
+                    mkBvConcatExpr(
+                        // addr_std$10 anycast:(Maybe Anycast)
+                        mkBv("100", 3u),
+                        // workchain_id:int8
+                        workchain,
+                    ),
+                    // address:bits256
+                    hash.extractToSort(mkBvSort(256u)),
+                ),
+            )
+        return Triple(address.asCellRef(), code.asCellRef(), data.asCellRef())
+    }
 
 // second value is workchain
 fun TvmState.generateSymbolicAddressCell(literal: TvmTrackedLiteral): Pair<UConcreteHeapRef, UExpr<UBvSort>> =

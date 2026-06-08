@@ -29,11 +29,14 @@ import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.ValuesForModelEnumerating
+import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
 import org.usvm.machine.state.doWithStateCtx
+import org.usvm.machine.state.generateSymbolicAddressCellAsHash
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
@@ -205,6 +208,10 @@ class TsaCheckerFunctionsInterpreter(
                 performFetchValueEnumerateModels(scope, stmt)
             }
 
+            ENABLE_ADDRESS_AS_HASH -> {
+                performEnableAddressAsHash(scope, stmt)
+            }
+
             SET_ADDRESS -> {
                 performSetAddress(scope, stmt)
             }
@@ -362,6 +369,7 @@ class TsaCheckerFunctionsInterpreter(
                                     concreteData,
                                     nextContractId,
                                     stackOperations.body,
+                                    givenAddress = scope.calcOnState { givenAddressForNextInput },
                                 )
                             }
 
@@ -633,6 +641,19 @@ class TsaCheckerFunctionsInterpreter(
         scope.assert(cond)
             ?: return
         scope.doWithState {
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performEnableAddressAsHash(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        scope.doWithState {
+            val (address, code, data) = this.generateSymbolicAddressCellAsHash()
+            stack.addCell(code)
+            stack.addCell(data)
+            this.givenAddressForNextInput = allocSliceFromCell(address.value).asSliceRef()
             newStmt(stmt.nextStmt())
         }
     }

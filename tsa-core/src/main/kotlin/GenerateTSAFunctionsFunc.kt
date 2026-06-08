@@ -114,6 +114,11 @@ fun main() {
         () tsa_fetch_enumerate_model_values(slice value, int value_id) impure method_id(18) {
             ;; do nothing
         }
+        
+        ;; returns (code, data) from the stateinit
+        (cell, cell) tsa_enable_sender_address_as_hash() impure method_id(19) {
+            return return_2();
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =
