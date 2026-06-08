@@ -1,0 +1,6 @@
+#include "../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    var address = my_address();
+    throw_unless(400, equal_slice_bits(address, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a));
+}
