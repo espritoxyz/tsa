@@ -1,5 +1,7 @@
 package org.usvm.machine.interpreter
 
+import kotlinx.collections.immutable.toPersistentList
+import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialCheckerReturn
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCellValue
@@ -196,6 +198,10 @@ class TsaCheckerFunctionsInterpreter(
 
             ASSERT_SLICE_DETERMINES -> {
                 performAssertSliceDetermines(scope, stmt)
+            }
+
+            SET_ADDRESS -> {
+                performSetAddress(scope, stmt)
             }
 
             else -> {
@@ -709,6 +715,38 @@ class TsaCheckerFunctionsInterpreter(
                     contractId,
                     C4Register(TvmCellValue(value)),
                 )
+
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performSetAddress(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val value =
+            scope.takeLastCell()
+                ?: return
+
+        scope.doWithState {
+            val contractId = getConcreteIntFromStack(parameterName = "contract_id", functionName = "tsa_set_c4")
+
+            val oldC7 =
+                contractIdToFirstElementOfC7[contractId]
+                    ?: error("Unset the first element of c7 for contract with id=$contractId")
+
+            val newC7 =
+                oldC7.entries.mapIndexed { index, entry ->
+                    if (index == ADDRESS_PARAMETER_IDX) {
+                        TvmStack.TvmConcreteStackEntry(TvmStack.TvmStackCellValue(cellValue = value))
+                    } else {
+                        entry
+                    }
+                }
+            val newFirstElementOfC7 = TvmStackTupleValueConcreteNew(ctx, newC7.toPersistentList())
+
+            contractIdToFirstElementOfC7 =
+                contractIdToFirstElementOfC7.put(contractId, newFirstElementOfC7)
 
             newStmt(stmt.nextStmt())
         }
