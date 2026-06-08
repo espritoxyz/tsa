@@ -24,6 +24,10 @@ class TvmMsgValue : TvmTrackedLiteral("tvm_msg_value")
 
 class TvmBalance : TvmTrackedLiteral("tvm_balance")
 
+class TvmStoragePhaseFees : TvmTrackedLiteral("tvm_storage_phase_fees")
+
+class TvmDuePayment : TvmTrackedLiteral("tvm_due_payment")
+
 class TvmMessageSender : TvmTrackedLiteral("tvm_sender")
 
 class TvmContractAddress : TvmTrackedLiteral("tvm_contr_addr")

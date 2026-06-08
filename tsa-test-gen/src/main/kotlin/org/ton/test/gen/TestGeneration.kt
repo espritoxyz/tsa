@@ -1,5 +1,7 @@
 package org.ton.test.gen
 
+import org.ton.bytecode.DUE_PAYMENT_IDX
+import org.ton.bytecode.STORAGE_FEES_PARAMETER_IDX
 import org.ton.test.gen.dsl.TsContext
 import org.ton.test.gen.dsl.TsTestBlockBuilder
 import org.ton.test.gen.dsl.TsTestFileBuilder
@@ -25,6 +27,7 @@ import org.ton.test.gen.dsl.wrapper.basic.initializeContract
 import org.ton.test.gen.dsl.wrapper.basic.internal
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.ADDRESS_TAG_LENGTH
+import org.usvm.machine.TvmContext.Companion.NANOTONS_IN_TON
 import org.usvm.machine.TvmContext.Companion.RECEIVE_EXTERNAL_ID
 import org.usvm.machine.TvmContext.Companion.RECEIVE_INTERNAL_ID
 import org.usvm.machine.TvmContext.Companion.STD_ADDRESS_TAG
@@ -202,6 +205,23 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
             val data = newVar("data", ctx.test.rootInitialData.toTsValue())
             val contractAddr = newVar("contractAddr", parseAddress(input.address))
             val contractBalance = newVar("contractBalance", input.initialBalance.toTsValue())
+            val duePayment = newVar("duePayment", input.duePayment.toTsValue())
+            val storageUsedCells =
+                newVar(
+                    "storageUsedCells",
+                    input.storageFeesPreset.cells
+                        .toBigInteger()
+                        .toTsValue(),
+                )
+            val storageUsedBits =
+                newVar(
+                    "storageUsedBits",
+                    input.storageFeesPreset.bits
+                        .toBigInteger()
+                        .toTsValue(),
+                )
+            val storageLastPaidDelta =
+                newVar("storageLastPaidDelta", input.storageFeesPreset.lastPaidDeltaSeconds.toTsValue())
 
             emptyLine()
 
@@ -210,14 +230,31 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
                     "contract",
                     ctx.blockchain.openContract(wrapperDescriptor.constructor(contractAddr, ctx.code, data)),
                 )
-            +contract.initializeContract(ctx.blockchain, contractBalance)
+            +contract.initializeContract(
+                ctx.blockchain,
+                contractBalance,
+                duePayment,
+                storageUsedCells,
+                storageUsedBits,
+                storageLastPaidDelta,
+            )
 
             emptyLine()
 
             val srcAddr = newVar("srcAddr", parseAddress(input.srcAddress))
             val msgBody = newVar("msgBody", input.msgBodyCell.toTsValue())
             val msgCurrency = newVar("msgCurrency", input.input.msgValue.toTsValue())
-            val bounce = newVar("bounce", input.input.bounce.toTsValue())
+            // When [duePayment] > 0 we force [bounce = true], otherwise the message would
+            // be credited before the storage phase (`credit_first` mode) and the storage
+            // phase would settle the entire due_payment, making `c7[15]` zero in compute.
+            // With bounce-enabled messages storage runs first, preserving the due_payment.
+            val bounceTsValue =
+                if (input.duePayment.value.signum() > 0) {
+                    true.toTsValue()
+                } else {
+                    input.input.bounce.toTsValue()
+                }
+            val bounce = newVar("bounce", bounceTsValue)
             val bounced = newVar("bounced", input.input.bounced.toTsValue())
             val ihrDisabled = newVar("ihrDisabled", input.input.ihrDisabled.toTsValue())
             val ihrFee = newVar("ihrFee", input.input.ihrFee.toTsValue())
@@ -290,6 +327,23 @@ private fun TsTestFileBuilder.registerRecvExternalTests(
             val data = newVar("data", ctx.test.rootInitialData.toTsValue())
             val contractAddr = newVar("contractAddr", parseAddress(input.address))
             val contractBalance = newVar("contractBalance", input.initialBalance.toTsValue())
+            val duePayment = newVar("duePayment", input.duePayment.toTsValue())
+            val storageUsedCells =
+                newVar(
+                    "storageUsedCells",
+                    input.storageFeesPreset.cells
+                        .toBigInteger()
+                        .toTsValue(),
+                )
+            val storageUsedBits =
+                newVar(
+                    "storageUsedBits",
+                    input.storageFeesPreset.bits
+                        .toBigInteger()
+                        .toTsValue(),
+                )
+            val storageLastPaidDelta =
+                newVar("storageLastPaidDelta", input.storageFeesPreset.lastPaidDeltaSeconds.toTsValue())
 
             emptyLine()
 
@@ -298,7 +352,14 @@ private fun TsTestFileBuilder.registerRecvExternalTests(
                     "contract",
                     ctx.blockchain.openContract(wrapperDescriptor.constructor(contractAddr, ctx.code, data)),
                 )
-            +contract.initializeContract(ctx.blockchain, contractBalance)
+            +contract.initializeContract(
+                ctx.blockchain,
+                contractBalance,
+                duePayment,
+                storageUsedCells,
+                storageUsedBits,
+                storageLastPaidDelta,
+            )
 
             emptyLine()
 
@@ -345,6 +406,8 @@ private fun resolveReceiveInternalInput(test: TvmSymbolicTest): TvmReceiveIntern
         time = test.time,
         address = contractAddress,
         srcAddress = srcAddress,
+        duePayment = resolveDuePayment(test),
+        storageFeesPreset = resolveStorageFeesPreset(test),
         input = input,
         exitCode = result.exitCode,
     )
@@ -357,9 +420,66 @@ private data class TvmReceiveInternalInput(
     val time: TvmTestIntegerValue,
     val address: String,
     val srcAddress: String,
+    val duePayment: TvmTestIntegerValue,
+    val storageFeesPreset: StorageFeesPreset,
     val input: RecvInternalInput,
     val exitCode: Int,
 )
+
+/**
+ * Returns the resolved value of `c7[15]` (due payment) for the given test.
+ * Defaults to 0 if the value is missing (e.g. legacy tests).
+ */
+private fun resolveDuePayment(test: TvmSymbolicTest): TvmTestIntegerValue {
+    val c7 = test.initialRootContractState.c7.elements
+    val due = c7.getOrNull(DUE_PAYMENT_IDX) as? TvmTestIntegerValue
+    return due ?: TvmTestIntegerValue(java.math.BigInteger.ZERO)
+}
+
+/**
+ * Sandbox doesn't expose `c7[12]` (storage_phase_fees) directly. To produce a
+ * non-zero value, we have to make the storage phase actually deduct fees by
+ * setting `account.storageStats.used` and `account.storageStats.lastPaid`.
+ *
+ * This helper picks a fixed combination of `(used.cells, used.bits, now - lastPaid)`
+ * that, under the default sandbox chain config, produces a storage fee within the
+ * required bucket: zero, in `(0, 5 TON)` or `>= 5 TON` (the buckets used by
+ * `args/storage_fees.fc`).
+ *
+ * The exact numbers were derived empirically against `@ton/sandbox`'s default
+ * mainnet pricing (cells dominate the fee; see comments below).
+ */
+private fun resolveStorageFeesPreset(test: TvmSymbolicTest): StorageFeesPreset {
+    val c7 = test.initialRootContractState.c7.elements
+    val sf =
+        (c7.getOrNull(STORAGE_FEES_PARAMETER_IDX) as? TvmTestIntegerValue)?.value
+            ?: java.math.BigInteger.ZERO
+    val fiveTon = java.math.BigInteger.valueOf(5L * NANOTONS_IN_TON)
+    return when {
+        sf.signum() <= 0 -> StorageFeesPreset.ZERO
+        sf < fiveTon -> StorageFeesPreset.LOW
+        else -> StorageFeesPreset.HIGH
+    }
+}
+
+/**
+ * Pre-computed sandbox storage-stats settings used to engineer a storage phase
+ * that deducts a fee within a desired bucket. See [resolveStorageFeesPreset].
+ */
+private enum class StorageFeesPreset(
+    val cells: Long,
+    val bits: Long,
+    val lastPaidDeltaSeconds: Int,
+) {
+    /** Default empty account → storage_fees = 0. */
+    ZERO(cells = 0, bits = 0, lastPaidDeltaSeconds = 0),
+
+    /** Small fee within `(0, 5 TON)`. Calibrated against the symbolic config. */
+    LOW(cells = 100, bits = 0, lastPaidDeltaSeconds = 10_000_000),
+
+    /** Big fee within `[5 TON, 10 TON)`. Calibrated against the symbolic config. */
+    HIGH(cells = 20_000, bits = 0, lastPaidDeltaSeconds = 100_000_000),
+}
 
 private fun resolveReceiveExternalInput(test: TvmSymbolicTest): TvmReceiveExternalInput {
     // TODO: for now, take into account only in_message
@@ -397,6 +517,8 @@ private fun resolveReceiveExternalInput(test: TvmSymbolicTest): TvmReceiveExtern
         contractAddress,
         balance,
         test.time,
+        resolveDuePayment(test),
+        resolveStorageFeesPreset(test),
         result.exitCode,
     )
 }
@@ -407,6 +529,8 @@ private data class TvmReceiveExternalInput(
     val address: String,
     val initialBalance: TvmTestIntegerValue,
     val time: TvmTestIntegerValue,
+    val duePayment: TvmTestIntegerValue,
+    val storageFeesPreset: StorageFeesPreset,
     val exitCode: Int,
 )
 

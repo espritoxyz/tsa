@@ -186,7 +186,12 @@ fun TvmState.initC7(contractInfo: TvmStackTupleValue): TvmStackTupleValueConcret
         persistentListOf(contractInfo.toStackEntry()),
     )
 
-fun TvmState.getInboundMessageValue(): Int257Expr? = getContractInfoParam(INBOUND_MESSAGE_VALUE_PARAMETER_IDX).intValue
+fun TvmState.getInboundMessageValue(): Int257Expr? =
+    getContractInfoParam(INBOUND_MESSAGE_VALUE_PARAMETER_IDX)
+        .tupleValue
+        ?.get(0, stack)
+        ?.cell(stack)
+        ?.intValue
 
 val BIT_PRICE_PS: Long get() = TvmConfigBoc.storagePrices.bitPricePs
 val CELL_PRICE_PS: Long get() = TvmConfigBoc.storagePrices.cellPricePs
@@ -217,6 +222,22 @@ fun makeBalanceEntry(
         ctx,
         persistentListOf(
             TvmStackIntValue(balance).toStackEntry(),
+            TvmStackNullValue.toStackEntry(),
+        ),
+    )
+
+/**
+ * Builds incoming message value tuple for c7[11]: (Integer balance, Maybe Cell extra-currencies).
+ * See https://docs.ton.org/tvm/registers#c7---environment-information-and-global-variables
+ */
+fun makeIncomingValueEntry(
+    ctx: TvmContext,
+    msgValue: UExpr<TvmInt257Sort>,
+): TvmStackTupleValueConcreteNew =
+    TvmStackTupleValueConcreteNew(
+        ctx,
+        persistentListOf(
+            TvmStackIntValue(msgValue).toStackEntry(),
             TvmStackNullValue.toStackEntry(),
         ),
     )
@@ -280,22 +301,29 @@ fun TvmState.initContractInfo(
         val config = TvmStackCellValue(initConfigRoot())
         val code = TvmStackCellValue(allocateCell(contractCode.codeCell))
 
-        // TODO support `incomingValue` param
-        val incomingValue = TvmStackNullValue
+        // incomingValue is a Maybe Tuple of (Integer balance, Maybe Cell extra-currencies).
+        // The proper value is set in [initializeContractExecutionMemory] when a message arrives.
+        val incomingValue = makeIncomingValueEntry(ctx, zeroValue)
 
-        // Right now, this parameter can only be set to zero in emulator
-        // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/smc-envelope/SmartContract.cpp#L166
-        val storagePhaseFees = TvmStackIntValue(zeroValue)
+        // storagePhaseFees is symbolic and bounded by [MAX_STORAGE_PHASE_FEES]
+        // (constraints are asserted below).
+        val storagePhaseFeesValue =
+            makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE), TvmStoragePhaseFees())
+                .zeroExtendToSort(int257sort)
+        val storagePhaseFees = TvmStackIntValue(storagePhaseFeesValue)
 
-        // TODO support `prevBlocksInfo` param
+        // prevBlocksInfoTuple is a Maybe Tuple. Currently not modeled precisely, so it is null.
         val prevBlocksInfo = TvmStackNullValue
 
-        // TODO support `unpacked_config_tuple` param
+        // unpackedConfigTuple is a Maybe Tuple. Currently not modeled precisely, so it is null.
         val unpackedConfigTuple = TvmStackNullValue
 
-        // Right now, this parameter can only be set to zero in emulator
-        // https://github.com/ton-blockchain/ton/blob/59a8cf0ae5c3062d14ec4c89a04fee80b5fd05c1/crypto/smc-envelope/SmartContract.cpp#L176
-        val duePayment = TvmStackIntValue(zeroValue)
+        // duePayment is symbolic and bounded by [MAX_DUE_PAYMENT]
+        // (constraints are asserted below).
+        val duePaymentValue =
+            makeSymbolicPrimitive(mkBvSort(TvmContext.BITS_FOR_BALANCE), TvmDuePayment())
+                .zeroExtendToSort(int257sort)
+        val duePayment = TvmStackIntValue(duePaymentValue)
 
         // TODO support `precompiled` param
         val gasUsageIfPrecompiled = TvmStackIntValue(zeroValue)
@@ -310,6 +338,9 @@ fun TvmState.initContractInfo(
         pathConstraints += mkBvSignedGreaterExpr(maxLogicalTimeValue, transactionLogicTime.intValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(initialBalance, zeroValue)
         pathConstraints += mkBvSignedGreaterOrEqualExpr(storagePhaseFees.intValue, zeroValue)
+        pathConstraints += mkBvSignedLessExpr(storagePhaseFees.intValue, TvmContext.MAX_STORAGE_PHASE_FEES.toBv257())
+        pathConstraints += mkBvSignedGreaterOrEqualExpr(duePayment.intValue, zeroValue)
+        pathConstraints += mkBvSignedLessExpr(duePayment.intValue, TvmContext.MAX_DUE_PAYMENT.toBv257())
         pathConstraints += mkAnd((extendedWorkchain eq masterchain) or (extendedWorkchain eq baseChain))
 
         val paramList =

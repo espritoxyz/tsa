@@ -233,8 +233,20 @@ class TvmTestStateResolver(
                 ?: error("Contract $contract initial data not found")
 
         val data = resolveCell(symbolicData.persistentData)
+        val c7 = resolveInitialContractC7(contract)
 
-        return TvmContractState(data, c7Balance)
+        return TvmContractState(data, c7Balance, c7)
+    }
+
+    /**
+     * Resolves the C7 register's first element (the SmartContractInfo tuple).
+     * See https://docs.ton.org/tvm/registers#c7---environment-information-and-global-variables
+     */
+    private fun resolveInitialContractC7(contract: ContractId): TvmTestTupleValue {
+        val initialData =
+            state.contractIdToInitialData[contract]
+                ?: error("Contract $contract not found")
+        return resolveTuple(initialData.firstElementOfC7)
     }
 
     fun resolveTime(): TvmTestIntegerValue {
