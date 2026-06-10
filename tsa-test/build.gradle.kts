@@ -31,14 +31,6 @@ tasks.test {
     }
 }
 
-tasks.register<Test>("intercontractTests") {
-    group = "verification"
-    description = "Run intercontract tests (fast, as no sandbox is used at the moment)"
-    useJUnitPlatform {
-        includeTags("intercontract")
-    }
-}
-
 tasks.register("formatAndLintAll") {
     group = "formatting"
 

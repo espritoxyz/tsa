@@ -37,6 +37,8 @@ import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.ReceivedMessage
+import org.usvm.machine.types.ConcreteSliceRef
+import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -48,11 +50,22 @@ import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
+import org.usvm.test.resolver.TvmTestSliceValue
 import java.math.BigInteger
 
 typealias ContractId = Int
 
 fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
+
+sealed interface ValuesForModelEnumerating {
+    data class Processing(
+        val map: PersistentMap<Int, SliceRef>,
+    ) : ValuesForModelEnumerating
+
+    data class Enumerated(
+        val map: PersistentMap<Int, List<TvmTestSliceValue>>,
+    ) : ValuesForModelEnumerating
+}
 
 class TvmState(
     ctx: TvmContext,
@@ -80,6 +93,8 @@ class TvmState(
     var contractStack: PersistentList<TvmEventInformation> = persistentListOf(),
     var currentContract: ContractId,
     var fetchedValues: PersistentMap<Int, TvmStack.TvmStackEntry> = persistentMapOf(),
+    var fetchedValuesForModelEnum: ValuesForModelEnumerating =
+        ValuesForModelEnumerating.Processing(map = persistentMapOf()),
     var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
     var unprocessedMessages: PersistentList<Pair<ContractId, DispatchedMessageContent>> = persistentListOf(),
     // inter-contract fields
@@ -113,6 +128,7 @@ class TvmState(
             persistentSetOf(),
             persistentSetOf(),
         ),
+    var givenAddressForNextInput: ConcreteSliceRef? = null,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -257,6 +273,8 @@ class TvmState(
             messageIdentifierMapping = messageIdentifierMapping,
             callstackCounter = callstackCounter,
             functionalDependencyAssertion = functionalDependencyAssertion.copy(),
+            fetchedValuesForModelEnum = fetchedValuesForModelEnum,
+            givenAddressForNextInput = givenAddressForNextInput,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

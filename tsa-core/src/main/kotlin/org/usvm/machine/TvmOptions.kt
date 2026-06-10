@@ -52,6 +52,11 @@ data class TvmOptions(
      * the locations specified in this trace. Useful for replaying a previously observed execution.
      */
     val followTrace: FollowTrace? = null,
+    /**
+     * The limit of how many models will be extracted for any expression catched by the `TvmState.fetchedValuesForModelEnum`
+     * varaible.
+     */
+    val enumeratingModelsCountLimit: Int = 5,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {

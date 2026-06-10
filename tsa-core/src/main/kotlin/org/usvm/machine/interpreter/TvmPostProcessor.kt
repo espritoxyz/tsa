@@ -1,27 +1,36 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.utils.uncheckedCast
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toPersistentMap
 import org.ton.api.pk.PrivateKeyEd25519
 import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isTrue
+import org.usvm.logger
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.DataSizeInfo
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.ValuesForModelEnumerating
+import org.usvm.machine.state.hash.TvmDefaultTransformer
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
+import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
+import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
@@ -144,6 +153,58 @@ class TvmPostProcessor(
             structuralConstraintsHolder.applyTo(scope)
                 ?: return null
 
+            val fetchedValuesForModelEnum = state.fetchedValuesForModelEnum
+            check(fetchedValuesForModelEnum is ValuesForModelEnumerating.Processing)
+            val result = state.result
+            val data =
+                if (result is TvmResult.TvmFailure && result.exit.exitCode == 1000) {
+                    fetchedValuesForModelEnum.map
+                        .mapValues { (index, slice) ->
+                            val scope =
+                                TvmStepScopeManager(
+                                    state.clone(),
+                                    UForkBlackList.Companion.createDefault(),
+                                    allowFailuresOnCurrentStep = false,
+                                )
+                            val models = mutableListOf<TvmTestSliceValue>()
+                            while (true) {
+                                val model = scope.calcOnState { this.models.first() }
+                                val resolver = TvmTestStateResolver(ctx, model as TvmModel, state)
+                                val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+                                val value = resolver.resolveSlice(slice)
+                                val fixateSliceValueCs =
+                                    fixator.fixateConcreteValueForSlice(scope, slice.value, value, true)
+                                        ?: run {
+                                            logger.warn { "Failed to fixed value for slice at index $index" }
+                                            return@mapValues listOf()
+                                        }
+                                models.add(value)
+                                scope.assert(ctx.mkNot(fixateSliceValueCs))
+                                    ?: break
+                                val modelsCountLimit = ctx.tvmOptions.enumeratingModelsCountLimit
+                                if (models.size > modelsCountLimit) {
+                                    break
+                                }
+                            }
+                            models
+                        }.toPersistentMap()
+                } else {
+                    persistentMapOf() // ignore all the other codes
+                }
+            state.fetchedValuesForModelEnum = ValuesForModelEnumerating.Enumerated(data)
+            // we assume that no assertions exists after postprocessing, so no models will be changed and thus
+            // it is safe to rewrite the current models
+            state.tvmModels.forEach {
+                val resolver = TvmTestStateResolver(ctx, it, state)
+                for ((ref, hash) in state.refToHash) {
+                    val value =
+                        resolver.resolveRef(ctx.mkConcreteHeapRef(ref))
+                    val hashValue = calculateConcreteHash(value)
+                    it.myOverrides[hash] = ctx.mkBv(hashValue, int257sort)
+                    val valueHash = it.eval(hash)
+                    println(valueHash)
+                }
+            }
             return state
         }
 
@@ -251,9 +312,34 @@ class TvmPostProcessor(
             val addressToHash = scope.calcOnState { refToHash }
 
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
+                val hashFinderGen = {
+                    object : TvmDefaultTransformer(ctx) {
+                        var foundHashSymbol = false
+
+                        override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
+                            if (expr == hash) {
+                                foundHashSymbol = true
+                            }
+                            return expr
+                        }
+                    }
+                }
+                var isHashInCs = false
+                for (cs in scope.calcOnState { pathConstraints }.constraintSequence()) {
+                    val transformer = hashFinderGen()
+                    transformer.apply(cs)
+                    if (transformer.foundHashSymbol) {
+                        isHashInCs = true
+                    }
+                }
+
                 val curConstraint =
-                    fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash.zeroExtendToSort(int257sort), resolver)
-                        ?: return null
+                    if (isHashInCs) {
+                        fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash.zeroExtendToSort(int257sort), resolver)
+                            ?: return null
+                    } else {
+                        ctx.trueExpr
+                    }
                 acc and curConstraint
             }
         }
@@ -347,38 +433,10 @@ class TvmPostProcessor(
             val fixateValueCond =
                 fixateValue(scope, resolver, ref)
                     ?: return@with null
-            val concreteHash = calculateConcreteHash(value)
+            val concreteHash = ctx.mkBv(calculateConcreteHash(value), int257sort)
             val hashCond = hash eq concreteHash
             return fixateValueCond and hashCond
         }
-
-    private fun calculateConcreteHash(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =
-        when (value) {
-            is TvmTestDataCellValue -> {
-                val cell = transformTestDataCellIntoCell(value)
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestDictCellValue -> {
-                val cell = transformTestDictCellIntoCell(value)
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestBuilderValue -> {
-                val cell = transformTestDataCellIntoCell(value.toCell())
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestSliceValue -> {
-                val restCell = truncateSliceCell(value)
-                calculateConcreteHash(restCell)
-            }
-        }
-
-    private fun calculateHashOfCell(cell: Cell): UExpr<TvmInt257Sort> {
-        val hash = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
-        return ctx.mkBv(hash, ctx.int257sort)
-    }
 
     private fun fixateValueAndSha256(
         scope: TvmStepScopeManager,
@@ -556,4 +614,32 @@ class TvmPostProcessor(
 
         return 1 + cell.refs.maxOf { calculateCellDepth(it) }
     }
+}
+
+fun calculateConcreteHash(value: TvmTestReferenceValue): BigInteger =
+    when (value) {
+        is TvmTestDataCellValue -> {
+            val cell = transformTestDataCellIntoCell(value)
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestDictCellValue -> {
+            val cell = transformTestDictCellIntoCell(value)
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestBuilderValue -> {
+            val cell = transformTestDataCellIntoCell(value.toCell())
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestSliceValue -> {
+            val restCell = truncateSliceCell(value)
+            calculateConcreteHash(restCell)
+        }
+    }
+
+private fun calculateHashOfCell(cell: Cell): BigInteger {
+    val hash = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
+    return hash
 }

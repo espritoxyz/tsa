@@ -1338,7 +1338,7 @@ private fun TvmStepScopeManager.tryCompareWithTlbFields(
     return stack1.compareWithOtherStack(this, cell1, stack2, cell2)
 }
 
-fun TvmStepScopeManager.slicesAreEqual(
+fun TvmStepScopeManager.slicesDataBitsAreEqual(
     slice1: UHeapRef,
     slice2: UHeapRef,
 ): UBoolExpr? =

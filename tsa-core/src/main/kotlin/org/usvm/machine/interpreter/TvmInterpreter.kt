@@ -340,7 +340,7 @@ import org.usvm.machine.state.setExit
 import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.signedIntegerFitsBits
 import org.usvm.machine.state.sliceLoadBitArrayTlb
-import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.state.slicesDataBitsAreEqual
 import org.usvm.machine.state.switchToFirstMethodInContract
 import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastCellOrThrowTypeError
@@ -767,7 +767,7 @@ class TvmInterpreter(
                 clonedOldState.writeSliceDataPos(modelSlice.asSliceRef(), with(ctx) { model.dataPos.toSizeSort() })
                 clonedOldState.writeSliceRefPos(modelSlice.asSliceRef(), with(ctx) { model.refPos.toSizeSort() })
                 val equalityCs =
-                    scope.slicesAreEqual(expr, modelSlice)
+                    scope.slicesDataBitsAreEqual(expr, modelSlice)
                         ?: return listOf()
                 val isInequalitySat = scope.checkSat(with(ctx) { equalityCs.not() }) != null
                 if (isInequalitySat) {
@@ -2519,7 +2519,7 @@ class TvmInterpreter(
                 lesserSliceLength,
             ) { (greaterSliceRelevantPart, _) ->
                 val isPrefix =
-                    slicesAreEqual(lesserSliceRelevantPart.value, greaterSliceRelevantPart.value)
+                    slicesDataBitsAreEqual(lesserSliceRelevantPart.value, greaterSliceRelevantPart.value)
                         ?: return@sliceLoadBitArrayTlb
 
                 calcOnState {
@@ -2543,7 +2543,7 @@ class TvmInterpreter(
         }
 
         val constraint =
-            scope.slicesAreEqual(slice1, slice2)
+            scope.slicesDataBitsAreEqual(slice1, slice2)
                 ?: return
         val result = constraint.toBv257Bool()
 
