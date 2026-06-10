@@ -2,14 +2,18 @@ package org.usvm.machine.types
 
 import io.ksmt.utils.uncheckedCast
 import org.ton.bytecode.TvmCodeBlock
+import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.UIndexedMocker
 import org.usvm.UMockEvaluator
 import org.usvm.UMockSymbol
 import org.usvm.USort
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTrackedLiteral
+import org.usvm.machine.state.hash.TvmDefaultTransformer
+import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.model.UModelBase
 
 class TvmModel(
@@ -23,6 +27,20 @@ class TvmModel(
         underlyingModel.regions,
         underlyingModel.nullRef,
     ) {
+    override fun <Sort : USort> eval(expr: UExpr<Sort>): UExpr<Sort> {
+        val transformer =
+            // uncheckedCast below: UExpr<Int257Sort> -> UExpr<BvSort>
+            // unchecked, because UExpr<Sort> is not covariant in Sort
+            object : TvmDefaultTransformer(expr.ctx as TvmContext) {
+                override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> =
+                    (myOverrides[expr].uncheckedCast()) ?: expr
+            }
+        val updatedExpr = transformer.apply(expr)
+        return super.eval(updatedExpr)
+    }
+
+    val myOverrides: MutableMap<TvmHashSymbol, Int257Expr> = mutableMapOf()
+
     override val mocker: TvmMockEvaluator
         get() =
             super.mocker as? TvmMockEvaluator

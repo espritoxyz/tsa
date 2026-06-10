@@ -209,7 +209,7 @@ class TsaCheckerFunctionsInterpreter(
             }
 
             ENABLE_ADDRESS_AS_HASH -> {
-                performEnableAddressAsHash(scope, stmt)
+                performEnableCheckerAsSenderAddressAsHash(scope, stmt)
             }
 
             SET_ADDRESS -> {
@@ -645,7 +645,7 @@ class TsaCheckerFunctionsInterpreter(
         }
     }
 
-    private fun performEnableAddressAsHash(
+    private fun performEnableCheckerAsSenderAddressAsHash(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
     ) {
