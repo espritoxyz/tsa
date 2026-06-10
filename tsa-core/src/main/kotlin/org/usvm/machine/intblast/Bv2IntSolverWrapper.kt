@@ -39,7 +39,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
             reassertExprsToBvSolver()
         }
 
-        val bvExpr = expr.accept(transformer)
+        val bvExpr = transformer.apply(expr)
         if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
             reassertExprsToIntSolver()
         }
@@ -81,7 +81,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
             reassertExprsToBvSolver()
         }
 
-        val bvExpr = expr.accept(transformer)
+        val bvExpr = transformer.apply(expr)
         if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
             reassertExprsToIntSolver()
         }
@@ -125,8 +125,8 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         encounterdBvExpr = true
         currentSolver.push()
 
-        val bvAssertions = assertions.map { it.accept(transformer) }
-        val trackedBvAssertions = trackedAssertions.map { it.accept(transformer) }
+        val bvAssertions = assertions.map { transformer.apply(it) }
+        val trackedBvAssertions = trackedAssertions.map { transformer.apply(it) }
 
         currentSolver.assert(bvAssertions)
         currentSolver.assertAndTrack(trackedBvAssertions)

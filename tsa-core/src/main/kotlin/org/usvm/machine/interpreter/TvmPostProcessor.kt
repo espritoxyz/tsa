@@ -6,6 +6,7 @@ import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.forkblacklists.UForkBlackList
@@ -16,7 +17,9 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.hash.TvmDefaultTransformer
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
+import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
@@ -144,6 +147,17 @@ class TvmPostProcessor(
             structuralConstraintsHolder.applyTo(scope)
                 ?: return null
 
+            // we assume that no assertions exists after postprocessing, so no models will be changed and thus
+            // it is safe to rewrite the current models
+            state.tvmModels.forEach {
+                val resolver = TvmTestStateResolver(ctx, it, state)
+                for ((ref, hash) in state.refToHash) {
+                    val value =
+                        resolver.resolveRef(ctx.mkConcreteHeapRef(ref))
+                    val hashValue = calculateConcreteHash(value)
+                    it.myOverrides[hash] = hashValue
+                }
+            }
             return state
         }
 
@@ -251,9 +265,39 @@ class TvmPostProcessor(
             val addressToHash = scope.calcOnState { refToHash }
 
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
+                val hashFinderGen = {
+                    object : TvmDefaultTransformer(ctx) {
+                        var foundHashSymbol = false
+
+                        override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
+                            if (expr == hash) {
+                                foundHashSymbol = true
+                            }
+                            return expr
+                        }
+                    }
+                }
+                var isHashInCs = false
+                for (cs in scope.calcOnState { pathConstraints }.constraintSequence()) {
+                    val transformer = hashFinderGen()
+                    transformer.apply(cs)
+                    if (transformer.foundHashSymbol) {
+                        isHashInCs = true
+                    }
+                }
+
                 val curConstraint =
-                    fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash.zeroExtendToSort(int257sort), resolver)
-                        ?: return null
+                    if (isHashInCs) {
+                        fixateValueAndHash(
+                            scope,
+                            mkConcreteHeapRef(ref),
+                            hash.zeroExtendToSort(int257sort),
+                            resolver,
+                        )
+                            ?: return null
+                    } else {
+                        ctx.trueExpr
+                    }
                 acc and curConstraint
             }
         }
