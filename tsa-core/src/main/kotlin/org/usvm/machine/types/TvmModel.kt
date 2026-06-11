@@ -8,7 +8,6 @@ import org.usvm.UIndexedMocker
 import org.usvm.UMockEvaluator
 import org.usvm.UMockSymbol
 import org.usvm.USort
-import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTrackedLiteral
@@ -39,7 +38,7 @@ class TvmModel(
         return super.eval(updatedExpr)
     }
 
-    val myOverrides: MutableMap<TvmHashSymbol, Int257Expr> = mutableMapOf()
+    val myOverrides: MutableMap<TvmHashSymbol, UExpr<UBvSort>> = mutableMapOf()
 
     override val mocker: TvmMockEvaluator
         get() =
