@@ -113,6 +113,7 @@ class TvmState(
             persistentSetOf(),
             persistentSetOf(),
         ),
+    var fixatedHashes: PersistentSet<TvmHashSymbol> = persistentSetOf(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -257,6 +258,7 @@ class TvmState(
             messageIdentifierMapping = messageIdentifierMapping,
             callstackCounter = callstackCounter,
             functionalDependencyAssertion = functionalDependencyAssertion.copy(),
+            fixatedHashes = fixatedHashes,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

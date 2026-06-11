@@ -42,6 +42,7 @@ import org.usvm.test.resolver.transformTestDictCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
 import java.security.MessageDigest
+import kotlin.collections.forEach
 import kotlin.random.Random
 
 class TvmPostProcessor(
@@ -76,15 +77,13 @@ class TvmPostProcessor(
                 if (newPathConstraints.isFalse) {
                     return null
                 }
+                val someCurrentModel = state.models.first()
                 val newModel =
                     if (newPathConstraints.tvmConstraintsSequence().all {
-                            state.models
-                                .first()
-                                .eval(it)
-                                .isTrue
+                            someCurrentModel.eval(it).isTrue
                         }
                     ) {
-                        state.models.first()
+                        someCurrentModel
                     } else {
                         val solverResult = solver<TvmType>().check(newPathConstraints)
                         (solverResult as? USatResult)?.model?.wrap(ctx)
@@ -158,7 +157,7 @@ class TvmPostProcessor(
                     val value =
                         resolver.resolveRef(ctx.mkConcreteHeapRef(ref))
                     val hashValue = calculateConcreteHash(value)
-                    it.myOverrides[hash] = hashValue
+                    it.myOverrides[hash] = with(ctx) { hashValue.toBv257() }
                 }
             }
             return state
@@ -395,37 +394,9 @@ class TvmPostProcessor(
                 fixateValue(scope, resolver, ref)
                     ?: return@with null
             val concreteHash = calculateConcreteHash(value)
-            val hashCond = hash eq concreteHash
+            val hashCond = hash eq concreteHash.toBv257()
             return fixateValueCond and hashCond
         }
-
-    private fun calculateConcreteHash(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =
-        when (value) {
-            is TvmTestDataCellValue -> {
-                val cell = transformTestDataCellIntoCell(value)
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestDictCellValue -> {
-                val cell = transformTestDictCellIntoCell(value)
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestBuilderValue -> {
-                val cell = transformTestDataCellIntoCell(value.toCell())
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestSliceValue -> {
-                val restCell = truncateSliceCell(value)
-                calculateConcreteHash(restCell)
-            }
-        }
-
-    private fun calculateHashOfCell(cell: Cell): UExpr<TvmInt257Sort> {
-        val hash = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
-        return ctx.mkBv(hash, ctx.int257sort)
-    }
 
     private fun fixateValueAndSha256(
         scope: TvmStepScopeManager,
@@ -604,3 +575,28 @@ class TvmPostProcessor(
         return 1 + cell.refs.maxOf { calculateCellDepth(it) }
     }
 }
+
+fun calculateConcreteHash(value: TvmTestReferenceValue): BigInteger =
+    when (value) {
+        is TvmTestDataCellValue -> {
+            val cell = transformTestDataCellIntoCell(value)
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestDictCellValue -> {
+            val cell = transformTestDictCellIntoCell(value)
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestBuilderValue -> {
+            val cell = transformTestDataCellIntoCell(value.toCell())
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestSliceValue -> {
+            val restCell = truncateSliceCell(value)
+            calculateConcreteHash(restCell)
+        }
+    }
+
+private fun calculateHashOfCell(cell: Cell): BigInteger = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())

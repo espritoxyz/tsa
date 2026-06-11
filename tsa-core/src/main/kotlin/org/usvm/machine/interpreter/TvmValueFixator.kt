@@ -2,6 +2,7 @@ package org.usvm.machine.interpreter
 
 import io.ksmt.sort.KBvSort
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -18,6 +19,8 @@ import org.usvm.machine.state.allocatedDictContainsKey
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
+import org.usvm.machine.state.hash.TvmDefaultTransformer
+import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.memory.readInModelFromTlbFields
@@ -122,6 +125,7 @@ class TvmValueFixator(
                     )
 
                 val modelReadResult = readInModelFromTlbFields(cellRef, resolver, tlbStack, symbolicDataLength)
+                fixateHashesIfPresentInExpr(scope, modelReadResult.guard)
                 val children =
                     modelReadResult.missedSlices.map { (ref, value) ->
                         fixateConcreteValue(scope, ref, value, compareRecursively = compareRecursively)
@@ -158,6 +162,36 @@ class TvmValueFixator(
 
             (ref eq modelRef) and cellGuard
         }
+
+    fun fixateHashesIfPresentInExpr(
+        scope: TvmStepScopeManager,
+        expr: UExpr<*>,
+    ) {
+        val foundHashes = mutableSetOf<TvmHashSymbol>()
+        val transformer =
+            object : TvmDefaultTransformer(ctx) {
+                override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
+                    foundHashes.add(expr)
+                    return expr
+                }
+            }
+        transformer.apply(expr)
+        for (foundHash in foundHashes) {
+            val state = scope.calcOnState { this }
+            if (foundHash !in state.fixatedHashes) {
+                state.fixatedHashes = state.fixatedHashes.add(foundHash)
+                fixateConcreteValue(
+                    scope,
+                    ctx.mkConcreteHeapRef(
+                        state.refToHash
+                            .toList()
+                            .single { it.second == foundHash }
+                            .first,
+                    ),
+                )
+            }
+        }
+    }
 
     private fun fixateConcreteValueForDataCell(
         scope: TvmStepScopeManager,
@@ -227,12 +261,15 @@ class TvmValueFixator(
                                         )
                                             ?: return@with null
                                     }
+
+                                fixateHashesIfPresentInExpr(scope, modelReadResult.guard)
                                 children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
                             } else {
                                 val symbolicData =
                                     scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
                                         ?: return@with null
 
+                                fixateHashesIfPresentInExpr(scope, symbolicData)
                                 val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
                                 (symbolicData eq concreteData)
                             }
