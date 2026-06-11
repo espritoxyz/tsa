@@ -157,7 +157,7 @@ class TvmPostProcessor(
                     val value =
                         resolver.resolveRef(ctx.mkConcreteHeapRef(ref))
                     val hashValue = calculateConcreteHash(value)
-                    it.myOverrides[hash] = with(ctx) { hashValue.toBv257() }
+                    it.myOverrides[hash] = with(ctx) { mkBv(hashValue, mkBvSort(256u)) }
                 }
             }
             return state
@@ -283,6 +283,13 @@ class TvmPostProcessor(
                 for (cs in scope.calcOnState { pathConstraints }.constraintSequence()) {
                     val transformer = hashFinderGen()
                     transformer.apply(cs)
+                    if (transformer.foundHashSymbol) {
+                        isHashInCs = true
+                    }
+                }
+                for (signSymbol in scope.calcOnState { signatureChecks }) {
+                    val transformer = hashFinderGen()
+                    transformer.apply(signSymbol.hash)
                     if (transformer.foundHashSymbol) {
                         isHashInCs = true
                     }
