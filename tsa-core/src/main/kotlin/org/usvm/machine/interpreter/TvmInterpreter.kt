@@ -5,6 +5,7 @@ import io.ksmt.expr.KInterpretedValue
 import io.ksmt.utils.BvUtils.bvMaxValueSigned
 import io.ksmt.utils.BvUtils.bvMinValueSigned
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
+import io.ksmt.utils.toBigInteger
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -274,7 +275,6 @@ import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTerminated
-import org.usvm.machine.state.TvmTime
 import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.TvmUsageOfBless
 import org.usvm.machine.state.addContinuation
@@ -315,7 +315,6 @@ import org.usvm.machine.state.doXchg
 import org.usvm.machine.state.doXchg2
 import org.usvm.machine.state.doXchg3
 import org.usvm.machine.state.generateSymbolicCell
-import org.usvm.machine.state.generateSymbolicTime
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getContractInfoParam
 import org.usvm.machine.state.getSliceRemainingBitsCount
@@ -450,7 +449,10 @@ class TvmInterpreter(
                 initialRandomSeed = concreteGeneralData.initialSeed,
             )
 
-        state.time = state.generateSymbolicTime(TvmTime())
+        state.time =
+            with(ctx) {
+                1781011670.toBv257()
+            } // state.generateSymbolicTime(TvmTime())
         pathConstraints +=
             with(ctx) {
                 mkAnd(
@@ -2183,34 +2185,38 @@ class TvmInterpreter(
                         val notOutOfRangeExpr = mkBvSignedGreaterOrEqualExpr(value, zeroValue)
                         checkOutOfRange(notOutOfRangeExpr, scope) ?: return
 
-                        val symbolicSizeBits = scope.calcOnState { makeSymbolicPrimitive(int257sort) }
-
                         val disjArgs =
-                            mutableListOf(
-                                mkAnd(unsignedIntegerFitsBits(value, 0u), symbolicSizeBits eq zeroValue),
+                            mutableMapOf(
+                                zeroValue to unsignedIntegerFitsBits(value, 0u),
                             )
                         var prevMaxValue: UExpr<TvmInt257Sort> = bvMaxValueUnsignedExtended(zeroValue)
                         for (sizeBits in 1 until TvmContext.INT_BITS.toInt()) {
                             val maxValue = bvMaxValueUnsignedExtended(sizeBits.toBv257())
                             val smallestCond = mkBvSignedGreaterExpr(value, prevMaxValue)
-                            val arg =
+
+                            disjArgs[sizeBits.toBv257()] =
                                 mkAnd(
                                     smallestCond,
                                     unsignedIntegerFitsBits(value, sizeBits.toUInt()),
-                                    symbolicSizeBits eq sizeBits.toBv257(),
                                 )
-
-                            disjArgs.add(arg)
 
                             prevMaxValue = maxValue
                         }
 
+                        val cond = mkOr(disjArgs.values.toList())
+
                         scope.assert(
-                            mkOr(disjArgs),
-                            unsatBlock = { error("Statement: $stmt; cannot assert disjunction: $disjArgs") },
+                            cond,
+                            unsatBlock = { error("Statement: $stmt; cannot assert disjunction: $cond") },
                         ) ?: return
 
-                        symbolicSizeBits
+                        disjArgs.remove(zeroValue)
+                        val expr =
+                            disjArgs.entries.fold(zeroValue as UExpr<TvmInt257Sort>) { acc, (key, guard) ->
+                                mkIte(guard, key, acc)
+                            }
+
+                        expr
                     }
                 }
 

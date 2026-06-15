@@ -20,6 +20,7 @@ import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestNullValue
+import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestTupleValue
 import java.math.BigInteger
 import kotlin.test.Test
@@ -296,8 +297,8 @@ class ArgsConstraintsTest {
      * concrete value by [initContractInfo]. Symbolic parameters (NOW, RAND_SEED,
      * BALANCE, MYADDR, GLOBAL_CONFIG, MYCODE) are checked via type/structure
      * constraints. INCOMINGVALUE is checked to be a (Int, Maybe Cell) tuple
-     * (Maybe Tuple in TVM terms), and PREVBLOCKSINFOTUPLE/UNPACKEDCONFIGTUPLE
-     * are currently always null.
+     * (Maybe Tuple in TVM terms), PREVBLOCKSINFOTUPLE is currently always null,
+     * and UNPACKEDCONFIGTUPLE is a tuple of slices over global config params.
      */
     private fun checkC7Invariants(test: TvmSymbolicTest) {
         val c7 = test.initialRootContractState.c7.elements
@@ -334,8 +335,15 @@ class ArgsConstraintsTest {
         )
         // c7[13] PREV_BLOCKS_INFO - currently not modeled, must be null.
         assertEquals(TvmTestNullValue, c7[C7Idx.PREV_BLOCKS])
-        // c7[14] UNPACKED_CONFIG_TUPLE - currently not modeled, must be null.
-        assertEquals(TvmTestNullValue, c7[C7Idx.UNPACKED_CONFIG])
+        // c7[14] UNPACKED_CONFIG_TUPLE - tuple of 7 slices over global config params
+        // (current storage prices, global id, gas/fwd prices, size limits); each element is a
+        // slice when the config param is present or null when it is absent.
+        val unpackedConfig = c7[C7Idx.UNPACKED_CONFIG] as TvmTestTupleValue
+        assertEquals(7, unpackedConfig.elements.size)
+        assertTrue(
+            unpackedConfig.elements.all { it is TvmTestSliceValue || it == TvmTestNullValue },
+            "unpacked config tuple elements must be slices or null: ${unpackedConfig.elements}",
+        )
         // c7[15] DUE_PAYMENT - symbolic in [0, MAX_DUE_PAYMENT).
         val duePayment = (c7[C7Idx.DUE_PAYMENT] as TvmTestIntegerValue).value
         assertTrue(duePayment.signum() >= 0, "due_payment must be non-negative: $duePayment")

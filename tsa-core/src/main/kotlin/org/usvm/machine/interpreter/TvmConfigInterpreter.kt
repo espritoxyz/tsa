@@ -213,8 +213,8 @@ class TvmConfigInterpreter(
                 UNPACKED_CONFIG_TUPLE_PARAMETER_IDX,
                 -> {
                     // INCOMINGVALUE (Maybe Tuple), PREVBLOCKSINFOTUPLE (Maybe Tuple),
-                    // UNPACKEDCONFIGTUPLE (Maybe Tuple). Currently the underlying values
-                    // are not modeled precisely, so push them on the stack as-is.
+                    // UNPACKEDCONFIGTUPLE (Maybe Tuple). These are stored in c7 as-is (the
+                    // unpacked config tuple is built in [makeUnpackedConfigTuple]), so just push them.
                     val value = getContractInfoParam(i)
                     stack.addStackEntry(value.toStackEntry())
                 }

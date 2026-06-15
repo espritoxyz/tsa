@@ -30,6 +30,7 @@ import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackEntry
 import org.usvm.machine.state.TvmStack.TvmStackIntValue
 import org.usvm.machine.state.TvmStack.TvmStackNullValue
+import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmStack.TvmStackValue
@@ -242,6 +243,39 @@ fun makeIncomingValueEntry(
         ),
     )
 
+/**
+ * Builds the unpacked config tuple for c7[14] (UNPACKEDCONFIGTUPLE).
+ *
+ * Mirrors TON's `get_unpacked_config_tuple`: a tuple of slices over global config params, with a
+ * null entry for any param that is absent. The first element is the current storage prices record
+ * (the latest entry of config param 18); the rest are slices over config params 19, 20, 21, 24, 25, 43.
+ * See https://github.com/ton-blockchain/ton/blob/master/crypto/block/mc-config.cpp
+ */
+fun TvmState.makeUnpackedConfigTuple(): TvmStackTupleValueConcreteNew {
+    fun sliceEntryOf(cell: TvmCell?): TvmStackValue =
+        if (cell == null) {
+            TvmStackNullValue
+        } else {
+            TvmStackSliceValue(allocSliceFromCell(cell))
+        }
+
+    val entries =
+        listOf(
+            sliceEntryOf(TvmConfigBoc.storagePricesEntryCell), // 18: storage_prices (current entry)
+            sliceEntryOf(TvmConfigBoc.entries[19]), // 19: global_id
+            sliceEntryOf(TvmConfigBoc.entries[20]), // 20: config_mc_gas_prices
+            sliceEntryOf(TvmConfigBoc.entries[21]), // 21: config_gas_prices
+            sliceEntryOf(TvmConfigBoc.entries[24]), // 24: config_mc_fwd_prices
+            sliceEntryOf(TvmConfigBoc.entries[25]), // 25: config_fwd_prices
+            sliceEntryOf(TvmConfigBoc.entries[43]), // 43: size_limits_config
+        )
+
+    return TvmStackTupleValueConcreteNew(
+        ctx,
+        entries.map { it.toStackEntry() }.toPersistentList(),
+    )
+}
+
 fun TvmState.initContractInfo(
     contractCode: TsaContractCode,
     concreteData: TvmConcreteContractData,
@@ -315,8 +349,8 @@ fun TvmState.initContractInfo(
         // prevBlocksInfoTuple is a Maybe Tuple. Currently not modeled precisely, so it is null.
         val prevBlocksInfo = TvmStackNullValue
 
-        // unpackedConfigTuple is a Maybe Tuple. Currently not modeled precisely, so it is null.
-        val unpackedConfigTuple = TvmStackNullValue
+        // unpackedConfigTuple is a Maybe Tuple of slices over global config params (see [makeUnpackedConfigTuple]).
+        val unpackedConfigTuple = makeUnpackedConfigTuple()
 
         // duePayment is symbolic and bounded by [MAX_DUE_PAYMENT]
         // (constraints are asserted below).

@@ -38,13 +38,22 @@ object TvmConfigBoc {
             .first()
     }
 
-    val storagePrices: StoragePrices by lazy {
+    // The current StoragePrices record is the value of the latest entry of the param 18 dict.
+    private val currentStoragePricesCell: Cell by lazy {
         val param18 = getConfigParamCell(18)
         val subCodec = HashMapE.tlbCodec(32, CellIdentityCodec)
         val subDict = Cell(BitString(true), param18)
         val subEntries = subCodec.loadTlb(subDict.beginParse())
-        val (_, lastEntry) = subEntries.last()
-        parseStoragePrices(lastEntry)
+        subEntries.last().second
+    }
+
+    val storagePrices: StoragePrices by lazy {
+        parseStoragePrices(currentStoragePricesCell)
+    }
+
+    // The current StoragePrices record cell, used as the first element of the unpacked config tuple (c7[14]).
+    val storagePricesEntryCell: InternalTvmCell by lazy {
+        currentStoragePricesCell.toTvmCell()
     }
 
     val masterchainGasPrices: GasPrices by lazy {

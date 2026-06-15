@@ -128,6 +128,9 @@ class TvmComponents(
     ) : KSolver<T> by internalSolver {
         override fun check(timeout: Duration): KSolverStatus =
             internalSolver.check(timeout).also { status ->
+                if (status == KSolverStatus.UNKNOWN) {
+                    println("here")
+                }
                 logger.debug("Forked with status: {}", status)
             }
 

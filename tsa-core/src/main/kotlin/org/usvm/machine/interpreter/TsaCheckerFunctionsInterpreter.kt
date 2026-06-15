@@ -738,7 +738,7 @@ class TsaCheckerFunctionsInterpreter(
             val newC7 =
                 oldC7.entries.mapIndexed { index, entry ->
                     if (index == ADDRESS_PARAMETER_IDX) {
-                        TvmStack.TvmConcreteStackEntry(TvmStack.TvmStackCellValue(cellValue = value))
+                        TvmConcreteStackEntry(TvmStackCellValue(cellValue = value))
                     } else {
                         entry
                     }
