@@ -12,3 +12,5 @@ buildSrc/.gradle
 
 *.libcache
 *.blkstate
+
+.explyt
