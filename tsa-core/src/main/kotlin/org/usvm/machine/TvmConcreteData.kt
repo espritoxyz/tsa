@@ -13,7 +13,13 @@ data class TvmConcreteGeneralData(
     // map key - additional input id
     val inputData: Map<Int, MessageConcreteData> = emptyMap(),
     val initialSeed: BigInteger = 0.toBigInteger(),
-)
+    // Concrete unix time of the starting transaction. null means the time is symbolic.
+    val startTransactionUnixTime: BigInteger? = null,
+) {
+    init {
+        checkUnixTime(startTransactionUnixTime)
+    }
+}
 
 data class MessageConcreteData(
     val opcodeInfo: OpcodeInfo? = null,
@@ -57,3 +63,12 @@ private fun checkAddressBits(addressBits: String?) {
 }
 
 private val addressBitsRegex = "10{10}[10]{256}".toRegex()
+
+private fun checkUnixTime(unixTime: BigInteger?) {
+    check(unixTime == null || unixTime in unixTimeRange) {
+        "Invalid start transaction unix time: $unixTime (must be in $unixTimeRange)"
+    }
+}
+
+private val unixTimeRange: ClosedRange<BigInteger> =
+    TvmContext.UNIX_TIME_MIN.toBigInteger()..TvmContext.UNIX_TIME_MAX.toBigInteger()

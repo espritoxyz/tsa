@@ -32,6 +32,11 @@ class ArgsConstraintsTest {
     private val senderAddressPath = "/args/sender_address.fc"
     private val opcodePath = "/args/opcode.fc"
     private val recvExternalPath = "/args/recv_external.fc"
+    private val nowPath = "/args/now.fc"
+
+    // Concrete unix time that makes the [nowPath] contract throw with exit code 1000.
+    // Must match the literal hardcoded in `now.fc` and stay within [TvmContext.UNIX_TIME_MIN]..[TvmContext.UNIX_TIME_MAX].
+    private val concreteNow = 1735689600L.toBigInteger()
 
     @Test
     fun testConsistentMessageValue() {
@@ -255,6 +260,47 @@ class ArgsConstraintsTest {
             result.testSuites.single(),
             listOf { test -> test.result !is TvmSuccessfulExecution },
         )
+    }
+
+    @Test
+    fun testNow() {
+        val path = getResourcePath<ArgsConstraintsTest>(nowPath)
+        val result = funcCompileAndAnalyzeAllMethods(path)
+
+        propertiesFound(
+            result.testSuites.single(),
+            listOf(
+                { test -> test.result is TvmSuccessfulExecution },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+            ),
+        )
+
+        TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
+    }
+
+    @Test
+    fun testConcreteNow() {
+        val path = getResourcePath<ArgsConstraintsTest>(nowPath)
+        val result =
+            funcCompileAndAnalyzeAllMethods(
+                path,
+                concreteGeneralData =
+                    TvmConcreteGeneralData(
+                        startTransactionUnixTime = concreteNow,
+                    ),
+            )
+
+        propertiesFound(
+            result.testSuites.single(),
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+        )
+
+        checkInvariants(
+            result.testSuites.single(),
+            listOf { test -> test.result !is TvmSuccessfulExecution },
+        )
+
+        TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
     }
 
     @Test

@@ -450,14 +450,19 @@ class TvmInterpreter(
                 initialRandomSeed = concreteGeneralData.initialSeed,
             )
 
-        state.time = state.generateSymbolicTime(TvmTime())
-        pathConstraints +=
-            with(ctx) {
-                mkAnd(
-                    mkBvSignedGreaterOrEqualExpr(state.time, unixTimeMinValue),
-                    mkBvSignedGreaterOrEqualExpr(unixTimeMaxValue, state.time),
-                )
-            }
+        val concreteTime = concreteGeneralData.startTransactionUnixTime
+        if (concreteTime != null) {
+            state.time = with(ctx) { concreteTime.toBv257() }
+        } else {
+            state.time = state.generateSymbolicTime(TvmTime())
+            pathConstraints +=
+                with(ctx) {
+                    mkAnd(
+                        mkBvSignedGreaterOrEqualExpr(state.time, unixTimeMinValue),
+                        mkBvSignedGreaterOrEqualExpr(unixTimeMaxValue, state.time),
+                    )
+                }
+        }
 
         state.contractIdToC4Register =
             contractsCode.indices

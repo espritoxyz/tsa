@@ -1,0 +1,7 @@
+#include "../imports/stdlib.fc";
+
+() recv_internal(cell full_msg, slice msg_body) impure {
+    int time = now();
+
+    throw_if(1000, time == 1735689600);
+}
