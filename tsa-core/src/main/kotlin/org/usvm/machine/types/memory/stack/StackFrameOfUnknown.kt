@@ -7,6 +7,7 @@ import org.ton.TlbStructure
 import org.ton.TlbStructureIdProvider
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
+import org.usvm.UExpr
 import org.usvm.api.readField
 import org.usvm.api.writeField
 import org.usvm.isTrue
@@ -28,6 +29,25 @@ data class StackFrameOfUnknown(
     override val leftTlbDepth: Int,
     val hasOffset: Boolean,
 ) : TlbStackFrame {
+    fun loadAndFixate(
+        state: TvmState,
+        cellRef: UConcreteHeapRef,
+    ): UExpr<TvmContext.TvmCellDataSort>? {
+        val inferenceManager = state.fieldManagers.cellDataFieldManager.inferenceManager
+        if (hasOffset) {
+            return null
+        }
+        inferenceManager.fixateRef(cellRef)
+
+        val field = UnknownBlockField(TlbStructure.Unknown.id, path)
+        val dataSymbolic =
+            with(state) {
+                memory.readField(cellRef, field, field.getSort(ctx))
+            }
+
+        return dataSymbolic
+    }
+
     override fun <ReadResult> step(
         scope: TvmStepScopeManager,
         loadData: LimitedLoadData<ReadResult>,

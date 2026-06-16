@@ -185,10 +185,13 @@ data class TvmTestDebugInfo(
 
 /**
  * @param data C4 before the beginning of an execution
+ * @param c7 resolved values of the C7 register's first element (per-index lookup
+ *           per the layout in https://docs.ton.org/tvm/registers#c7---environment-information-and-global-variables)
  */
 data class TvmContractState(
     val data: TvmTestCellValue,
     val balance: TvmTestIntegerValue,
+    val c7: TvmTestTupleValue,
 )
 
 @Serializable

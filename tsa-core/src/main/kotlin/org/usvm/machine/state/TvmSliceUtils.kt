@@ -56,6 +56,7 @@ import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.makeSliceRefLoad
 import org.usvm.machine.types.makeSliceTypeLoad
+import org.usvm.machine.types.memory.stack.StackFrameOfUnknown
 import org.usvm.machine.types.storeCellDataTlbLabelInBuilder
 import org.usvm.machine.types.storeCoinTlbLabelToBuilder
 import org.usvm.machine.types.storeIntTlbLabelToBuilder
@@ -292,14 +293,18 @@ fun TvmStepScopeManager.preloadDataBitsFromCellWithoutChecks(
     cell: UHeapRef,
     offset: UExpr<TvmSizeSort>,
     sizeBits: UExpr<TvmSizeSort>,
+    givenCellData: UExpr<TvmCellDataSort>? = null,
 ): UExpr<TvmCellDataSort>? {
     val cellDataFieldManager =
         calcOnState {
             fieldManagers.cellDataFieldManager
         }
     val cellData =
-        cellDataFieldManager.readCellData(this@preloadDataBitsFromCellWithoutChecks, cell)
-            ?: return null
+        givenCellData ?: let {
+            cellDataFieldManager.readCellData(this@preloadDataBitsFromCellWithoutChecks, cell)
+                ?: return null
+        }
+
     return calcOnStateCtx {
         val endOffset = mkSizeAddExpr(offset, sizeBits)
         val offsetDataPos = mkSizeSubExpr(maxDataLengthSizeExpr, endOffset)
@@ -349,6 +354,31 @@ fun TvmStepScopeManager.slicePreloadDataBitsWithoutChecks(
     return preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
 }
 
+private fun TvmState.tryLoadTlbTail(slice: UHeapRef): UExpr<TvmCellDataSort>? =
+    with(ctx) {
+        if (slice !is UConcreteHeapRef) {
+            return null
+        }
+        val stack =
+            dataCellInfoStorage.sliceMapper.getTlbStack(slice)
+                ?: return null
+
+        if (stack.frames.size != 1) {
+            return null
+        }
+
+        val lastFrame = stack.frames.single()
+        if (lastFrame !is StackFrameOfUnknown) {
+            return null
+        }
+
+        val cell =
+            memory.readField(slice, sliceCellField, addressSort) as? UConcreteHeapRef
+                ?: return null
+
+        return lastFrame.loadAndFixate(this@tryLoadTlbTail, cell)
+    }
+
 /**
  * @return bv 1023 with undefined high-order bits
  */
@@ -366,7 +396,16 @@ fun TvmStepScopeManager.slicePreloadDataBits(
         checkCellDataUnderflow(this@slicePreloadDataBits, cell, minSize = readingEnd, quietBlock = quietBlock)
             ?: return@calcOnStateCtx null
 
-        preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
+        val tlbData =
+            calcOnState {
+                tryLoadTlbTail(slice)
+            }
+
+        if (tlbData != null) {
+            preloadDataBitsFromCellWithoutChecks(cell, offset = zeroSizeExpr, sizeBits, givenCellData = tlbData)
+        } else {
+            preloadDataBitsFromCellWithoutChecks(cell, dataPosition, sizeBits)
+        }
     }
 
 fun TvmStepScopeManager.slicePreloadDataBits(
@@ -1062,7 +1101,6 @@ fun TvmStepScopeManager.builderStoreSlice(
 
         val dataPosition = calcOnState { fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice) }
 
-        // TODO: use TL-B values if possible
         val bitsToWriteLength = mkSizeSubExpr(cellDataLength, dataPosition)
         val cellData =
             slicePreloadDataBits(slice, bitsToWriteLength, quietBlock)

@@ -23,7 +23,7 @@ import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestStateResolver
 
 data class TlbStack(
-    private val frames: List<TlbStackFrame>,
+    val frames: List<TlbStackFrame>,
     private val deepestError: TvmStructuralError? = null,
 ) {
     val isEmpty: Boolean

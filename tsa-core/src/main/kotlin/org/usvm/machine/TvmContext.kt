@@ -5,6 +5,7 @@ import io.ksmt.KContext
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvAddExpr
 import io.ksmt.expr.KBvAndExpr
+import io.ksmt.expr.KBvArithShiftRightExpr
 import io.ksmt.expr.KBvConcatExpr
 import io.ksmt.expr.KBvLogicalShiftRightExpr
 import io.ksmt.expr.KBvOrExpr
@@ -107,9 +108,87 @@ class TvmContext(
         }
     }
 
+    /**
+     * If both [lhs] and [rhs] are ITEs sharing the same condition, push [op] into the branches:
+     * `op(ite(c, a, b), ite(c, p, q))` -> `ite(c, op(a, p), op(b, q))`.
+     *
+     * Operand sorts [L] and [R] may differ (e.g. bit-vector concatenation), as may the result
+     * sort [Res].
+     *
+     * Returns null otherwise. [op] is supplied once and reused for every branch, so it is
+     * impossible to apply a different operation to one of the branches by mistake.
+     */
+    private inline fun <L : KSort, R : KSort, Res : KSort> distributeOverMatchingIte(
+        lhs: KExpr<L>,
+        rhs: KExpr<R>,
+        op: (KExpr<L>, KExpr<R>) -> KExpr<Res>,
+    ): KExpr<Res>? {
+        if (lhs is KIteExpr && rhs is KIteExpr && lhs.condition == rhs.condition) {
+            return mkIte(lhs.condition, op(lhs.trueBranch, rhs.trueBranch), op(lhs.falseBranch, rhs.falseBranch))
+        }
+        return null
+    }
+
+    /**
+     * Push a binary [op] through ITE arguments (the standard ITE-distribution simplification):
+     *  - `op(ite(c, a, b), y)`            -> `ite(c, op(a, y), op(b, y))`
+     *  - `op(x, ite(c, a, b))`            -> `ite(c, op(x, a), op(x, b))`
+     *  - `op(ite(c, a, b), ite(c, p, q))` -> `ite(c, op(a, p), op(b, q))`
+     *
+     * Returns null when no distribution applies (neither argument is an ITE, or both are ITEs with
+     * different conditions), so the caller can fall through to other simplifications.
+     *
+     * [op] is supplied once and reused for every branch, so it is impossible to apply a different
+     * operation to one of the branches by mistake.
+     */
+    private inline fun <Sort : KSort, R : KSort> distributeOverIte(
+        lhs: KExpr<Sort>,
+        rhs: KExpr<Sort>,
+        op: (KExpr<Sort>, KExpr<Sort>) -> KExpr<R>,
+    ): KExpr<R>? {
+        if (lhs is KIteExpr && rhs !is KIteExpr) {
+            return mkIte(lhs.condition, op(lhs.trueBranch, rhs), op(lhs.falseBranch, rhs))
+        }
+        if (rhs is KIteExpr && lhs !is KIteExpr) {
+            return mkIte(rhs.condition, op(lhs, rhs.trueBranch), op(lhs, rhs.falseBranch))
+        }
+        return distributeOverMatchingIte(lhs, rhs, op)
+    }
+
+    /**
+     * Push a unary [op] through an ITE argument (the standard ITE-distribution simplification):
+     * `op(ite(c, t, f))` -> `ite(c, op(t), op(f))`.
+     *
+     * Returns null when [value] is not an ITE, so the caller can fall through to other
+     * simplifications. [op] is supplied once and reused for both branches, so it is impossible
+     * to apply a different operation to one of the branches by mistake.
+     */
+    private inline fun <T : KSort, R : KSort> distributeUnaryOverIte(
+        value: KExpr<T>,
+        op: (KExpr<T>) -> KExpr<R>,
+    ): KExpr<R>? {
+        if (value is KIteExpr) {
+            return mkIte(value.condition, op(value.trueBranch), op(value.falseBranch))
+        }
+        return null
+    }
+
     private val tvmSignedDivCache = mkAstInterner<TvmSignedDivision<*>>()
 
     fun <Sort : UBvSort> mkTvmSignedDiv(
+        lhs: UExpr<Sort>,
+        rhs: UExpr<Sort>,
+    ): UExpr<Sort> {
+        withSimplificationDepthGuard {
+            if (lhs is KInterpretedValue && rhs is KInterpretedValue) {
+                return TvmSignedDivision.transformToBv(lhs, rhs)
+            }
+            distributeOverIte(lhs, rhs, ::mkTvmSignedDiv)?.let { return it }
+        }
+        return mkTvmSignedDivNoSimplify(lhs, rhs)
+    }
+
+    fun <Sort : UBvSort> mkTvmSignedDivNoSimplify(
         lhs: UExpr<Sort>,
         rhs: UExpr<Sort>,
     ): TvmSignedDivision<Sort> =
@@ -133,20 +212,24 @@ class TvmContext(
         lhs: UExpr<Sort>,
         rhs: UExpr<Sort>,
     ): UExpr<Sort> {
-        if (rhs is KInterpretedValue && lhs !is KInterpretedValue) {
-            return mkTvmMul(rhs, lhs)
-        }
+        withSimplificationDepthGuard {
+            if (rhs is KInterpretedValue && lhs !is KInterpretedValue) {
+                return mkTvmMul(rhs, lhs)
+            }
 
-        if (lhs is KInterpretedValue && rhs is KInterpretedValue) {
-            return mkBvMulExpr(lhs, rhs)
-        }
+            if (lhs is KInterpretedValue && rhs is KInterpretedValue) {
+                return mkBvMulExpr(lhs, rhs)
+            }
 
-        if (lhs is KInterpretedValue && lhs.bigIntValue() == BigInteger.ONE) {
-            return rhs
-        }
+            if (lhs is KInterpretedValue && lhs.bigIntValue() == BigInteger.ONE) {
+                return rhs
+            }
 
-        if (lhs is KInterpretedValue && lhs.bigIntValue() == BigInteger.ZERO) {
-            return lhs
+            if (lhs is KInterpretedValue && lhs.bigIntValue() == BigInteger.ZERO) {
+                return lhs
+            }
+
+            distributeOverMatchingIte(lhs, rhs, ::mkTvmMul)?.let { return it }
         }
 
         return mkTvmMulNoSimplify(lhs, rhs)
@@ -155,6 +238,16 @@ class TvmContext(
     private val tvmSignedModCache = mkAstInterner<TvmSignedModulo<*>>()
 
     fun <Sort : UBvSort> mkTvmSignedMod(
+        lhs: UExpr<Sort>,
+        rhs: UExpr<Sort>,
+    ): UExpr<Sort> {
+        withSimplificationDepthGuard {
+            distributeOverIte(lhs, rhs, ::mkTvmSignedMod)?.let { return it }
+        }
+        return mkTvmSignedModNoSimplify(lhs, rhs)
+    }
+
+    fun <Sort : UBvSort> mkTvmSignedModNoSimplify(
         lhs: UExpr<Sort>,
         rhs: UExpr<Sort>,
     ): TvmSignedModulo<Sort> =
@@ -316,15 +409,33 @@ class TvmContext(
         arg0: KExpr<T>,
         arg1: KExpr<T>,
     ): KExpr<KBoolSort> {
-        if (arg0 is KInterpretedValue &&
-            arg0.bigIntValue() == BigInteger.ZERO &&
-            arg1 is KBvZeroExtensionExpr &&
-            arg1.extensionSize > 0
-        ) {
-            return trueExpr
+        withSimplificationDepthGuard {
+            if (arg0 is KInterpretedValue &&
+                arg0.bigIntValue() == BigInteger.ZERO &&
+                arg1 is KBvZeroExtensionExpr &&
+                arg1.extensionSize > 0
+            ) {
+                return trueExpr
+            }
+
+            distributeOverIte(arg0, arg1, ::mkBvSignedLessOrEqualExpr)?.let { return it }
         }
         return super.mkBvSignedLessOrEqualExpr(arg0, arg1)
     }
+
+    override fun <T : KBvSort> mkBvSignedLessExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<KBoolSort> =
+        mkAnd(
+            mkBvSignedLessOrEqualExpr(arg0, arg1),
+            (arg0 eq arg1).not(),
+        )
+
+    override fun <T : KBvSort> mkBvSignedGreaterExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<KBoolSort> = mkBvSignedLessExpr(arg1, arg0)
 
     override fun <T : KBvSort> mkBvSignedGreaterOrEqualExpr(
         arg0: KExpr<T>,
@@ -417,13 +528,7 @@ class TvmContext(
             }
         }
 
-        if (value is KIteExpr) {
-            return mkIte(
-                value.condition,
-                trueBranch = mkBvExtractExpr(high, low, value.trueBranch),
-                falseBranch = mkBvExtractExpr(high, low, value.falseBranch),
-            )
-        }
+        distributeUnaryOverIte(value) { mkBvExtractExpr(high, low, it) }?.let { return it }
 
         if (value is KBvConcatExpr && low.toUInt() >= value.arg1.sort.sizeBits) {
             val sub =
@@ -483,6 +588,11 @@ class TvmContext(
     ): KExpr<T> {
         if (shift is KBitVecValue) {
             val shiftBits = shift.bigIntValue()
+
+            check(shiftBits >= BigInteger.ZERO) {
+                "Negative shift"
+            }
+
             val argSizeBits = arg.sort.sizeBits.toInt()
 
             if (shiftBits >= argSizeBits.toBigInteger()) {
@@ -508,15 +618,44 @@ class TvmContext(
                 mkBv(0, concreteShiftBits.toUInt()),
             ).uncheckedCast()
         }
-        val transformedShift = shift.tryTransformToIteWithConcreteLeaves()
-        if (transformedShift is KIteExpr) {
+        if (shift is KIteExpr && arg !is KIteExpr) {
+            if (shift.trueBranch is KBitVecValue && shift.trueBranch.bigIntValue() < BigInteger.ZERO) {
+                return mkBvShiftLeftExpr(arg, shift.falseBranch)
+            }
+            if (shift.falseBranch is KBitVecValue && shift.falseBranch.bigIntValue() < BigInteger.ZERO) {
+                return mkBvShiftLeftExpr(arg, shift.trueBranch)
+            }
             return mkIte(
-                transformedShift.condition,
-                mkBvShiftLeftExpr(arg, transformedShift.trueBranch),
-                mkBvShiftLeftExpr(arg, transformedShift.falseBranch),
+                shift.condition,
+                mkBvShiftLeftExpr(arg, shift.trueBranch),
+                mkBvShiftLeftExpr(arg, shift.falseBranch),
             )
         }
         return super.mkBvShiftLeftExpr(arg, shift)
+    }
+
+    override fun <T : KBvSort> mkBvMulNoOverflowExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+        isSigned: Boolean,
+    ): KExpr<KBoolSort> {
+        withSimplificationDepthGuard {
+            distributeOverIte(arg0, arg1) { a, b -> mkBvMulNoOverflowExpr(a, b, isSigned) }?.let { return it }
+        }
+        return super.mkBvMulNoOverflowExpr(arg0, arg1, isSigned)
+    }
+
+    override fun <T : KBvSort> mkBvArithShiftRightExpr(
+        arg: KExpr<T>,
+        shift: KExpr<T>,
+    ): KExpr<T> {
+        withSimplificationDepthGuard {
+            if (arg is KBvArithShiftRightExpr && arg.shift is KInterpretedValue && shift is KInterpretedValue) {
+                return mkBvArithShiftRightExpr(arg.arg, mkBvAddExpr(arg.shift, shift))
+            }
+            distributeOverIte(arg, shift, ::mkBvArithShiftRightExpr)?.let { return it }
+        }
+        return super.mkBvArithShiftRightExpr(arg, shift)
     }
 
     override fun <T : KBvSort, S : KBvSort> mkBvConcatExpr(
@@ -524,12 +663,14 @@ class TvmContext(
         arg1: KExpr<S>,
     ): KExpr<KBvSort> {
         withSimplificationDepthGuard {
-            if (arg0 is KIteExpr && arg1 is KIteExpr && arg0.condition == arg1.condition) {
-                return mkIte(
-                    arg0.condition,
-                    trueBranch = mkBvConcatExpr(arg0.trueBranch, arg1.trueBranch),
-                    falseBranch = mkBvConcatExpr(arg0.falseBranch, arg1.falseBranch),
-                )
+            distributeOverMatchingIte(arg0, arg1, ::mkBvConcatExpr)?.let { return it }
+            // Unlike most ops, concat distributes a single ITE side only when the other side is a
+            // concrete value, to avoid duplicating an arbitrary symbolic operand into both branches.
+            if (arg0 is KBitVecValue) {
+                distributeUnaryOverIte(arg1) { mkBvConcatExpr(arg0, it) }?.let { return it }
+            }
+            if (arg1 is KBitVecValue) {
+                distributeUnaryOverIte(arg0) { mkBvConcatExpr(it, arg1) }?.let { return it }
             }
         }
         return super.mkBvConcatExpr(arg0, arg1)
@@ -790,6 +931,10 @@ class TvmContext(
             }
         }
 
+        if (lhs is KBvZeroExtensionExpr && rhs is KBvZeroExtensionExpr && lhs.extensionSize == rhs.extensionSize) {
+            return mkEq(lhs.value, rhs.value)
+        }
+
         return super.mkEq(lhs, rhs, order)
     }
 
@@ -833,67 +978,56 @@ class TvmContext(
         val transformedArg0 = arg0.tryTransformToIteWithConcreteLeaves()
         val transformedArg1 = arg1.tryTransformToIteWithConcreteLeaves()
 
-        if (transformedArg0 is KBitVecValue && transformedArg1 is KIteExpr) {
-            return mkIte(
-                transformedArg1.condition,
-                mkBvAddExpr(transformedArg0, transformedArg1.trueBranch),
-                mkBvAddExpr(transformedArg0, transformedArg1.falseBranch),
-            )
-        }
+        distributeOverIte(transformedArg0 ?: arg0, transformedArg1 ?: arg1, ::mkBvAddExpr)?.let { return it }
 
-        if (transformedArg1 is KBitVecValue && transformedArg0 is KIteExpr) {
-            return mkIte(
-                transformedArg0.condition,
-                mkBvAddExpr(transformedArg1, transformedArg0.trueBranch),
-                mkBvAddExpr(transformedArg1, transformedArg0.falseBranch),
-            )
-        }
-
-        if (transformedArg0 is KIteExpr && transformedArg1 == null) {
-            return mkIte(
-                transformedArg0.condition,
-                mkBvAddExpr(transformedArg0.trueBranch, arg1),
-                mkBvAddExpr(transformedArg0.falseBranch, arg1),
-            )
-        }
-        if (transformedArg1 is KIteExpr && transformedArg0 == null) {
-            return mkIte(
-                transformedArg1.condition,
-                mkBvAddExpr(arg0, transformedArg1.trueBranch),
-                mkBvAddExpr(arg0, transformedArg1.falseBranch),
-            )
-        }
-        if (transformedArg0 is KIteExpr &&
-            transformedArg1 is KIteExpr &&
-            transformedArg0.condition == transformedArg1.condition
-        ) {
-            return mkIte(
-                transformedArg0.condition,
-                mkBvAddExpr(transformedArg0.trueBranch, transformedArg1.trueBranch),
-                mkBvAddExpr(transformedArg0.falseBranch, transformedArg1.falseBranch),
-            )
-        }
         if (transformedArg0 != null && transformedArg1 != null) {
             return super.mkBvAddExpr(transformedArg0, transformedArg1)
         }
         return super.mkBvAddExpr(arg0, arg1)
     }
 
+    override fun <T : KBvSort> mkBvSignExtensionExpr(
+        extensionSize: Int,
+        value: KExpr<T>,
+    ): KExpr<KBvSort> {
+        withSimplificationDepthGuard {
+            distributeUnaryOverIte(value) { mkBvSignExtensionExpr(extensionSize, it) }?.let { return it }
+            if (value is KBvZeroExtensionExpr && value.extensionSize > 0) {
+                return mkBvZeroExtensionExpr(extensionSize + value.extensionSize, value.value)
+            }
+        }
+        return super.mkBvSignExtensionExpr(extensionSize, value)
+    }
+
+    override fun <T : KBvSort> mkBvMulExpr(
+        arg0: KExpr<T>,
+        arg1: KExpr<T>,
+    ): KExpr<T> {
+        withSimplificationDepthGuard {
+            if (arg0 is KBitVecValue && arg1 !is KBitVecValue) {
+                return mkBvMulExpr(arg1, arg0)
+            }
+            distributeOverIte(arg0, arg1, ::mkBvMulExpr)?.let { return it }
+        }
+        return super.mkBvMulExpr(arg0, arg1)
+    }
+
     override fun <T : KBvSort> mkBvNegationExpr(value: KExpr<T>): KExpr<T> {
         withSimplificationDepthGuard {
-            if (value is KIteExpr) {
-                return mkIte(
-                    value.condition,
-                    mkBvNegationExpr(value.trueBranch),
-                    mkBvNegationExpr(value.falseBranch),
-                )
-            }
+            distributeUnaryOverIte(value, ::mkBvNegationExpr)?.let { return it }
         }
         return super.mkBvNegationExpr(value)
     }
 
+    override fun <T : KBvSort> mkBvNotExpr(value: KExpr<T>): KExpr<T> {
+        withSimplificationDepthGuard {
+            distributeUnaryOverIte(value, ::mkBvNotExpr)?.let { return it }
+        }
+        return super.mkBvNotExpr(value)
+    }
+
     companion object {
-        private const val MAX_SIMPLIFICATION_DEPTH = 100
+        private const val MAX_SIMPLIFICATION_DEPTH = 500
 
         const val MAX_DATA_LENGTH: Int = 1023
         const val MAX_REFS_NUMBER: Int = 4
@@ -944,6 +1078,15 @@ class TvmContext(
         val MAX_MESSAGE_CURRENCY: BigInteger = BigInteger.TEN.pow(19)
 
         const val MAX_FWD_FEE = 1166940800
+
+        /** 1 TON in nanotons. */
+        const val NANOTONS_IN_TON: Long = 1_000_000_000
+
+        /** Upper bound (exclusive) for the symbolic storage phase fee in c7[12]: 10 TON. */
+        const val MAX_STORAGE_PHASE_FEES: Long = 10L * NANOTONS_IN_TON
+
+        /** Upper bound (exclusive) for the symbolic due payment in c7[15]: 0.1 TON. */
+        const val MAX_DUE_PAYMENT: Long = NANOTONS_IN_TON / 10
 
         const val BITS_FOR_BALANCE = 64u
         const val BITS_FOR_UNIX_TIME = 32u

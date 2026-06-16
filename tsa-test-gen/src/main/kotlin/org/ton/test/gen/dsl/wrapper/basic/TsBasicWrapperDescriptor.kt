@@ -63,15 +63,46 @@ class TsBasicWrapperDescriptor(
                 })
             }
 
-            async initializeContract(blockchain: Blockchain, balance: bigint) {
+            async initializeContract(
+                blockchain: Blockchain,
+                balance: bigint,
+                duePayment: bigint = 0n,
+                storageUsedCells: bigint = 0n,
+                storageUsedBits: bigint = 0n,
+                storageLastPaidDelta: number = 0,
+            ) {
                 const contr = await blockchain.getContract(this.address);
+                // When the test engineers a non-zero storage fee (via
+                // `storageUsedCells/Bits` and `storageLastPaidDelta`), we must
+                // ensure the contract has enough nanograms to actually pay it
+                // in the storage phase. Otherwise the account would be frozen
+                // and the compute phase would be skipped.
+                const effectiveBalance =
+                    storageUsedCells > 0n || storageUsedBits > 0n
+                        ? balance + 100_000_000_000n // + 100 TON cushion for storage fee
+                        : balance
                 contr.account = createShardAccount({
                     address: this.address,
                     code: this.init.code,
                     data: this.init.data,
-                    balance: balance,
+                    balance: effectiveBalance,
                     workchain: 0
                 })
+                if (duePayment > 0n || storageUsedCells > 0n || storageUsedBits > 0n || storageLastPaidDelta > 0) {
+                    const lastPaid = (blockchain.now ?? Math.floor(Date.now() / 1000)) - storageLastPaidDelta
+                    contr.account = {
+                        ...contr.account,
+                        account: {
+                            ...contr.account.account!,
+                            storageStats: {
+                                ...contr.account.account!.storageStats,
+                                used: { cells: storageUsedCells, bits: storageUsedBits },
+                                lastPaid: lastPaid,
+                                duePayment: duePayment > 0n ? duePayment : null,
+                            },
+                        },
+                    }
+                }
             }
 
             async get(provider: ContractProvider, name: string, args: TupleItem[]) {

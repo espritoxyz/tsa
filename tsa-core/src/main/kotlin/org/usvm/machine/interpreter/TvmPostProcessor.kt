@@ -70,6 +70,9 @@ class TvmPostProcessor(
                 hashEqualityTransformer.generateNewPathConstraints()
                     ?: return null
             if (newPathConstraints != state.pathConstraints) {
+                if (newPathConstraints.isFalse) {
+                    return null
+                }
                 val newModel =
                     if (newPathConstraints.tvmConstraintsSequence().all {
                             state.models
@@ -104,7 +107,7 @@ class TvmPostProcessor(
                 generatePublicKeyConstraints(scope, resolver)
             } ?: return null
 
-            // forward fees might depennd on the hashes, so we must fixate the hashes first
+            // forward fees might depend on the hashes, so we must fixate the hashes first
             assertConstraints(scope) { resolver ->
                 val hashConstraint =
                     generateHashConstraint(scope, resolver)

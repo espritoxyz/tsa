@@ -1,0 +1,40 @@
+#include "../imports/stdlib.fc";
+
+;;; Assembly bindings for every C7 register parameter.
+;;; See https://docs.ton.org/tvm/registers#c7---environment-information-and-global-variables
+
+int get_tag()             asm "0 GETPARAM";          ;; c7[0]
+int get_actions()         asm "1 GETPARAM";          ;; c7[1]
+int get_msgs_sent()       asm "2 GETPARAM";          ;; c7[2]
+cell get_my_code()        asm "MYCODE";              ;; c7[10]
+tuple get_incoming_val()  asm "INCOMINGVALUE";       ;; c7[11]
+int get_storage_fees()    asm "STORAGEFEES";         ;; c7[12]
+tuple get_prev_blocks()   asm "PREVBLOCKSINFOTUPLE"; ;; c7[13]
+tuple get_unpacked_cfg()  asm "UNPACKEDCONFIGTUPLE"; ;; c7[14]
+int get_due_payment()     asm "DUEPAYMENT";          ;; c7[15]
+
+int tuple_is_null(tuple t) asm "ISNULL";
+
+;;; Reads every C7 parameter so each one is part of the symbolic trace,
+;;; then throws a sentinel exit code so tests can identify successful runs.
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg) impure {
+    int _tag          = get_tag();
+    int _actions      = get_actions();
+    int _msgs_sent    = get_msgs_sent();
+    int _now          = now();
+    int _block_lt     = block_lt();
+    int _cur_lt       = cur_lt();
+    int _seed         = get_seed();
+    var [_b, _extra]  = get_balance();
+    slice _addr       = my_address();
+    cell _cfg_param_0 = config_param(0);
+    cell _code        = get_my_code();
+    tuple _inc        = get_incoming_val();
+    int _storage_fees = get_storage_fees();
+    tuple _prev       = get_prev_blocks();
+    tuple _unp        = get_unpacked_cfg();
+    int _due          = get_due_payment();
+
+    ;; Sentinel: the test driver pattern-matches on this exit code.
+    throw(200);
+}

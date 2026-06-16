@@ -7,8 +7,10 @@ import org.ton.bytecode.BLOCK_TIME_PARAMETER_IDX
 import org.ton.bytecode.CODE_PARAMETER_IDX
 import org.ton.bytecode.CONFIG_PARAMETER_IDX
 import org.ton.bytecode.DUE_PAYMENT_IDX
+import org.ton.bytecode.INBOUND_MESSAGE_VALUE_PARAMETER_IDX
 import org.ton.bytecode.IN_MSG_PARAMS_IDX
 import org.ton.bytecode.MSGS_SENT_PARAMETER_IDX
+import org.ton.bytecode.PREV_BLOCK_PARAMETER_IDX
 import org.ton.bytecode.SEED_PARAMETER_IDX
 import org.ton.bytecode.STORAGE_FEES_PARAMETER_IDX
 import org.ton.bytecode.TAG_PARAMETER_IDX
@@ -26,6 +28,7 @@ import org.ton.bytecode.TvmAppConfigGetstoragefeeInst
 import org.ton.bytecode.TvmAppConfigInmsgparamInst
 import org.ton.bytecode.TvmAppConfigInst
 import org.ton.bytecode.TvmInst
+import org.ton.bytecode.UNPACKED_CONFIG_TUPLE_PARAMETER_IDX
 import org.usvm.UBoolExpr
 import org.usvm.UExpr
 import org.usvm.machine.TvmContext
@@ -63,6 +66,7 @@ import org.usvm.machine.state.getIntContractInfoParam
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
+import org.usvm.machine.state.toStackEntry
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmNullType
@@ -202,6 +206,17 @@ class TvmConfigInterpreter(
                             ?: return@doWithStateCtx
 
                     stack.addInt(storageFee)
+                }
+
+                INBOUND_MESSAGE_VALUE_PARAMETER_IDX,
+                PREV_BLOCK_PARAMETER_IDX,
+                UNPACKED_CONFIG_TUPLE_PARAMETER_IDX,
+                -> {
+                    // INCOMINGVALUE (Maybe Tuple), PREVBLOCKSINFOTUPLE (Maybe Tuple),
+                    // UNPACKEDCONFIGTUPLE (Maybe Tuple). These are stored in c7 as-is (the
+                    // unpacked config tuple is built in [makeUnpackedConfigTuple]), so just push them.
+                    val value = getContractInfoParam(i)
+                    stack.addStackEntry(value.toStackEntry())
                 }
 
                 else -> {
