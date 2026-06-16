@@ -275,6 +275,7 @@ import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTerminated
+import org.usvm.machine.state.TvmTime
 import org.usvm.machine.state.TvmTrackedLiteral
 import org.usvm.machine.state.TvmUsageOfBless
 import org.usvm.machine.state.addContinuation
@@ -315,6 +316,7 @@ import org.usvm.machine.state.doXchg
 import org.usvm.machine.state.doXchg2
 import org.usvm.machine.state.doXchg3
 import org.usvm.machine.state.generateSymbolicCell
+import org.usvm.machine.state.generateSymbolicTime
 import org.usvm.machine.state.getBalance
 import org.usvm.machine.state.getContractInfoParam
 import org.usvm.machine.state.getSliceRemainingBitsCount
@@ -449,17 +451,19 @@ class TvmInterpreter(
                 initialRandomSeed = concreteGeneralData.initialSeed,
             )
 
-        state.time =
-            with(ctx) {
-                1781011670.toBv257()
-            } // state.generateSymbolicTime(TvmTime())
-        pathConstraints +=
-            with(ctx) {
-                mkAnd(
-                    mkBvSignedGreaterOrEqualExpr(state.time, unixTimeMinValue),
-                    mkBvSignedGreaterOrEqualExpr(unixTimeMaxValue, state.time),
-                )
-            }
+        val concreteTime = concreteGeneralData.startTransactionUnixTime
+        if (concreteTime != null) {
+            state.time = with(ctx) { concreteTime.toBv257() }
+        } else {
+            state.time = state.generateSymbolicTime(TvmTime())
+            pathConstraints +=
+                with(ctx) {
+                    mkAnd(
+                        mkBvSignedGreaterOrEqualExpr(state.time, unixTimeMinValue),
+                        mkBvSignedGreaterOrEqualExpr(unixTimeMaxValue, state.time),
+                    )
+                }
+        }
 
         state.contractIdToC4Register =
             contractsCode.indices

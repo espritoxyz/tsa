@@ -68,6 +68,12 @@ class ArgsConstraintsTest {
     /** The constant SmartContractInfo magic value from c7[0]. */
     private val smartContractInfoTag = BigInteger("076ef1ea", 16)
 
+    private val nowPath = "/args/now.fc"
+
+    // Concrete unix time that makes the [nowPath] contract throw with exit code 1000.
+    // Must match the literal hardcoded in `now.fc` and stay within [TvmContext.UNIX_TIME_MIN]..[TvmContext.UNIX_TIME_MAX].
+    private val concreteNow = 1735689600L.toBigInteger()
+
     @Test
     fun testConsistentMessageValue() {
         val path = getResourcePath<ArgsConstraintsTest>(consistentMsgValuePath)
@@ -499,6 +505,47 @@ class ArgsConstraintsTest {
         // Concrete sandbox execution: test generation patches
         // `account.storageStats.duePayment` per test case, so all three branches
         // are reachable in the real TVM as well.
+        TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
+    }
+
+    @Test
+    fun testNow() {
+        val path = getResourcePath<ArgsConstraintsTest>(nowPath)
+        val result = funcCompileAndAnalyzeAllMethods(path)
+
+        propertiesFound(
+            result.testSuites.single(),
+            listOf(
+                { test -> test.result is TvmSuccessfulExecution },
+                { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+            ),
+        )
+
+        TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
+    }
+
+    @Test
+    fun testConcreteNow() {
+        val path = getResourcePath<ArgsConstraintsTest>(nowPath)
+        val result =
+            funcCompileAndAnalyzeAllMethods(
+                path,
+                concreteGeneralData =
+                    TvmConcreteGeneralData(
+                        startTransactionUnixTime = concreteNow,
+                    ),
+            )
+
+        propertiesFound(
+            result.testSuites.single(),
+            listOf { test -> (test.result as? TvmTestFailure)?.exitCode == 1000 },
+        )
+
+        checkInvariants(
+            result.testSuites.single(),
+            listOf { test -> test.result !is TvmSuccessfulExecution },
+        )
+
         TvmTestExecutor.executeGeneratedTests(result, path, TsRenderer.ContractType.Func)
     }
 
