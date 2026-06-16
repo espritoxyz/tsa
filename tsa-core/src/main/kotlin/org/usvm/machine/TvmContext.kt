@@ -112,14 +112,17 @@ class TvmContext(
      * If both [lhs] and [rhs] are ITEs sharing the same condition, push [op] into the branches:
      * `op(ite(c, a, b), ite(c, p, q))` -> `ite(c, op(a, p), op(b, q))`.
      *
+     * Operand sorts [L] and [R] may differ (e.g. bit-vector concatenation), as may the result
+     * sort [Res].
+     *
      * Returns null otherwise. [op] is supplied once and reused for every branch, so it is
      * impossible to apply a different operation to one of the branches by mistake.
      */
-    private inline fun <Sort : UBvSort> distributeOverMatchingIte(
-        lhs: UExpr<Sort>,
-        rhs: UExpr<Sort>,
-        op: (UExpr<Sort>, UExpr<Sort>) -> UExpr<Sort>,
-    ): UExpr<Sort>? {
+    private inline fun <L : KSort, R : KSort, Res : KSort> distributeOverMatchingIte(
+        lhs: KExpr<L>,
+        rhs: KExpr<R>,
+        op: (KExpr<L>, KExpr<R>) -> KExpr<Res>,
+    ): KExpr<Res>? {
         if (lhs is KIteExpr && rhs is KIteExpr && lhs.condition == rhs.condition) {
             return mkIte(lhs.condition, op(lhs.trueBranch, rhs.trueBranch), op(lhs.falseBranch, rhs.falseBranch))
         }
@@ -138,11 +141,11 @@ class TvmContext(
      * [op] is supplied once and reused for every branch, so it is impossible to apply a different
      * operation to one of the branches by mistake.
      */
-    private inline fun <Sort : UBvSort> distributeOverIte(
-        lhs: UExpr<Sort>,
-        rhs: UExpr<Sort>,
-        op: (UExpr<Sort>, UExpr<Sort>) -> UExpr<Sort>,
-    ): UExpr<Sort>? {
+    private inline fun <Sort : KSort, R : KSort> distributeOverIte(
+        lhs: KExpr<Sort>,
+        rhs: KExpr<Sort>,
+        op: (KExpr<Sort>, KExpr<Sort>) -> KExpr<R>,
+    ): KExpr<R>? {
         if (lhs is KIteExpr && rhs !is KIteExpr) {
             return mkIte(lhs.condition, op(lhs.trueBranch, rhs), op(lhs.falseBranch, rhs))
         }
@@ -415,21 +418,7 @@ class TvmContext(
                 return trueExpr
             }
 
-            if (arg1 is KInterpretedValue && arg0 is KIteExpr) {
-                return mkIte(
-                    arg0.condition,
-                    mkBvSignedLessOrEqualExpr(arg0.trueBranch, arg1),
-                    mkBvSignedLessOrEqualExpr(arg0.falseBranch, arg1),
-                )
-            }
-
-            if (arg0 is KInterpretedValue && arg1 is KIteExpr) {
-                return mkIte(
-                    arg1.condition,
-                    mkBvSignedLessOrEqualExpr(arg0, arg1.trueBranch),
-                    mkBvSignedLessOrEqualExpr(arg0, arg1.falseBranch),
-                )
-            }
+            distributeOverIte(arg0, arg1, ::mkBvSignedLessOrEqualExpr)?.let { return it }
         }
         return super.mkBvSignedLessOrEqualExpr(arg0, arg1)
     }
@@ -651,13 +640,7 @@ class TvmContext(
         isSigned: Boolean,
     ): KExpr<KBoolSort> {
         withSimplificationDepthGuard {
-            if (arg0 is KIteExpr && arg1 is KIteExpr && arg0.condition == arg1.condition) {
-                return mkIte(
-                    arg0.condition,
-                    mkBvMulNoOverflowExpr(arg0.trueBranch, arg1.trueBranch, isSigned),
-                    mkBvMulNoOverflowExpr(arg0.falseBranch, arg1.falseBranch, isSigned),
-                )
-            }
+            distributeOverIte(arg0, arg1) { a, b -> mkBvMulNoOverflowExpr(a, b, isSigned) }?.let { return it }
         }
         return super.mkBvMulNoOverflowExpr(arg0, arg1, isSigned)
     }
@@ -667,23 +650,10 @@ class TvmContext(
         shift: KExpr<T>,
     ): KExpr<T> {
         withSimplificationDepthGuard {
-            if (shift is KIteExpr && arg !is KIteExpr) {
-                return mkIte(
-                    shift.condition,
-                    trueBranch = mkBvArithShiftRightExpr(arg, shift.trueBranch),
-                    falseBranch = mkBvArithShiftRightExpr(arg, shift.falseBranch),
-                )
-            }
             if (arg is KBvArithShiftRightExpr && arg.shift is KInterpretedValue && shift is KInterpretedValue) {
                 return mkBvArithShiftRightExpr(arg.arg, mkBvAddExpr(arg.shift, shift))
             }
-            if (arg is KIteExpr && shift !is KIteExpr) {
-                return mkIte(
-                    arg.condition,
-                    mkBvArithShiftRightExpr(arg.trueBranch, shift),
-                    mkBvArithShiftRightExpr(arg.falseBranch, shift),
-                )
-            }
+            distributeOverIte(arg, shift, ::mkBvArithShiftRightExpr)?.let { return it }
         }
         return super.mkBvArithShiftRightExpr(arg, shift)
     }
@@ -693,26 +663,14 @@ class TvmContext(
         arg1: KExpr<S>,
     ): KExpr<KBvSort> {
         withSimplificationDepthGuard {
-            if (arg0 is KIteExpr && arg1 is KIteExpr && arg0.condition == arg1.condition) {
-                return mkIte(
-                    arg0.condition,
-                    trueBranch = mkBvConcatExpr(arg0.trueBranch, arg1.trueBranch),
-                    falseBranch = mkBvConcatExpr(arg0.falseBranch, arg1.falseBranch),
-                )
+            distributeOverMatchingIte(arg0, arg1, ::mkBvConcatExpr)?.let { return it }
+            // Unlike most ops, concat distributes a single ITE side only when the other side is a
+            // concrete value, to avoid duplicating an arbitrary symbolic operand into both branches.
+            if (arg0 is KBitVecValue) {
+                distributeUnaryOverIte(arg1) { mkBvConcatExpr(arg0, it) }?.let { return it }
             }
-            if (arg0 is KBitVecValue && arg1 is KIteExpr) {
-                return mkIte(
-                    arg1.condition,
-                    mkBvConcatExpr(arg0, arg1.trueBranch),
-                    mkBvConcatExpr(arg0, arg1.falseBranch),
-                )
-            }
-            if (arg1 is KBitVecValue && arg0 is KIteExpr) {
-                return mkIte(
-                    arg0.condition,
-                    mkBvConcatExpr(arg0.trueBranch, arg1),
-                    mkBvConcatExpr(arg0.falseBranch, arg1),
-                )
+            if (arg1 is KBitVecValue) {
+                distributeUnaryOverIte(arg0) { mkBvConcatExpr(it, arg1) }?.let { return it }
             }
         }
         return super.mkBvConcatExpr(arg0, arg1)
@@ -1020,46 +978,8 @@ class TvmContext(
         val transformedArg0 = arg0.tryTransformToIteWithConcreteLeaves()
         val transformedArg1 = arg1.tryTransformToIteWithConcreteLeaves()
 
-        if (transformedArg0 is KBitVecValue && arg1 is KIteExpr) {
-            return mkIte(
-                arg1.condition,
-                mkBvAddExpr(transformedArg0, arg1.trueBranch),
-                mkBvAddExpr(transformedArg0, arg1.falseBranch),
-            )
-        }
+        distributeOverIte(transformedArg0 ?: arg0, transformedArg1 ?: arg1, ::mkBvAddExpr)?.let { return it }
 
-        if (transformedArg1 is KBitVecValue && arg0 is KIteExpr) {
-            return mkIte(
-                arg0.condition,
-                mkBvAddExpr(transformedArg1, arg0.trueBranch),
-                mkBvAddExpr(transformedArg1, arg0.falseBranch),
-            )
-        }
-
-        if (transformedArg0 is KIteExpr && transformedArg1 !is KIteExpr) {
-            return mkIte(
-                transformedArg0.condition,
-                mkBvAddExpr(transformedArg0.trueBranch, arg1),
-                mkBvAddExpr(transformedArg0.falseBranch, arg1),
-            )
-        }
-        if (transformedArg1 is KIteExpr && transformedArg0 !is KIteExpr) {
-            return mkIte(
-                transformedArg1.condition,
-                mkBvAddExpr(arg0, transformedArg1.trueBranch),
-                mkBvAddExpr(arg0, transformedArg1.falseBranch),
-            )
-        }
-        if (transformedArg0 is KIteExpr &&
-            transformedArg1 is KIteExpr &&
-            transformedArg0.condition == transformedArg1.condition
-        ) {
-            return mkIte(
-                transformedArg0.condition,
-                mkBvAddExpr(transformedArg0.trueBranch, transformedArg1.trueBranch),
-                mkBvAddExpr(transformedArg0.falseBranch, transformedArg1.falseBranch),
-            )
-        }
         if (transformedArg0 != null && transformedArg1 != null) {
             return super.mkBvAddExpr(transformedArg0, transformedArg1)
         }
@@ -1087,13 +1007,7 @@ class TvmContext(
             if (arg0 is KBitVecValue && arg1 !is KBitVecValue) {
                 return mkBvMulExpr(arg1, arg0)
             }
-            if (arg1 is KBitVecValue && arg0 is KIteExpr) {
-                return mkIte(
-                    arg0.condition,
-                    trueBranch = mkBvMulExpr(arg1, arg0.trueBranch),
-                    falseBranch = mkBvMulExpr(arg1, arg0.falseBranch),
-                )
-            }
+            distributeOverIte(arg0, arg1, ::mkBvMulExpr)?.let { return it }
         }
         return super.mkBvMulExpr(arg0, arg1)
     }
