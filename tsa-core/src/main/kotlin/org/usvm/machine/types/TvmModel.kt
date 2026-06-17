@@ -32,13 +32,13 @@ class TvmModel(
             // unchecked, because UExpr<Sort> is not covariant in Sort
             object : TvmDefaultTransformer(expr.ctx as TvmContext) {
                 override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> =
-                    (myOverrides[expr].uncheckedCast()) ?: expr
+                    (hashOverrides[expr].uncheckedCast()) ?: expr
             }
         val updatedExpr = transformer.apply(expr)
         return super.eval(updatedExpr)
     }
 
-    val myOverrides: MutableMap<TvmHashSymbol, UExpr<UBvSort>> = mutableMapOf()
+    val hashOverrides: MutableMap<TvmHashSymbol, UExpr<UBvSort>> = mutableMapOf()
 
     override val mocker: TvmMockEvaluator
         get() =

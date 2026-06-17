@@ -42,7 +42,11 @@ import org.usvm.test.resolver.transformTestDictCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
 import java.security.MessageDigest
+import kotlin.collections.component1
+import kotlin.collections.component2
 import kotlin.collections.forEach
+import kotlin.collections.iterator
+import kotlin.collections.set
 import kotlin.random.Random
 
 class TvmPostProcessor(
@@ -118,10 +122,10 @@ class TvmPostProcessor(
             } ?: return null
 
             assertConstraints(scope) { resolver ->
-                val hashConstraint =
+                val sha256Constraint =
                     generateSha256Constraints(scope, resolver)
                         ?: return@assertConstraints null
-                hashConstraint
+                sha256Constraint
             } ?: return null
 
             assertConstraints(scope) { resolver ->
@@ -149,25 +153,53 @@ class TvmPostProcessor(
             structuralConstraintsHolder.applyTo(scope)
                 ?: return null
 
-            // we assume that no assertions exists after postprocessing, so no models will be changed and thus
-            // it is safe to rewrite the current models
-            state.tvmModels.forEach {
-                val resolver = TvmTestStateResolver(ctx, it, state)
-                for ((ref, hash) in state.refToHash) {
-                    val value =
-                        resolver.resolveRef(ctx.mkConcreteHeapRef(ref))
-                    val hashValue = calculateConcreteHash(value)
-                    it.myOverrides[hash] = with(ctx) { mkBv(hashValue, mkBvSort(256u)) }
-                }
-            }
             return state
         }
 
-    private inline fun assertConstraints(
+    private fun assertConstraints(
         scope: TvmStepScopeManager,
         constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr?,
     ): Unit? {
-        val resolver = scope.calcOnState { TvmTestStateResolver(ctx, tvmModels.first(), this) }
+        val hashFinderGen = { hash: TvmHashSymbol ->
+            object : TvmDefaultTransformer(ctx) {
+                var foundHashSymbol = false
+
+                override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
+                    if (expr == hash) {
+                        foundHashSymbol = true
+                    }
+                    return expr
+                }
+            }
+        }
+        val state = scope.calcOnState { this }
+        state.tvmModels.forEach {
+            val resolver = TvmTestStateResolver(ctx, it, state)
+            it.hashOverrides.clear()
+            for ((ref, hash) in state.refToHash) {
+                val hashFinder = hashFinderGen(hash)
+                for (cs in state.pathConstraints.tvmConstraintsSequence()) {
+                    hashFinder.apply(cs)
+                }
+                /*
+                if hash h1 is in state.fixatedHashes, it is possible that both:
+                1. there is an assertion like `h1 == 0xsome_concrete hash;
+                2. there is no value for h1 in the model.
+                For instance, consider the following scenario:
+                - we have fixed the
+                 */
+                if (!hashFinder.foundHashSymbol || hash in state.fixatedHashes) {
+                    val value =
+                        resolver.resolveRef(ctx.mkConcreteHeapRef(ref))
+                    val hashValue = calculateConcreteHash(value)
+                    it.hashOverrides[hash] = with(ctx) { mkBv(hashValue, mkBvSort(256u)) }
+                }
+            }
+        }
+        val resolver =
+            scope.calcOnState {
+                TvmTestStateResolver(ctx, tvmModels.first(), this)
+            }
         val constraints =
             constraintsBuilder(resolver)
                 ?: return null
@@ -297,13 +329,16 @@ class TvmPostProcessor(
 
                 val curConstraint =
                     if (isHashInCs) {
-                        fixateValueAndHash(
-                            scope,
-                            mkConcreteHeapRef(ref),
-                            hash.zeroExtendToSort(int257sort),
-                            resolver,
-                        )
-                            ?: return null
+                        val result =
+                            fixateValueAndHash(
+                                scope,
+                                mkConcreteHeapRef(ref),
+                                hash.zeroExtendToSort(int257sort),
+                                resolver,
+                            )
+                                ?: return null
+                        scope.calcOnState { fixatedHashes = fixatedHashes.add(hash) }
+                        result
                     } else {
                         ctx.trueExpr
                     }

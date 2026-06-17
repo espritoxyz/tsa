@@ -125,7 +125,9 @@ class TvmValueFixator(
                     )
 
                 val modelReadResult = readInModelFromTlbFields(cellRef, resolver, tlbStack, symbolicDataLength)
-                fixateHashesIfPresentInExpr(scope, modelReadResult.guard)
+                val hashFixConstraint =
+                    fixateHashesIfPresentInExpr(scope, modelReadResult.guard)
+                        ?: return null
                 val children =
                     modelReadResult.missedSlices.map { (ref, value) ->
                         fixateConcreteValue(scope, ref, value, compareRecursively = compareRecursively)
@@ -148,7 +150,8 @@ class TvmValueFixator(
                         compareRecursively = compareRecursively,
                     ) ?: return null
 
-                return dataGuard and restGuard and (ref eq modelRef) and (resolver.eval(cellRef) eq cellRef)
+                return dataGuard and restGuard and (ref eq modelRef) and (resolver.eval(cellRef) eq cellRef) and
+                    hashFixConstraint
             }
 
             val cellGuard =
@@ -166,7 +169,7 @@ class TvmValueFixator(
     fun fixateHashesIfPresentInExpr(
         scope: TvmStepScopeManager,
         expr: UExpr<*>,
-    ) {
+    ): UBoolExpr? {
         val foundHashes = mutableSetOf<TvmHashSymbol>()
         val transformer =
             object : TvmDefaultTransformer(ctx) {
@@ -176,21 +179,25 @@ class TvmValueFixator(
                 }
             }
         transformer.apply(expr)
+        val result = mutableListOf<UBoolExpr>()
         for (foundHash in foundHashes) {
             val state = scope.calcOnState { this }
             if (foundHash !in state.fixatedHashes) {
                 state.fixatedHashes = state.fixatedHashes.add(foundHash)
-                fixateConcreteValue(
-                    scope,
-                    ctx.mkConcreteHeapRef(
-                        state.refToHash
-                            .toList()
-                            .single { it.second == foundHash }
-                            .first,
-                    ),
+                result.add(
+                    fixateConcreteValue(
+                        scope,
+                        ctx.mkConcreteHeapRef(
+                            state.refToHash
+                                .toList()
+                                .single { it.second == foundHash }
+                                .first,
+                        ),
+                    ) ?: return null,
                 )
             }
         }
+        return scope.ctx.mkAnd(result)
     }
 
     private fun fixateConcreteValueForDataCell(
@@ -262,16 +269,20 @@ class TvmValueFixator(
                                             ?: return@with null
                                     }
 
-                                fixateHashesIfPresentInExpr(scope, modelReadResult.guard)
-                                children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
+                                val hashFixConstraint =
+                                    fixateHashesIfPresentInExpr(scope, modelReadResult.guard)
+                                        ?: return@with null
+                                children.fold(hashFixConstraint and modelReadResult.guard) { acc, cond -> acc and cond }
                             } else {
                                 val symbolicData =
                                     scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
                                         ?: return@with null
 
-                                fixateHashesIfPresentInExpr(scope, symbolicData)
+                                val hashFixConstraint =
+                                    fixateHashesIfPresentInExpr(scope, symbolicData)
+                                        ?: return@with null
                                 val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
-                                (symbolicData eq concreteData)
+                                (symbolicData eq concreteData) and hashFixConstraint
                             }
                         }
 

@@ -871,7 +871,6 @@ fun TvmState.applySoftConstraints() {
 
         is UUnsatResult -> {
             if (!ctx.tctx().tvmOptions.quietMode) {
-                solver.checkWithSoftConstraints(pathConstraints, softConstraints)
                 error("Unexpected $solverResult for the state $this supposed to be sat")
             }
         }
