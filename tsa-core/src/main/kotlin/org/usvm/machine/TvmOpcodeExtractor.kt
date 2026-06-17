@@ -23,7 +23,7 @@ class TvmOpcodeExtractor(
     val opcodeLength: Int = 32,
 ) {
     private val random = Random(0)
-    private val randomOpcode = random.nextLong(0L, 4294967296L)
+    private val randomOpcode = random.nextLong(0L, 1L shl opcodeLength)
 
     fun extractOpcodes(
         code: TsaContractCode,
