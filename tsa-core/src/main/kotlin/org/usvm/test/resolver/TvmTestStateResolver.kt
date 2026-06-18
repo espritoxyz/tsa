@@ -24,6 +24,7 @@ import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.UMockSymbol
 import org.usvm.USort
 import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
@@ -35,8 +36,10 @@ import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.anyExpressionContainsHash
 import org.usvm.machine.intValue
 import org.usvm.machine.intblast.TvmBvTransformer
+import org.usvm.machine.interpreter.calculateConcreteHash
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
@@ -92,6 +95,10 @@ import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import org.usvm.solver.UExprTranslator
 import java.math.BigInteger
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
+import kotlin.collections.set
 
 class TvmTestStateResolver(
     private val ctx: TvmContext,
@@ -119,6 +126,19 @@ class TvmTestStateResolver(
         state.pathConstraints.constraints(constraintVisitor).toList().forEach {
             if (eval(it).isFalse) {
                 error("Resolving contradicting state!")
+            }
+        }
+        for ((ref, hash) in state.refToHash) {
+            val foundHashSymbol =
+                state.pathConstraints
+                    .tvmConstraintsSequence()
+                    .toList()
+                    .anyExpressionContainsHash(hash)
+            if (!foundHashSymbol) {
+                val value = resolveRef(ctx.mkConcreteHeapRef(ref))
+                val hashValue = calculateConcreteHash(value)
+                model.mocker.customValues[hash.fallbackMock as UMockSymbol<*>] =
+                    with(ctx) { mkBv(hashValue, mkBvSort(256u)) }
             }
         }
     }

@@ -6,7 +6,6 @@ import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
-import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.forkblacklists.UForkBlackList
@@ -14,12 +13,11 @@ import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.anyExpressionContainsHash
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.hash.TvmDefaultTransformer
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
-import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
@@ -42,11 +40,6 @@ import org.usvm.test.resolver.transformTestDictCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
 import java.security.MessageDigest
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.forEach
-import kotlin.collections.iterator
-import kotlin.collections.set
 import kotlin.random.Random
 
 class TvmPostProcessor(
@@ -160,42 +153,6 @@ class TvmPostProcessor(
         scope: TvmStepScopeManager,
         constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr?,
     ): Unit? {
-        val hashFinderGen = { hash: TvmHashSymbol ->
-            object : TvmDefaultTransformer(ctx) {
-                var foundHashSymbol = false
-
-                override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
-                    if (expr == hash) {
-                        foundHashSymbol = true
-                    }
-                    return expr
-                }
-            }
-        }
-        val state = scope.calcOnState { this }
-        state.tvmModels.forEach {
-            val resolver = TvmTestStateResolver(ctx, it, state)
-            it.hashOverrides.clear()
-            for ((ref, hash) in state.refToHash) {
-                val hashFinder = hashFinderGen(hash)
-                for (cs in state.pathConstraints.tvmConstraintsSequence()) {
-                    hashFinder.apply(cs)
-                }
-                /*
-                if hash h1 is in state.fixatedHashes, it is possible that both:
-                1. there is an assertion like `h1 == 0xsome_concrete hash;
-                2. there is no value for h1 in the model.
-                For instance, consider the following scenario:
-                - we have fixed the
-                 */
-                if (!hashFinder.foundHashSymbol || hash in state.fixatedHashes) {
-                    val value =
-                        resolver.resolveRef(ctx.mkConcreteHeapRef(ref))
-                    val hashValue = calculateConcreteHash(value)
-                    it.hashOverrides[hash] = with(ctx) { mkBv(hashValue, mkBvSort(256u)) }
-                }
-            }
-        }
         val resolver =
             scope.calcOnState {
                 TvmTestStateResolver(ctx, tvmModels.first(), this)
@@ -297,35 +254,12 @@ class TvmPostProcessor(
     ): UBoolExpr? =
         with(ctx) {
             val addressToHash = scope.calcOnState { refToHash }
-
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
-                val hashFinderGen = {
-                    object : TvmDefaultTransformer(ctx) {
-                        var foundHashSymbol = false
-
-                        override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
-                            if (expr == hash) {
-                                foundHashSymbol = true
-                            }
-                            return expr
-                        }
+                val isHashInCs =
+                    scope.calcOnState {
+                        pathConstraints.constraintSequence().toList().anyExpressionContainsHash(hash) ||
+                            signatureChecks.map { it.hash }.anyExpressionContainsHash(hash)
                     }
-                }
-                var isHashInCs = false
-                for (cs in scope.calcOnState { pathConstraints }.constraintSequence()) {
-                    val transformer = hashFinderGen()
-                    transformer.apply(cs)
-                    if (transformer.foundHashSymbol) {
-                        isHashInCs = true
-                    }
-                }
-                for (signSymbol in scope.calcOnState { signatureChecks }) {
-                    val transformer = hashFinderGen()
-                    transformer.apply(signSymbol.hash)
-                    if (transformer.foundHashSymbol) {
-                        isHashInCs = true
-                    }
-                }
 
                 val curConstraint =
                     if (isHashInCs) {

@@ -181,21 +181,22 @@ class TvmValueFixator(
         transformer.apply(expr)
         val result = mutableListOf<UBoolExpr>()
         for (foundHash in foundHashes) {
-            val state = scope.calcOnState { this }
-            if (foundHash !in state.fixatedHashes) {
-                state.fixatedHashes = state.fixatedHashes.add(foundHash)
-                result.add(
-                    fixateConcreteValue(
-                        scope,
-                        ctx.mkConcreteHeapRef(
-                            state.refToHash
-                                .toList()
-                                .single { it.second == foundHash }
-                                .first,
-                        ),
-                    ) ?: return null,
-                )
-            }
+            scope.calcOnState {
+                if (foundHash !in this.fixatedHashes) {
+                    this.fixatedHashes = this.fixatedHashes.add(foundHash)
+                    result.add(
+                        fixateConcreteValue(
+                            scope,
+                            ctx.mkConcreteHeapRef(
+                                this.refToHash
+                                    .toList()
+                                    .single { it.second == foundHash }
+                                    .first,
+                            ),
+                        ) ?: return@calcOnState null,
+                    )
+                }
+            } ?: return null
         }
         return scope.ctx.mkAnd(result)
     }

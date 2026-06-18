@@ -445,6 +445,11 @@ internal fun List<TvmSymbolicTest>.assertInvariantsHold(vararg properties: (TvmS
     checkInvariants(this, properties.toList())
 }
 
+internal fun List<TvmSymbolicTest>.assertInvariantHolds(property: (TvmSymbolicTest) -> Boolean) {
+    assertNotEmpty() // we never actually want to have no tests
+    checkInvariants(this, listOf(property))
+}
+
 fun doesNotEndWithExitCode(exitCode: Int) = { test: TvmSymbolicTest -> test.exitCode() != exitCode }
 
 fun hasExitCode(exitCode: Int) = { test: TvmSymbolicTest -> test.exitCode() == exitCode }
