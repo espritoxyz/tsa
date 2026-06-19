@@ -11,6 +11,7 @@ import org.usvm.UMachine
 import org.usvm.UMachineOptions
 import org.usvm.UPathSelector
 import org.usvm.machine.interpreter.TvmInterpreter
+import org.usvm.machine.ps.TvmOutOpcodePathSelector
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.statistics.StateHistoryGraph
@@ -210,45 +211,58 @@ class TvmMachine(
 
     private fun createPathSelector(state: TvmState): UPathSelector<TvmState> {
         val loopTracker = TvmLoopTracker()
-        return createPathSelector(
-            initialState = state,
-            options = options,
-            loopStatisticFactory = { loopTracker },
-            applicationGraph =
-                object : ApplicationGraph<TvmCodeBlock, TvmInst> {
-                    override fun callees(node: TvmInst): Sequence<TvmCodeBlock> {
-                        TODO("Not yet implemented")
-                    }
 
-                    override fun callers(method: TvmCodeBlock): Sequence<TvmInst> {
-                        TODO("Not yet implemented")
-                    }
+        val createBasePs = { initialState: TvmState ->
+            createPathSelector(
+                initialState = initialState,
+                options = options,
+                loopStatisticFactory = { loopTracker },
+                applicationGraph =
+                    object : ApplicationGraph<TvmCodeBlock, TvmInst> {
+                        override fun callees(node: TvmInst): Sequence<TvmCodeBlock> {
+                            TODO("Not yet implemented")
+                        }
 
-                    override fun entryPoints(method: TvmCodeBlock): Sequence<TvmInst> {
-                        TODO("Not yet implemented")
-                    }
+                        override fun callers(method: TvmCodeBlock): Sequence<TvmInst> {
+                            TODO("Not yet implemented")
+                        }
 
-                    override fun exitPoints(method: TvmCodeBlock): Sequence<TvmInst> {
-                        TODO("Not yet implemented")
-                    }
+                        override fun entryPoints(method: TvmCodeBlock): Sequence<TvmInst> {
+                            TODO("Not yet implemented")
+                        }
 
-                    override fun methodOf(node: TvmInst): TvmCodeBlock {
-                        TODO("Not yet implemented")
-                    }
+                        override fun exitPoints(method: TvmCodeBlock): Sequence<TvmInst> {
+                            TODO("Not yet implemented")
+                        }
 
-                    override fun predecessors(node: TvmInst): Sequence<TvmInst> {
-                        TODO("Not yet implemented")
-                    }
+                        override fun methodOf(node: TvmInst): TvmCodeBlock {
+                            TODO("Not yet implemented")
+                        }
 
-                    override fun statementsOf(method: TvmCodeBlock): Sequence<TvmInst> {
-                        TODO("Not yet implemented")
-                    }
+                        override fun predecessors(node: TvmInst): Sequence<TvmInst> {
+                            TODO("Not yet implemented")
+                        }
 
-                    override fun successors(node: TvmInst): Sequence<TvmInst> {
-                        TODO("Not yet implemented")
-                    }
-                },
-        )
+                        override fun statementsOf(method: TvmCodeBlock): Sequence<TvmInst> {
+                            TODO("Not yet implemented")
+                        }
+
+                        override fun successors(node: TvmInst): Sequence<TvmInst> {
+                            TODO("Not yet implemented")
+                        }
+                    },
+            )
+        }
+
+        val ps =
+            if (tvmOptions.groupStatesByOutMessages) {
+                TvmOutOpcodePathSelector(createBasePs).also {
+                    it.add(state)
+                }
+            } else {
+                createBasePs(state)
+            }
+        return ps
     }
 
     private fun isStateTerminated(state: TvmState): Boolean = state.isTerminated

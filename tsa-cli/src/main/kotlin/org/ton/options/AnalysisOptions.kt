@@ -93,4 +93,8 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
     val noIntBlasting by option("--no-int-blasting")
         .flag(default = false)
         .help("Use int-blasting optimization")
+
+    val groupStatesByOutMessages by option("--group-states-by-out-messages")
+        .flag(default = false)
+        .help("Use path selector that groups states by out messages")
 }

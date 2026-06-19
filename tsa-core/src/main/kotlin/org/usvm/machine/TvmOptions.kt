@@ -52,6 +52,7 @@ data class TvmOptions(
      * the locations specified in this trace. Useful for replaying a previously observed execution.
      */
     val followTrace: FollowTrace? = null,
+    val groupStatesByOutMessages: Boolean = false,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
