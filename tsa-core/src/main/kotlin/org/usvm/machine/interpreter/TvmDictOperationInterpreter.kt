@@ -5,6 +5,7 @@ import io.ksmt.expr.KExpr
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.asExpr
 import kotlinx.collections.immutable.persistentSetOf
+import mu.KLogging
 import org.ton.Endian
 import org.ton.bytecode.TvmDictDeleteDictdelInst
 import org.ton.bytecode.TvmDictDeleteDictdelgetInst
@@ -152,7 +153,6 @@ import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmContext.TvmCellDataSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
-import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.interpreter.inputdict.DictKeyKind
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.interpreter.inputdict.InputDictRootInformation
@@ -221,6 +221,10 @@ import org.usvm.utils.flattenReferenceIte
 class TvmDictOperationInterpreter(
     private val ctx: TvmContext,
 ) {
+    companion object {
+        private val logger = object : KLogging() {}.logger
+    }
+
     fun visitTvmDictInst(
         scope: TvmStepScopeManager,
         inst: TvmDictInst,

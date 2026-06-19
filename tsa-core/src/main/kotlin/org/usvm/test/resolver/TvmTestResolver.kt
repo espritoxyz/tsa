@@ -2,13 +2,13 @@ package org.usvm.test.resolver
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import mu.KLogging
 import org.ton.TlbResolvedBuiltinLabel
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
-import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
@@ -19,6 +19,8 @@ import org.usvm.machine.types.TvmStructuralExit
 import java.math.BigInteger
 
 data object TvmTestResolver {
+    private val logger = object : KLogging() {}.logger
+
     fun resolve(
         method: TvmMethod,
         state: TvmState,

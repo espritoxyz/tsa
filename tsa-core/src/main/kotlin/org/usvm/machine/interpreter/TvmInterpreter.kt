@@ -388,7 +388,7 @@ class TvmInterpreter(
     private val interestingExitCodes: Set<Int>,
 ) : UInterpreter<TvmState>() {
     companion object {
-        val logger = object : KLogging() {}.logger
+        private val logger = object : KLogging() {}.logger
     }
 
     private val exceptionsInterpreter = TvmExceptionsInterpreter(ctx)

@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import mu.KLogging
 import org.ton.bytecode.TvmAppCryptoChksignuInst
 import org.ton.bytecode.TvmAppCryptoHashbuInst
 import org.ton.bytecode.TvmAppCryptoHashcuInst
@@ -12,7 +13,6 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
-import org.usvm.machine.interpreter.TvmInterpreter.Companion.logger
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmSignatureCheckLiteral
 import org.usvm.machine.state.addInt
@@ -37,6 +37,10 @@ import org.usvm.machine.types.TvmSliceType
 class TvmCryptoInterpreter(
     private val ctx: TvmContext,
 ) {
+    companion object {
+        private val logger = object : KLogging() {}.logger
+    }
+
     fun visitCryptoStmt(
         scope: TvmStepScopeManager,
         stmt: TvmAppCryptoInst,
