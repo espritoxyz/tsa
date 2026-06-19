@@ -1,5 +1,7 @@
 package org.usvm.machine.state.hash
 
+import org.usvm.UBvSort
+import org.usvm.UExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intblast.TvmBvTransformer
@@ -12,8 +14,8 @@ open class HashCollector(
     TvmBvTransformer {
     val collectedHashes = hashSetOf<TvmHashSymbol>()
 
-    override fun transform(expr: TvmHashSymbol): TvmHashSymbol {
+    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
         collectedHashes.add(expr)
-        return expr
+        return super<TvmBvTransformer>.transform(expr)
     }
 }

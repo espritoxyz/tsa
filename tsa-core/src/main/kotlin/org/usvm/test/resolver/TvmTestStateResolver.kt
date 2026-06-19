@@ -133,7 +133,7 @@ class TvmTestStateResolver(
                 val value = resolveRef(ctx.mkConcreteHeapRef(ref))
                 val hashValue = calculateConcreteHash(value)
                 model.mocker.customValues[hash.fallbackMock as UMockSymbol<*>] =
-                    with(ctx) { mkBv(hashValue, mkBvSort(256u)) }
+                    with(ctx) { mkBv(hashValue, mkBvSort(hash.fallbackMock.sort.sizeBits)) }
             }
         }
     }
