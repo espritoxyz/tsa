@@ -2,7 +2,6 @@ package org.usvm.machine.interpreter
 
 import io.ksmt.sort.KBvSort
 import org.usvm.UBoolExpr
-import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
@@ -19,8 +18,7 @@ import org.usvm.machine.state.allocatedDictContainsKey
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
-import org.usvm.machine.state.hash.TvmDefaultTransformer
-import org.usvm.machine.state.hash.TvmHashSymbol
+import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.memory.readInModelFromTlbFields
@@ -170,15 +168,9 @@ class TvmValueFixator(
         scope: TvmStepScopeManager,
         expr: UExpr<*>,
     ): UBoolExpr? {
-        val foundHashes = mutableSetOf<TvmHashSymbol>()
-        val transformer =
-            object : TvmDefaultTransformer(ctx) {
-                override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
-                    foundHashes.add(expr)
-                    return expr
-                }
-            }
-        transformer.apply(expr)
+        val hashCollector = HashCollector(ctx)
+        hashCollector.apply(expr)
+        val foundHashes = hashCollector.collectedHashes
         val result = mutableListOf<UBoolExpr>()
         for (foundHash in foundHashes) {
             scope.calcOnState {

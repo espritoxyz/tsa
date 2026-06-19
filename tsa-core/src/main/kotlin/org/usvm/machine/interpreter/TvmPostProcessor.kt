@@ -13,10 +13,10 @@ import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.anyExpressionContainsHash
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
@@ -254,13 +254,10 @@ class TvmPostProcessor(
     ): UBoolExpr? =
         with(ctx) {
             val addressToHash = scope.calcOnState { refToHash }
+            val hashCollector = HashCollector(ctx)
+            scope.calcOnState { pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) } }
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
-                val isHashInCs =
-                    scope.calcOnState {
-                        pathConstraints.constraintSequence().toList().anyExpressionContainsHash(hash) ||
-                            signatureChecks.map { it.hash }.anyExpressionContainsHash(hash)
-                    }
-
+                val isHashInCs = hash in hashCollector.collectedHashes
                 val curConstraint =
                     if (isHashInCs) {
                         val result =

@@ -36,9 +36,7 @@ import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.anyExpressionContainsHash
 import org.usvm.machine.intValue
-import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.interpreter.calculateConcreteHash
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
@@ -58,6 +56,7 @@ import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.ensureSymbolicBuilderInitialized
 import org.usvm.machine.state.ensureSymbolicCellInitialized
 import org.usvm.machine.state.ensureSymbolicSliceInitialized
+import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
@@ -93,7 +92,6 @@ import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.memory.UMemory
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
-import org.usvm.solver.UExprTranslator
 import java.math.BigInteger
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -128,12 +126,9 @@ class TvmTestStateResolver(
                 error("Resolving contradicting state!")
             }
         }
+        val collectedHashes = constraintVisitor.collectedHashes
         for ((ref, hash) in state.refToHash) {
-            val foundHashSymbol =
-                state.pathConstraints
-                    .tvmConstraintsSequence()
-                    .toList()
-                    .anyExpressionContainsHash(hash)
+            val foundHashSymbol = hash in collectedHashes
             if (!foundHashSymbol) {
                 val value = resolveRef(ctx.mkConcreteHeapRef(ref))
                 val hashValue = calculateConcreteHash(value)
@@ -883,12 +878,11 @@ class TvmTestStateResolver(
 
 private class ConstraintsVisitor(
     ctx: TvmContext,
-) : UExprTranslator<TvmType, TvmSizeSort>(ctx),
-    TvmBvTransformer {
+) : HashCollector(ctx) {
     val refs = mutableSetOf<UConcreteHeapRef>()
 
     override fun transform(expr: UConcreteHeapRef): UHeapRef {
         refs.add(expr)
-        return super<UExprTranslator>.transform(expr)
+        return super.transform(expr)
     }
 }

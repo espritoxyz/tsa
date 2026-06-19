@@ -19,8 +19,6 @@ import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmContext.TvmInt257Sort
-import org.usvm.machine.state.hash.TvmDefaultTransformer
-import org.usvm.machine.state.hash.TvmHashSymbol
 import java.io.File
 import java.math.BigInteger
 import java.nio.file.Path
@@ -98,21 +96,3 @@ fun <T> ImmutableList<T>.splitHeadTail(): Pair<T, ImmutableList<T>>? =
 fun <T> List<T>.dropFirstWithoutChecks(): List<T> = subList(1, size)
 
 fun <T> List<T>.tailUnsafe(): List<T> = subList(1, size)
-
-fun Iterable<UExpr<*>>.anyExpressionContainsHash(hash: TvmHashSymbol): Boolean {
-    val transformer =
-        object : TvmDefaultTransformer(hash.tctx) {
-            var foundHashSymbol = false
-
-            override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
-                if (expr == hash) {
-                    foundHashSymbol = true
-                }
-                return expr
-            }
-        }
-    for (cs in this) {
-        transformer.apply(cs)
-    }
-    return transformer.foundHashSymbol
-}

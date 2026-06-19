@@ -229,6 +229,6 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         private val logger = object : KLogging() {}.logger
 
         private const val DEFAULT_SEED = 0
-        private val RETRY_SEEDS = intArrayOf(1, 42, 123)
+        private val RETRY_SEEDS = intArrayOf(1, 42, 123, 1337)
     }
 }
