@@ -2,6 +2,7 @@ package org.usvm.machine.ps
 
 import org.ton.bytecode.TvmInst
 import org.usvm.UPathSelector
+import org.usvm.machine.state.TvmPostProcessPhase
 import org.usvm.machine.state.TvmState
 import org.usvm.ps.DfsPathSelector
 import org.usvm.ps.RandomTreePathSelector
@@ -22,6 +23,9 @@ class TvmTreeShakerPathSelector(
             state: TvmState,
             stateReachable: Boolean,
         ) {
+            if (state.phase == TvmPostProcessPhase) {
+                return
+            }
             if (stateReachable) {
                 terminatedStateIds.add(state.id)
             } else {
