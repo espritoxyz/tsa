@@ -11,7 +11,7 @@ class TvmOutOpcodePathSelector(
     private val random: Random = Random(0)
 
     // invariant: path selectors here are not empty
-    private val innerPathSelectors = mutableMapOf<Set<Int>, UPathSelector<TvmState>>()
+    private val innerPathSelectors = linkedMapOf<Set<Int>, UPathSelector<TvmState>>()
 
     // set of message ids may change during step, so we need to store it
     private val stateKey = mutableMapOf<TvmState, Set<Int>>()

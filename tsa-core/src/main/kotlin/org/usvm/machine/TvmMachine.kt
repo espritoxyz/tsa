@@ -217,40 +217,7 @@ class TvmMachine(
                 initialState = initialState,
                 options = options,
                 loopStatisticFactory = { loopTracker },
-                applicationGraph =
-                    object : ApplicationGraph<TvmCodeBlock, TvmInst> {
-                        override fun callees(node: TvmInst): Sequence<TvmCodeBlock> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun callers(method: TvmCodeBlock): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun entryPoints(method: TvmCodeBlock): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun exitPoints(method: TvmCodeBlock): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun methodOf(node: TvmInst): TvmCodeBlock {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun predecessors(node: TvmInst): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun statementsOf(method: TvmCodeBlock): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-
-                        override fun successors(node: TvmInst): Sequence<TvmInst> {
-                            TODO("Not yet implemented")
-                        }
-                    },
+                applicationGraph = NotImplementedApplicationGraph,
             )
         }
 
@@ -332,5 +299,39 @@ class TvmMachine(
 
     override fun close() {
         components.close()
+    }
+
+    object NotImplementedApplicationGraph : ApplicationGraph<TvmCodeBlock, TvmInst> {
+        override fun callees(node: TvmInst): Sequence<TvmCodeBlock> {
+            TODO("Not yet implemented")
+        }
+
+        override fun callers(method: TvmCodeBlock): Sequence<TvmInst> {
+            TODO("Not yet implemented")
+        }
+
+        override fun entryPoints(method: TvmCodeBlock): Sequence<TvmInst> {
+            TODO("Not yet implemented")
+        }
+
+        override fun exitPoints(method: TvmCodeBlock): Sequence<TvmInst> {
+            TODO("Not yet implemented")
+        }
+
+        override fun methodOf(node: TvmInst): TvmCodeBlock {
+            TODO("Not yet implemented")
+        }
+
+        override fun predecessors(node: TvmInst): Sequence<TvmInst> {
+            TODO("Not yet implemented")
+        }
+
+        override fun statementsOf(method: TvmCodeBlock): Sequence<TvmInst> {
+            TODO("Not yet implemented")
+        }
+
+        override fun successors(node: TvmInst): Sequence<TvmInst> {
+            TODO("Not yet implemented")
+        }
     }
 }
