@@ -1,0 +1,18 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    var code = msg_body~load_uint(64);
+    var my_cell = begin_cell().store_uint(code, 64).end_cell();
+    var my_hash = my_cell.cell_hash();
+    tsa_fetch_value(my_hash, 0);
+    throw_unless(300, 1 < code);
+    throw_unless(300, code < 3);
+    throw(1000);
+}
+
+() main() impure {
+    tsa_send_internal_message(1, 0);
+}
+

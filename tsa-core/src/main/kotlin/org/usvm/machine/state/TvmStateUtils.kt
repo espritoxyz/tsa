@@ -32,6 +32,7 @@ import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.UMockSymbol
 import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.writeField
 import org.usvm.isAllocated
@@ -801,7 +802,7 @@ private fun TvmState.mockValueForRef(
         concreteRefs.drop(1).fold(first) { acc, (guard, curRef) ->
             mkIte(
                 guard,
-                trueBranch = mockHash(curRef),
+                trueBranch = mock(curRef),
                 falseBranch = acc,
             )
         }
@@ -834,12 +835,12 @@ fun TvmState.mockSha256(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
 
 private fun TvmState.mockNonNegativeInt(
     literal: TvmTrackedLiteral,
-    onInnerPart: (UExpr<UBvSort>) -> UExpr<UBvSort> = { it },
+    onInnerPart: (UMockSymbol<UBvSort>) -> UExpr<UBvSort> = { it },
 ): UExpr<TvmInt257Sort> =
     with(ctx) {
         val unsignedPart =
             onInnerPart(
-                makeSymbolicPrimitive(ctx.mkBvSort((INT_BITS.toInt() - 1).toUInt()), literal),
+                makeSymbolicPrimitive(ctx.mkBvSort((INT_BITS.toInt() - 1).toUInt()), literal) as UMockSymbol<UBvSort>,
             )
         return unsignedPart.zeroExtendToSort(int257sort)
     }
@@ -871,7 +872,6 @@ fun TvmState.applySoftConstraints() {
 
         is UUnsatResult -> {
             if (!ctx.tctx().tvmOptions.quietMode) {
-                solver.checkWithSoftConstraints(pathConstraints, softConstraints)
                 error("Unexpected $solverResult for the state $this supposed to be sat")
             }
         }

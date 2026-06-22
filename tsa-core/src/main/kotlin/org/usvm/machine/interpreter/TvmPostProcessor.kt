@@ -16,6 +16,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
@@ -73,15 +74,13 @@ class TvmPostProcessor(
                 if (newPathConstraints.isFalse) {
                     return null
                 }
+                val someCurrentModel = state.models.first()
                 val newModel =
                     if (newPathConstraints.tvmConstraintsSequence().all {
-                            state.models
-                                .first()
-                                .eval(it)
-                                .isTrue
+                            someCurrentModel.eval(it).isTrue
                         }
                     ) {
-                        state.models.first()
+                        someCurrentModel
                     } else {
                         val solverResult = solver<TvmType>().check(newPathConstraints)
                         (solverResult as? USatResult)?.model?.wrap(ctx)
@@ -116,10 +115,10 @@ class TvmPostProcessor(
             } ?: return null
 
             assertConstraints(scope) { resolver ->
-                val hashConstraint =
+                val sha256Constraint =
                     generateSha256Constraints(scope, resolver)
                         ?: return@assertConstraints null
-                hashConstraint
+                sha256Constraint
             } ?: return null
 
             assertConstraints(scope) { resolver ->
@@ -150,11 +149,14 @@ class TvmPostProcessor(
             return state
         }
 
-    private inline fun assertConstraints(
+    private fun assertConstraints(
         scope: TvmStepScopeManager,
         constraintsBuilder: (TvmTestStateResolver) -> UBoolExpr?,
     ): Unit? {
-        val resolver = scope.calcOnState { TvmTestStateResolver(ctx, tvmModels.first(), this) }
+        val resolver =
+            scope.calcOnState {
+                TvmTestStateResolver(ctx, tvmModels.first(), this)
+            }
         val constraints =
             constraintsBuilder(resolver)
                 ?: return null
@@ -252,11 +254,28 @@ class TvmPostProcessor(
     ): UBoolExpr? =
         with(ctx) {
             val addressToHash = scope.calcOnState { refToHash }
-
+            val hashCollector = HashCollector(ctx)
+            scope.calcOnState {
+                pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) }
+                signatureChecks.forEach { hashCollector.apply(it.hash) }
+            }
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
+                val isHashInCs = hash in hashCollector.collectedHashes
                 val curConstraint =
-                    fixateValueAndHash(scope, mkConcreteHeapRef(ref), hash.zeroExtendToSort(int257sort), resolver)
-                        ?: return null
+                    if (isHashInCs) {
+                        val result =
+                            fixateValueAndHash(
+                                scope,
+                                mkConcreteHeapRef(ref),
+                                hash.zeroExtendToSort(int257sort),
+                                resolver,
+                            )
+                                ?: return null
+                        scope.calcOnState { fixatedHashes = fixatedHashes.add(hash) }
+                        result
+                    } else {
+                        ctx.trueExpr
+                    }
                 acc and curConstraint
             }
         }
@@ -351,37 +370,9 @@ class TvmPostProcessor(
                 fixateValue(scope, resolver, ref)
                     ?: return@with null
             val concreteHash = calculateConcreteHash(value)
-            val hashCond = hash eq concreteHash
+            val hashCond = hash eq concreteHash.toBv257()
             return fixateValueCond and hashCond
         }
-
-    private fun calculateConcreteHash(value: TvmTestReferenceValue): UExpr<TvmInt257Sort> =
-        when (value) {
-            is TvmTestDataCellValue -> {
-                val cell = transformTestDataCellIntoCell(value)
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestDictCellValue -> {
-                val cell = transformTestDictCellIntoCell(value)
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestBuilderValue -> {
-                val cell = transformTestDataCellIntoCell(value.toCell())
-                calculateHashOfCell(cell)
-            }
-
-            is TvmTestSliceValue -> {
-                val restCell = truncateSliceCell(value)
-                calculateConcreteHash(restCell)
-            }
-        }
-
-    private fun calculateHashOfCell(cell: Cell): UExpr<TvmInt257Sort> {
-        val hash = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
-        return ctx.mkBv(hash, ctx.int257sort)
-    }
 
     private fun fixateValueAndSha256(
         scope: TvmStepScopeManager,
@@ -560,3 +551,28 @@ class TvmPostProcessor(
         return 1 + cell.refs.maxOf { calculateCellDepth(it) }
     }
 }
+
+fun calculateConcreteHash(value: TvmTestReferenceValue): BigInteger =
+    when (value) {
+        is TvmTestDataCellValue -> {
+            val cell = transformTestDataCellIntoCell(value)
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestDictCellValue -> {
+            val cell = transformTestDictCellIntoCell(value)
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestBuilderValue -> {
+            val cell = transformTestDataCellIntoCell(value.toCell())
+            calculateHashOfCell(cell)
+        }
+
+        is TvmTestSliceValue -> {
+            val restCell = truncateSliceCell(value)
+            calculateConcreteHash(restCell)
+        }
+    }
+
+private fun calculateHashOfCell(cell: Cell): BigInteger = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())

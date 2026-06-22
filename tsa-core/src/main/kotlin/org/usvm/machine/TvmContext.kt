@@ -48,6 +48,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UContext
 import org.usvm.UExpr
 import org.usvm.UIteExpr
+import org.usvm.UMockSymbol
 import org.usvm.isTrue
 import org.usvm.machine.intblast.TvmMultiplication
 import org.usvm.machine.intblast.TvmSignedDivision
@@ -260,7 +261,7 @@ class TvmContext(
 
     fun mkTvmHash(
         ref: UConcreteHeapRef,
-        fallbackMock: UExpr<UBvSort>,
+        fallbackMock: UMockSymbol<UBvSort>,
     ): TvmHashSymbol =
         tvmHashCache
             .createIfContextActive {

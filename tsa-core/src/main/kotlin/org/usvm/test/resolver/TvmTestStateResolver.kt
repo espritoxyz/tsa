@@ -24,6 +24,7 @@ import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.UMockSymbol
 import org.usvm.USort
 import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
@@ -36,7 +37,7 @@ import org.usvm.machine.TvmContext.Companion.dictKeyLengthField
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
-import org.usvm.machine.intblast.TvmBvTransformer
+import org.usvm.machine.interpreter.calculateConcreteHash
 import org.usvm.machine.interpreter.inputdict.InputDict
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DictId
@@ -55,6 +56,7 @@ import org.usvm.machine.state.dictKeyEntries
 import org.usvm.machine.state.ensureSymbolicBuilderInitialized
 import org.usvm.machine.state.ensureSymbolicCellInitialized
 import org.usvm.machine.state.ensureSymbolicSliceInitialized
+import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
@@ -90,8 +92,11 @@ import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.memory.UMemory
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
-import org.usvm.solver.UExprTranslator
 import java.math.BigInteger
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
+import kotlin.collections.set
 
 class TvmTestStateResolver(
     private val ctx: TvmContext,
@@ -119,6 +124,16 @@ class TvmTestStateResolver(
         state.pathConstraints.constraints(constraintVisitor).toList().forEach {
             if (eval(it).isFalse) {
                 error("Resolving contradicting state!")
+            }
+        }
+        val collectedHashes = constraintVisitor.collectedHashes
+        for ((ref, hash) in state.refToHash) {
+            val foundHashSymbol = hash in collectedHashes
+            if (!foundHashSymbol) {
+                val value = resolveRef(ctx.mkConcreteHeapRef(ref))
+                val hashValue = calculateConcreteHash(value)
+                model.mocker.customValues[hash.fallbackMock as UMockSymbol<*>] =
+                    with(ctx) { mkBv(hashValue, mkBvSort(hash.fallbackMock.sort.sizeBits)) }
             }
         }
     }
@@ -863,12 +878,11 @@ class TvmTestStateResolver(
 
 private class ConstraintsVisitor(
     ctx: TvmContext,
-) : UExprTranslator<TvmType, TvmSizeSort>(ctx),
-    TvmBvTransformer {
+) : HashCollector(ctx) {
     val refs = mutableSetOf<UConcreteHeapRef>()
 
     override fun transform(expr: UConcreteHeapRef): UHeapRef {
         refs.add(expr)
-        return super<UExprTranslator>.transform(expr)
+        return super.transform(expr)
     }
 }

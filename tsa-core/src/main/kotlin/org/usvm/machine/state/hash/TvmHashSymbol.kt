@@ -7,7 +7,7 @@ import io.ksmt.expr.printer.ExpressionPrinter
 import io.ksmt.expr.transformer.KTransformerBase
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
-import org.usvm.UExpr
+import org.usvm.UMockSymbol
 import org.usvm.USymbol
 import org.usvm.machine.TvmContext
 import org.usvm.machine.intblast.TvmTransformer
@@ -15,7 +15,7 @@ import org.usvm.machine.intblast.TvmTransformer
 class TvmHashSymbol(
     ctx: TvmContext,
     val ref: UConcreteHeapRef,
-    val fallbackMock: UExpr<UBvSort>,
+    val fallbackMock: UMockSymbol<UBvSort>,
 ) : USymbol<UBvSort>(ctx) {
     override val sort: UBvSort
         get() = fallbackMock.sort

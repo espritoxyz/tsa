@@ -18,6 +18,7 @@ import org.usvm.machine.state.allocatedDictContainsKey
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictKeyEntries
+import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.types.memory.readInModelFromTlbFields
@@ -122,6 +123,9 @@ class TvmValueFixator(
                     )
 
                 val modelReadResult = readInModelFromTlbFields(cellRef, resolver, tlbStack, symbolicDataLength)
+                val hashFixConstraint =
+                    fixateHashesIfPresentInExpr(scope, modelReadResult.guard)
+                        ?: return null
                 val children =
                     modelReadResult.missedSlices.map { (ref, value) ->
                         fixateConcreteValue(scope, ref, value, compareRecursively = compareRecursively)
@@ -144,7 +148,8 @@ class TvmValueFixator(
                         compareRecursively = compareRecursively,
                     ) ?: return null
 
-                return dataGuard and restGuard and (ref eq modelRef) and (resolver.eval(cellRef) eq cellRef)
+                return dataGuard and restGuard and (ref eq modelRef) and (resolver.eval(cellRef) eq cellRef) and
+                    hashFixConstraint
             }
 
             val cellGuard =
@@ -158,6 +163,35 @@ class TvmValueFixator(
 
             (ref eq modelRef) and cellGuard
         }
+
+    fun fixateHashesIfPresentInExpr(
+        scope: TvmStepScopeManager,
+        expr: UExpr<*>,
+    ): UBoolExpr? {
+        val hashCollector = HashCollector(ctx)
+        hashCollector.apply(expr)
+        val foundHashes = hashCollector.collectedHashes
+        val result = mutableListOf<UBoolExpr>()
+        for (foundHash in foundHashes) {
+            scope.calcOnState {
+                if (foundHash !in this.fixatedHashes) {
+                    this.fixatedHashes = this.fixatedHashes.add(foundHash)
+                    result.add(
+                        fixateConcreteValue(
+                            scope,
+                            ctx.mkConcreteHeapRef(
+                                this.refToHash
+                                    .toList()
+                                    .single { it.second == foundHash }
+                                    .first,
+                            ),
+                        ) ?: return@calcOnState null,
+                    )
+                }
+            } ?: return null
+        }
+        return scope.ctx.mkAnd(result)
+    }
 
     private fun fixateConcreteValueForDataCell(
         scope: TvmStepScopeManager,
@@ -227,14 +261,21 @@ class TvmValueFixator(
                                         )
                                             ?: return@with null
                                     }
-                                children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
+
+                                val hashFixConstraint =
+                                    fixateHashesIfPresentInExpr(scope, modelReadResult.guard)
+                                        ?: return@with null
+                                children.fold(hashFixConstraint and modelReadResult.guard) { acc, cond -> acc and cond }
                             } else {
                                 val symbolicData =
                                     scope.preloadDataBitsFromCellWithoutChecks(ref, dataOffset, value.data.length)
                                         ?: return@with null
 
+                                val hashFixConstraint =
+                                    fixateHashesIfPresentInExpr(scope, symbolicData)
+                                        ?: return@with null
                                 val concreteData = mkBv(BigInteger(value.data, 2), value.data.length.toUInt())
-                                (symbolicData eq concreteData)
+                                (symbolicData eq concreteData) and hashFixConstraint
                             }
                         }
 
