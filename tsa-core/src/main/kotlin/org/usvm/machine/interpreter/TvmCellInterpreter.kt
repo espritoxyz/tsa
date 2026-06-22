@@ -1181,12 +1181,25 @@ class TvmCellInterpreter(
             scope.calcOnState { takeLastSlice() }
                 ?: return scope.doWithState(throwTypeCheckError)
 
-        val ref = scope.slicePreloadRef(slice, refIdx) ?: return
+        scope.doWithConditions(
+            List(4) { idx ->
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {},
+                    caseIsExceptional = false,
+                    condition = refIdx eq mkSizeExpr(idx),
+                    paramForDoForAllBlock = idx,
+                )
+            },
+        ) { idx ->
+            val ref =
+                slicePreloadRef(slice, mkSizeExpr(idx))
+                    ?: return@doWithConditions
 
-        scope.doWithState {
-            scope.addOnStack(ref, TvmCellType)
+            doWithState {
+                addOnStack(ref, TvmCellType)
 
-            newStmt(stmt.nextStmt())
+                newStmt(stmt.nextStmt())
+            }
         }
     }
 
