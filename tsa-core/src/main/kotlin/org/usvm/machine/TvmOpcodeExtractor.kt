@@ -2,7 +2,6 @@ package org.usvm.machine
 
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
-import org.usvm.PathSelectionStrategy
 import org.usvm.UExpr
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.state.TvmState
@@ -13,7 +12,6 @@ import org.usvm.machine.state.killCurrentState
 import org.usvm.machine.state.sliceLoadIntTlb
 import java.math.BigInteger
 import kotlin.random.Random
-import kotlin.random.nextLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -37,7 +35,7 @@ class TvmOpcodeExtractor(
                         excludeExecutionsWithFailures = true,
                         quietMode = true,
                         turnOnTLBParsingChecks = false,
-                        pathSelectionStrategies = listOf(PathSelectionStrategy.BFS),
+                        pathSelectionStrategy = TvmPathSelectionStrategy.BFS,
                         timeout = timeout,
                         collectNonTerminatedState = true,
                     ),
