@@ -255,7 +255,10 @@ class TvmPostProcessor(
         with(ctx) {
             val addressToHash = scope.calcOnState { refToHash }
             val hashCollector = HashCollector(ctx)
-            scope.calcOnState { pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) } }
+            scope.calcOnState {
+                pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) }
+                signatureChecks.forEach { hashCollector.apply(it.hash) }
+            }
             addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
                 val isHashInCs = hash in hashCollector.collectedHashes
                 val curConstraint =

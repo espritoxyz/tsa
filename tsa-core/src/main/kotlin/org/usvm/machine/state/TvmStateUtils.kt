@@ -802,7 +802,7 @@ private fun TvmState.mockValueForRef(
         concreteRefs.drop(1).fold(first) { acc, (guard, curRef) ->
             mkIte(
                 guard,
-                trueBranch = mockHash(curRef),
+                trueBranch = mock(curRef),
                 falseBranch = acc,
             )
         }
