@@ -520,6 +520,10 @@ fun TvmState.storeIntTlbLabelToBuilder(
 
     if (sizeBits is KInterpretedValue) {
         val bitSizeConcrete = sizeBits.intValue()
+        if (bitSizeConcrete == 0) {
+            // nothing to store
+            return
+        }
         val valueShrinked = value.extractToSort(mkBvSort(bitSizeConcrete.toUInt()))
 
         val label = TlbIntegerLabelOfConcreteSize(bitSizeConcrete, isSigned = isSigned, endian = endian)

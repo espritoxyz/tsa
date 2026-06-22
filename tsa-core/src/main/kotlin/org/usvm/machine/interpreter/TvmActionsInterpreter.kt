@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import mu.KLogging
 import org.ton.bytecode.TvmAppActionsInst
 import org.ton.bytecode.TvmAppActionsRawreserveInst
 import org.ton.bytecode.TvmAppActionsSendmsgInst
@@ -215,13 +216,18 @@ class TvmActionsInterpreter(
                         callStackInst.physicalLocation
                     }
                 val timesCallStackWasSeen = callstackCounter[callstack] ?: 0
+                val id = C5ActionIdentifier.MsgIdentifier(callstack, timesCallStackWasSeen)
                 val updatedList =
                     registers.c5.identifierList?.add(
                         0,
-                        C5ActionIdentifier.MsgIdentifier(callstack, timesCallStackWasSeen),
+                        id,
                     )
                 callstackCounter = callstackCounter.put(callstack, timesCallStackWasSeen + 1)
                 registers.c5 = C5Register(TvmCellValue(updatedActions), updatedList)
+
+                logger.debug {
+                    "SENDRAWMSG with id ${id.hash()}"
+                }
 
                 newStmt(stmt.nextStmt())
             }
@@ -239,5 +245,9 @@ class TvmActionsInterpreter(
             // TODO make a real implementation
             newStmt(stmt.nextStmt())
         }
+    }
+
+    companion object {
+        private val logger = object : KLogging() {}.logger
     }
 }
