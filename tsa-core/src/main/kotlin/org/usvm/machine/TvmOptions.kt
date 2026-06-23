@@ -53,6 +53,11 @@ data class TvmOptions(
      */
     val followTrace: FollowTrace? = null,
     val groupStatesByOutMessages: Boolean = false,
+    /**
+     * The limit of how many models will be extracted for any expression catched by the `TvmState.fetchedValuesForModelEnum`
+     * varaible.
+     */
+    val enumeratingModelsCountLimit: Int = 5,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {

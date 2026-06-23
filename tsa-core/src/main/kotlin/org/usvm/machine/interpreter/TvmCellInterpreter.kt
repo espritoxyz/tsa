@@ -158,7 +158,7 @@ import org.usvm.machine.state.slicePreloadDataBits
 import org.usvm.machine.state.slicePreloadInt
 import org.usvm.machine.state.slicePreloadRef
 import org.usvm.machine.state.slicePreloadRefNoChecks
-import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.state.slicesDataBitsAreEqual
 import org.usvm.machine.state.takeLastBuilder
 import org.usvm.machine.state.takeLastCell
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
@@ -1734,7 +1734,7 @@ class TvmCellInterpreter(
                 }
 
             val condition =
-                slicesAreEqual(actualPrefix, prefixSlice)
+                slicesDataBitsAreEqual(actualPrefix, prefixSlice)
                     ?: return@loadSliceXImpl
 
             fork(

@@ -28,12 +28,15 @@ import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.ValuesForModelEnumerating
+import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
+import org.usvm.machine.state.generateSymbolicAddressCellAsHash
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
@@ -52,6 +55,7 @@ import org.usvm.machine.state.takeLastSliceOrThrowTypeError
 import org.usvm.machine.toMethodId
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmIntegerType
+import org.usvm.machine.types.asSliceRef
 import org.usvm.utils.intValueOrNull
 
 class TsaCheckerFunctionsInterpreter(
@@ -198,6 +202,14 @@ class TsaCheckerFunctionsInterpreter(
 
             ASSERT_SLICE_DETERMINES -> {
                 performAssertSliceDetermines(scope, stmt)
+            }
+
+            FETCH_VALUE_ENUMERATE_MODELS_METHOD_ID -> {
+                performFetchValueEnumerateModels(scope, stmt)
+            }
+
+            ENABLE_ADDRESS_AS_HASH -> {
+                performEnableCheckerAsSenderAddressAsHash(scope, stmt)
             }
 
             SET_ADDRESS -> {
@@ -357,6 +369,7 @@ class TsaCheckerFunctionsInterpreter(
                                     concreteData,
                                     nextContractId,
                                     stackOperations.body,
+                                    givenAddress = scope.calcOnState { givenAddressForNextCheckerSentMessage },
                                 )
                             }
 
@@ -622,12 +635,45 @@ class TsaCheckerFunctionsInterpreter(
             scope.takeLastIntOrThrowTypeError()
                 ?: return
         val cond =
-            scope.doWithCtx {
+            with(scope.ctx) {
                 if (invert) flag eq zeroValue else flag neq zeroValue
             }
         scope.assert(cond)
             ?: return
         scope.doWithState {
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performEnableCheckerAsSenderAddressAsHash(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        scope.doWithState {
+            val (address, code, data) = this.generateSymbolicAddressCellAsHash()
+            stack.addCell(code)
+            stack.addCell(data)
+            this.givenAddressForNextCheckerSentMessage = allocSliceFromCell(address.value).asSliceRef()
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performFetchValueEnumerateModels(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        scope.doWithState {
+            val valueId =
+                getConcreteIntFromStack(parameterName = "value_id", functionName = "tsa_fetch_value_enumerate_models")
+            val entry =
+                scope.takeLastSliceOrThrowTypeError()
+                    ?: return@doWithState
+            val currentValue = fetchedValuesForModelEnum
+            check(currentValue is ValuesForModelEnumerating.Processing)
+            check(!currentValue.map.containsKey(valueId)) {
+                "Value with id $valueId is already present: $currentValue[$valueId]"
+            }
+            fetchedValuesForModelEnum = currentValue.copy(map = currentValue.map.put(valueId, entry.asSliceRef()))
             newStmt(stmt.nextStmt())
         }
     }

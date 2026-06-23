@@ -24,7 +24,6 @@ import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
-import org.usvm.UMockSymbol
 import org.usvm.USort
 import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
@@ -48,6 +47,7 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmStack.TvmStackValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
+import org.usvm.machine.state.ValuesForModelEnumerating
 import org.usvm.machine.state.allocatedDictContainsKey
 import org.usvm.machine.state.calcConsumedGas
 import org.usvm.machine.state.calcPhaseConsumedGas
@@ -126,13 +126,18 @@ class TvmTestStateResolver(
                 error("Resolving contradicting state!")
             }
         }
+        /**
+         * All the implicit constraints were added during th postprocess phase.
+         * If after postprocess we do not see hashes in path constraints, that means that no expressions
+         * depends on the absent hashes whatsoever, so it is safe to not fix them.
+         */
         val collectedHashes = constraintVisitor.collectedHashes
         for ((ref, hash) in state.refToHash) {
             val foundHashSymbol = hash in collectedHashes
             if (!foundHashSymbol) {
                 val value = resolveRef(ctx.mkConcreteHeapRef(ref))
                 val hashValue = calculateConcreteHash(value)
-                model.mocker.customValues[hash.fallbackMock as UMockSymbol<*>] =
+                model.mocker.customValues[hash.fallbackMock] =
                     with(ctx) { mkBv(hashValue, mkBvSort(hash.fallbackMock.sort.sizeBits)) }
             }
         }
@@ -208,6 +213,9 @@ class TvmTestStateResolver(
 
             resolveStackValue(value)
         }
+
+    fun resolveFetchedEnumModelValues(): Map<Int, List<TvmTestSliceValue>> =
+        (state.fetchedValuesForModelEnum as ValuesForModelEnumerating.Enumerated).map
 
     fun resolveInitialData(): Map<ContractId, TvmTestCellValue> =
         state.contractIdToInitialData.entries.associate { (key, value) ->
@@ -552,7 +560,7 @@ class TvmTestStateResolver(
         return TvmTestBuilderValue(cell.data, cell.refs)
     }
 
-    private fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
+    fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
 
     fun resolveSlice(
         slice: UHeapRef,
