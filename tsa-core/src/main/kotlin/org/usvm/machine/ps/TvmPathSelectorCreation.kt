@@ -128,8 +128,8 @@ private fun createPathSelectorLevel0(
 
 private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmState> =
     if (ctx.options.groupStatesByOutMessages) {
-        TvmOutOpcodePathSelector {
-            createPathSelectorLevel2(ctx)
+        TvmOutOpcodePathSelector { state ->
+            createPathSelectorLevel2(ctx).also { it.add(listOf(state)) }
         }
     } else {
         createPathSelectorLevel2(ctx)
