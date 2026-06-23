@@ -22,7 +22,8 @@ import kotlin.time.Duration
 
 data class PSCreationContext(
     val options: TvmOptions,
-    val observer: TvmTreeShakerPathSelector.Observer,
+    val treeShakerObserver: TvmTreeShakerPathSelector.Observer,
+    val uncoveredInstObserver: TvmUncoveredInstPathSelector.Observer,
     val timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
 )
 
@@ -39,7 +40,7 @@ fun createPathSelector(
         val rawPathSelector =
             if (options.divideTimeBetweenOpcodes == null) {
                 val initialState = getInitialState(null)
-                createPathSelectorLevel1(initialState, this)
+                createPathSelectorLevel0(initialState, this)
             } else {
                 val keys =
                     options.divideTimeBetweenOpcodes.opcodes.map { ConcreteOpcode(it) } +
@@ -59,7 +60,7 @@ fun createPathSelector(
                     basePathSelectorFactory = {
                         val initialState = getInitialState(it)
 
-                        createPathSelectorLevel1(initialState, this)
+                        createPathSelectorLevel0(initialState, this)
                     },
                 )
             }
@@ -114,30 +115,31 @@ private fun wrapPathSelectorToChooseSpecificTrace(
     }
 }
 
-private fun createPathSelectorLevel1(
-    initialState: TvmState,
-    ctx: PSCreationContext,
-): UPathSelector<TvmState> =
-    if (ctx.options.groupStatesByOutMessages) {
-        TvmOutOpcodePathSelector {
-            createPathSelectorLevel2(it, ctx)
-        }.also {
-            it.add(initialState)
-        }
-    } else {
-        createPathSelectorLevel2(initialState, ctx)
-    }
-
-private fun createPathSelectorLevel2(
+private fun createPathSelectorLevel0(
     initialState: TvmState,
     ctx: PSCreationContext,
 ): UPathSelector<TvmState> {
+    val psWithUncoveredInsts = createPathSelectorLevel1(ctx)
+    val fallbackPs = createPathSelectorLevel1(ctx)
+    return TvmUncoveredInstPathSelector(psWithUncoveredInsts, fallbackPs, ctx.uncoveredInstObserver).also {
+        it.add(initialState)
+    }
+}
+
+private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmState> =
+    if (ctx.options.groupStatesByOutMessages) {
+        TvmOutOpcodePathSelector {
+            createPathSelectorLevel2(ctx)
+        }
+    } else {
+        createPathSelectorLevel2(ctx)
+    }
+
+private fun createPathSelectorLevel2(ctx: PSCreationContext): UPathSelector<TvmState> {
     val ps = createPathSelectorLevel3(ctx)
     val loopTracker = TvmLoopTracker()
     val loopIterationLimit = ctx.options.loopIterationLimit?.let { it - 1 }
-    return IterativeDeepeningPs(ps, loopTracker, loopIterationLimit).also {
-        it.add(listOf(initialState))
-    }
+    return IterativeDeepeningPs(ps, loopTracker, loopIterationLimit)
 }
 
 private fun createPathSelectorLevel3(ctx: PSCreationContext): UPathSelector<TvmState> =
@@ -146,6 +148,6 @@ private fun createPathSelectorLevel3(ctx: PSCreationContext): UPathSelector<TvmS
             BfsPathSelector()
         }
         TvmPathSelectionStrategy.DFS_BASED -> {
-            TvmTreeShakerPathSelector(rootPathNode = PathNode.root(), ctx.observer)
+            TvmTreeShakerPathSelector(rootPathNode = PathNode.root(), ctx.treeShakerObserver)
         }
     }

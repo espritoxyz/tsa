@@ -10,6 +10,7 @@ import org.usvm.UMachineOptions
 import org.usvm.machine.interpreter.TvmInterpreter
 import org.usvm.machine.ps.PSCreationContext
 import org.usvm.machine.ps.TvmTreeShakerPathSelector
+import org.usvm.machine.ps.TvmUncoveredInstPathSelector
 import org.usvm.machine.ps.createPathSelector
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
@@ -88,13 +89,12 @@ class TvmMachine(
 
         val timeStatistics = TimeStatistics<TvmCodeBlock, TvmState>()
 
-        val treeShakerObserver = TvmTreeShakerPathSelector.Observer()
-
         val psContext =
             PSCreationContext(
                 tvmOptions,
                 timeStatistics = timeStatistics,
-                observer = treeShakerObserver,
+                treeShakerObserver = TvmTreeShakerPathSelector.Observer(),
+                uncoveredInstObserver = TvmUncoveredInstPathSelector.Observer(),
             )
 
         val pathSelector =
@@ -167,7 +167,8 @@ class TvmMachine(
                 coverageStatistics,
                 timeStatistics,
                 additionalStopStrategy,
-                treeShakerObserver,
+                psContext.treeShakerObserver,
+                psContext.uncoveredInstObserver,
             )
 
         if (logger.isDebugEnabled && contractsCode.size == 1) {
