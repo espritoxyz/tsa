@@ -1,6 +1,7 @@
 package org.usvm.machine.ps
 
 import org.ton.bytecode.TvmInst
+import org.usvm.PathNode
 import org.usvm.UPathSelector
 import org.usvm.machine.state.TvmPostProcessPhase
 import org.usvm.machine.state.TvmState
@@ -10,7 +11,7 @@ import org.usvm.statistics.UMachineObserver
 import kotlin.random.Random
 
 class TvmTreeShakerPathSelector(
-    initialState: TvmState,
+    rootPathNode: PathNode<TvmInst>,
     private val observer: Observer,
     private val shakeAfterDeaths: Int = DEFAULT_SHAKE_AFTER_DEATHS,
 ) : UPathSelector<TvmState>,
@@ -38,7 +39,7 @@ class TvmTreeShakerPathSelector(
 
     private val randomTreePs =
         RandomTreePathSelector.fromRoot<TvmState, TvmInst>(
-            initialState.pathNode,
+            rootPathNode,
             randomNonNegativeInt = { random.nextInt(0, it) },
         )
 

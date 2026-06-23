@@ -2,6 +2,7 @@ package org.usvm.machine.ps
 
 import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmRealInst
+import org.usvm.PathNode
 import org.usvm.UPathSelector
 import org.usvm.machine.ConcreteOpcode
 import org.usvm.machine.ExcludedOpcodes
@@ -131,7 +132,7 @@ private fun createPathSelectorLevel2(
     initialState: TvmState,
     ctx: PSCreationContext,
 ): UPathSelector<TvmState> {
-    val ps = createPathSelectorLevel3(initialState, ctx)
+    val ps = createPathSelectorLevel3(ctx)
     val loopTracker = TvmLoopTracker()
     val loopIterationLimit = ctx.options.loopIterationLimit?.let { it - 1 }
     return IterativeDeepeningPs(ps, loopTracker, loopIterationLimit).also {
@@ -139,17 +140,12 @@ private fun createPathSelectorLevel2(
     }
 }
 
-private fun createPathSelectorLevel3(
-    initialState: TvmState,
-    ctx: PSCreationContext,
-): UPathSelector<TvmState> =
+private fun createPathSelectorLevel3(ctx: PSCreationContext): UPathSelector<TvmState> =
     when (ctx.options.pathSelectionStrategy) {
         TvmPathSelectionStrategy.BFS -> {
-            BfsPathSelector<TvmState>().also {
-                it.add(listOf(initialState))
-            }
+            BfsPathSelector()
         }
         TvmPathSelectionStrategy.DFS_BASED -> {
-            TvmTreeShakerPathSelector(initialState, ctx.observer)
+            TvmTreeShakerPathSelector(rootPathNode = PathNode.root(), ctx.observer)
         }
     }

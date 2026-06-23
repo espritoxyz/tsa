@@ -555,6 +555,9 @@ data class TvmCellDataBitArrayRead(
         if (sizeBits !is KInterpretedValue) {
             return
         }
+        check(sizeBits.intValue() != 0) {
+            "Unexpected empty read"
+        }
         writeToNextLabelFieldsForConcreteSize(state, ref, path, structureId, dataSuffix, sizeBits.intValue())
     }
 }
