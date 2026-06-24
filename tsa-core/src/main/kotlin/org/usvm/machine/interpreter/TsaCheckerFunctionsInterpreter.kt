@@ -204,6 +204,10 @@ class TsaCheckerFunctionsInterpreter(
                 performSetAddress(scope, stmt)
             }
 
+            FORK_WITHOUT_SOLVER -> {
+                performForkWithoutSolver(scope, stmt)
+            }
+
             else -> {
                 return Unit
             }
@@ -750,6 +754,35 @@ class TsaCheckerFunctionsInterpreter(
 
             newStmt(stmt.nextStmt())
         }
+    }
+
+    private fun performForkWithoutSolver(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) = with(scope.ctx) {
+        val toInclusive =
+            scope.calcOnState {
+                getConcreteIntFromStack(parameterName = "to_inclusive", functionName = "tsa_fork_without_solver")
+            }
+        val from =
+            scope.calcOnState {
+                getConcreteIntFromStack(parameterName = "from", functionName = "tsa_fork_without_solver")
+            }
+
+        val actions =
+            (from..toInclusive).map { value ->
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {
+                        stack.addInt(value.toBv257())
+                        newStmt(stmt.nextStmt())
+                    },
+                    caseIsExceptional = false,
+                    condition = trueExpr,
+                    paramForDoForAllBlock = Unit,
+                )
+            }
+
+        scope.doWithConditions(actions) {}
     }
 
     private fun performGetBalance(

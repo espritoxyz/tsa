@@ -1,0 +1,8 @@
+#include "../imports/stdlib.fc";
+#include "../imports/tsa_functions.fc";
+
+() main() impure {
+    tsa_allow_failures();
+    int value = tsa_fork_without_solver(3, 7);
+    throw(1000 + value);
+}
