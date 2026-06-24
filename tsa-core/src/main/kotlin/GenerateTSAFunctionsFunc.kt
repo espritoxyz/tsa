@@ -109,6 +109,16 @@ fun main() {
         () tsa_set_address(int contract_id, cell address) impure method_id(20) {
             ;; do nothing
         }
+        
+        
+        () tsa_fetch_enumerate_model_values(slice value, int value_id) impure method_id(18) {
+            ;; do nothing
+        }
+        
+        ;; returns (code, data) from the stateinit
+        (cell, cell) tsa_enable_sender_address_as_hash() impure method_id(19) {
+            return return_2();
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

@@ -1,0 +1,10 @@
+#include "../../imports/stdlib.fc";
+
+cell form_stateinit(cell code, cell data) {
+    return begin_cell()
+        .store_uint(0, 1 + 1) ;; Maybe + Maybe
+        .store_maybe_ref(code)
+        .store_maybe_ref(data)
+        .store_uint(0, 1) ;; empty libraries
+        .end_cell();
+}
