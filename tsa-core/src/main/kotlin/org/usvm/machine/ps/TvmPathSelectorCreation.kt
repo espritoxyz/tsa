@@ -15,17 +15,19 @@ import org.usvm.machine.TvmPathSelectionStrategy
 import org.usvm.machine.state.TvmState
 import org.usvm.ps.BfsPathSelector
 import org.usvm.ps.ConstantTimeFairPathSelector
+import org.usvm.ps.DfsPathSelector
 import org.usvm.ps.IterativeDeepeningPs
 import org.usvm.statistics.TimeStatistics
+import org.usvm.statistics.UMachineObserver
 import org.usvm.util.RealTimeStopwatch
 import kotlin.time.Duration
 
 data class PSCreationContext(
     val options: TvmOptions,
-    val treeShakerObserver: TvmTreeShakerPathSelector.Observer,
-    val uncoveredInstObserver: TvmUncoveredInstPathSelector.Observer,
     val timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
-)
+) {
+    var psObserver: UMachineObserver<TvmState>? = null
+}
 
 fun createPathSelector(
     ctx: PSCreationContext,
@@ -40,8 +42,12 @@ fun createPathSelector(
         val rawPathSelector =
             if (options.divideTimeBetweenOpcodes == null) {
                 val initialState = getInitialState(null)
-                createPathSelectorLevel0(initialState, this)
+                createPathSelectorLevel1(initialState, this)
             } else {
+                check(!options.addTimeoutIfNotSatiated) {
+                    "Cannot use this with path selection between opcodes"
+                }
+
                 val keys =
                     options.divideTimeBetweenOpcodes.opcodes.map { ConcreteOpcode(it) } +
                         ExcludedOpcodes(options.divideTimeBetweenOpcodes.opcodes) + NoOpcode
@@ -60,14 +66,18 @@ fun createPathSelector(
                     basePathSelectorFactory = {
                         val initialState = getInitialState(it)
 
-                        createPathSelectorLevel0(initialState, this)
+                        createPathSelectorLevel1(initialState, this)
                     },
                 )
             }
 
         val pathSelector =
-            options.followTrace?.let { wrapPathSelectorToChooseSpecificTrace(rawPathSelector, it) }
-                ?: rawPathSelector
+            options.followTrace?.let {
+                check(!options.addTimeoutIfNotSatiated) {
+                    "Cannot use when following trace"
+                }
+                wrapPathSelectorToChooseSpecificTrace(rawPathSelector, it)
+            } ?: rawPathSelector
 
         return pathSelector
     }
@@ -115,39 +125,47 @@ private fun wrapPathSelectorToChooseSpecificTrace(
     }
 }
 
-private fun createPathSelectorLevel0(
+private fun createPathSelectorLevel1(
     initialState: TvmState,
     ctx: PSCreationContext,
-): UPathSelector<TvmState> {
-    val psWithUncoveredInsts = createPathSelectorLevel1(ctx)
-    val fallbackPs = createPathSelectorLevel1(ctx)
-    return TvmUncoveredInstPathSelector(psWithUncoveredInsts, fallbackPs, ctx.uncoveredInstObserver).also {
-        it.add(initialState)
+): UPathSelector<TvmState> =
+    when (ctx.options.pathSelectionStrategy) {
+        TvmPathSelectionStrategy.DFS_BASED -> createShakingPathSelector(ctx)
+        TvmPathSelectionStrategy.BFS -> addIterativeDeepening(ctx.options, BfsPathSelector())
+    }.also {
+        it.add(listOf(initialState))
+    }
+
+private fun createShakingPathSelector(ctx: PSCreationContext): TvmShakerPathSelector {
+    val strategy =
+        if (ctx.options.addTimeoutIfNotSatiated) {
+            TvmCompositeShakingStrategy(
+                listOf(
+                    TvmUncoveredInstShakingStrategy(),
+                    TvmRandomTreeShakingStrategy(PathNode.root()),
+                ),
+            )
+        } else {
+            TvmRandomTreeShakingStrategy(PathNode.root())
+        }
+
+    ctx.psObserver = strategy.getObserver()
+
+    return TvmShakerPathSelector(
+        strategy,
+        ctx.timeStatistics,
+        currentTimeout = ctx.options.timeout,
+        timeStep = if (ctx.options.addTimeoutIfNotSatiated) ctx.options.timeout else null,
+    ) {
+        addIterativeDeepening(ctx.options, DfsPathSelector())
     }
 }
 
-private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmState> =
-    if (ctx.options.groupStatesByOutMessages) {
-        TvmOutOpcodePathSelector { state ->
-            createPathSelectorLevel2(ctx).also { it.add(listOf(state)) }
-        }
-    } else {
-        createPathSelectorLevel2(ctx)
-    }
-
-private fun createPathSelectorLevel2(ctx: PSCreationContext): UPathSelector<TvmState> {
-    val ps = createPathSelectorLevel3(ctx)
+private fun addIterativeDeepening(
+    options: TvmOptions,
+    ps: UPathSelector<TvmState>,
+): UPathSelector<TvmState> {
     val loopTracker = TvmLoopTracker()
-    val loopIterationLimit = ctx.options.loopIterationLimit?.let { it - 1 }
+    val loopIterationLimit = options.loopIterationLimit?.let { it - 1 }
     return IterativeDeepeningPs(ps, loopTracker, loopIterationLimit)
 }
-
-private fun createPathSelectorLevel3(ctx: PSCreationContext): UPathSelector<TvmState> =
-    when (ctx.options.pathSelectionStrategy) {
-        TvmPathSelectionStrategy.BFS -> {
-            BfsPathSelector()
-        }
-        TvmPathSelectionStrategy.DFS_BASED -> {
-            TvmTreeShakerPathSelector(rootPathNode = PathNode.root(), ctx.treeShakerObserver)
-        }
-    }

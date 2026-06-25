@@ -9,8 +9,7 @@ import org.usvm.UMachine
 import org.usvm.UMachineOptions
 import org.usvm.machine.interpreter.TvmInterpreter
 import org.usvm.machine.ps.PSCreationContext
-import org.usvm.machine.ps.TvmTreeShakerPathSelector
-import org.usvm.machine.ps.TvmUncoveredInstPathSelector
+import org.usvm.machine.ps.TvmShakerPathSelector
 import org.usvm.machine.ps.createPathSelector
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
@@ -93,8 +92,6 @@ class TvmMachine(
             PSCreationContext(
                 tvmOptions,
                 timeStatistics = timeStatistics,
-                treeShakerObserver = TvmTreeShakerPathSelector.Observer(),
-                uncoveredInstObserver = TvmUncoveredInstPathSelector.Observer(),
             )
 
         val pathSelector =
@@ -133,7 +130,16 @@ class TvmMachine(
             } else {
                 StopStrategy { false }
             }
-        val timeoutStopStrategy = TimeoutStopStrategy(options.timeout, timeStatistics)
+
+        val timeoutStopStrategy =
+            if (!tvmOptions.addTimeoutIfNotSatiated) {
+                TimeoutStopStrategy(options.timeout, timeStatistics)
+            } else {
+                check(pathSelector is TvmShakerPathSelector) {
+                    "Can add timeout only with [TvmShakerPathSelector]"
+                }
+                pathSelector
+            }
 
         val integrativeStopStrategy =
             GroupedStopStrategy(listOf(stopStrategy, additionalStopStrategy, timeoutStopStrategy))
@@ -167,9 +173,12 @@ class TvmMachine(
                 coverageStatistics,
                 timeStatistics,
                 additionalStopStrategy,
-                psContext.treeShakerObserver,
-                psContext.uncoveredInstObserver,
             )
+
+        val psObserver = psContext.psObserver
+        if (psObserver != null) {
+            observers.add(psObserver)
+        }
 
         if (logger.isDebugEnabled && contractsCode.size == 1) {
             val code = contractsCode.single()

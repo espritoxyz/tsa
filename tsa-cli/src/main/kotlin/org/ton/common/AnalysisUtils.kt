@@ -70,7 +70,6 @@ private fun createTvmOptions(
             useIntBlasting = !analysisOptions.noIntBlasting,
             solverTimeout = analysisOptions.solverTimeout.seconds,
             followTrace = analysisOptions.followTracePath?.toFile()?.let { FollowTrace.load(it) },
-            groupStatesByOutMessages = analysisOptions.groupStatesByOutMessages,
         )
 
     if (interContractSchemePath != null) {

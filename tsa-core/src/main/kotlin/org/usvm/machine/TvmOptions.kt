@@ -51,11 +51,17 @@ data class TvmOptions(
      * the locations specified in this trace. Useful for replaying a previously observed execution.
      */
     val followTrace: FollowTrace? = null,
-    val groupStatesByOutMessages: Boolean = false,
+    val addTimeoutIfNotSatiated: Boolean = false,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
             "Cannot perform inter-contract analysis without enabling out messages analysis"
+        }
+        check(!addTimeoutIfNotSatiated || timeout != Duration.INFINITE) {
+            "Cannot add timeout when not satiated if no timeout is given"
+        }
+        check(!addTimeoutIfNotSatiated || divideTimeBetweenOpcodes == null) {
+            "Cannot use strategy [addTimeoutIfNotSatiated] together with [divideTimeBetweenOpcodes]"
         }
     }
 }
