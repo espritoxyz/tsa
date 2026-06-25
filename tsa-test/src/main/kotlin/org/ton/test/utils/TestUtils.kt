@@ -419,6 +419,9 @@ internal fun propertiesFound(
     assertTrue(failedProperties.isEmpty(), "Properties $failedProperties were not found")
 }
 
+internal fun TvmSymbolicTestSuite.assertPropertiesFound(properties: List<(TvmSymbolicTest) -> Boolean>) =
+    assertPropertiesFound(*properties.toTypedArray())
+
 internal fun TvmSymbolicTestSuite.assertPropertiesFound(vararg properties: (TvmSymbolicTest) -> Boolean) =
     propertiesFound(this, properties.toList())
 
@@ -444,6 +447,9 @@ internal fun List<TvmSymbolicTest>.assertInvariantsHold(vararg properties: (TvmS
     assertNotEmpty() // we never actually want to have no tests
     checkInvariants(this, properties.toList())
 }
+
+internal fun List<TvmSymbolicTest>.assertInvariantsHold(properties: List<(TvmSymbolicTest) -> Boolean>) =
+    assertInvariantsHold(*(properties.toTypedArray()))
 
 internal fun List<TvmSymbolicTest>.assertInvariantHolds(property: (TvmSymbolicTest) -> Boolean) {
     assertNotEmpty() // we never actually want to have no tests
