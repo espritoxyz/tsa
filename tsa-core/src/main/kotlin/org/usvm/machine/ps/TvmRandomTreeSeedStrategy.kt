@@ -2,16 +2,17 @@ package org.usvm.machine.ps
 
 import org.ton.bytecode.TvmInst
 import org.usvm.PathNode
+import org.usvm.UPathSelector
 import org.usvm.machine.state.TvmPostProcessPhase
 import org.usvm.machine.state.TvmState
 import org.usvm.ps.RandomTreePathSelector
 import org.usvm.statistics.UMachineObserver
 import kotlin.random.Random
 
-class TvmRandomTreeShakingStrategy(
-    rootPathNode: PathNode<TvmInst>,
+class TvmRandomTreeSeedStrategy(
+    private val rootPathNode: PathNode<TvmInst>,
     private val shakeAfterDeaths: Int = DEFAULT_SHAKE_AFTER_DEATHS,
-) : TvmShakerPathSelector.ShakingStrategy {
+) : TvmSeedBasedPathSelector.SeedStrategy {
     private class Observer : UMachineObserver<TvmState> {
         val deadStatesIds = hashSetOf<UInt>()
         val terminatedStateIds = hashSetOf<UInt>()
@@ -40,8 +41,10 @@ class TvmRandomTreeShakingStrategy(
 
     private val random = Random(0)
 
-    private val randomTreePs =
-        RandomTreePathSelector.fromRoot<TvmState, TvmInst>(
+    private val randomTreePs = createPs()
+
+    private fun createPs(): UPathSelector<TvmState> =
+        RandomTreePathSelector.fromRoot(
             rootPathNode,
             randomNonNegativeInt = { random.nextInt(0, it) },
         )
@@ -53,15 +56,12 @@ class TvmRandomTreeShakingStrategy(
         deadStatesInRow = 0
     }
 
-    override fun shake(extendingTime: Boolean): TvmState {
+    override fun getNewSeed(extendingTime: Boolean): TvmState {
         check(!randomTreePs.isEmpty()) {
             "Cannot proceed if no states are left"
         }
 
-        val state = randomTreePs.peek()
-        randomTreePs.remove(state)
-
-        return state
+        return randomTreePs.peek()
     }
 
     override fun updateStats(lastPeekedState: TvmState) {

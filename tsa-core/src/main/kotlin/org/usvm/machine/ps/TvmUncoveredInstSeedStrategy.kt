@@ -6,7 +6,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.lastStmt
 import org.usvm.statistics.UMachineObserver
 
-class TvmUncoveredInstShakingStrategy : TvmShakerPathSelector.ShakingStrategy {
+class TvmUncoveredInstSeedStrategy : TvmSeedBasedPathSelector.SeedStrategy {
     private class Observer : UMachineObserver<TvmState> {
         val visitedInsts = hashSetOf<TvmPhysicalInstLocation>()
         val deadStateIds = mutableSetOf<UInt>()
@@ -53,7 +53,7 @@ class TvmUncoveredInstShakingStrategy : TvmShakerPathSelector.ShakingStrategy {
         states.forEach { addStateIfNewInst(it) }
     }
 
-    override fun shake(extendingTime: Boolean): TvmState {
+    override fun getNewSeed(extendingTime: Boolean): TvmState {
         updateStats()
         check(stmtToState.isNotEmpty()) {
             "No states left"

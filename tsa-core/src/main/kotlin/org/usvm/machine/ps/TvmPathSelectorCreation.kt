@@ -17,6 +17,7 @@ import org.usvm.ps.BfsPathSelector
 import org.usvm.ps.ConstantTimeFairPathSelector
 import org.usvm.ps.DfsPathSelector
 import org.usvm.ps.IterativeDeepeningPs
+import org.usvm.ps.LoopLimiterPs
 import org.usvm.statistics.TimeStatistics
 import org.usvm.statistics.UMachineObserver
 import org.usvm.util.RealTimeStopwatch
@@ -25,6 +26,7 @@ import kotlin.time.Duration
 data class PSCreationContext(
     val options: TvmOptions,
     val timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
+    val loopTracker: TvmLoopTracker,
 ) {
     var psObserver: UMachineObserver<TvmState>? = null
 }
@@ -42,7 +44,7 @@ fun createPathSelector(
         val rawPathSelector =
             if (options.divideTimeBetweenOpcodes == null) {
                 val initialState = getInitialState(null)
-                createPathSelectorLevel1(initialState, this)
+                createPathSelectorLevel0(initialState, this)
             } else {
                 check(!options.addTimeoutIfNotSatiated) {
                     "Cannot use this with path selection between opcodes"
@@ -66,7 +68,7 @@ fun createPathSelector(
                     basePathSelectorFactory = {
                         val initialState = getInitialState(it)
 
-                        createPathSelectorLevel1(initialState, this)
+                        createPathSelectorLevel0(initialState, this)
                     },
                 )
             }
@@ -125,47 +127,57 @@ private fun wrapPathSelectorToChooseSpecificTrace(
     }
 }
 
-private fun createPathSelectorLevel1(
+private fun createPathSelectorLevel0(
     initialState: TvmState,
     ctx: PSCreationContext,
-): UPathSelector<TvmState> =
+): UPathSelector<TvmState> {
+    val ps = createPathSelectorLevel1(ctx)
+    val result =
+        if (ps !is IterativeDeepeningPs<*, *, *, *> && ctx.options.loopIterationLimit != null) {
+            LoopLimiterPs(ps, ctx.loopTracker, ctx.options.loopIterationLimit - 1)
+        } else {
+            ps
+        }
+    result.add(listOf(initialState))
+    return result
+}
+
+private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmState> =
     when (ctx.options.pathSelectionStrategy) {
         TvmPathSelectionStrategy.DFS_BASED -> createShakingPathSelector(ctx)
-        TvmPathSelectionStrategy.BFS -> addIterativeDeepening(ctx.options, BfsPathSelector())
-    }.also {
-        it.add(listOf(initialState))
+        TvmPathSelectionStrategy.BFS -> addIterativeDeepening(ctx.options, BfsPathSelector(), ctx.loopTracker)
     }
 
-private fun createShakingPathSelector(ctx: PSCreationContext): TvmShakerPathSelector {
+private fun createShakingPathSelector(ctx: PSCreationContext): TvmSeedBasedPathSelector {
     val strategy =
         if (ctx.options.addTimeoutIfNotSatiated) {
-            TvmCompositeShakingStrategy(
+            TvmCompositeSeedStrategy(
                 listOf(
-                    TvmUncoveredInstShakingStrategy(),
-                    TvmRandomTreeShakingStrategy(PathNode.root()),
+                    TvmUncoveredInstSeedStrategy(),
+                    TvmRandomTreeSeedStrategy(PathNode.root()),
                 ),
             )
         } else {
-            TvmRandomTreeShakingStrategy(PathNode.root())
+            TvmRandomTreeSeedStrategy(PathNode.root())
         }
 
     ctx.psObserver = strategy.getObserver()
 
-    return TvmShakerPathSelector(
+    return TvmSeedBasedPathSelector(
         strategy,
         ctx.timeStatistics,
         currentTimeout = ctx.options.timeout,
         timeStep = if (ctx.options.addTimeoutIfNotSatiated) ctx.options.timeout else null,
     ) {
-        addIterativeDeepening(ctx.options, DfsPathSelector())
+        addIterativeDeepening(ctx.options, DfsPathSelector(), ctx.loopTracker)
     }
 }
 
 private fun addIterativeDeepening(
     options: TvmOptions,
     ps: UPathSelector<TvmState>,
+    loopTracker: TvmLoopTracker,
 ): UPathSelector<TvmState> {
-    val loopTracker = TvmLoopTracker()
     val loopIterationLimit = options.loopIterationLimit?.let { it - 1 }
     return IterativeDeepeningPs(ps, loopTracker, loopIterationLimit)
 }

@@ -11,8 +11,8 @@ import org.usvm.statistics.UMachineObserver
 import org.usvm.stopstrategies.StopStrategy
 import kotlin.time.Duration
 
-class TvmShakerPathSelector(
-    private val strategy: ShakingStrategy,
+class TvmSeedBasedPathSelector(
+    private val strategy: SeedStrategy,
     private val timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
     private var currentTimeout: Duration,
     private val timeStep: Duration? = null,
@@ -22,11 +22,8 @@ class TvmShakerPathSelector(
     var basePathSelector = createDfsLikePathSelector()
     private val makeOneStepFor = mutableSetOf<TvmState>()
 
-    interface ShakingStrategy {
-        /**
-         * Return new seed for DFS path selector
-         * */
-        fun shake(extendingTime: Boolean): TvmState
+    interface SeedStrategy {
+        fun getNewSeed(extendingTime: Boolean): TvmState
 
         fun getObserver(): UMachineObserver<TvmState>
 
@@ -58,9 +55,11 @@ class TvmShakerPathSelector(
         return result
     }
 
-    private fun shake(extendingTime: Boolean) {
+    private fun changeSeed(extendingTime: Boolean) {
+        logger.debug("Getting new seed")
+
         strategy.addPausedStates(extractStatesFromBasePS())
-        val seed = strategy.shake(extendingTime = extendingTime)
+        val seed = strategy.getNewSeed(extendingTime = extendingTime)
         basePathSelector = createDfsLikePathSelector().also { it.add(listOf(seed)) }
         strategy.removeState(seed)
     }
@@ -79,7 +78,7 @@ class TvmShakerPathSelector(
         }
 
         if (basePathSelector.isEmpty() || strategy.shouldShake()) {
-            shake(extendingTime = false)
+            changeSeed(extendingTime = false)
         }
 
         return basePathSelector.peek().also {
@@ -102,7 +101,7 @@ class TvmShakerPathSelector(
     }
 
     fun add(state: TvmState) {
-        if (state.lastStmt is TsaArtificialInst) {
+        if (forceOneMoreStep(state)) {
             makeOneStepFor += state
         } else {
             basePathSelector.add(listOf(state))
@@ -112,7 +111,7 @@ class TvmShakerPathSelector(
     override fun update(state: TvmState) {
         if (lastPeekedStateWasFromBasePs) {
             basePathSelector.update(state)
-        } else if (state.lastStmt !is TsaArtificialInst) {
+        } else if (!forceOneMoreStep(state)) {
             check(state in makeOneStepFor)
             makeOneStepFor.remove(state)
             strategy.addPausedStates(listOf(state))
@@ -122,6 +121,8 @@ class TvmShakerPathSelector(
         }
     }
 
+    private fun forceOneMoreStep(state: TvmState): Boolean = state.lastStmt is TsaArtificialInst && timeStep != null
+
     override fun shouldStop(): Boolean {
         if (makeOneStepFor.isNotEmpty()) {
             return false
@@ -129,7 +130,7 @@ class TvmShakerPathSelector(
         if (timeStatistics.runningTime > currentTimeout && timeStep != null && strategy.requestMoreTime()) {
             logger.info("Extended timeout by $timeStep")
             currentTimeout = timeStatistics.runningTime + timeStep
-            shake(extendingTime = true)
+            changeSeed(extendingTime = true)
         }
         return timeStatistics.runningTime > currentTimeout
     }

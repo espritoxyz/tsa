@@ -9,7 +9,7 @@ import org.usvm.UMachine
 import org.usvm.UMachineOptions
 import org.usvm.machine.interpreter.TvmInterpreter
 import org.usvm.machine.ps.PSCreationContext
-import org.usvm.machine.ps.TvmShakerPathSelector
+import org.usvm.machine.ps.TvmSeedBasedPathSelector
 import org.usvm.machine.ps.createPathSelector
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
@@ -92,6 +92,7 @@ class TvmMachine(
             PSCreationContext(
                 tvmOptions,
                 timeStatistics = timeStatistics,
+                loopTracker = TvmLoopTracker(),
             )
 
         val pathSelector =
@@ -135,7 +136,7 @@ class TvmMachine(
             if (!tvmOptions.addTimeoutIfNotSatiated) {
                 TimeoutStopStrategy(options.timeout, timeStatistics)
             } else {
-                check(pathSelector is TvmShakerPathSelector) {
+                check(pathSelector is TvmSeedBasedPathSelector) {
                     "Can add timeout only with [TvmShakerPathSelector]"
                 }
                 pathSelector

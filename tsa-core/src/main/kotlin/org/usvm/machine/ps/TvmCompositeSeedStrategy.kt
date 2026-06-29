@@ -4,9 +4,9 @@ import org.usvm.machine.state.TvmState
 import org.usvm.statistics.CompositeUMachineObserver
 import org.usvm.statistics.UMachineObserver
 
-class TvmCompositeShakingStrategy(
-    private val strategies: List<TvmShakerPathSelector.ShakingStrategy>,
-) : TvmShakerPathSelector.ShakingStrategy {
+class TvmCompositeSeedStrategy(
+    private val strategies: List<TvmSeedBasedPathSelector.SeedStrategy>,
+) : TvmSeedBasedPathSelector.SeedStrategy {
     override fun getObserver(): UMachineObserver<TvmState> =
         CompositeUMachineObserver(strategies.map { it.getObserver() })
 
@@ -28,12 +28,12 @@ class TvmCompositeShakingStrategy(
         }
     }
 
-    override fun shake(extendingTime: Boolean): TvmState =
+    override fun getNewSeed(extendingTime: Boolean): TvmState =
         if (extendingTime) {
             strategies
                 .first {
                     it.requestMoreTime()
-                }.shake(extendingTime = true)
+                }.getNewSeed(extendingTime = true)
         } else {
             val strategy =
                 strategies.firstOrNull {
@@ -43,7 +43,7 @@ class TvmCompositeShakingStrategy(
                         it.hasAdditionalStates()
                     }
                 }
-            strategy.shake(extendingTime = false)
+            strategy.getNewSeed(extendingTime = false)
         }
 
     override fun hasAdditionalStates(): Boolean =
