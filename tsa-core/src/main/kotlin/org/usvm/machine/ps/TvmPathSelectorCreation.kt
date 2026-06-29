@@ -20,6 +20,7 @@ import org.usvm.ps.IterativeDeepeningPs
 import org.usvm.ps.LoopLimiterPs
 import org.usvm.statistics.TimeStatistics
 import org.usvm.statistics.UMachineObserver
+import org.usvm.stopstrategies.StopStrategy
 import org.usvm.util.RealTimeStopwatch
 import kotlin.time.Duration
 
@@ -29,6 +30,7 @@ data class PSCreationContext(
     val loopTracker: TvmLoopTracker,
 ) {
     var psObserver: UMachineObserver<TvmState>? = null
+    var customTimeoutStopStrategy: StopStrategy? = null
 }
 
 fun createPathSelector(
@@ -144,11 +146,11 @@ private fun createPathSelectorLevel0(
 
 private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmState> =
     when (ctx.options.pathSelectionStrategy) {
-        TvmPathSelectionStrategy.DFS_BASED -> createShakingPathSelector(ctx)
+        TvmPathSelectionStrategy.DFS_BASED -> createSeedBasedPathSelector(ctx)
         TvmPathSelectionStrategy.BFS -> addIterativeDeepening(ctx.options, BfsPathSelector(), ctx.loopTracker)
     }
 
-private fun createShakingPathSelector(ctx: PSCreationContext): TvmSeedBasedPathSelector {
+private fun createSeedBasedPathSelector(ctx: PSCreationContext): TvmSeedBasedPathSelector {
     val strategy =
         if (ctx.options.addTimeoutIfNotSatiated) {
             TvmCompositeSeedStrategy(
@@ -170,6 +172,11 @@ private fun createShakingPathSelector(ctx: PSCreationContext): TvmSeedBasedPathS
         timeStep = if (ctx.options.addTimeoutIfNotSatiated) ctx.options.timeout else null,
     ) {
         addIterativeDeepening(ctx.options, DfsPathSelector(), ctx.loopTracker)
+    }.also {
+        check(ctx.customTimeoutStopStrategy == null) {
+            "Can add only one [customTimeoutStopStrategy]"
+        }
+        ctx.customTimeoutStopStrategy = it
     }
 }
 
