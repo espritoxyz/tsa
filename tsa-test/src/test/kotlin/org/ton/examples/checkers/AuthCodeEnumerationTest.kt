@@ -2,7 +2,6 @@ package org.ton.examples.checkers
 
 import org.ton.bytecode.toCell
 import org.ton.cell.CellBuilder
-import org.ton.cell.storeRef
 import org.ton.examples.intercontract.implies
 import org.ton.test.utils.assertInvariantHolds
 import org.ton.test.utils.assertInvariantsHold
@@ -130,10 +129,12 @@ class AuthCodeEnumerationTest {
         )
     }
 
+    private val noAuthContract = "/checkers/auth/contract-no-auth.fc"
+
     @Test
     fun `no auth`() {
         val checker = extractCheckerContractFromResource(checker)
-        val contract = extractFuncContractFromResource("/checkers/auth/contract-no-auth.fc")
+        val contract = extractFuncContractFromResource(noAuthContract)
         val tests =
             analyzeInterContract(
                 contracts = listOf(checker, contract),
@@ -163,10 +164,16 @@ class AuthCodeEnumerationTest {
 
     private val internalTransferOpcode = 0x178d4519
 
+    /**
+     * slightly modified version of `jetton-wallet.func` from the same folder
+     */
+    private val modernJettonOnlyCodeAuth =
+        "/contracts/modern-jetton/jetton-wallet-internal-transfer-only-code-auth.func"
+
     @Test
     fun `jetton authorization`() {
         val checker = extractCheckerContractFromResource(checkerWithOpcodes)
-        val contract = extractCheckerContractFromResource("/contracts/modern-jetton/jetton-wallet.func")
+        val contract = extractCheckerContractFromResource(modernJettonOnlyCodeAuth)
         val walletCode = CellBuilder().storeUInt(13, 64).storeRef(CellBuilder().storeUInt(3, 5).endCell()).endCell()
         val contractData =
             CellBuilder()
