@@ -109,6 +109,10 @@ fun main() {
         () tsa_set_address(int contract_id, cell address) impure method_id(20) {
             ;; do nothing
         }
+        
+        int tsa_fork_without_solver(int from, int to_inclusive) impure method_id(21) {
+            return return_1();
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

@@ -20,6 +20,7 @@ const val SEND_EXTERNAL_MESSAGE_WITH_BODY_METHOD_ID = 15
 const val ASSERT_SLICE_IS_DEPENDENT = 16
 const val ASSERT_SLICE_DETERMINES = 17
 const val SET_ADDRESS = 20
+const val FORK_WITHOUT_SOLVER = 21
 
 /**
  * Were calculated using python script:

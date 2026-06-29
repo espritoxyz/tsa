@@ -52,6 +52,7 @@ class CheckersTest {
     private val emptyContractPath = "/empty_contract.fc"
     private val tactConfig = "/tact/tact.config.json"
     private val pathExplosionChecker = "/checkers/int_optimization.fc"
+    private val forkWithoutSolverChecker = "/checkers/fork_without_solver.fc"
 
     private object TransactionRollBackTestData {
         const val SENDER = "/checkers/transaction-rollback/sender-checker.fc"
@@ -763,5 +764,25 @@ class CheckersTest {
             )
 
         tests.assertInvariantsHold(doesNotEndWithExitCode(1000))
+    }
+
+    @Test
+    fun testForkWithoutSolver() {
+        val checkerContract = extractCheckerContractFromResource(forkWithoutSolverChecker)
+
+        val tests =
+            analyzeInterContract(
+                listOf(checkerContract),
+                startContractId = 0,
+                methodId = TvmContext.RECEIVE_INTERNAL_ID,
+            )
+
+        val expectedExitCodes = (3..7).map { 1000 + it }
+
+        tests.assertPropertiesFound(expectedExitCodes.map { hasExitCode(it) })
+
+        tests.assertInvariantsHold(
+            { test -> test.exitCode() in expectedExitCodes },
+        )
     }
 }
