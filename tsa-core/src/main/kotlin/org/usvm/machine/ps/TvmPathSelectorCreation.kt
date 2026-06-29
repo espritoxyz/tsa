@@ -173,10 +173,12 @@ private fun createSeedBasedPathSelector(ctx: PSCreationContext): TvmSeedBasedPat
     ) {
         addIterativeDeepening(ctx.options, DfsPathSelector(), ctx.loopTracker)
     }.also {
-        check(ctx.customTimeoutStopStrategy == null) {
-            "Can add only one [customTimeoutStopStrategy]"
+        if (ctx.options.addTimeoutIfNotSatiated) {
+            check(ctx.customTimeoutStopStrategy == null) {
+                "Can add only one [customTimeoutStopStrategy]"
+            }
+            ctx.customTimeoutStopStrategy = it
         }
-        ctx.customTimeoutStopStrategy = it
     }
 }
 

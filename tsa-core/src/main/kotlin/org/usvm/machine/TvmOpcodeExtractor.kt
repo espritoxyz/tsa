@@ -38,6 +38,7 @@ class TvmOpcodeExtractor(
                         pathSelectionStrategy = TvmPathSelectionStrategy.BFS,
                         timeout = timeout,
                         collectNonTerminatedState = true,
+                        addTimeoutIfNotSatiated = false,
                     ),
             )
 
