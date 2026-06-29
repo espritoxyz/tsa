@@ -14,7 +14,6 @@ import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.hasExitCode
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.analyzeInterContract
-import org.usvm.machine.toMethodId
 import org.usvm.test.resolver.toTvmCell
 import org.usvm.test.resolver.transformTestCellIntoCell
 import kotlin.test.Test
@@ -31,12 +30,7 @@ class AuthCodeEnumerationTest {
     fun `hash-based auth with fixed data`() {
         val checker = extractCheckerContractFromResource(checker)
         val contract = extractFuncContractFromResource(contractHashCheckWithFixedData)
-        val tests =
-            analyzeInterContract(
-                contracts = listOf(checker, contract),
-                startContractId = 0,
-                methodId = 0.toMethodId(),
-            )
+        val tests = analyzeInterContract(contracts = listOf(checker, contract))
         tests.assertPropertiesFound(hasExitCode(1000))
         tests.filter(hasExitCode(1000)).assertInvariantsHold(
             {
@@ -54,12 +48,7 @@ class AuthCodeEnumerationTest {
     fun `hash-based auth with not fixed data`() {
         val checker = extractCheckerContractFromResource(checker)
         val contract = extractFuncContractFromResource(authHashCheckWithNonFixedData)
-        val tests =
-            analyzeInterContract(
-                contracts = listOf(checker, contract),
-                startContractId = 0,
-                methodId = 0.toMethodId(),
-            )
+        val tests = analyzeInterContract(contracts = listOf(checker, contract))
         tests.assertPropertiesFound(hasExitCode(1000))
         tests.filter(hasExitCode(1000)).assertInvariantsHold(
             {
@@ -79,12 +68,7 @@ class AuthCodeEnumerationTest {
             extractFuncContractFromResource(
                 authSliceBitsComparison,
             )
-        val tests =
-            analyzeInterContract(
-                contracts = listOf(checker, contract),
-                startContractId = 0,
-                methodId = 0.toMethodId(),
-            )
+        val tests = analyzeInterContract(contracts = listOf(checker, contract))
         tests.assertPropertiesFound(hasExitCode(1000))
         tests.filter(hasExitCode(1000)).assertInvariantsHold(
             {
@@ -105,8 +89,6 @@ class AuthCodeEnumerationTest {
         val tests =
             analyzeInterContract(
                 contracts = listOf(checker, contract),
-                startContractId = 0,
-                methodId = 0.toMethodId(),
                 concreteContractData =
                     listOf(
                         TvmConcreteContractData(),
@@ -135,12 +117,7 @@ class AuthCodeEnumerationTest {
     fun `no auth`() {
         val checker = extractCheckerContractFromResource(checker)
         val contract = extractFuncContractFromResource(noAuthContract)
-        val tests =
-            analyzeInterContract(
-                contracts = listOf(checker, contract),
-                startContractId = 0,
-                methodId = 0.toMethodId(),
-            )
+        val tests = analyzeInterContract(contracts = listOf(checker, contract))
         tests.assertPropertiesFound(hasExitCode(1000))
         tests.assertInvariantsHold(
             {
@@ -191,8 +168,6 @@ class AuthCodeEnumerationTest {
                         TvmConcreteContractData(contractC4 = checkerC4),
                         TvmConcreteContractData(contractC4 = contractData),
                     ),
-                startContractId = 0,
-                methodId = 0.toMethodId(),
             )
         tests.assertPropertiesFound(hasExitCode(1000))
         // the assertion is as such, because there are not-an-error exits that do not mean that we have
@@ -233,8 +208,6 @@ class AuthCodeEnumerationTest {
                         TvmConcreteContractData(contractC4 = checkerC4),
                         TvmConcreteContractData(contractC4 = data),
                     ),
-                startContractId = 0,
-                methodId = 0.toMethodId(),
             )
         tests.assertPropertiesFound(hasExitCode(1000))
         // the assertion is as such, because there are not-an-error exits that do not mean that we have
