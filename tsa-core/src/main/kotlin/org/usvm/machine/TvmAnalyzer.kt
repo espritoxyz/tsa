@@ -493,8 +493,8 @@ private fun runAnalysis(
 
 fun analyzeInterContract(
     contracts: List<TsaContractCode>,
-    startContractId: ContractId,
-    methodId: MethodId,
+    startContractId: ContractId = 0,
+    methodId: MethodId = TvmContext.RECEIVE_INTERNAL_ID,
     inputInfo: TvmInputInfo = TvmInputInfo(),
     options: TvmOptions = TvmOptions(),
     manualStateProcessor: TvmManualStateProcessor = TvmManualStateProcessor(),

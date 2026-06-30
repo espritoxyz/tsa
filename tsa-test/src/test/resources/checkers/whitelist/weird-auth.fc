@@ -1,0 +1,19 @@
+#include "../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    var msg_cell = in_msg_full.begin_parse();
+    msg_cell~load_uint(4); ;; flags
+    var sender = msg_cell~load_msg_addr();
+    if (~ equal_slice_bits(sender, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a)) {
+        throw(500);
+    }
+    int some_hash = msg_body.slice_hash();
+    (var workchain, var account_id) = parse_std_addr(sender);
+    if (account_id != some_hash + 1) { ;; a hard constraint so that we cannot rewrite the TsaAccountIdSymbol
+        throw(500);
+    }
+    ;; here we asserted that sender should be represented as a concrete slice
+
+
+    throw(1000);
+}

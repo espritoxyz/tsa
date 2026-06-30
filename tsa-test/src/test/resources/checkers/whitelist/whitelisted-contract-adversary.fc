@@ -1,0 +1,17 @@
+#include "../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    var msg_cell = in_msg_full.begin_parse();
+    msg_cell~load_uint(4); ;; flags
+    var sender = msg_cell~load_msg_addr();
+    (_, var sender_account_id) = parse_std_addr(sender);
+    if (sender_account_id != 5) {
+        throw(500);
+    }
+    if (sender_account_id * 3 != 5 * 3) { ;; fingers crossed this won't be simplified (it probably shouldn't be)
+        throw(500);
+    }
+    (var data_size, _, _) = compute_data_size(in_msg_full, 4);  ;; force some postprocessing
+    data_size~impure_touch();
+    throw(1000);
+}

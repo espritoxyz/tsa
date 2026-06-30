@@ -39,6 +39,7 @@ import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
 import org.ton.bytecode.TvmQuitContinuation
+import org.ton.cell.Cell
 import org.usvm.NULL_ADDRESS
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
@@ -47,12 +48,14 @@ import org.usvm.UComponents
 import org.usvm.UConcreteHeapRef
 import org.usvm.UContext
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.UIteExpr
 import org.usvm.UMockSymbol
 import org.usvm.isTrue
 import org.usvm.machine.intblast.TvmMultiplication
 import org.usvm.machine.intblast.TvmSignedDivision
 import org.usvm.machine.intblast.TvmSignedModulo
+import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmBadDestinationAddress
 import org.usvm.machine.state.TvmCellOverflowError
 import org.usvm.machine.state.TvmCellUnderflowError
@@ -67,7 +70,9 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTypeCheckError
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
+import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashSymbol
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.unsignedIntegerFitsBits
@@ -257,15 +262,44 @@ class TvmContext(
                 TvmSignedModulo(this, lhs, rhs, lhs.sort)
             }.cast()
 
+    private val tsaAccountIdSymbolInterner = mkAstInterner<TsaAccountIdSymbol>()
+
+    fun mkTsaAccountIdSymbol(
+        symbolicCode: UHeapRef,
+        symbolicData: UHeapRef,
+        isStateInit: UExpr<KBoolSort>,
+        boundStateInitHash: UExpr<KBvSort>,
+        symbolicAccountId: UExpr<KBvSort>,
+    ): TsaAccountIdSymbol =
+        tsaAccountIdSymbolInterner.createIfContextActive {
+            TsaAccountIdSymbol(
+                ctx = this,
+                symbolicAccountId = symbolicAccountId,
+                isStateInit = isStateInit,
+                code = symbolicCode,
+                data = symbolicData,
+                boundStateInitHash = boundStateInitHash,
+            )
+        }
+
     private val tvmHashCache = mkAstInterner<TvmHashSymbol>()
 
     fun mkTvmHash(
         ref: UConcreteHeapRef,
         fallbackMock: UMockSymbol<UBvSort>,
-    ): TvmHashSymbol =
+    ): TvmSymbolicHashSymbol =
         tvmHashCache
             .createIfContextActive {
-                TvmHashSymbol(this, ref, fallbackMock)
+                TvmSymbolicHashSymbol(this, ref, fallbackMock)
+            }.cast()
+
+    fun mkTvmConstantHash(
+        ref: UConcreteHeapRef,
+        refValue: Cell,
+    ): TvmConstantHashSymbol =
+        tvmHashCache
+            .createIfContextActive {
+                TvmConstantHashSymbol(this, refValue, ref)
             }.cast()
 
     val int257sort = TvmInt257Sort(this)

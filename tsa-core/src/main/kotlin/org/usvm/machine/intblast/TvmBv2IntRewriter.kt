@@ -11,7 +11,9 @@ import io.ksmt.sort.KBvSort
 import io.ksmt.sort.KIntSort
 import org.usvm.UBvSort
 import org.usvm.UExpr
-import org.usvm.machine.state.hash.TvmHashSymbol
+import org.usvm.machine.state.TsaAccountIdSymbol
+import org.usvm.machine.state.hash.TvmConstantHashSymbol
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 
 class TvmBv2IntRewriter(
     ctx: KContext,
@@ -53,7 +55,15 @@ class TvmBv2IntRewriter(
             ctx.mkIntMod(arg0, arg1)
         }
 
-    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> {
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> {
+        error("Should be removed by now")
+    }
+
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> {
+        error("Should be removed by now")
+    }
+
+    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> {
         error("Should be removed by now")
     }
 }

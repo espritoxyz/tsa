@@ -294,9 +294,11 @@ data class TlbStack(
                 TlbStackFrame.SkipNotPossible -> {
                     error("Cannot skip frame $prevFrame")
                 }
+
                 TlbStackFrame.EndOfFrame -> {
                     skipSingleStep(state, ref, framesToPop.viewWithoutLast())
                 }
+
                 is TlbStackFrame.NextFrame -> {
                     framesToPop.viewWithoutLast() + newFrame.frame
                 }
