@@ -13,6 +13,7 @@ import io.ksmt.expr.KBvShiftLeftExpr
 import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KExpr
+import io.ksmt.expr.KFalse
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.expr.KIteExpr
 import io.ksmt.expr.rewrite.simplify.simplifyAnd
@@ -262,10 +263,11 @@ class TvmContext(
     fun mkTvmHash(
         ref: UConcreteHeapRef,
         fallbackMock: UMockSymbol<UBvSort>,
+        mightBeEqualToConstant: Boolean = true,
     ): TvmHashSymbol =
         tvmHashCache
             .createIfContextActive {
-                TvmHashSymbol(this, ref, fallbackMock)
+                TvmHashSymbol(this, ref, fallbackMock, mightBeEqualToConstant)
             }.cast()
 
     val int257sort = TvmInt257Sort(this)
@@ -932,11 +934,26 @@ class TvmContext(
             }
         }
 
+        trySimplifyHashToEqConstraint(lhs, rhs)?.let { return it }
+        trySimplifyHashToEqConstraint(rhs, lhs)?.let { return it }
+
         if (lhs is KBvZeroExtensionExpr && rhs is KBvZeroExtensionExpr && lhs.extensionSize == rhs.extensionSize) {
             return mkEq(lhs.value, rhs.value)
         }
 
         return super.mkEq(lhs, rhs, order)
+    }
+
+    fun <T : KSort> trySimplifyHashToEqConstraint(
+        lhs: KExpr<T>,
+        rhs: KExpr<T>,
+    ): KFalse? {
+        val rhsIsConstant =
+            rhs is KInterpretedValue<*> || (rhs is KBvZeroExtensionExpr && rhs.value is KInterpretedValue<*>)
+        if (lhs is TvmHashSymbol && !lhs.mightBeEqualToConstant && rhsIsConstant) {
+            return falseExpr
+        }
+        return null
     }
 
     override fun <T : KBvSort> mkBvSubExpr(

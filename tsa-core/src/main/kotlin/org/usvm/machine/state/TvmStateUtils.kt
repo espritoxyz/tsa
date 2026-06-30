@@ -719,7 +719,7 @@ fun TvmState.generateSymbolicAddressCellAsHash(): Triple<ConcreteCellRef, Concre
         builderStoreNextRefNoOverflowCheck(stateInitBuilder, code)
         builderStoreNextRefNoOverflowCheck(stateInitBuilder, data)
         val stateInit = builderToCell(stateInitBuilder)
-        val hash = mockHash(stateInit)
+        val hash = mockHash(stateInit, mightBeEqualToConstant = false)
         val address =
             allocDataCellFromData(
                 mkBvConcatExpr(
@@ -852,11 +852,14 @@ fun TvmState.mockCellDepth(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRe
 
 fun TvmState.mockSha256(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(ref) { mockSha256(it) }
 
-fun TvmState.mockHash(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
+fun TvmState.mockHash(
+    ref: UConcreteHeapRef,
+    mightBeEqualToConstant: Boolean = true,
+): UExpr<TvmInt257Sort> =
     refToHash[ref.address]?.let {
         with(ctx) { it.zeroExtendToSort(int257sort) }
     } ?: mockNonNegativeInt(TvmHash(ref)) {
-        ctx.mkTvmHash(ref, it).also { hash ->
+        ctx.mkTvmHash(ref, it, mightBeEqualToConstant).also { hash ->
             refToHash = refToHash.put(ref.address, hash)
         }
     }

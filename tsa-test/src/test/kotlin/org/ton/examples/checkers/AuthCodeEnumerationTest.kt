@@ -13,6 +13,7 @@ import org.ton.test.utils.extractConcreteDataFromResource
 import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.hasExitCode
 import org.usvm.machine.TvmConcreteContractData
+import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.toTvmCell
 import org.usvm.test.resolver.transformTestCellIntoCell
@@ -129,23 +130,10 @@ class AuthCodeEnumerationTest {
         )
     }
 
-    private fun CellBuilder.storeCoin(
-        value: Int,
-        nanogramsWidthDivBy8: Int,
-    ): CellBuilder = storeUInt(nanogramsWidthDivBy8, 4).storeUInt(value, 8 * nanogramsWidthDivBy8)
-
-    private fun CellBuilder.storeStdAddr(accountId: Int): CellBuilder =
-        storeUInt(4, 3) // 0b10 from std + 0b0 from anycast
-            .storeUInt(0, 8)
-            .storeUInt(accountId, 256)
-
     private val internalTransferOpcode = 0x178d4519
 
-    /**
-     * slightly modified version of `jetton-wallet.func` from the same folder
-     */
     private val modernJettonOnlyCodeAuth =
-        "/contracts/modern-jetton/jetton-wallet-internal-transfer-only-code-auth.func"
+        "/contracts/modern-jetton/jetton-wallet.func"
 
     @Test
     fun `jetton authorization`() {
@@ -155,8 +143,8 @@ class AuthCodeEnumerationTest {
         val contractData =
             CellBuilder()
                 .storeCoin(1000_000, 4)
-                .storeStdAddr(accountId = 0)
-                .storeStdAddr(accountId = 1)
+                .storeStdAddr(accountId = 15) // owner
+                .storeStdAddr(accountId = 255) // master
                 .storeRef(walletCode)
                 .endCell()
         val checkerC4 = CellBuilder().storeUInt(internalTransferOpcode, 32).endCell()
@@ -167,6 +155,10 @@ class AuthCodeEnumerationTest {
                     listOf(
                         TvmConcreteContractData(contractC4 = checkerC4),
                         TvmConcreteContractData(contractC4 = contractData),
+                    ),
+                options =
+                    TvmOptions(
+                        useIntBlasting = false,
                     ),
             )
         tests.assertPropertiesFound(hasExitCode(1000))
@@ -220,3 +212,13 @@ class AuthCodeEnumerationTest {
         assert(someHasPassedAuth)
     }
 }
+
+fun CellBuilder.storeCoin(
+    value: Int,
+    nanogramsWidthDivBy8: Int,
+): CellBuilder = storeUInt(nanogramsWidthDivBy8, 4).storeUInt(value, 8 * nanogramsWidthDivBy8)
+
+fun CellBuilder.storeStdAddr(accountId: Int): CellBuilder =
+    storeUInt(4, 3) // 0b10 from std + 0b0 from anycast
+        .storeUInt(0, 8)
+        .storeUInt(accountId, 256)

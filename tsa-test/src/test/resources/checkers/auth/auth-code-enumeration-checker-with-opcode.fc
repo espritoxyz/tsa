@@ -5,10 +5,11 @@
 () on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
     var expected_opcode = get_data().begin_parse().preload_uint(32);
     var actual_opcode = msg_body.preload_uint(32);
-    throw_if(200, expected_opcode != expected_opcode);
+    throw_if(200, expected_opcode != actual_opcode);
 
     var msg = in_msg_full.begin_parse();
-    msg~load_uint(4);
+    var flags = msg~load_uint(4);
+    tsa_assert_not(flags & 1);
     var sender = msg~load_msg_addr();
     tsa_fetch_enumerate_model_values(sender, 1001);
 }
