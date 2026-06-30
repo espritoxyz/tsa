@@ -24,7 +24,6 @@ import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
-import org.usvm.UMockSymbol
 import org.usvm.USort
 import org.usvm.api.readField
 import org.usvm.forkblacklists.UForkBlackList
@@ -93,10 +92,6 @@ import org.usvm.memory.UMemory
 import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 import java.math.BigInteger
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.iterator
-import kotlin.collections.set
 
 class TvmTestStateResolver(
     private val ctx: TvmContext,
@@ -126,13 +121,18 @@ class TvmTestStateResolver(
                 error("Resolving contradicting state!")
             }
         }
+        /**
+         * All the implicit constraints were added during th postprocess phase.
+         * If after postprocess we do not see hashes in path constraints, that means that no expressions
+         * depends on the absent hashes whatsoever, so it is safe to not fix them.
+         */
         val collectedHashes = constraintVisitor.collectedHashes
         for ((ref, hash) in state.refToHash) {
             val foundHashSymbol = hash in collectedHashes
             if (!foundHashSymbol) {
                 val value = resolveRef(ctx.mkConcreteHeapRef(ref))
                 val hashValue = calculateConcreteHash(value)
-                model.mocker.customValues[hash.fallbackMock as UMockSymbol<*>] =
+                model.mocker.customValues[hash.fallbackMock] =
                     with(ctx) { mkBv(hashValue, mkBvSort(hash.fallbackMock.sort.sizeBits)) }
             }
         }
@@ -552,7 +552,7 @@ class TvmTestStateResolver(
         return TvmTestBuilderValue(cell.data, cell.refs)
     }
 
-    private fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
+    fun resolveSlice(slice: SliceRef): TvmTestSliceValue = resolveSlice(slice.value)
 
     fun resolveSlice(
         slice: UHeapRef,

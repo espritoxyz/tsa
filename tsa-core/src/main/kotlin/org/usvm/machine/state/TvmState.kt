@@ -16,6 +16,7 @@ import org.ton.targets.TvmTarget
 import org.usvm.PathNode
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
+import org.usvm.UBvSort
 import org.usvm.UCallStack
 import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
@@ -37,6 +38,7 @@ import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.ReceivedMessage
+import org.usvm.machine.types.ConcreteSliceRef
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -48,11 +50,21 @@ import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
+import org.usvm.test.resolver.TvmTestAuthValue
 import java.math.BigInteger
 
 typealias ContractId = Int
 
 fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
+
+data class AuthCheckInfo(
+    val tsaAccountId: UExpr<UBvSort>,
+    val symbolicAccountId: UExpr<UBvSort>,
+    val isStateInit: UBoolExpr,
+    val code: UConcreteHeapRef,
+    val data: UConcreteHeapRef,
+    val boundStateInitHash: UExpr<UBvSort>,
+)
 
 class TvmState(
     ctx: TvmContext,
@@ -114,6 +126,8 @@ class TvmState(
             persistentSetOf(),
         ),
     var fixatedHashes: PersistentSet<TvmHashSymbol> = persistentSetOf(),
+    var givenAddressForNextCheckerSentMessage: ConcreteSliceRef? = null,
+    var authCheckInfo: AuthCheckInfo? = null,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -150,6 +164,11 @@ class TvmState(
 
     val isTerminated: Boolean
         get() = phase == TvmTerminated
+
+    /**
+     * Authorized entities enumerated for the `tsa_enable_auth_check` intrinsic. Computed during post-processing.
+     */
+    var resolvedAuthValues: List<TvmTestAuthValue> = emptyList()
 
     lateinit var dataCellInfoStorage: TvmDataCellInfoStorage
     lateinit var registersOfCurrentContract: TvmRegisters
@@ -259,6 +278,8 @@ class TvmState(
             callstackCounter = callstackCounter,
             functionalDependencyAssertion = functionalDependencyAssertion.copy(),
             fixatedHashes = fixatedHashes,
+            givenAddressForNextCheckerSentMessage = givenAddressForNextCheckerSentMessage,
+            authCheckInfo = authCheckInfo,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

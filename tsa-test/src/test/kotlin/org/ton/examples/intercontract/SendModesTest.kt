@@ -30,7 +30,9 @@ import org.usvm.test.resolver.exitCode
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-private infix fun Boolean.implies(other: Boolean) = this.not() || other
+internal infix fun Boolean.implies(other: Boolean) = this.not() || other
+
+internal infix fun Boolean.implies(other: () -> Boolean) = this.not() || other.invoke()
 
 @Tag("intercontract")
 class SendModesTest {

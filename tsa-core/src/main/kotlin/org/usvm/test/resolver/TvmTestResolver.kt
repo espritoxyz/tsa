@@ -37,6 +37,7 @@ data object TvmTestResolver {
 
         val input = stateResolver.resolveInput()
         val fetchedValues = stateResolver.resolveFetchedValues()
+        val authValues = state.resolvedAuthValues
         val config = stateResolver.resolveConfig()
         val contractAddress = stateResolver.resolveContractAddresses()
         val time = stateResolver.resolveTime()
@@ -60,6 +61,7 @@ data object TvmTestResolver {
             time = time,
             input = input,
             fetchedValues = fetchedValues,
+            resolvedAuthValues = authValues,
             result = result,
             lastStmt = state.lastRealStmt,
             gasUsage = gasUsage,
@@ -166,6 +168,7 @@ data class TvmSymbolicTest(
     val initialSeed: BigInteger?,
     val debugInfo: TvmTestDebugInfo,
     val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
+    val resolvedAuthValues: List<TvmTestAuthValue>,
 ) {
     val initialRootContractState: TvmContractState
         get() =

@@ -60,6 +60,7 @@ import org.usvm.machine.state.messages.msgValue
 import org.usvm.machine.state.messages.srcAddressSlice
 import org.usvm.machine.state.messages.stateInit
 import org.usvm.machine.toTvmCell
+import org.usvm.machine.types.ConcreteCellRef
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmDataCellType
@@ -68,6 +69,7 @@ import org.usvm.machine.types.TvmFinalReferenceType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.wrap
 import org.usvm.memory.GuardedExpr
 import org.usvm.memory.foldHeapRef
@@ -698,6 +700,56 @@ fun TvmState.switchToFirstMethodInContract(
 
 fun TvmState.switchDirectlyToMethodInContract(method: TvmMethod) = newStmt(method.instList.first())
 
+/**
+ * Generates a symbolic sender address for the `tsa_enable_auth_check` intrinsic.
+ * @return (address, authCheckInfo)
+ */
+fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, AuthCheckInfo> =
+    with(ctx) {
+        val workchain = mkBv(0, 8u) // TODO: consider other workchains?
+        val code = generateSymbolicCell()
+        val data = generateSymbolicCell()
+        val stateInitBuilder = allocEmptyBuilder()
+        /*
+        _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
+        code:(Maybe ^Cell) data:(Maybe ^Cell)
+        library:(HashmapE 256 SimpleLib) = StateInit;
+         */
+        val stateInitBits = 0b00110
+        builderSetDataUnsafe(stateInitBuilder, mkBv(stateInitBits, 5U))
+        builderStoreNextRefNoOverflowCheck(stateInitBuilder, code)
+        builderStoreNextRefNoOverflowCheck(stateInitBuilder, data)
+        val stateInit = builderToCell(stateInitBuilder)
+        val boundStateInitHash =
+            mockHash(stateInit, mightBeEqualToConstant = false).extractToSort(mkBvSort(256u))
+        val tsaAccountId = makeSymbolicPrimitive(mkBvSort(256u), TvmTrackedLiteral("mock_account_id"))
+        val symbolicAccountId = makeSymbolicPrimitive(mkBvSort(256u), TvmTrackedLiteral("symbolic_account_id"))
+        val isStateInit = makeSymbolicPrimitive(boolSort, TvmTrackedLiteral("is_mock_account_id_stateinit"))
+        val address =
+            allocDataCellFromData(
+                mkBvConcatExpr(
+                    mkBvConcatExpr(
+                        // addr_std$10 anycast:(Maybe Anycast)
+                        mkBv("100", 3u),
+                        // workchain_id:int8
+                        workchain,
+                    ),
+                    // address:bits256
+                    tsaAccountId,
+                ),
+            )
+        val info =
+            AuthCheckInfo(
+                tsaAccountId = tsaAccountId,
+                symbolicAccountId = symbolicAccountId,
+                isStateInit = isStateInit,
+                code = code,
+                data = data,
+                boundStateInitHash = boundStateInitHash,
+            )
+        return address.asCellRef() to info
+    }
+
 // second value is workchain
 fun TvmState.generateSymbolicAddressCell(literal: TvmTrackedLiteral): Pair<UConcreteHeapRef, UExpr<UBvSort>> =
     with(ctx) {
@@ -814,11 +866,14 @@ fun TvmState.mockCellDepth(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRe
 
 fun TvmState.mockSha256(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(ref) { mockSha256(it) }
 
-fun TvmState.mockHash(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
+fun TvmState.mockHash(
+    ref: UConcreteHeapRef,
+    mightBeEqualToConstant: Boolean = true,
+): UExpr<TvmInt257Sort> =
     refToHash[ref.address]?.let {
         with(ctx) { it.zeroExtendToSort(int257sort) }
     } ?: mockNonNegativeInt(TvmHash(ref)) {
-        ctx.mkTvmHash(ref, it).also { hash ->
+        ctx.mkTvmHash(ref, it, mightBeEqualToConstant).also { hash ->
             refToHash = refToHash.put(ref.address, hash)
         }
     }

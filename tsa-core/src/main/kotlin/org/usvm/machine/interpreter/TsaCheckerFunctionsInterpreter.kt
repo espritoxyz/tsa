@@ -28,12 +28,14 @@ import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
+import org.usvm.machine.state.generateSymbolicAuthCheckAddress
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
@@ -52,6 +54,7 @@ import org.usvm.machine.state.takeLastSliceOrThrowTypeError
 import org.usvm.machine.toMethodId
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmIntegerType
+import org.usvm.machine.types.asSliceRef
 import org.usvm.utils.intValueOrNull
 
 class TsaCheckerFunctionsInterpreter(
@@ -198,6 +201,10 @@ class TsaCheckerFunctionsInterpreter(
 
             ASSERT_SLICE_DETERMINES -> {
                 performAssertSliceDetermines(scope, stmt)
+            }
+
+            ENABLE_AUTH_CHECK -> {
+                performEnableAuthCheck(scope, stmt)
             }
 
             SET_ADDRESS -> {
@@ -361,6 +368,7 @@ class TsaCheckerFunctionsInterpreter(
                                     concreteData,
                                     nextContractId,
                                     stackOperations.body,
+                                    givenAddress = scope.calcOnState { givenAddressForNextCheckerSentMessage },
                                 )
                             }
 
@@ -626,12 +634,26 @@ class TsaCheckerFunctionsInterpreter(
             scope.takeLastIntOrThrowTypeError()
                 ?: return
         val cond =
-            scope.doWithCtx {
+            with(scope.ctx) {
                 if (invert) flag eq zeroValue else flag neq zeroValue
             }
         scope.assert(cond)
             ?: return
         scope.doWithState {
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performEnableAuthCheck(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        scope.doWithState {
+            val (address, info) = this.generateSymbolicAuthCheckAddress()
+            stack.addCell(info.code)
+            stack.addCell(info.data)
+            this.authCheckInfo = info
+            this.givenAddressForNextCheckerSentMessage = allocSliceFromCell(address.value).asSliceRef()
             newStmt(stmt.nextStmt())
         }
     }

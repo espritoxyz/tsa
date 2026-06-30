@@ -12,10 +12,18 @@ import org.usvm.USymbol
 import org.usvm.machine.TvmContext
 import org.usvm.machine.intblast.TvmTransformer
 
+/**
+ * @param mightBeEqualToConstant might be false if the assumed ref is symbolic, and thus it is impossible to
+ * solve the constraints of form `hash(ref) == const`.
+ * We want to avoid these equations, because the presense of hashes in the path constraints forces us to fixate them,
+ * which makes the solving process to become nondeterministic, as the fixation of values depends on the actual model
+ * (returned from the solver) for the current path constraints.
+ */
 class TvmHashSymbol(
     ctx: TvmContext,
     val ref: UConcreteHeapRef,
     val fallbackMock: UMockSymbol<UBvSort>,
+    val mightBeEqualToConstant: Boolean = true,
 ) : USymbol<UBvSort>(ctx) {
     override val sort: UBvSort
         get() = fallbackMock.sort

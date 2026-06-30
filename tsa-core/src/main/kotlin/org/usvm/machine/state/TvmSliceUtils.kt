@@ -1086,6 +1086,25 @@ fun TvmState.builderStoreNextRefNoOverflowCheck(
     fieldManagers.cellRefsLengthFieldManager.writeCellRefsLength(memory, builder, updatedLength)
 }
 
+fun TvmState.builderSetDataUnsafe(
+    builder: UConcreteHeapRef,
+    value: UExpr<UBvSort>,
+) {
+    val leftBits = 1023 - value.sort.sizeBits.toInt()
+    val extendedValue = with(ctx) { mkBvConcatExpr(value, mkBv(0, mkBvSort(leftBits.toUInt()))) }
+    fieldManagers.cellDataFieldManager.writeCellData(
+        this,
+        builder,
+        with(ctx) { extendedValue.zeroExtendToSort(cellDataSort) },
+    )
+    fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
+        this,
+        builder,
+        with(ctx) { mkSizeExpr(value.sort.sizeBits.toInt()) },
+        upperBound = null,
+    )
+}
+
 /**
  * Return stored value
  * */
@@ -1376,7 +1395,7 @@ private fun TvmStepScopeManager.tryCompareWithTlbFields(
     return stack1.compareWithOtherStack(this, cell1, stack2, cell2)
 }
 
-fun TvmStepScopeManager.slicesAreEqual(
+fun TvmStepScopeManager.slicesDataBitsAreEqual(
     slice1: UHeapRef,
     slice2: UHeapRef,
 ): UBoolExpr? =
