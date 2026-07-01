@@ -11,9 +11,10 @@ import kotlin.random.Random
 
 class TvmRandomTreeSeedStrategy(
     private val rootPathNode: PathNode<TvmInst>,
+    private val observer: Observer,
     private val shakeAfterDeaths: Int = DEFAULT_SHAKE_AFTER_DEATHS,
 ) : TvmSeedBasedPathSelector.SeedStrategy {
-    private class Observer : UMachineObserver<TvmState> {
+    class Observer : UMachineObserver<TvmState> {
         val deadStatesIds = hashSetOf<UInt>()
         val terminatedStateIds = hashSetOf<UInt>()
 
@@ -30,13 +31,6 @@ class TvmRandomTreeSeedStrategy(
                 deadStatesIds.add(state.id)
             }
         }
-    }
-
-    private lateinit var observer: Observer
-
-    override fun getObserver(): UMachineObserver<TvmState> {
-        observer = Observer()
-        return observer
     }
 
     private val random = Random(0)
@@ -56,12 +50,16 @@ class TvmRandomTreeSeedStrategy(
         deadStatesInRow = 0
     }
 
+    private var lastSeed: UInt? = null
+
     override fun getNewSeed(extendingTime: Boolean): TvmState {
         check(!randomTreePs.isEmpty()) {
             "Cannot proceed if no states are left"
         }
 
-        return randomTreePs.peek()
+        return randomTreePs.peek().also {
+            lastSeed = it.id
+        }
     }
 
     override fun updateStats(lastPeekedState: TvmState) {

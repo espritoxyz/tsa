@@ -2,30 +2,22 @@ package org.usvm.machine.ps
 
 import mu.KLogging
 import org.ton.bytecode.TsaArtificialInst
-import org.ton.bytecode.TvmCodeBlock
 import org.usvm.UPathSelector
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.lastStmt
-import org.usvm.statistics.TimeStatistics
-import org.usvm.statistics.UMachineObserver
-import org.usvm.stopstrategies.StopStrategy
 import kotlin.time.Duration
 
 class TvmSeedBasedPathSelector(
     private val strategy: SeedStrategy,
-    private val timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
-    private var currentTimeout: Duration,
-    private val timeStep: Duration? = null,
+    private val canExtendTime: Boolean,
     private val createDfsLikePathSelector: () -> UPathSelector<TvmState>,
 ) : UPathSelector<TvmState>,
-    StopStrategy {
+    TvmExtendingTimeStrategy {
     var basePathSelector = createDfsLikePathSelector()
     private val makeOneStepFor = mutableSetOf<TvmState>()
 
     interface SeedStrategy {
         fun getNewSeed(extendingTime: Boolean): TvmState
-
-        fun getObserver(): UMachineObserver<TvmState>
 
         fun requestMoreTime(): Boolean
 
@@ -121,19 +113,21 @@ class TvmSeedBasedPathSelector(
         }
     }
 
-    private fun forceOneMoreStep(state: TvmState): Boolean = state.lastStmt is TsaArtificialInst && timeStep != null
+    private fun forceOneMoreStep(state: TvmState): Boolean = state.lastStmt is TsaArtificialInst && canExtendTime
 
-    override fun shouldStop(): Boolean {
+    override fun requestMoreTime(): Boolean {
         if (makeOneStepFor.isNotEmpty()) {
-            return false
+            return true
         }
-        lastPeekedState?.let { strategy.updateStats(it) }
-        if (timeStatistics.runningTime > currentTimeout && timeStep != null && strategy.requestMoreTime()) {
-            logger.info("Extended timeout by $timeStep")
-            currentTimeout = timeStatistics.runningTime + timeStep
+
+        strategy.addPausedStates(extractStatesFromBasePS())
+        return strategy.requestMoreTime()
+    }
+
+    override fun notifyAboutTimeExtension(newTimeout: Duration) {
+        if (strategy.hasAdditionalStates()) {
             changeSeed(extendingTime = true)
         }
-        return timeStatistics.runningTime > currentTimeout
     }
 
     companion object {

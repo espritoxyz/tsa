@@ -19,8 +19,6 @@ import org.usvm.ps.DfsPathSelector
 import org.usvm.ps.IterativeDeepeningPs
 import org.usvm.ps.LoopLimiterPs
 import org.usvm.statistics.TimeStatistics
-import org.usvm.statistics.UMachineObserver
-import org.usvm.stopstrategies.StopStrategy
 import org.usvm.util.RealTimeStopwatch
 import kotlin.time.Duration
 
@@ -28,10 +26,10 @@ data class PSCreationContext(
     val options: TvmOptions,
     val timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
     val loopTracker: TvmLoopTracker,
-) {
-    var psObserver: UMachineObserver<TvmState>? = null
-    var customTimeoutStopStrategy: StopStrategy? = null
-}
+    val extendingTimeStrategy: TvmCompositeExtendingTimeStrategy?,
+    val uncoveredInstObserver: TvmUncoveredInstSeedStrategy.Observer,
+    val randomTreeObserver: TvmRandomTreeSeedStrategy.Observer,
+)
 
 fun createPathSelector(
     ctx: PSCreationContext,
@@ -145,6 +143,15 @@ private fun createPathSelectorLevel0(
 }
 
 private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmState> =
+    if (ctx.options.groupByOutOpcodes) {
+        TvmOutOpcodePathSelector {
+            createPathSelectorLevel2(ctx)
+        }
+    } else {
+        createPathSelectorLevel2(ctx)
+    }
+
+private fun createPathSelectorLevel2(ctx: PSCreationContext): UPathSelector<TvmState> =
     when (ctx.options.pathSelectionStrategy) {
         TvmPathSelectionStrategy.DFS_BASED -> createSeedBasedPathSelector(ctx)
         TvmPathSelectionStrategy.BFS -> addIterativeDeepening(ctx.options, BfsPathSelector(), ctx.loopTracker)
@@ -155,30 +162,21 @@ private fun createSeedBasedPathSelector(ctx: PSCreationContext): TvmSeedBasedPat
         if (ctx.options.addTimeoutIfNotSatiated) {
             TvmCompositeSeedStrategy(
                 listOf(
-                    TvmUncoveredInstSeedStrategy(),
-                    TvmRandomTreeSeedStrategy(PathNode.root()),
+                    TvmUncoveredInstSeedStrategy(ctx.uncoveredInstObserver),
+                    TvmRandomTreeSeedStrategy(PathNode.root(), ctx.randomTreeObserver),
                 ),
             )
         } else {
-            TvmRandomTreeSeedStrategy(PathNode.root())
+            TvmRandomTreeSeedStrategy(PathNode.root(), ctx.randomTreeObserver)
         }
-
-    ctx.psObserver = strategy.getObserver()
 
     return TvmSeedBasedPathSelector(
         strategy,
-        ctx.timeStatistics,
-        currentTimeout = ctx.options.timeout,
-        timeStep = if (ctx.options.addTimeoutIfNotSatiated) ctx.options.timeout else null,
+        canExtendTime = ctx.options.addTimeoutIfNotSatiated,
     ) {
         addIterativeDeepening(ctx.options, DfsPathSelector(), ctx.loopTracker)
     }.also {
-        if (ctx.options.addTimeoutIfNotSatiated) {
-            check(ctx.customTimeoutStopStrategy == null) {
-                "Can add only one [customTimeoutStopStrategy]"
-            }
-            ctx.customTimeoutStopStrategy = it
-        }
+        ctx.extendingTimeStrategy?.addExtendingTimeStrategy(it)
     }
 }
 

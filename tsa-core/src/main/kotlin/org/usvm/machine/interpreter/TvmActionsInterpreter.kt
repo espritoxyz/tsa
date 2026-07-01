@@ -175,10 +175,12 @@ class TvmActionsInterpreter(
             builderStoreNextRefNoOverflowCheck(updatedActions, actions)
         }
 
-        val updatedList = registers.c5.identifierList?.add(0, C5ActionIdentifier.Reserve)
-        registers.c5 = C5Register(TvmCellValue(updatedActions), updatedList)
-
         scope.doWithState {
+            val updatedList = c5IdentifierList[actions]?.add(0, C5ActionIdentifier.Reserve)
+            updatedList?.let {
+                c5IdentifierList = c5IdentifierList.put(updatedActions, updatedList)
+            }
+
             newStmt(stmt.nextStmt())
         }
     }
@@ -216,14 +218,16 @@ class TvmActionsInterpreter(
                         callStackInst.physicalLocation
                     }
                 val timesCallStackWasSeen = callstackCounter[callstack] ?: 0
+
                 val id = C5ActionIdentifier.MsgIdentifier(callstack, timesCallStackWasSeen)
                 val updatedList =
-                    registers.c5.identifierList?.add(
-                        0,
-                        id,
-                    )
+                    c5IdentifierList[actions]?.add(0, id)
+                updatedList?.let {
+                    c5IdentifierList = c5IdentifierList.put(updatedActions, updatedList)
+                }
+
                 callstackCounter = callstackCounter.put(callstack, timesCallStackWasSeen + 1)
-                registers.c5 = C5Register(TvmCellValue(updatedActions), updatedList)
+                registers.c5 = C5Register(TvmCellValue(updatedActions))
 
                 logger.debug {
                     "SENDRAWMSG with id ${id.hash()}"

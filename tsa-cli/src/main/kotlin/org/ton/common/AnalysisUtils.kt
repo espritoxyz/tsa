@@ -72,6 +72,7 @@ private fun createTvmOptions(
             followTrace = analysisOptions.followTracePath?.toFile()?.let { FollowTrace.load(it) },
             addTimeoutIfNotSatiated = analysisOptions.addTimeoutIfNotSatiated,
             shortResolve = analysisOptions.shortResolve,
+            groupByOutOpcodes = analysisOptions.groupStatesByOutMessages,
         )
 
     if (interContractSchemePath != null) {

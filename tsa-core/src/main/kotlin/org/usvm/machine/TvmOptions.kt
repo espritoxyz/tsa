@@ -53,6 +53,7 @@ data class TvmOptions(
     val followTrace: FollowTrace? = null,
     val addTimeoutIfNotSatiated: Boolean = false,
     val shortResolve: Boolean = false,
+    val groupByOutOpcodes: Boolean = false,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {

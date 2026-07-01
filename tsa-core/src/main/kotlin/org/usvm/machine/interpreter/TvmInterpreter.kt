@@ -451,6 +451,8 @@ class TvmInterpreter(
                 initialRandomSeed = concreteGeneralData.initialSeed,
             )
 
+        state.c5IdentifierList = state.c5IdentifierList.put(refEmptyValue.emptyCell, persistentListOf())
+
         val concreteTime = concreteGeneralData.startTransactionUnixTime
         if (concreteTime != null) {
             state.time = with(ctx) { concreteTime.toBv257() }
@@ -2703,7 +2705,7 @@ class TvmInterpreter(
 
                 5 -> {
                     val c5 = registers.c5
-                    c0.defineC5(c5.value.value, c5.identifierList)
+                    c0.defineC5(c5.value.value)
                 }
 
                 7 -> {
@@ -2779,7 +2781,7 @@ class TvmInterpreter(
                         takeLastCell()
                             ?: return@doWithStateCtx throwTypeCheckError(this)
 
-                    cont.defineC5(cell, identifierList = null)
+                    cont.defineC5(cell)
                 }
 
                 7 -> {
@@ -2827,7 +2829,7 @@ class TvmInterpreter(
             cont = cont.defineC4(regs.c4.value.value)
         }
         if (isBitSet(5)) {
-            cont = cont.defineC5(regs.c5.value.value, regs.c5.identifierList)
+            cont = cont.defineC5(regs.c5.value.value)
         }
         // there is no 6th register
         if (isBitSet(7)) {
@@ -2901,7 +2903,7 @@ class TvmInterpreter(
                     takeLastCell()
                         ?: return@doWithStateCtx throwTypeCheckError(this)
 
-                registers.c5 = C5Register(TvmCellValue(newData), null)
+                registers.c5 = C5Register(TvmCellValue(newData))
             }
 
             7 -> {

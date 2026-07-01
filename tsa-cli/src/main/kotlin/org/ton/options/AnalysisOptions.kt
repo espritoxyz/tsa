@@ -107,4 +107,8 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
             "Resolve only a lightweight subset of the execution data for each test. " +
                 "Faster, but the resulting tests lack full information (input, coverage, events, etc.).",
         )
+
+    val groupStatesByOutMessages by option("--group-states-by-out-messages")
+        .flag(default = false)
+        .help("Use path selector that groups states by out messages")
 }

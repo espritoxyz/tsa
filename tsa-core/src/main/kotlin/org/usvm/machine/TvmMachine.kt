@@ -9,6 +9,9 @@ import org.usvm.UMachine
 import org.usvm.UMachineOptions
 import org.usvm.machine.interpreter.TvmInterpreter
 import org.usvm.machine.ps.PSCreationContext
+import org.usvm.machine.ps.TvmCompositeExtendingTimeStrategy
+import org.usvm.machine.ps.TvmRandomTreeSeedStrategy
+import org.usvm.machine.ps.TvmUncoveredInstSeedStrategy
 import org.usvm.machine.ps.createPathSelector
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
@@ -87,11 +90,25 @@ class TvmMachine(
 
         val timeStatistics = TimeStatistics<TvmCodeBlock, TvmState>()
 
+        val extendingTimeStrategy =
+            if (tvmOptions.addTimeoutIfNotSatiated) {
+                TvmCompositeExtendingTimeStrategy(
+                    timeStatistics,
+                    options.timeout,
+                    options.timeout,
+                )
+            } else {
+                null
+            }
+
         val psContext =
             PSCreationContext(
                 tvmOptions,
                 timeStatistics = timeStatistics,
                 loopTracker = TvmLoopTracker(),
+                extendingTimeStrategy,
+                TvmUncoveredInstSeedStrategy.Observer(),
+                TvmRandomTreeSeedStrategy.Observer(),
             )
 
         val pathSelector =
@@ -132,12 +149,8 @@ class TvmMachine(
             }
 
         val timeoutStopStrategy =
-            if (!tvmOptions.addTimeoutIfNotSatiated) {
-                TimeoutStopStrategy(options.timeout, timeStatistics)
-            } else {
-                psContext.customTimeoutStopStrategy
-                    ?: error("Can add timeout only with [TvmSeedBasedPathSelector]")
-            }
+            psContext.extendingTimeStrategy
+                ?: TimeoutStopStrategy(options.timeout, timeStatistics)
 
         val integrativeStopStrategy =
             GroupedStopStrategy(listOf(stopStrategy, additionalStopStrategy, timeoutStopStrategy))
@@ -171,12 +184,9 @@ class TvmMachine(
                 coverageStatistics,
                 timeStatistics,
                 additionalStopStrategy,
+                psContext.randomTreeObserver,
+                psContext.uncoveredInstObserver,
             )
-
-        val psObserver = psContext.psObserver
-        if (psObserver != null) {
-            observers.add(psObserver)
-        }
 
         if (logger.isDebugEnabled && contractsCode.size == 1) {
             val code = contractsCode.single()

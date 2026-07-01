@@ -1,14 +1,11 @@
 package org.usvm.machine.ps
 
 import org.usvm.machine.state.TvmState
-import org.usvm.statistics.CompositeUMachineObserver
-import org.usvm.statistics.UMachineObserver
 
 class TvmCompositeSeedStrategy(
     private val strategies: List<TvmSeedBasedPathSelector.SeedStrategy>,
 ) : TvmSeedBasedPathSelector.SeedStrategy {
-    override fun getObserver(): UMachineObserver<TvmState> =
-        CompositeUMachineObserver(strategies.map { it.getObserver() })
+    var lastStrategy = -1
 
     override fun requestMoreTime(): Boolean = strategies.any { it.requestMoreTime() }
 
@@ -20,29 +17,32 @@ class TvmCompositeSeedStrategy(
         }
     }
 
-    override fun getNewSeed(extendingTime: Boolean): TvmState =
+    override fun getNewSeed(extendingTime: Boolean): TvmState {
+        var strategy: TvmSeedBasedPathSelector.SeedStrategy? = null
         if (extendingTime) {
-            strategies
-                .first {
-                    it.requestMoreTime()
-                }.getNewSeed(extendingTime = true)
-        } else {
-            val strategy =
+            strategy =
                 strategies.firstOrNull {
-                    it.shouldGetNewSeed()
-                } ?: let {
-                    strategies.first {
-                        it.hasAdditionalStates()
-                    }
+                    it.requestMoreTime()
                 }
-            strategy.getNewSeed(extendingTime = false)
         }
+        strategy = strategy ?: strategies.firstOrNull {
+            it.shouldGetNewSeed()
+        } ?: let {
+            strategies.first {
+                it.hasAdditionalStates()
+            }
+        }
+
+        lastStrategy = strategies.indexOf(strategy)
+
+        return strategy.getNewSeed(extendingTime = false)
+    }
 
     override fun hasAdditionalStates(): Boolean = strategies.any { it.hasAdditionalStates() }
 
     override fun updateStats(lastPeekedState: TvmState) {
-        strategies.forEach {
-            it.updateStats(lastPeekedState)
+        if (lastStrategy != -1) {
+            strategies[lastStrategy].updateStats(lastPeekedState)
         }
     }
 
