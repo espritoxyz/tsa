@@ -359,6 +359,6 @@ class TvmHashConstraintsResolver(
                     ?: ctx.mkEq(l, r)
             }
 
-        override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> = expr
+        override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
     }
 }

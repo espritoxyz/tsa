@@ -56,6 +56,7 @@ import org.usvm.machine.state.ensureSymbolicBuilderInitialized
 import org.usvm.machine.state.ensureSymbolicCellInitialized
 import org.usvm.machine.state.ensureSymbolicSliceInitialized
 import org.usvm.machine.state.hash.HashCollector
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
@@ -129,11 +130,11 @@ class TvmTestStateResolver(
         val collectedHashes = constraintVisitor.collectedHashes
         for ((ref, hash) in state.refToHash) {
             val foundHashSymbol = hash in collectedHashes
-            if (!foundHashSymbol) {
+            if (!foundHashSymbol && hash is TvmSymbolicHashSymbol) {
                 val value = resolveRef(ctx.mkConcreteHeapRef(ref))
                 val hashValue = calculateConcreteHash(value)
-                model.mocker.customValues[hash.fallbackMock] =
-                    with(ctx) { mkBv(hashValue, mkBvSort(hash.fallbackMock.sort.sizeBits)) }
+                model.mocker.customValues[hash.fallbackExpr] =
+                    with(ctx) { mkBv(hashValue, mkBvSort(hash.fallbackExpr.sort.sizeBits)) }
             }
         }
     }

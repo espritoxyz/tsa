@@ -40,6 +40,7 @@ import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
 import org.ton.bytecode.TvmQuitContinuation
+import org.ton.cell.Cell
 import org.usvm.NULL_ADDRESS
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
@@ -68,7 +69,9 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTypeCheckError
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
+import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashSymbol
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.unsignedIntegerFitsBits
@@ -263,11 +266,19 @@ class TvmContext(
     fun mkTvmHash(
         ref: UConcreteHeapRef,
         fallbackMock: UMockSymbol<UBvSort>,
-        mightBeEqualToConstant: Boolean = true,
-    ): TvmHashSymbol =
+    ): TvmSymbolicHashSymbol =
         tvmHashCache
             .createIfContextActive {
-                TvmHashSymbol(this, ref, fallbackMock, mightBeEqualToConstant)
+                TvmSymbolicHashSymbol(this, ref, fallbackMock)
+            }.cast()
+
+    fun mkTvmConstantHash(
+        ref: UConcreteHeapRef,
+        refValue: Cell,
+    ): TvmConstantHashSymbol =
+        tvmHashCache
+            .createIfContextActive {
+                TvmConstantHashSymbol(this, refValue, ref)
             }.cast()
 
     val int257sort = TvmInt257Sort(this)
@@ -950,7 +961,7 @@ class TvmContext(
     ): KFalse? {
         val rhsIsConstant =
             rhs is KInterpretedValue<*> || (rhs is KBvZeroExtensionExpr && rhs.value is KInterpretedValue<*>)
-        if (lhs is TvmHashSymbol && !lhs.mightBeEqualToConstant && rhsIsConstant) {
+        if (lhs is TvmSymbolicHashSymbol && rhsIsConstant) {
             return falseExpr
         }
         return null

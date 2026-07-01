@@ -103,5 +103,7 @@ open class TvmDefaultTransformer(
 
     override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> = expr
 
-    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> = expr
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
+
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
 }
