@@ -29,7 +29,7 @@ class TvmSeedBasedPathSelector(
 
         fun requestMoreTime(): Boolean
 
-        fun shouldShake(): Boolean
+        fun shouldGetNewSeed(): Boolean
 
         fun addPausedStates(states: List<TvmState>)
 
@@ -77,7 +77,7 @@ class TvmSeedBasedPathSelector(
             return result
         }
 
-        if (basePathSelector.isEmpty() || strategy.shouldShake()) {
+        if (basePathSelector.isEmpty() || strategy.shouldGetNewSeed()) {
             changeSeed(extendingTime = false)
         }
 
@@ -127,6 +127,7 @@ class TvmSeedBasedPathSelector(
         if (makeOneStepFor.isNotEmpty()) {
             return false
         }
+        lastPeekedState?.let { strategy.updateStats(it) }
         if (timeStatistics.runningTime > currentTimeout && timeStep != null && strategy.requestMoreTime()) {
             logger.info("Extended timeout by $timeStep")
             currentTimeout = timeStatistics.runningTime + timeStep

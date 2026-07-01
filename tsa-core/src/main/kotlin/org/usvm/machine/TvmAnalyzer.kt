@@ -503,8 +503,9 @@ fun analyzeInterContract(
     interestingExitCodes: Set<Int> = emptySet(),
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
-    val startContractCode = contracts[startContractId]
-    val (states, coverage) =
+
+    val (states, coverage) = machine.use { machine ->
+        val startContractCode = contracts[startContractId]
         runAnalysis(
             contractIdForCoverageStats = startContractId,
             contractForCoverageStats = startContractCode,
@@ -524,8 +525,8 @@ fun analyzeInterContract(
                 interestingExitCodes = interestingExitCodes,
             )
         }
+    }
 
-    machine.close()
     return TvmTestResolver.resolveSingleMethod(methodId, states, coverage)
 }
 

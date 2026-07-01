@@ -16,7 +16,7 @@ import org.usvm.machine.TvmOptions
 import org.usvm.machine.getResourcePath
 import org.usvm.machine.state.input.ReceiverInput.Companion.NANOTONS_BOUND_2
 import org.usvm.test.resolver.TvmSuccessfulExecution
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestNullValue
@@ -306,7 +306,7 @@ class ArgsConstraintsTest {
      * (Maybe Tuple in TVM terms), PREVBLOCKSINFOTUPLE is currently always null,
      * and UNPACKEDCONFIGTUPLE is a tuple of slices over global config params.
      */
-    private fun checkC7Invariants(test: TvmSymbolicTest) {
+    private fun checkC7Invariants(test: TvmSymbolicTestFull) {
         val c7 = test.initialRootContractState.c7.elements
 
         // c7[0] TAG is the fixed magic value 0x076ef1ea.

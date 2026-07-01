@@ -5,6 +5,7 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import kotlin.test.Test
 
 class TlbTest {
@@ -38,7 +39,7 @@ class TlbTest {
             assert(false) { "Found assertion violations: $assertionViolations" }
         }
         assert(tests.toExitCodes().any { it == 500 }) { "No successfull execution found" }
-        tests.filter { it.executionCode() == 500 }.forEach {
+        tests.filterIsInstance<TvmSymbolicTestFull>().filter { it.executionCode() == 500 }.forEach {
             assert(it.debugInfo.tlbMemoryMisses == 0) { "TLb memory miss detected" }
         }
     }

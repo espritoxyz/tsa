@@ -33,7 +33,7 @@ class TvmUncoveredInstSeedStrategy : TvmSeedBasedPathSelector.SeedStrategy {
         return observer
     }
 
-    override fun shouldShake(): Boolean = false
+    override fun shouldGetNewSeed(): Boolean = false
 
     private fun updateStats() {
         stmtToState.removeIf {

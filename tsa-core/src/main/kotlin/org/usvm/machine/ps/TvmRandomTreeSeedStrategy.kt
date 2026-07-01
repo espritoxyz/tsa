@@ -73,7 +73,7 @@ class TvmRandomTreeSeedStrategy(
         }
     }
 
-    override fun shouldShake(): Boolean = deadStatesInRow >= shakeAfterDeaths
+    override fun shouldGetNewSeed(): Boolean = deadStatesInRow >= shakeAfterDeaths
 
     override fun requestMoreTime(): Boolean = false
 
@@ -84,6 +84,6 @@ class TvmRandomTreeSeedStrategy(
     }
 
     companion object {
-        const val DEFAULT_SHAKE_AFTER_DEATHS = 5
+        const val DEFAULT_SHAKE_AFTER_DEATHS = 7
     }
 }

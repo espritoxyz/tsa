@@ -9,7 +9,7 @@ import org.usvm.machine.TvmManualStateProcessor
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.state.TvmState
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestFailure
 
 fun runAnalysisAndExtractFailingExecutions(
@@ -18,7 +18,7 @@ fun runAnalysisAndExtractFailingExecutions(
     inputInfo: TvmInputInfo?,
     useRecvInternalInput: Boolean = true,
     manualStatePostProcess: (TvmState) -> List<TvmState> = { listOf(it) },
-): List<TvmSymbolicTest> {
+): List<TvmSymbolicTestFull> {
     val postProcessor =
         object : TvmManualStateProcessor() {
             override fun postProcessBeforePartialConcretization(state: TvmState): List<TvmState> =
@@ -47,6 +47,6 @@ fun runAnalysisAndExtractFailingExecutions(
             manualStateProcessor = postProcessor,
         )
     val foundTests = analysisResult.tests
-    val result = foundTests.filter { it.result is TvmTestFailure }
+    val result = foundTests.filterIsInstance<TvmSymbolicTestFull>().filter { it.result is TvmTestFailure }
     return result
 }

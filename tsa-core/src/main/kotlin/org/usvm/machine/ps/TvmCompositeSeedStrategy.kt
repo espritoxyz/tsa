@@ -10,17 +10,9 @@ class TvmCompositeSeedStrategy(
     override fun getObserver(): UMachineObserver<TvmState> =
         CompositeUMachineObserver(strategies.map { it.getObserver() })
 
-    override fun requestMoreTime(): Boolean =
-        strategies
-            .map {
-                it.requestMoreTime()
-            }.reduce { acc, bool -> acc || bool }
+    override fun requestMoreTime(): Boolean = strategies.any { it.requestMoreTime() }
 
-    override fun shouldShake(): Boolean =
-        strategies
-            .map {
-                it.shouldShake()
-            }.reduce { acc, bool -> acc || bool }
+    override fun shouldGetNewSeed(): Boolean = strategies.any { it.shouldGetNewSeed() }
 
     override fun addPausedStates(states: List<TvmState>) {
         strategies.forEach {
@@ -37,7 +29,7 @@ class TvmCompositeSeedStrategy(
         } else {
             val strategy =
                 strategies.firstOrNull {
-                    it.shouldShake()
+                    it.shouldGetNewSeed()
                 } ?: let {
                     strategies.first {
                         it.hasAdditionalStates()
@@ -46,11 +38,7 @@ class TvmCompositeSeedStrategy(
             strategy.getNewSeed(extendingTime = false)
         }
 
-    override fun hasAdditionalStates(): Boolean =
-        strategies
-            .map {
-                it.hasAdditionalStates()
-            }.reduce { acc, bool -> acc || bool }
+    override fun hasAdditionalStates(): Boolean = strategies.any { it.hasAdditionalStates() }
 
     override fun updateStats(lastPeekedState: TvmState) {
         strategies.forEach {

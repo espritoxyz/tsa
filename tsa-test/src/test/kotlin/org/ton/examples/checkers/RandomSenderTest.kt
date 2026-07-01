@@ -13,7 +13,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.state.InsufficientFunds
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestFailure
 import kotlin.test.Test
@@ -77,7 +77,7 @@ class RandomSenderTest {
     fun testVulnerableTolk() {
         val tests = runTestJson(vulnerableTutorialContract)
 
-        fun isInsufficientFundsFailure(test: TvmSymbolicTest): Boolean {
+        fun isInsufficientFundsFailure(test: TvmSymbolicTestFull): Boolean {
             val result = test.result
             return result is TvmTestFailure && result.failure.exit is InsufficientFunds
         }

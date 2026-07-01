@@ -24,7 +24,7 @@ import org.usvm.machine.state.InsufficientFunds
 import org.usvm.machine.state.TvmBadDestinationAddress
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.exitCode
 import kotlin.test.Test
@@ -152,7 +152,7 @@ class SendModesTest {
         propertiesFound(
             tests,
             expectedOpCodes.map { expectedOpcode ->
-                { test: TvmSymbolicTest -> test.executionCode() == expectedOpcode }
+                { test: TvmSymbolicTestFull -> test.executionCode() == expectedOpcode }
             },
         )
 

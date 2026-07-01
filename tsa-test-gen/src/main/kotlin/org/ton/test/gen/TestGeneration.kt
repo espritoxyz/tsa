@@ -35,7 +35,7 @@ import org.usvm.machine.TvmContext.Companion.stdMsgAddrSize
 import org.usvm.machine.state.TvmUserDefinedFailure
 import org.usvm.test.minimization.minimizeTestCase
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTerminalMethodSymbolicResult
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestFailure
@@ -59,7 +59,7 @@ fun generateTests(
     generateRecvExternalTests: Boolean = false, // TODO: make `true` default (after fixes for recv_external)
     useMinimization: Boolean = false,
 ): String? {
-    val entryTests = analysisResult.testSuites.flatten()
+    val entryTests = analysisResult.testSuites.flatten().filterIsInstance<TvmSymbolicTestFull>()
 
     return generateTests(
         entryTests,
@@ -72,7 +72,7 @@ fun generateTests(
 }
 
 fun generateTests(
-    tests: List<TvmSymbolicTest>,
+    tests: List<TvmSymbolicTestFull>,
     projectPath: Path,
     sourceRelativePath: Path,
     contractType: TsRenderer.ContractType,
@@ -99,7 +99,7 @@ fun generateTests(
 
 private fun TsContext.constructTests(
     name: String,
-    tests: List<TvmSymbolicTest>,
+    tests: List<TvmSymbolicTestFull>,
     sourcePath: String,
     generateRecvExternalTests: Boolean,
     useMinimization: Boolean,
@@ -148,14 +148,14 @@ private fun TsContext.constructTests(
 
 private data class TestCaseContext(
     val testName: String,
-    val test: TvmSymbolicTest,
+    val test: TvmSymbolicTestFull,
     val code: TsVariable<TsCell>,
     val blockchain: TsVariable<TsBlockchain>,
 )
 
 private fun TsTestFileBuilder.registerTestsForMethod(
     testGroupName: String,
-    tests: List<TvmSymbolicTest>,
+    tests: List<TvmSymbolicTestFull>,
     code: TsVariable<TsCell>,
     blockchain: TsVariable<TsBlockchain>,
     registerTestBlock: TsTestBlockBuilder.(TestCaseContext) -> Unit,
@@ -176,7 +176,7 @@ private fun TsTestFileBuilder.registerTestsForMethod(
 
 private fun TsTestFileBuilder.registerRecvInternalTests(
     wrapperDescriptor: TsBasicWrapperDescriptor,
-    tests: List<TvmSymbolicTest>,
+    tests: List<TvmSymbolicTestFull>,
     code: TsVariable<TsCell>,
     blockchain: TsVariable<TsBlockchain>,
 ) {
@@ -298,7 +298,7 @@ private fun TsTestFileBuilder.registerRecvInternalTests(
 
 private fun TsTestFileBuilder.registerRecvExternalTests(
     wrapperDescriptor: TsBasicWrapperDescriptor,
-    tests: List<TvmSymbolicTest>,
+    tests: List<TvmSymbolicTestFull>,
     code: TsVariable<TsCell>,
     blockchain: TsVariable<TsBlockchain>,
 ) {
@@ -380,7 +380,7 @@ private fun TsTestFileBuilder.registerRecvExternalTests(
     }
 }
 
-private fun resolveReceiveInternalInput(test: TvmSymbolicTest): TvmReceiveInternalInput {
+private fun resolveReceiveInternalInput(test: TvmSymbolicTestFull): TvmReceiveInternalInput {
     val input =
         test.input as? RecvInternalInput
             ?: error("Unexpected general input ${test.input} for recv_internal")
@@ -430,7 +430,7 @@ private data class TvmReceiveInternalInput(
  * Returns the resolved value of `c7[15]` (due payment) for the given test.
  * Defaults to 0 if the value is missing (e.g. legacy tests).
  */
-private fun resolveDuePayment(test: TvmSymbolicTest): TvmTestIntegerValue {
+private fun resolveDuePayment(test: TvmSymbolicTestFull): TvmTestIntegerValue {
     val c7 = test.initialRootContractState.c7.elements
     val due = c7.getOrNull(DUE_PAYMENT_IDX) as? TvmTestIntegerValue
     return due ?: TvmTestIntegerValue(java.math.BigInteger.ZERO)
@@ -449,7 +449,7 @@ private fun resolveDuePayment(test: TvmSymbolicTest): TvmTestIntegerValue {
  * The exact numbers were derived empirically against `@ton/sandbox`'s default
  * mainnet pricing (cells dominate the fee; see comments below).
  */
-private fun resolveStorageFeesPreset(test: TvmSymbolicTest): StorageFeesPreset {
+private fun resolveStorageFeesPreset(test: TvmSymbolicTestFull): StorageFeesPreset {
     val c7 = test.initialRootContractState.c7.elements
     val sf =
         (c7.getOrNull(STORAGE_FEES_PARAMETER_IDX) as? TvmTestIntegerValue)?.value
@@ -481,7 +481,7 @@ private enum class StorageFeesPreset(
     HIGH(cells = 20_000, bits = 0, lastPaidDeltaSeconds = 100_000_000),
 }
 
-private fun resolveReceiveExternalInput(test: TvmSymbolicTest): TvmReceiveExternalInput {
+private fun resolveReceiveExternalInput(test: TvmSymbolicTestFull): TvmReceiveExternalInput {
     // TODO: for now, take into account only in_message
     // in theory, up to 4 arguments can be used (same as for receive_internal)
     val usedParameters =
@@ -534,7 +534,7 @@ private data class TvmReceiveExternalInput(
     val exitCode: Int,
 )
 
-private fun generateTestNames(tests: List<TvmSymbolicTest>): List<String> {
+private fun generateTestNames(tests: List<TvmSymbolicTestFull>): List<String> {
     val exitsCounter = mutableMapOf<String, Int>()
 
     return tests.map { test ->

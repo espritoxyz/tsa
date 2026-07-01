@@ -93,4 +93,18 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
     val noIntBlasting by option("--no-int-blasting")
         .flag(default = false)
         .help("Use int-blasting optimization")
+
+    val addTimeoutIfNotSatiated by option("--add-timeout-if-not-satiated")
+        .flag(default = false)
+        .help(
+            "Extend the analysis timeout while the path selector still has uncovered instructions to explore. " +
+                "Requires --timeout to be set.",
+        )
+
+    val shortResolve by option("--short-resolve")
+        .flag(default = false)
+        .help(
+            "Resolve only a lightweight subset of the execution data for each test. " +
+                "Faster, but the resulting tests lack full information (input, coverage, events, etc.).",
+        )
 }

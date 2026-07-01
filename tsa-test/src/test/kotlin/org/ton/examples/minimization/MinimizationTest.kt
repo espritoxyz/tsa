@@ -4,6 +4,7 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.toMethodId
 import org.usvm.test.minimization.minimizeTestCase
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -21,7 +22,7 @@ class MinimizationTest {
                 methodWhiteList = setOf(0.toMethodId()),
             )
 
-        val initialTest = methodStates.single().tests
+        val initialTest = methodStates.single().tests.filterIsInstance<TvmSymbolicTestFull>()
         val minimizedTests1 = minimizeTestCase(initialTest, branchInstructionsNumber = 0)
         val minimizedTests2 = minimizeTestCase(initialTest, branchInstructionsNumber = 2)
 

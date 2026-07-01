@@ -34,6 +34,7 @@ import org.ton.sarif.toSarifReport
 import org.ton.toCellAsFileContent
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestCellValue
 import org.usvm.test.resolver.TvmTestSliceValue
@@ -270,7 +271,7 @@ sealed class AbstractCheckerAnalysis(
     }
 
     private fun extractExportedInputsFromTest(result: TvmSymbolicTestSuite): List<ExportedInputs> =
-        result.tests.mapIndexed { index, test ->
+        result.tests.filterIsInstance<TvmSymbolicTestFull>().mapIndexed { index, test ->
             val checkerContractId = 0
             val c4s =
                 test.contractStatesBefore
