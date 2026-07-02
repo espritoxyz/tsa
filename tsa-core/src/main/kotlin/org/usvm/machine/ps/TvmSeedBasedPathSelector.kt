@@ -115,13 +115,18 @@ class TvmSeedBasedPathSelector(
 
     private fun forceOneMoreStep(state: TvmState): Boolean = state.lastStmt is TsaArtificialInst && canExtendTime
 
-    override fun requestMoreTime(): Boolean {
+    override fun requestMoreTime(): TvmExtendingTimeStrategy.TimeExtension {
         if (makeOneStepFor.isNotEmpty()) {
-            return true
+            return TvmExtendingTimeStrategy.TimeExtension.ONE_STEP
         }
 
         strategy.addPausedStates(extractStatesFromBasePS())
-        return strategy.requestMoreTime()
+        val strategyRequest = strategy.requestMoreTime()
+        return if (strategyRequest) {
+            TvmExtendingTimeStrategy.TimeExtension.TIME_STEP
+        } else {
+            TvmExtendingTimeStrategy.TimeExtension.NONE
+        }
     }
 
     override fun notifyAboutTimeExtension(newTimeout: Duration) {

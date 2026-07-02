@@ -20,11 +20,13 @@ class TvmCompositeExtendingTimeStrategy(
 
     override fun shouldStop(): Boolean {
         if (timeStatistics.runningTime > timeout) {
-            val shouldExtend = strategies.any { it.requestMoreTime() }
-            if (shouldExtend) {
+            val results = strategies.map { it.requestMoreTime() }
+            if (TvmExtendingTimeStrategy.TimeExtension.TIME_STEP in results) {
                 logger.info("Extended timeout by $timeStep")
                 timeout = timeStatistics.runningTime + timeStep
                 strategies.forEach { it.notifyAboutTimeExtension(timeout) }
+            } else if (TvmExtendingTimeStrategy.TimeExtension.ONE_STEP in results) {
+                return false
             }
         }
         return timeStatistics.runningTime > timeout

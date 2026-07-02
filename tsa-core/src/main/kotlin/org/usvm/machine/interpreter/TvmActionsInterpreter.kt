@@ -181,6 +181,8 @@ class TvmActionsInterpreter(
                 c5IdentifierList = c5IdentifierList.put(updatedActions, updatedList)
             }
 
+            registers.c5 = C5Register(TvmCellValue(updatedActions))
+
             newStmt(stmt.nextStmt())
         }
     }
