@@ -1,7 +1,6 @@
 package org.usvm.machine
 
 import org.ton.TvmContractHandlers
-import org.usvm.PathSelectionStrategy
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_LOOP_ITERATIONS_LIMIT
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_CELL_DEPTH_FOR_DEFAULT_CELLS_CONSISTENT_WITH_TLB
 import org.usvm.machine.TvmMachine.Companion.DEFAULT_MAX_RECURSION_DEPTH
@@ -44,7 +43,7 @@ data class TvmOptions(
     val useIntBlasting: Boolean = true,
     val useSoftConstraints: Boolean = true,
     val collectTlbMemoryStats: Boolean = false,
-    val pathSelectionStrategies: List<PathSelectionStrategy> = listOf(PathSelectionStrategy.DFS),
+    val pathSelectionStrategy: TvmPathSelectionStrategy = TvmPathSelectionStrategy.DFS_BASED,
     val divideTimeBetweenOpcodes: TimeDivisionBetweenOpcodes? = null,
     val collectNonTerminatedState: Boolean = false,
     /**
@@ -52,11 +51,19 @@ data class TvmOptions(
      * the locations specified in this trace. Useful for replaying a previously observed execution.
      */
     val followTrace: FollowTrace? = null,
-    val groupStatesByOutMessages: Boolean = false,
+    val addTimeoutIfNotSatiated: Boolean = false,
+    val shortResolve: Boolean = false,
+    val groupByOutOpcodes: Boolean = false,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {
             "Cannot perform inter-contract analysis without enabling out messages analysis"
+        }
+        check(!addTimeoutIfNotSatiated || timeout != Duration.INFINITE) {
+            "Cannot add timeout when not satiated if no timeout is given"
+        }
+        check(!addTimeoutIfNotSatiated || divideTimeBetweenOpcodes == null) {
+            "Cannot use strategy [addTimeoutIfNotSatiated] together with [divideTimeBetweenOpcodes]"
         }
     }
 }
@@ -88,4 +95,9 @@ data class IntercontractOptions(
 ) {
     val isIntercontractEnabled: Boolean
         get() = communicationScheme != null
+}
+
+enum class TvmPathSelectionStrategy {
+    DFS_BASED,
+    BFS,
 }

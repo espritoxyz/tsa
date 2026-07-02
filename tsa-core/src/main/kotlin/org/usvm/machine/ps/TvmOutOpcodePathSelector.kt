@@ -6,7 +6,7 @@ import org.usvm.machine.state.TvmState
 import kotlin.random.Random
 
 class TvmOutOpcodePathSelector(
-    private val createBasePathSelector: (TvmState) -> UPathSelector<TvmState>,
+    private val createBasePathSelector: () -> UPathSelector<TvmState>,
 ) : UPathSelector<TvmState> {
     private val random: Random = Random(0)
 
@@ -49,7 +49,8 @@ class TvmOutOpcodePathSelector(
                 ?: setOf()
 
         val setOfMessageIds =
-            state.registersOfCurrentContract.c5.identifierList
+            state.registersOfCurrentContract.c5
+                .let { state.c5IdentifierList[it.value.value] }
                 ?.mapNotNull {
                     (it as? C5ActionIdentifier.MsgIdentifier)?.hash()
                 }?.toSet() ?: emptySet()
@@ -61,7 +62,9 @@ class TvmOutOpcodePathSelector(
             innerPathSelectors[key]?.also {
                 it.add(listOf(state))
             } ?: run {
-                createBasePathSelector(state)
+                createBasePathSelector().also {
+                    it.add(listOf(state))
+                }
             }
 
         innerPathSelectors[key] = ps

@@ -231,7 +231,7 @@ class TvmTestStateResolver(
         }
     }
 
-    fun resolveInitialContractState(contract: ContractId): TvmContractState {
+    fun resolveInitialContractBalance(contract: ContractId): TvmTestIntegerValue {
         val balance =
             getInitialContractParam(contract, BALANCE_PARAMETER_IDX)
                 .tupleValue
@@ -239,9 +239,12 @@ class TvmTestStateResolver(
                 ?.cell(stack)
                 ?: error("Unexpected contract balance")
 
-        val c7Balance =
-            (resolveStackValue(balance) as? TvmTestIntegerValue)
-                ?: error("Unexpected balance type")
+        return (resolveStackValue(balance) as? TvmTestIntegerValue)
+            ?: error("Unexpected balance type")
+    }
+
+    fun resolveInitialContractState(contract: ContractId): TvmContractState {
+        val c7Balance = resolveInitialContractBalance(contract)
 
         val symbolicData =
             state.contractIdToInitialData[contract]

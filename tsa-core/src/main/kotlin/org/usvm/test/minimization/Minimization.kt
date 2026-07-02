@@ -6,7 +6,7 @@ import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmExecutionWithStructuralError
 import org.usvm.test.resolver.TvmSuccessfulActionPhase
 import org.usvm.test.resolver.TvmSuccessfulExecution
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestResult
 import java.util.IdentityHashMap
@@ -25,9 +25,9 @@ import java.util.IdentityHashMap
  * @return flatten minimized executions in each test suite.
  */
 fun minimizeTestCase(
-    tests: List<TvmSymbolicTest>,
+    tests: List<TvmSymbolicTestFull>,
     branchInstructionsNumber: Int = 3,
-): List<TvmSymbolicTest> {
+): List<TvmSymbolicTestFull> {
     val executions = buildExecutions(tests)
     val groupedExecutionsByTestSuite = groupExecutionsByTestSuite(executions)
     val groupedExecutionsByBranchInstructions =
@@ -214,7 +214,7 @@ private fun failedResultToInfo(
         is TvmSuccessfulActionPhase -> error("Unexpected result: $result")
     }
 
-private fun buildExecutions(tests: List<TvmSymbolicTest>): List<TvmExecution> {
+private fun buildExecutions(tests: List<TvmSymbolicTestFull>): List<TvmExecution> {
     val instToId = IdentityHashMap<TvmInst, Int>()
 
     return tests.map { test ->
@@ -228,6 +228,6 @@ private fun buildExecutions(tests: List<TvmSymbolicTest>): List<TvmExecution> {
 }
 
 private data class TvmExecution(
-    val test: TvmSymbolicTest,
+    val test: TvmSymbolicTestFull,
     val coveredInstructionIds: List<Int>,
 )

@@ -1,6 +1,5 @@
 package org.usvm.machine.state
 
-import kotlinx.collections.immutable.PersistentList
 import kotlinx.serialization.Serializable
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCellValue
@@ -49,13 +48,8 @@ sealed interface C5ActionIdentifier {
     data object Reserve : C5ActionIdentifier
 }
 
-/**
- * @param identifierList is `null` iff there is no good data for actions in c5 (e.g. they were set manually instead of via
- * instructions for sending message/reserving TONs)
- */
 data class C5Register(
     val value: TvmCellValue,
-    val identifierList: PersistentList<C5ActionIdentifier>?,
 ) : TvmRegister
 
 data class C7Register(

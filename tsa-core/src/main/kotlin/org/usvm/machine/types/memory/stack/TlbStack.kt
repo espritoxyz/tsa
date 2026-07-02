@@ -10,6 +10,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.isFalse
+import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
@@ -49,7 +50,7 @@ data class TlbStack(
 
             val emptyRead = loadData.type.isEmptyRead(ctx)
 
-            if (frames.isEmpty()) {
+            if (frames.isEmpty() || emptyRead.isTrue) {
                 // finished parsing
                 return@doWithCtx scope.calcOnState {
                     listOf(

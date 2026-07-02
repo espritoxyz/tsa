@@ -37,6 +37,7 @@ import org.usvm.test.resolver.TvmExecutionWithStructuralError
 import org.usvm.test.resolver.TvmSuccessfulActionPhase
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTerminalMethodSymbolicResult
 import org.usvm.test.resolver.TvmTestFailure
@@ -364,7 +365,7 @@ internal fun <T> compareSymbolicAndConcreteResults(
     methodIds: Set<Int>,
     symbolicResult: TvmContractSymbolicTestResult,
     expectedResult: (Int) -> FiftInterpreterResult,
-    symbolicStack: (TvmSymbolicTest) -> List<T>,
+    symbolicStack: (TvmSymbolicTestFull) -> List<T>,
     concreteStackBlock: (FiftInterpreterResult) -> List<T>,
 ) = compareMethodStates(methodIds, symbolicResult, expectedResult) { methodId, symbolicTest, concreteResult ->
     val actualStatus = symbolicTest.executionCode()
@@ -383,12 +384,12 @@ internal fun compareMethodStates(
     methodIds: Set<Int>,
     symbolicResult: TvmContractSymbolicTestResult,
     expectedResult: (Int) -> FiftInterpreterResult,
-    comparison: (Int, TvmSymbolicTest, FiftInterpreterResult) -> Unit,
+    comparison: (Int, TvmSymbolicTestFull, FiftInterpreterResult) -> Unit,
 ) {
     assertEquals(methodIds, symbolicResult.testSuites.mapTo(hashSetOf()) { it.methodId.toInt() })
 
     for ((method, _, tests) in symbolicResult.testSuites) {
-        val test = tests.single()
+        val test = tests.single() as TvmSymbolicTestFull
         val methodId = method.toInt()
         val concreteResult = expectedResult(methodId)
         comparison(methodId, test, concreteResult)
@@ -405,11 +406,11 @@ internal fun checkAtLeastOneStateForAllMethods(
 
 internal fun propertiesFound(
     testSuite: TvmSymbolicTestSuite,
-    properties: List<(TvmSymbolicTest) -> Boolean>,
+    properties: List<(TvmSymbolicTestFull) -> Boolean>,
 ) {
     val failedProperties = mutableListOf<Int>()
     properties.forEachIndexed outer@{ index, property ->
-        testSuite.tests.forEach { test ->
+        testSuite.tests.filterIsInstance<TvmSymbolicTestFull>().forEach { test ->
             if (property(test)) {
                 return@outer
             }
@@ -419,19 +420,20 @@ internal fun propertiesFound(
     assertTrue(failedProperties.isEmpty(), "Properties $failedProperties were not found")
 }
 
-internal fun TvmSymbolicTestSuite.assertPropertiesFound(properties: List<(TvmSymbolicTest) -> Boolean>) =
+internal fun TvmSymbolicTestSuite.assertPropertiesFound(properties: List<(TvmSymbolicTestFull) -> Boolean>) =
     assertPropertiesFound(*properties.toTypedArray())
 
-internal fun TvmSymbolicTestSuite.assertPropertiesFound(vararg properties: (TvmSymbolicTest) -> Boolean) =
+internal fun TvmSymbolicTestSuite.assertPropertiesFound(vararg properties: (TvmSymbolicTestFull) -> Boolean) =
     propertiesFound(this, properties.toList())
 
 internal fun checkInvariants(
-    tests: List<TvmSymbolicTest>,
-    properties: List<(TvmSymbolicTest) -> Boolean>,
+    tests: Iterable<TvmSymbolicTest>,
+    properties: List<(TvmSymbolicTestFull) -> Boolean>,
 ) {
+    val fullTests = tests.filterIsInstance<TvmSymbolicTestFull>()
     val failedInvariants = mutableListOf<Int>()
     properties.forEachIndexed outer@{ index, property ->
-        tests.forEach { test ->
+        fullTests.forEach { test ->
             if (!property(test)) {
                 failedInvariants.add(index)
                 return@outer
@@ -443,15 +445,15 @@ internal fun checkInvariants(
 
 internal fun List<TvmSymbolicTest>.assertNotEmpty() = assert(isNotEmpty())
 
-internal fun List<TvmSymbolicTest>.assertInvariantsHold(vararg properties: (TvmSymbolicTest) -> Boolean) {
+internal fun List<TvmSymbolicTest>.assertInvariantsHold(vararg properties: (TvmSymbolicTestFull) -> Boolean) {
     assertNotEmpty() // we never actually want to have no tests
     checkInvariants(this, properties.toList())
 }
 
-internal fun List<TvmSymbolicTest>.assertInvariantsHold(properties: List<(TvmSymbolicTest) -> Boolean>) =
+internal fun List<TvmSymbolicTest>.assertInvariantsHold(properties: List<(TvmSymbolicTestFull) -> Boolean>) =
     assertInvariantsHold(*(properties.toTypedArray()))
 
-internal fun List<TvmSymbolicTest>.assertInvariantHolds(property: (TvmSymbolicTest) -> Boolean) {
+internal fun List<TvmSymbolicTest>.assertInvariantHolds(property: (TvmSymbolicTestFull) -> Boolean) {
     assertNotEmpty() // we never actually want to have no tests
     checkInvariants(this, listOf(property))
 }

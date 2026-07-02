@@ -9,7 +9,7 @@ import org.usvm.FIFT_STDLIB_PATH
 import org.usvm.machine.TvmContext.Companion.stdMsgAddrSize
 import org.usvm.machine.getFuncContract
 import org.usvm.resolveResourcePath
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestCellDataMsgAddrRead
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestFailure
@@ -36,7 +36,7 @@ data class BlacklistAddressChecker(
     override fun findConflictingExecutions(
         contractUnderTest: TsaContractCode,
         stopWhenFoundOneConflictingExecution: Boolean,
-    ): List<TvmSymbolicTest> {
+    ): List<TvmSymbolicTestFull> {
         val checkerContract = getFuncContract(checkerResourcePath, fiftStdlibPath, isTSAChecker = true)
         return runAnalysisAndExtractFailingExecutions(
             listOf(checkerContract, contractUnderTest),
@@ -45,14 +45,14 @@ data class BlacklistAddressChecker(
         )
     }
 
-    private fun extractMsgBody(test: TvmSymbolicTest): TvmTestDataCellValue? {
+    private fun extractMsgBody(test: TvmSymbolicTestFull): TvmTestDataCellValue? {
         val msgBodySlice =
             test.input.usedParameters.lastOrNull() as? TvmTestSliceValue
                 ?: return null
         return msgBodySlice.cell
     }
 
-    fun getDescription(conflictingExecutions: List<TvmSymbolicTest>): ResultDescription {
+    fun getDescription(conflictingExecutions: List<TvmSymbolicTestFull>): ResultDescription {
         val blacklistedAddresses =
             conflictingExecutions.mapNotNullTo(mutableSetOf()) { test ->
                 check(test.result is TvmTestFailure) {

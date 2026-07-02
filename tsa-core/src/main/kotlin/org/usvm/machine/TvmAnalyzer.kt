@@ -503,29 +503,31 @@ fun analyzeInterContract(
     interestingExitCodes: Set<Int> = emptySet(),
 ): TvmSymbolicTestSuite {
     val machine = TvmMachine(tvmOptions = options)
-    val startContractCode = contracts[startContractId]
+
     val (states, coverage) =
-        runAnalysis(
-            contractIdForCoverageStats = startContractId,
-            contractForCoverageStats = startContractCode,
-            methodId = methodId,
-            logInfoAboutAnalysis = false,
-        ) { coverageStatistics ->
-            machine.analyze(
-                contracts,
-                startContractId,
-                concreteGeneralData = TvmConcreteGeneralData(),
-                concreteContractData = concreteContractData,
-                coverageStatistics,
-                methodId,
-                inputInfo = inputInfo,
-                additionalStopStrategy = additionalStopStrategy,
-                manualStateProcessor = manualStateProcessor,
-                interestingExitCodes = interestingExitCodes,
-            )
+        machine.use { machine ->
+            val startContractCode = contracts[startContractId]
+            runAnalysis(
+                contractIdForCoverageStats = startContractId,
+                contractForCoverageStats = startContractCode,
+                methodId = methodId,
+                logInfoAboutAnalysis = false,
+            ) { coverageStatistics ->
+                machine.analyze(
+                    contracts,
+                    startContractId,
+                    concreteGeneralData = TvmConcreteGeneralData(),
+                    concreteContractData = concreteContractData,
+                    coverageStatistics,
+                    methodId,
+                    inputInfo = inputInfo,
+                    additionalStopStrategy = additionalStopStrategy,
+                    manualStateProcessor = manualStateProcessor,
+                    interestingExitCodes = interestingExitCodes,
+                )
+            }
         }
 
-    machine.close()
     return TvmTestResolver.resolveSingleMethod(methodId, states, coverage)
 }
 

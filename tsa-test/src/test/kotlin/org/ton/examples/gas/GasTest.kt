@@ -6,6 +6,7 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.runFiftCodeBlock
 import org.ton.test.utils.testConcreteOptions
 import org.usvm.machine.analyzeAllMethods
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import java.nio.file.FileVisitResult
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -39,7 +40,7 @@ class GasTest {
         for ((methodId, _, tests) in symbolicResult) {
             val methodIdInt = methodId.toInt()
             val concreteResult = concreteResults.getOrNull(methodIdInt) ?: continue
-            val test = tests.single()
+            val test = tests.single() as TvmSymbolicTestFull
 
             assertEquals(concreteResult.exitCode, test.executionCode(), "Method: ${codeBlocks[methodIdInt]}}")
 

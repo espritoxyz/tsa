@@ -602,7 +602,7 @@ fun initializeContractExecutionMemory(
             C2Register(TvmExceptionContinuation),
             C3Register(TvmOrdContinuation(contractCode.mainMethod, contractCode.codeCell), contractCode),
             c4,
-            C5Register(TvmCellValue(state.allocEmptyCell()), persistentListOf()),
+            C5Register(TvmCellValue(state.emptyRefValue.emptyCell)),
             C7Register(state.initC7(firstElementOfC7)),
         ),
     )
