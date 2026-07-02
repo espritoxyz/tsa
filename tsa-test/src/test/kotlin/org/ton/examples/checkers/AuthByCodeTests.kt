@@ -1,5 +1,6 @@
 package org.ton.examples.checkers
 
+import org.ton.boc.BagOfCells
 import org.ton.bytecode.toCell
 import org.ton.cell.CellBuilder
 import org.ton.examples.intercontract.implies
@@ -11,10 +12,12 @@ import org.ton.test.utils.extractBocContractFromResource
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractConcreteDataFromResource
 import org.ton.test.utils.extractFuncContractFromResource
+import org.ton.test.utils.extractResource
 import org.ton.test.utils.hasExitCode
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.interpreter.AuthAnalysisResult
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestAuthValue
 import org.usvm.test.resolver.TvmTestCellValue
@@ -187,6 +190,11 @@ class AuthByCodeTests {
         val checker = extractCheckerContractFromResource(checkerWithOpcodes)
         val contract = extractBocContractFromResource("/checkers/auth/some-jetton-wallet-code.boc")
         val data = extractConcreteDataFromResource("/checkers/auth/some-jetton-wallet-data.boc")
+        val codeCell =
+            BagOfCells
+                .of(extractResource("/checkers/auth/some-jetton-wallet-code.boc").toFile().readBytes())
+                .roots
+                .single()
         val checkerC4 = CellBuilder().storeUInt(internalTransferOpcode, 32).endCell()
         val tests =
             analyzeInterContract(
@@ -200,16 +208,23 @@ class AuthByCodeTests {
         tests.assertPropertiesFound(hasExitCode(1000))
         // the assertion is as such, because there are not-an-error exits that do not mean that we have
         // passed an authorization
-        val someHasPassedAuth =
-            tests.filter(hasExitCode(1000)).any {
-                it.authorizedCodes().size == 1
-            }
-        assert(someHasPassedAuth)
+        tests.filter(hasExitCode(1000)).assertInvariantHolds {
+            val extractedCode =
+                it
+                    .authorizedCodes()
+                    .singleOrNull()
+                    ?.toTvmCell()
+                    ?.toCell()
+            extractedCode != null && extractedCode == codeCell && it.authorizedOwners().size == 1
+        }
     }
 }
 
 fun TvmSymbolicTest.authorizedCodes(): List<TvmTestCellValue> =
-    resolvedAuthValues.filterIsInstance<TvmTestAuthValue.AuthorizedCode>().map { it.code }
+    (resolvedAuthValues as AuthAnalysisResult.Collected)
+        .authorizedEntities
+        .filterIsInstance<TvmTestAuthValue.AuthorizedCode>()
+        .map { it.code }
 
 fun CellBuilder.storeCoin(
     value: Int,

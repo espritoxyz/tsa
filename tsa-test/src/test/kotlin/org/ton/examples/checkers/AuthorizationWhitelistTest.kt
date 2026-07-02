@@ -11,6 +11,7 @@ import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.hasExitCode
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.analyzeInterContract
+import org.usvm.machine.interpreter.AuthAnalysisResult
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmTestAuthValue
 import org.usvm.test.resolver.TvmTestIntegerValue
@@ -79,4 +80,9 @@ class AuthorizationWhitelistTest {
 }
 
 fun TvmSymbolicTest.authorizedOwners(): List<TvmTestIntegerValue> =
-    resolvedAuthValues.filterIsInstance<TvmTestAuthValue.AuthorizedOwner>().map { it.accountId }
+    (resolvedAuthValues as AuthAnalysisResult.Collected)
+        .authorizedEntities
+        .filterIsInstance<TvmTestAuthValue.AuthorizedOwner>()
+        .map {
+            it.accountId
+        }

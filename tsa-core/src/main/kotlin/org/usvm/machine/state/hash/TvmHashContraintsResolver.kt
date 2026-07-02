@@ -286,7 +286,7 @@ class TvmHashConstraintsResolver(
          * - `TsaAccountId == constValue -> !isStateInit && (symbolicAccountId == constValue)`.
          * - otherwise -> leave as is (will be rewritten in the translator)
          */
-        private fun processAuthCheckEquality(
+        private fun tryRewriteEqualityWithTsaAccountId(
             l: UExpr<*>,
             r: UExpr<*>,
         ): UBoolExpr? {
@@ -299,7 +299,7 @@ class TvmHashConstraintsResolver(
                     return null
                 }
             // not null iff other is hash
-            val rewrittenHashEquality = processHashEquality(accountId.boundStateInitHash, other)
+            val rewrittenHashEquality = tryRewriteHashEquality(accountId.boundStateInitHash, other)
             return with(ctx) {
                 if (rewrittenHashEquality != null) {
                     accountId.isStateInit and rewrittenHashEquality
@@ -312,7 +312,7 @@ class TvmHashConstraintsResolver(
             }
         }
 
-        private fun processHashEquality(
+        private fun tryRewriteHashEquality(
             l: UExpr<*>,
             r: UExpr<*>,
         ): UBoolExpr? {
@@ -347,8 +347,8 @@ class TvmHashConstraintsResolver(
                     if (groups != null && groups.size > 1) {
                         val propagated =
                             groups.map {
-                                processAuthCheckEquality(it.first, it.second)
-                                    ?: processHashEquality(it.first, it.second)
+                                tryRewriteEqualityWithTsaAccountId(it.first, it.second)
+                                    ?: tryRewriteHashEquality(it.first, it.second)
                                     ?: ctx.mkEq(it.first, it.second)
                             }
                         return propagated
@@ -358,8 +358,8 @@ class TvmHashConstraintsResolver(
                     }
                 }
 
-                processAuthCheckEquality(l, r)
-                    ?: processHashEquality(l, r)
+                tryRewriteEqualityWithTsaAccountId(l, r)
+                    ?: tryRewriteHashEquality(l, r)
                     ?: ctx.mkEq(l, r)
             }
 

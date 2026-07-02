@@ -9,7 +9,7 @@
 }
 
 () main() impure {
-    (var code, var data) = tsa_enable_auth_check();
+    tsa_enable_auth_check(0);
     tsa_send_internal_message(1, 0);
     throw(1000);
 }

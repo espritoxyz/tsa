@@ -70,6 +70,7 @@ import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.getPossibleTypes
 import org.usvm.machine.types.wrap
 import org.usvm.memory.GuardedExpr
 import org.usvm.memory.foldHeapRef
@@ -706,7 +707,7 @@ fun TvmState.switchDirectlyToMethodInContract(method: TvmMethod) = newStmt(metho
  */
 fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, TsaAccountId> =
     with(ctx) {
-        val workchain = mkBv(0, 8u) // TODO: consider other workchains?
+        val workchain = mkBv(0, 8u)
         val code = generateSymbolicCell()
         val data = generateSymbolicCell()
         val stateInitBuilder = allocEmptyBuilder()
@@ -860,14 +861,16 @@ fun TvmState.mockSha256(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(r
 fun TvmState.mockHash(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
     refToHash[ref.address]?.let {
         with(ctx) { it.zeroExtendToSort(int257sort) }
-    } ?: mockNonNegativeInt(TvmHash(ref)) {
-        val concreteCellValue = extractFullCellIfItIsConcrete(ref)
+    } ?: mockNonNegativeInt(TvmHash(ref)) { nonNegativeIntMock ->
+        val possibleTypes = getPossibleTypes(ref).toList()
+        val isCell = possibleTypes.all { it is TvmDataCellType } && possibleTypes.isNotEmpty()
+        val concreteCellValue = if (isCell) extractFullCellIfItIsConcrete(ref) else null
         if (concreteCellValue != null) {
             ctx.mkTvmConstantHash(ref, concreteCellValue).also { hash ->
                 refToHash = refToHash.put(ref.address, hash)
             }
         } else {
-            ctx.mkTvmHash(ref, it).also { hash ->
+            ctx.mkTvmHash(ref, nonNegativeIntMock).also { hash ->
                 refToHash = refToHash.put(ref.address, hash)
             }
         }

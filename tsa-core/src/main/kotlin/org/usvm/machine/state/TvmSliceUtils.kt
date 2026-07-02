@@ -1097,11 +1097,12 @@ fun TvmState.builderSetDataUnsafe(
         builder,
         with(ctx) { extendedValue.zeroExtendToSort(cellDataSort) },
     )
+    val length = with(ctx) { mkSizeExpr(value.sort.sizeBits.toInt()) }
     fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
         this,
         builder,
-        with(ctx) { mkSizeExpr(value.sort.sizeBits.toInt()) },
-        upperBound = null,
+        length,
+        upperBound = length.intValue(),
     )
 }
 

@@ -14,8 +14,7 @@ import org.usvm.UMockSymbol
 import org.usvm.USymbol
 import org.usvm.machine.TvmContext
 import org.usvm.machine.intblast.TvmTransformer
-import org.usvm.machine.interpreter.calculateConcreteHash
-import org.usvm.test.resolver.TvmTestDataCellValue
+import org.usvm.machine.interpreter.calculateHashOfCell
 
 sealed class TvmHashSymbol(
     ctx: TvmContext,
@@ -52,19 +51,13 @@ class TvmSymbolicHashSymbol(
     }
 }
 
-private fun Cell.toDo(): TvmTestDataCellValue =
-    TvmTestDataCellValue(
-        data = bits.toString(),
-        refs = refs.map { it.toDo() },
-    )
-
 class TvmConstantHashSymbol(
     ctx: TvmContext,
     concreteCell: Cell,
     ref: UConcreteHeapRef,
 ) : TvmHashSymbol(ctx, ref) {
     override val fallbackExpr: KBitVecValue<UBvSort> =
-        ctx.mkBv(calculateConcreteHash(concreteCell.toDo()), ctx.mkBvSort(256u))
+        ctx.mkBv(calculateHashOfCell(concreteCell), ctx.mkBvSort(256u))
 
     override fun accept(transformer: KTransformerBase): KExpr<UBvSort> {
         require(transformer is TvmTransformer) {

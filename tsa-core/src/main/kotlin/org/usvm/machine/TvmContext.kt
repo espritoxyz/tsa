@@ -966,9 +966,6 @@ class TvmContext(
             }
         }
 
-        trySimplifyHashToEqConstraint(lhs, rhs)?.let { return it }
-        trySimplifyHashToEqConstraint(rhs, lhs)?.let { return it }
-
         if (lhs is KBvZeroExtensionExpr && rhs is KBvZeroExtensionExpr && lhs.extensionSize == rhs.extensionSize) {
             return mkEq(lhs.value, rhs.value)
         }

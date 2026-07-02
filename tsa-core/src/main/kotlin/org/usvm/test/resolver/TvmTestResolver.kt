@@ -9,6 +9,7 @@ import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
+import org.usvm.machine.interpreter.AuthAnalysisResult
 import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
@@ -168,7 +169,7 @@ data class TvmSymbolicTest(
     val initialSeed: BigInteger?,
     val debugInfo: TvmTestDebugInfo,
     val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
-    val resolvedAuthValues: List<TvmTestAuthValue>,
+    val resolvedAuthValues: AuthAnalysisResult,
 ) {
     val initialRootContractState: TvmContractState
         get() =

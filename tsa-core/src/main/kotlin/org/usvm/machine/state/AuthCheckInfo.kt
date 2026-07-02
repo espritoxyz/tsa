@@ -14,7 +14,11 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.intblast.TvmTransformer
 
 /**
- * `account_id` is the last 256 bits of the address
+ * `account_id` is the last 256 bits of the address.
+ * We assume that [symbolicAccountId] is never compared to any symbolic hashes in path constraints of state `st`.
+ * This means that (hopefully) the models of [symbolicAccountId] (when [isStateInit] is modeled to `false`)
+ * represent the senders that are allowed to trigger the execution modeled by the `st` exluding the senders that satisfy
+ * the code authorization constraints.
  */
 class TsaAccountId(
     ctx: TvmContext,

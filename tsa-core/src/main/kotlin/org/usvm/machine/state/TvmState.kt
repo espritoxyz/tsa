@@ -29,6 +29,7 @@ import org.usvm.machine.Int257Expr
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
+import org.usvm.machine.interpreter.AuthAnalysisResult
 import org.usvm.machine.interpreter.DispatchedMessageContent
 import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
@@ -49,12 +50,16 @@ import org.usvm.machine.types.TvmTypeSystem
 import org.usvm.memory.UMemory
 import org.usvm.model.UModelBase
 import org.usvm.targets.UTargetsSet
-import org.usvm.test.resolver.TvmTestAuthValue
 import java.math.BigInteger
 
 typealias ContractId = Int
 
 fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
+
+data class AccountIdInfo(
+    val symbol: TsaAccountId,
+    val address: ConcreteSliceRef,
+)
 
 class TvmState(
     ctx: TvmContext,
@@ -116,8 +121,8 @@ class TvmState(
             persistentSetOf(),
         ),
     var fixatedHashes: PersistentSet<TvmHashSymbol> = persistentSetOf(),
-    var givenAddressForNextCheckerSentMessage: ConcreteSliceRef? = null,
-    var authCheckInfo: PersistentList<TsaAccountId> = persistentListOf(),
+    var givenAddressForNextCheckerSentMessage: Nothing? = null,
+    var inputIdToTsaAccountId: PersistentMap<Int, AccountIdInfo> = persistentMapOf(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -158,7 +163,7 @@ class TvmState(
     /**
      * Authorized entities enumerated for the `tsa_enable_auth_check` intrinsic. Computed during post-processing.
      */
-    var resolvedAuthValues: List<TvmTestAuthValue> = emptyList()
+    var resolvedAuthValues: AuthAnalysisResult = AuthAnalysisResult.NotCollected
 
     lateinit var dataCellInfoStorage: TvmDataCellInfoStorage
     lateinit var registersOfCurrentContract: TvmRegisters
@@ -269,7 +274,7 @@ class TvmState(
             functionalDependencyAssertion = functionalDependencyAssertion.copy(),
             fixatedHashes = fixatedHashes,
             givenAddressForNextCheckerSentMessage = givenAddressForNextCheckerSentMessage,
-            authCheckInfo = authCheckInfo,
+            inputIdToTsaAccountId = inputIdToTsaAccountId,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

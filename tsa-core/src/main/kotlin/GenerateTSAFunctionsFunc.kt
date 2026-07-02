@@ -115,8 +115,8 @@ fun main() {
         }
         
         ;; sets sender to a symbolic authorized address and returns (code, data) of the bound stateinit
-        (cell, cell) tsa_enable_auth_check() impure method_id(22) {
-            return return_2();
+        () tsa_enable_auth_check(int input_id) impure method_id(22) {
+            ;; do nothing
         }
         """.trimIndent()
 

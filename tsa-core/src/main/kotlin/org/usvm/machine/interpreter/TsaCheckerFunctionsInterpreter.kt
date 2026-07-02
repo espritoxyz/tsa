@@ -1,6 +1,6 @@
 package org.usvm.machine.interpreter
 
-import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialCheckerReturn
@@ -16,6 +16,7 @@ import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.AccountIdInfo
 import org.usvm.machine.state.C0Register
 import org.usvm.machine.state.C4Register
 import org.usvm.machine.state.ContractId
@@ -29,10 +30,8 @@ import org.usvm.machine.state.TvmStack.TvmStackCellValue
 import org.usvm.machine.state.TvmStack.TvmStackSliceValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
-import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
@@ -370,7 +369,11 @@ class TsaCheckerFunctionsInterpreter(
                                     concreteData,
                                     nextContractId,
                                     stackOperations.body,
-                                    givenAddress = scope.calcOnState { givenAddressForNextCheckerSentMessage },
+                                    givenAddress =
+                                        scope.calcOnState {
+                                            inputIdToTsaAccountId[stackOperations.inputId]
+                                                ?.address
+                                        },
                                 )
                             }
 
@@ -651,11 +654,10 @@ class TsaCheckerFunctionsInterpreter(
         stmt: TvmInst,
     ) {
         scope.doWithState {
-            val (address, info) = this.generateSymbolicAuthCheckAddress()
-            stack.addCell(scope.calcOnState { allocEmptyCell() })
-            stack.addCell(scope.calcOnState { allocEmptyCell() })
-            this.authCheckInfo = persistentListOf(info)
-            this.givenAddressForNextCheckerSentMessage = allocSliceFromCell(address.value).asSliceRef()
+            val inputId = getConcreteIntFromStack(parameterName = "input_id", functionName = "tsa_enable_auth_check")
+            val (address, accountId) = this.generateSymbolicAuthCheckAddress()
+            val addressSlice = allocSliceFromCell(address.value).asSliceRef()
+            this.inputIdToTsaAccountId = persistentMapOf(inputId to AccountIdInfo(accountId, addressSlice))
             newStmt(stmt.nextStmt())
         }
     }

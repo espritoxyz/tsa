@@ -3,11 +3,13 @@ package org.usvm.machine.interpreter
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import io.ksmt.utils.uncheckedCast
+import kotlinx.serialization.Serializable
 import org.ton.api.pk.PrivateKeyEd25519
 import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.forkblacklists.UForkBlackList
@@ -16,10 +18,12 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.DataSizeInfo
+import org.usvm.machine.state.TsaAccountId
 import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.hash.HashCollector
+import org.usvm.machine.state.hash.TvmDefaultTransformer
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
@@ -157,14 +161,30 @@ class TvmPostProcessor(
             return state
         }
 
-    private fun enumerateAuthValues(state: TvmState): List<TvmTestAuthValue> =
+    private fun enumerateAuthValues(state: TvmState): AuthAnalysisResult =
         with(ctx) {
             val tsaAccountId =
-                state.authCheckInfo.singleOrNull()
-                    ?: return emptyList()
+                state.inputIdToTsaAccountId.values
+                    .singleOrNull()
+                    ?.symbol
+                    ?: return AuthAnalysisResult.NotCollected
             val result = state.result
             if (result !is TvmResult.TvmFailure || result.exit.exitCode != 1000) {
-                return emptyList()
+                return AuthAnalysisResult.NotCollected
+            }
+
+            val visitor =
+                object : TvmDefaultTransformer(ctx) {
+                    var foundTsaAccountId = false
+
+                    override fun transform(expr: TsaAccountId): UExpr<UBvSort> {
+                        foundTsaAccountId = true
+                        return expr
+                    }
+                }
+            state.pathConstraints.tvmConstraintsSequence().forEach { visitor.apply(it) }
+            if (visitor.foundTsaAccountId) {
+                return AuthAnalysisResult.Unknown
             }
 
             val scope =
@@ -206,7 +226,7 @@ class TvmPostProcessor(
                     break
                 }
             }
-            values
+            return AuthAnalysisResult.Collected(values)
         }
 
     private fun assertConstraints(
@@ -635,4 +655,15 @@ fun calculateConcreteHash(value: TvmTestReferenceValue): BigInteger =
         }
     }
 
-private fun calculateHashOfCell(cell: Cell): BigInteger = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
+fun calculateHashOfCell(cell: Cell): BigInteger = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
+
+@Serializable
+sealed interface AuthAnalysisResult {
+    data object Unknown : AuthAnalysisResult
+
+    data object NotCollected : AuthAnalysisResult
+
+    data class Collected(
+        val authorizedEntities: List<TvmTestAuthValue>,
+    ) : AuthAnalysisResult
+}
