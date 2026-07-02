@@ -8,11 +8,8 @@ import org.usvm.StateCollectionStrategy
 import org.usvm.UMachine
 import org.usvm.UMachineOptions
 import org.usvm.machine.interpreter.TvmInterpreter
-import org.usvm.machine.ps.PSCreationContext
-import org.usvm.machine.ps.TvmCompositeExtendingTimeStrategy
-import org.usvm.machine.ps.TvmRandomTreeSeedStrategy
-import org.usvm.machine.ps.TvmUncoveredInstSeedStrategy
 import org.usvm.machine.ps.createPathSelector
+import org.usvm.machine.ps.createPsContext
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.statistics.StateHistoryGraph
@@ -90,26 +87,7 @@ class TvmMachine(
 
         val timeStatistics = TimeStatistics<TvmCodeBlock, TvmState>()
 
-        val extendingTimeStrategy =
-            if (tvmOptions.addTimeoutIfNotSatiated) {
-                TvmCompositeExtendingTimeStrategy(
-                    timeStatistics,
-                    options.timeout,
-                    options.timeout,
-                )
-            } else {
-                null
-            }
-
-        val psContext =
-            PSCreationContext(
-                tvmOptions,
-                timeStatistics = timeStatistics,
-                loopTracker = TvmLoopTracker(),
-                extendingTimeStrategy,
-                TvmUncoveredInstSeedStrategy.Observer(),
-                TvmRandomTreeSeedStrategy.Observer(),
-            )
+        val psContext = createPsContext(tvmOptions, timeStatistics)
 
         val pathSelector =
             createPathSelector(psContext) { opcodeInfo ->

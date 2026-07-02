@@ -44,6 +44,7 @@ class TvmSeedBasedPathSelector(
             result.add(basePathSelector.peek())
             basePathSelector.remove(result.last())
         }
+        lastPeekedState = null
         return result
     }
 
@@ -101,12 +102,19 @@ class TvmSeedBasedPathSelector(
     }
 
     override fun update(state: TvmState) {
+        check(state == lastPeekedState) {
+            "Unexpected update"
+        }
+
         if (lastPeekedStateWasFromBasePs) {
             basePathSelector.update(state)
         } else if (!forceOneMoreStep(state)) {
             check(state in makeOneStepFor)
             makeOneStepFor.remove(state)
+
+            strategy.updateStats(state)
             strategy.addPausedStates(listOf(state))
+            lastPeekedState = null
         } else {
             check(state in makeOneStepFor)
             // just keep it there
@@ -120,6 +128,7 @@ class TvmSeedBasedPathSelector(
             return TvmExtendingTimeStrategy.TimeExtension.ONE_STEP
         }
 
+        lastPeekedState?.let { strategy.updateStats(it) }
         strategy.addPausedStates(extractStatesFromBasePS())
         val strategyRequest = strategy.requestMoreTime()
         return if (strategyRequest) {

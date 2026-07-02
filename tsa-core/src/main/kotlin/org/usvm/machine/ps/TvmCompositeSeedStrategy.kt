@@ -35,7 +35,7 @@ class TvmCompositeSeedStrategy(
 
         lastStrategy = strategies.indexOf(strategy)
 
-        return strategy.getNewSeed(extendingTime = false)
+        return strategy.getNewSeed(extendingTime = extendingTime)
     }
 
     override fun hasAdditionalStates(): Boolean = strategies.any { it.hasAdditionalStates() }

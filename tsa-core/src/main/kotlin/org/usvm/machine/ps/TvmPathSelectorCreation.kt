@@ -27,9 +27,41 @@ data class PSCreationContext(
     val timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
     val loopTracker: TvmLoopTracker,
     val extendingTimeStrategy: TvmCompositeExtendingTimeStrategy?,
-    val uncoveredInstObserver: TvmUncoveredInstSeedStrategy.Observer,
+    val uncoveredInstObserver: TvmUncoveredInstSeedStrategy.Observer<*>,
     val randomTreeObserver: TvmRandomTreeSeedStrategy.Observer,
 )
+
+fun createPsContext(
+    options: TvmOptions,
+    timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
+): PSCreationContext {
+    val extendingTimeStrategy =
+        if (options.addTimeoutIfNotSatiated) {
+            TvmCompositeExtendingTimeStrategy(
+                timeStatistics,
+                options.timeout,
+                options.timeout,
+            )
+        } else {
+            null
+        }
+
+    val uncoveredInstObserver =
+        if (options.groupByOutOpcodes) {
+            TvmUncoveredInstSeedStrategy.Observer(TvmOutOpcodePathSelector::getStateKey)
+        } else {
+            TvmUncoveredInstSeedStrategy.Observer { Unit }
+        }
+
+    return PSCreationContext(
+        options,
+        timeStatistics = timeStatistics,
+        loopTracker = TvmLoopTracker(),
+        extendingTimeStrategy,
+        uncoveredInstObserver,
+        TvmRandomTreeSeedStrategy.Observer(),
+    )
+}
 
 fun createPathSelector(
     ctx: PSCreationContext,

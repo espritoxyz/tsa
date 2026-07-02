@@ -44,19 +44,12 @@ class TvmOutOpcodePathSelector(
     }
 
     fun add(state: TvmState) {
-        val oldSet =
-            stateKey[state]
-                ?: setOf()
-
-        val setOfMessageIds =
-            state.registersOfCurrentContract.c5
-                .let { state.c5IdentifierList[it.value.value] }
-                ?.mapNotNull {
-                    (it as? C5ActionIdentifier.MsgIdentifier)?.hash()
-                }?.toSet() ?: emptySet()
-
-        val key = oldSet + setOfMessageIds
+        val key = getStateKey(state)
         stateKey[state] = key
+
+        if (119100938 in key) {
+            println("${state.id} has 119100938")
+        }
 
         val ps =
             innerPathSelectors[key]?.also {
@@ -73,5 +66,18 @@ class TvmOutOpcodePathSelector(
     override fun update(state: TvmState) {
         remove(state)
         add(state)
+    }
+
+    companion object {
+        fun getStateKey(state: TvmState): Set<Int> {
+            val setOfMessageIds =
+                state.c5IdentifierList.values
+                    .flatMap { it.toList() }
+                    .mapNotNull {
+                        (it as? C5ActionIdentifier.MsgIdentifier)?.hash()
+                    }.toSet()
+
+            return setOfMessageIds
+        }
     }
 }

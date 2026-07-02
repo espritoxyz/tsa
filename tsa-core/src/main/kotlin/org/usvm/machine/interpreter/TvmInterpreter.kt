@@ -693,6 +693,7 @@ class TvmInterpreter(
             state.result !is TvmResult.TvmSoftFailure
         ) {
             // throw away uninteresting states
+            logger.debug("Uninteresting exit code")
             return emptyList()
         }
 
