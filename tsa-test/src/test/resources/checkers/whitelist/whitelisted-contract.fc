@@ -1,0 +1,11 @@
+#include "../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    var msg_cell = in_msg_full.begin_parse();
+    msg_cell~load_uint(4); ;; flags
+    var sender = msg_cell~load_msg_addr();
+    if (~ equal_slice_bits( sender, "EQD9ONCYURxDAV4CzRhc_Kw77_-omip_INZUQGOKlHW523p1"a) & ~ equal_slice_bits(sender, "UQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPuwA"a)) {
+        throw(500);
+    }
+    throw(1000);
+}

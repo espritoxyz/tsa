@@ -12,7 +12,6 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmTestFailure
-import kotlin.test.Ignore
 import kotlin.test.Test
 
 class HashEqualityTest {
@@ -22,7 +21,6 @@ class HashEqualityTest {
     private val drainWithStateInitChecker = "/hash/drain-check/drain_checker_stateinit.fc"
     private val vulnerableContract = "/hash/drain-check/vulnerable.fc"
 
-    @Ignore("Current implementation of hashes doesn't solve such constraints")
     @Test
     fun testHashEquality() {
         val path = extractResource(hashEqPath)

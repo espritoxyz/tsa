@@ -9,6 +9,7 @@ import org.ton.bytecode.TvmArtificialInst
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmRealInst
+import org.usvm.machine.interpreter.AuthAnalysisResult
 import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmResult
@@ -37,6 +38,7 @@ data object TvmTestResolver {
 
         val input = stateResolver.resolveInput()
         val fetchedValues = stateResolver.resolveFetchedValues()
+        val authValues = state.resolvedAuthValues
         val config = stateResolver.resolveConfig()
         val contractAddress = stateResolver.resolveContractAddresses()
         val time = stateResolver.resolveTime()
@@ -60,6 +62,7 @@ data object TvmTestResolver {
             time = time,
             input = input,
             fetchedValues = fetchedValues,
+            resolvedAuthValues = authValues,
             result = result,
             lastStmt = state.lastRealStmt,
             gasUsage = gasUsage,
@@ -166,6 +169,7 @@ data class TvmSymbolicTest(
     val initialSeed: BigInteger?,
     val debugInfo: TvmTestDebugInfo,
     val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
+    val resolvedAuthValues: AuthAnalysisResult,
 ) {
     val initialRootContractState: TvmContractState
         get() =

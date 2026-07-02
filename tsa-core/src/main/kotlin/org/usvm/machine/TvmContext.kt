@@ -13,6 +13,7 @@ import io.ksmt.expr.KBvShiftLeftExpr
 import io.ksmt.expr.KBvSignExtensionExpr
 import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KExpr
+import io.ksmt.expr.KFalse
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.expr.KIteExpr
 import io.ksmt.expr.rewrite.simplify.simplifyAnd
@@ -39,6 +40,7 @@ import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
 import org.ton.bytecode.TvmQuitContinuation
+import org.ton.cell.Cell
 import org.usvm.NULL_ADDRESS
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
@@ -53,6 +55,7 @@ import org.usvm.isTrue
 import org.usvm.machine.intblast.TvmMultiplication
 import org.usvm.machine.intblast.TvmSignedDivision
 import org.usvm.machine.intblast.TvmSignedModulo
+import org.usvm.machine.state.TsaAccountId
 import org.usvm.machine.state.TvmBadDestinationAddress
 import org.usvm.machine.state.TvmCellOverflowError
 import org.usvm.machine.state.TvmCellUnderflowError
@@ -67,7 +70,9 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTypeCheckError
 import org.usvm.machine.state.bvMaxValueSignedExtended
 import org.usvm.machine.state.bvMinValueSignedExtended
+import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashSymbol
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.setFailure
 import org.usvm.machine.state.unsignedIntegerFitsBits
@@ -257,15 +262,44 @@ class TvmContext(
                 TvmSignedModulo(this, lhs, rhs, lhs.sort)
             }.cast()
 
+    private val tsaAccountIdInterner = mkAstInterner<TsaAccountId>()
+
+    fun mkTsaAccountId(
+        symbolicCode: UConcreteHeapRef,
+        symbolicData: UConcreteHeapRef,
+        isStateInit: UExpr<KBoolSort>,
+        boundStateInitHash: UExpr<KBvSort>,
+        symbolicAccountId: UExpr<KBvSort>,
+    ): TsaAccountId =
+        tsaAccountIdInterner.createIfContextActive {
+            TsaAccountId(
+                ctx = this,
+                symbolicAccountId = symbolicAccountId,
+                isStateInit = isStateInit,
+                code = symbolicCode,
+                data = symbolicData,
+                boundStateInitHash = boundStateInitHash,
+            )
+        }
+
     private val tvmHashCache = mkAstInterner<TvmHashSymbol>()
 
     fun mkTvmHash(
         ref: UConcreteHeapRef,
         fallbackMock: UMockSymbol<UBvSort>,
-    ): TvmHashSymbol =
+    ): TvmSymbolicHashSymbol =
         tvmHashCache
             .createIfContextActive {
-                TvmHashSymbol(this, ref, fallbackMock)
+                TvmSymbolicHashSymbol(this, ref, fallbackMock)
+            }.cast()
+
+    fun mkTvmConstantHash(
+        ref: UConcreteHeapRef,
+        refValue: Cell,
+    ): TvmConstantHashSymbol =
+        tvmHashCache
+            .createIfContextActive {
+                TvmConstantHashSymbol(this, refValue, ref)
             }.cast()
 
     val int257sort = TvmInt257Sort(this)
@@ -937,6 +971,18 @@ class TvmContext(
         }
 
         return super.mkEq(lhs, rhs, order)
+    }
+
+    fun <T : KSort> trySimplifyHashToEqConstraint(
+        lhs: KExpr<T>,
+        rhs: KExpr<T>,
+    ): KFalse? {
+        val rhsIsConstant =
+            rhs is KInterpretedValue<*> || (rhs is KBvZeroExtensionExpr && rhs.value is KInterpretedValue<*>)
+        if (lhs is TvmSymbolicHashSymbol && rhsIsConstant) {
+            return falseExpr
+        }
+        return null
     }
 
     override fun <T : KBvSort> mkBvSubExpr(

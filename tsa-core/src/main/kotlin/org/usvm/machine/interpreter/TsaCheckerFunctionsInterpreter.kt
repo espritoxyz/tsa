@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialCheckerReturn
@@ -15,6 +16,7 @@ import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.FALSE_CONCRETE_VALUE
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.state.AccountIdInfo
 import org.usvm.machine.state.C0Register
 import org.usvm.machine.state.C4Register
 import org.usvm.machine.state.ContractId
@@ -30,10 +32,11 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.doWithStateCtx
+import org.usvm.machine.state.generateSymbolicAuthCheckAddress
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
@@ -52,6 +55,7 @@ import org.usvm.machine.state.takeLastSliceOrThrowTypeError
 import org.usvm.machine.toMethodId
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmIntegerType
+import org.usvm.machine.types.asSliceRef
 import org.usvm.utils.intValueOrNull
 
 class TsaCheckerFunctionsInterpreter(
@@ -198,6 +202,10 @@ class TsaCheckerFunctionsInterpreter(
 
             ASSERT_SLICE_DETERMINES -> {
                 performAssertSliceDetermines(scope, stmt)
+            }
+
+            ENABLE_AUTH_CHECK -> {
+                performEnableAuthCheck(scope, stmt)
             }
 
             SET_ADDRESS -> {
@@ -361,6 +369,11 @@ class TsaCheckerFunctionsInterpreter(
                                     concreteData,
                                     nextContractId,
                                     stackOperations.body,
+                                    givenAddress =
+                                        scope.calcOnState {
+                                            inputIdToTsaAccountId[stackOperations.inputId]
+                                                ?.address
+                                        },
                                 )
                             }
 
@@ -626,12 +639,25 @@ class TsaCheckerFunctionsInterpreter(
             scope.takeLastIntOrThrowTypeError()
                 ?: return
         val cond =
-            scope.doWithCtx {
+            with(scope.ctx) {
                 if (invert) flag eq zeroValue else flag neq zeroValue
             }
         scope.assert(cond)
             ?: return
         scope.doWithState {
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performEnableAuthCheck(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        scope.doWithState {
+            val inputId = getConcreteIntFromStack(parameterName = "input_id", functionName = "tsa_enable_auth_check")
+            val (address, accountId) = this.generateSymbolicAuthCheckAddress()
+            val addressSlice = allocSliceFromCell(address.value).asSliceRef()
+            this.inputIdToTsaAccountId = persistentMapOf(inputId to AccountIdInfo(accountId, addressSlice))
             newStmt(stmt.nextStmt())
         }
     }

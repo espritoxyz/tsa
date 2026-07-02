@@ -1,11 +1,15 @@
 package org.usvm.machine.interpreter
 
+import io.ksmt.expr.KBitVecValue
+import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import io.ksmt.utils.uncheckedCast
+import kotlinx.serialization.Serializable
 import org.ton.api.pk.PrivateKeyEd25519
 import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.forkblacklists.UForkBlackList
@@ -14,22 +18,28 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.DataSizeInfo
+import org.usvm.machine.state.TsaAccountId
+import org.usvm.machine.state.TvmResult
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.hash.HashCollector
+import org.usvm.machine.state.hash.TvmDefaultTransformer
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
+import org.usvm.machine.types.TvmModel
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
+import org.usvm.test.resolver.TvmTestAuthValue
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestCellValue
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestDictCellValue
+import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestReferenceValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestStateResolver
@@ -146,7 +156,77 @@ class TvmPostProcessor(
             structuralConstraintsHolder.applyTo(scope)
                 ?: return null
 
+            state.resolvedAuthValues = enumerateAuthValues(state)
+
             return state
+        }
+
+    private fun enumerateAuthValues(state: TvmState): AuthAnalysisResult =
+        with(ctx) {
+            val tsaAccountId =
+                state.inputIdToTsaAccountId.values
+                    .singleOrNull()
+                    ?.symbol
+                    ?: return AuthAnalysisResult.NotCollected
+            val result = state.result
+            if (result !is TvmResult.TvmFailure || result.exit.exitCode != 1000) {
+                return AuthAnalysisResult.NotCollected
+            }
+
+            val visitor =
+                object : TvmDefaultTransformer(ctx) {
+                    var foundTsaAccountId = false
+
+                    override fun transform(expr: TsaAccountId): UExpr<UBvSort> {
+                        foundTsaAccountId = true
+                        return expr
+                    }
+                }
+            state.pathConstraints.tvmConstraintsSequence().forEach { visitor.apply(it) }
+            if (visitor.foundTsaAccountId) {
+                return AuthAnalysisResult.Unknown
+            }
+
+            val scope =
+                TvmStepScopeManager(
+                    state.clone(),
+                    UForkBlackList.Companion.createDefault(),
+                    allowFailuresOnCurrentStep = false,
+                )
+            val values = mutableListOf<TvmTestAuthValue>()
+            val modelsCountLimit = ctx.tvmOptions.enumeratingModelsCountLimit
+            while (true) {
+                val model = scope.calcOnState { this.models.first() }
+                val isStateInit = model.eval(tsaAccountId.isStateInit).isTrue
+                if (isStateInit) {
+                    val resolver = TvmTestStateResolver(ctx, model as TvmModel, state)
+                    val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+                    val code =
+                        resolver.resolveRef(tsaAccountId.code) as? TvmTestCellValue
+                            ?: break
+                    val codeEqCs =
+                        fixator.fixateConcreteValue(scope, tsaAccountId.code)
+                            ?: break
+                    values.add(TvmTestAuthValue.AuthorizedCode(code))
+                    scope.assert(tsaAccountId.isStateInit.not() or (tsaAccountId.isStateInit and codeEqCs.not()))
+                        ?: break
+                } else {
+                    val accountIdValue =
+                        (model.eval(tsaAccountId.symbolicAccountId) as KBitVecValue<*>).toBigIntegerUnsigned()
+                    values.add(TvmTestAuthValue.AuthorizedOwner(TvmTestIntegerValue(accountIdValue)))
+                    val accountIdEqCs =
+                        mkEq(
+                            tsaAccountId.symbolicAccountId,
+                            mkBv(accountIdValue, tsaAccountId.symbolicAccountId.sort.sizeBits),
+                        )
+                    scope.assert(tsaAccountId.isStateInit or (tsaAccountId.isStateInit.not() and accountIdEqCs.not()))
+                        ?: break
+                }
+                if (values.size > modelsCountLimit) {
+                    break
+                }
+            }
+            return AuthAnalysisResult.Collected(values)
         }
 
     private fun assertConstraints(
@@ -575,4 +655,15 @@ fun calculateConcreteHash(value: TvmTestReferenceValue): BigInteger =
         }
     }
 
-private fun calculateHashOfCell(cell: Cell): BigInteger = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
+fun calculateHashOfCell(cell: Cell): BigInteger = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())
+
+@Serializable
+sealed interface AuthAnalysisResult {
+    data object Unknown : AuthAnalysisResult
+
+    data object NotCollected : AuthAnalysisResult
+
+    data class Collected(
+        val authorizedEntities: List<TvmTestAuthValue>,
+    ) : AuthAnalysisResult
+}

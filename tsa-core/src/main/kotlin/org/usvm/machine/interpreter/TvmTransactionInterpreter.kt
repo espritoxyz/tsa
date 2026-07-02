@@ -66,7 +66,7 @@ import org.usvm.machine.state.sliceLoadGramsTlbNoFork
 import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
 import org.usvm.machine.state.sliceLoadRefNoFork
 import org.usvm.machine.state.slicePreloadNextRef
-import org.usvm.machine.state.slicesAreEqual
+import org.usvm.machine.state.slicesDataBitsAreEqual
 import org.usvm.machine.tailUnsafe
 import org.usvm.machine.types.SliceRef
 import org.usvm.machine.types.asCellRef
@@ -1054,7 +1054,7 @@ class TvmTransactionInterpreter(
                                 )?.let { allocSliceFromCell(it) }
                                     ?: error("Cannot extract contract address")
                             }
-                        scope.slicesAreEqual(
+                        scope.slicesDataBitsAreEqual(
                             destinationContractAddress,
                             messageContentActual.commonMessageInfo.dstAddressSlice,
                         ) ?: return null

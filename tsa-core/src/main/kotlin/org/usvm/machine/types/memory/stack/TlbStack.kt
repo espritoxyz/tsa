@@ -214,6 +214,9 @@ data class TlbStack(
             } else {
                 frames.viewWithoutLast()
             }
+        if (guard.isFalse) {
+            lastFrame.readInModel(readInfo)
+        }
         val newTlbStack = TlbStack(deepFrames + newFrames)
         return ModelReadResult(readValue, leftToRead, newTlbStack, guard, slices)
     }
@@ -294,9 +297,11 @@ data class TlbStack(
                 TlbStackFrame.SkipNotPossible -> {
                     error("Cannot skip frame $prevFrame")
                 }
+
                 TlbStackFrame.EndOfFrame -> {
                     skipSingleStep(state, ref, framesToPop.viewWithoutLast())
                 }
+
                 is TlbStackFrame.NextFrame -> {
                     framesToPop.viewWithoutLast() + newFrame.frame
                 }
