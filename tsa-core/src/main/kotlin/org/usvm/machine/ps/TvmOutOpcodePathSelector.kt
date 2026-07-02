@@ -1,5 +1,6 @@
 package org.usvm.machine.ps
 
+import mu.KLogging
 import org.usvm.UPathSelector
 import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.TvmState
@@ -19,8 +20,18 @@ class TvmOutOpcodePathSelector(
     override fun isEmpty(): Boolean = innerPathSelectors.isEmpty()
 
     override fun peek(): TvmState {
+        val keys = innerPathSelectors.keys.toList()
         val idx = random.nextInt(0, innerPathSelectors.size)
-        return innerPathSelectors.values.toList()[idx].peek()
+        val key = keys[idx]
+        val ps =
+            innerPathSelectors[key]
+                ?: error("Path selector $key not found")
+
+        logger.debug {
+            "Chose key $key for the step"
+        }
+
+        return ps.peek()
     }
 
     override fun remove(state: TvmState) {
@@ -46,10 +57,6 @@ class TvmOutOpcodePathSelector(
     fun add(state: TvmState) {
         val key = getStateKey(state)
         stateKey[state] = key
-
-        if (119100938 in key) {
-            println("${state.id} has 119100938")
-        }
 
         val ps =
             innerPathSelectors[key]?.also {
@@ -79,5 +86,7 @@ class TvmOutOpcodePathSelector(
 
             return setOfMessageIds
         }
+
+        private val logger = object : KLogging() {}.logger
     }
 }
