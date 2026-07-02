@@ -27,6 +27,7 @@ import io.ksmt.sort.KBvSort
 import io.ksmt.sort.KSort
 import org.usvm.UBvSort
 import org.usvm.UExpr
+import org.usvm.machine.state.TsaAccountId
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 
@@ -199,6 +200,10 @@ class Bv2IntExprFilter(
     }
 
     override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> {
+        error("Should be removed by now")
+    }
+
+    override fun transform(expr: TsaAccountId): UExpr<UBvSort> {
         error("Should be removed by now")
     }
 }

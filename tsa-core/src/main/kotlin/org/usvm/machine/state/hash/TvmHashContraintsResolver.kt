@@ -1,5 +1,6 @@
 package org.usvm.machine.state.hash
 
+import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvAndExpr
 import io.ksmt.expr.KBvOrExpr
 import io.ksmt.expr.KEqExpr
@@ -18,6 +19,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intblast.TvmTransformer
+import org.usvm.machine.state.TsaAccountId
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.assertDataCellType
@@ -281,30 +283,32 @@ class TvmHashConstraintsResolver(
 
         /**
          * - `TsaAccountId == hash -> isStateInit && (boundStateInitHash == hash)`
-         * - `TsaAccountId == other -> !isStateInit && (symbolicAccountId == other)`.
+         * - `TsaAccountId == constValue -> !isStateInit && (symbolicAccountId == constValue)`.
+         * - otherwise -> leave as is (will be rewritten in the translator)
          */
         private fun processAuthCheckEquality(
             l: UExpr<*>,
             r: UExpr<*>,
         ): UBoolExpr? {
-            val info = state.authCheckInfo ?: return null
-            val other =
-                when (info.tsaAccountId) {
-                    l -> r
-                    r -> l
-                    else -> return null
+            val (accountId, other) =
+                if (l is TsaAccountId) {
+                    l to r
+                } else if (r is TsaAccountId) {
+                    r to l
+                } else {
+                    return null
                 }
-            val hashEquality = processHashEquality(info.boundStateInitHash, other)
-            return if (hashEquality != null) {
-                ctx.mkAnd(info.isStateInit, hashEquality)
-            } else {
-                ctx.mkAnd(
-                    ctx.mkNot(info.isStateInit),
-                    ctx.mkEq(
-                        info.symbolicAccountId.uncheckedCast<_, UExpr<UBvSort>>(),
-                        other.uncheckedCast<_, UExpr<UBvSort>>(),
-                    ),
-                )
+            // not null iff other is hash
+            val rewrittenHashEquality = processHashEquality(accountId.boundStateInitHash, other)
+            return with(ctx) {
+                if (rewrittenHashEquality != null) {
+                    accountId.isStateInit and rewrittenHashEquality
+                } else if (other is KBitVecValue<*>) {
+                    mkNot(accountId.isStateInit) and
+                        mkEq(accountId.symbolicAccountId, other.uncheckedCast())
+                } else {
+                    null
+                }
             }
         }
 

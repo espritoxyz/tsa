@@ -35,6 +35,7 @@ import org.usvm.machine.intblast.TvmMultiplication
 import org.usvm.machine.intblast.TvmSignedDivision
 import org.usvm.machine.intblast.TvmSignedModulo
 import org.usvm.machine.intblast.TvmTransformer
+import org.usvm.machine.state.TsaAccountId
 import org.usvm.machine.types.TvmType
 import org.usvm.regions.Region
 
@@ -106,4 +107,6 @@ open class TvmDefaultTransformer(
     override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
 
     override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
+
+    override fun transform(expr: TsaAccountId): UExpr<UBvSort> = expr
 }

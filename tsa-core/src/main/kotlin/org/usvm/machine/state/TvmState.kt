@@ -16,7 +16,6 @@ import org.ton.targets.TvmTarget
 import org.usvm.PathNode
 import org.usvm.UBoolExpr
 import org.usvm.UBv32Sort
-import org.usvm.UBvSort
 import org.usvm.UCallStack
 import org.usvm.UConcreteHeapAddress
 import org.usvm.UConcreteHeapRef
@@ -56,15 +55,6 @@ import java.math.BigInteger
 typealias ContractId = Int
 
 fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
-
-data class AuthCheckInfo(
-    val tsaAccountId: UExpr<UBvSort>,
-    val symbolicAccountId: UExpr<UBvSort>,
-    val isStateInit: UBoolExpr,
-    val code: UConcreteHeapRef,
-    val data: UConcreteHeapRef,
-    val boundStateInitHash: UExpr<UBvSort>,
-)
 
 class TvmState(
     ctx: TvmContext,
@@ -127,7 +117,7 @@ class TvmState(
         ),
     var fixatedHashes: PersistentSet<TvmHashSymbol> = persistentSetOf(),
     var givenAddressForNextCheckerSentMessage: ConcreteSliceRef? = null,
-    var authCheckInfo: AuthCheckInfo? = null,
+    var authCheckInfo: PersistentList<TsaAccountId> = persistentListOf(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,

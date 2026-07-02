@@ -1,5 +1,6 @@
 package org.usvm.machine.interpreter
 
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.ton.bytecode.ADDRESS_PARAMETER_IDX
 import org.ton.bytecode.TsaArtificialCheckerReturn
@@ -31,6 +32,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addCell
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
+import org.usvm.machine.state.allocEmptyCell
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
@@ -650,9 +652,9 @@ class TsaCheckerFunctionsInterpreter(
     ) {
         scope.doWithState {
             val (address, info) = this.generateSymbolicAuthCheckAddress()
-            stack.addCell(info.code)
-            stack.addCell(info.data)
-            this.authCheckInfo = info
+            stack.addCell(scope.calcOnState { allocEmptyCell() })
+            stack.addCell(scope.calcOnState { allocEmptyCell() })
+            this.authCheckInfo = persistentListOf(info)
             this.givenAddressForNextCheckerSentMessage = allocSliceFromCell(address.value).asSliceRef()
             newStmt(stmt.nextStmt())
         }

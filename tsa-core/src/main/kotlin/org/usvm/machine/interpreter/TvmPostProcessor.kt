@@ -159,8 +159,8 @@ class TvmPostProcessor(
 
     private fun enumerateAuthValues(state: TvmState): List<TvmTestAuthValue> =
         with(ctx) {
-            val info =
-                state.authCheckInfo
+            val tsaAccountId =
+                state.authCheckInfo.singleOrNull()
                     ?: return emptyList()
             val result = state.result
             if (result !is TvmResult.TvmFailure || result.exit.exitCode != 1000) {
@@ -177,26 +177,29 @@ class TvmPostProcessor(
             val modelsCountLimit = ctx.tvmOptions.enumeratingModelsCountLimit
             while (true) {
                 val model = scope.calcOnState { this.models.first() }
-                val isStateInit = model.eval(info.isStateInit).isTrue
+                val isStateInit = model.eval(tsaAccountId.isStateInit).isTrue
                 if (isStateInit) {
                     val resolver = TvmTestStateResolver(ctx, model as TvmModel, state)
                     val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
                     val code =
-                        resolver.resolveRef(info.code) as? TvmTestCellValue
+                        resolver.resolveRef(tsaAccountId.code) as? TvmTestCellValue
                             ?: break
                     val codeEqCs =
-                        fixator.fixateConcreteValue(scope, info.code)
+                        fixator.fixateConcreteValue(scope, tsaAccountId.code)
                             ?: break
                     values.add(TvmTestAuthValue.AuthorizedCode(code))
-                    scope.assert(info.isStateInit.not() or (info.isStateInit and codeEqCs.not()))
+                    scope.assert(tsaAccountId.isStateInit.not() or (tsaAccountId.isStateInit and codeEqCs.not()))
                         ?: break
                 } else {
                     val accountIdValue =
-                        (model.eval(info.symbolicAccountId) as KBitVecValue<*>).toBigIntegerUnsigned()
+                        (model.eval(tsaAccountId.symbolicAccountId) as KBitVecValue<*>).toBigIntegerUnsigned()
                     values.add(TvmTestAuthValue.AuthorizedOwner(TvmTestIntegerValue(accountIdValue)))
                     val accountIdEqCs =
-                        mkEq(info.symbolicAccountId, mkBv(accountIdValue, info.symbolicAccountId.sort.sizeBits))
-                    scope.assert(info.isStateInit or (info.isStateInit.not() and accountIdEqCs.not()))
+                        mkEq(
+                            tsaAccountId.symbolicAccountId,
+                            mkBv(accountIdValue, tsaAccountId.symbolicAccountId.sort.sizeBits),
+                        )
+                    scope.assert(tsaAccountId.isStateInit or (tsaAccountId.isStateInit.not() and accountIdEqCs.not()))
                         ?: break
                 }
                 if (values.size > modelsCountLimit) {

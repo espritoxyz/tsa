@@ -13,6 +13,7 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
+import org.usvm.machine.state.TsaAccountId
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.types.TvmType
@@ -30,6 +31,8 @@ interface TvmTransformer : KTransformerBase {
     fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort>
 
     fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort>
+
+    fun transform(expr: TsaAccountId): UExpr<UBvSort>
 }
 
 interface TvmBvTransformer : TvmTransformer {
@@ -51,6 +54,8 @@ interface TvmBvTransformer : TvmTransformer {
     override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
 
     override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
+
+    override fun transform(expr: TsaAccountId): UExpr<UBvSort> = expr
 }
 
 class TvmBvNonRecursiveTransformer(
@@ -86,7 +91,19 @@ class TvmComposer(
     memory: UReadOnlyMemory<TvmType>,
     ownership: MutabilityOwnership,
 ) : UComposer<TvmType, TvmSizeSort>(ctx, memory, ownership),
-    TvmBvTransformer
+    TvmBvTransformer {
+    override fun transform(expr: TsaAccountId): UExpr<UBvSort> =
+        transformExprAfterTransformed(
+            expr,
+            expr.symbolicAccountId,
+            expr.isStateInit,
+            expr.code,
+            expr.data,
+            expr.boundStateInitHash,
+        ) { symbAccId, newIsStateinit, newCode, newData, newBoundStateInitHash ->
+            ctx.mkIte(newIsStateinit, newBoundStateInitHash, newBoundStateInitHash)
+        }
+}
 
 class TvmTranslator(
     ctx: TvmContext,
@@ -135,5 +152,17 @@ class TvmTranslator(
                 }
                 mkBvAndExpr(l, r)
             }
+        }
+
+    override fun transform(expr: TsaAccountId): UExpr<UBvSort> =
+        transformExprAfterTransformed(
+            expr,
+            expr.symbolicAccountId,
+            expr.isStateInit,
+            expr.code,
+            expr.data,
+            expr.boundStateInitHash,
+        ) { symbAccId, newIsStateinit, newCode, newData, newBoundStateInitHash ->
+            ctx.mkIte(newIsStateinit, newBoundStateInitHash, newBoundStateInitHash)
         }
 }

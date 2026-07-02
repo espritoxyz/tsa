@@ -704,7 +704,7 @@ fun TvmState.switchDirectlyToMethodInContract(method: TvmMethod) = newStmt(metho
  * Generates a symbolic sender address for the `tsa_enable_auth_check` intrinsic.
  * @return (address, authCheckInfo)
  */
-fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, AuthCheckInfo> =
+fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, TsaAccountId> =
     with(ctx) {
         val workchain = mkBv(0, 8u) // TODO: consider other workchains?
         val code = generateSymbolicCell()
@@ -722,9 +722,9 @@ fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, AuthCheck
         val stateInit = builderToCell(stateInitBuilder)
         val boundStateInitHash =
             mockHash(stateInit).extractToSort(mkBvSort(256u))
-        val tsaAccountId = makeSymbolicPrimitive(mkBvSort(256u), TvmTrackedLiteral("mock_account_id"))
         val symbolicAccountId = makeSymbolicPrimitive(mkBvSort(256u), TvmTrackedLiteral("symbolic_account_id"))
         val isStateInit = makeSymbolicPrimitive(boolSort, TvmTrackedLiteral("is_mock_account_id_stateinit"))
+        val tsaAccountId = ctx.mkTsaAccountId(code, data, isStateInit, boundStateInitHash, symbolicAccountId)
         val address =
             allocDataCellFromData(
                 mkBvConcatExpr(
@@ -738,16 +738,7 @@ fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, AuthCheck
                     tsaAccountId,
                 ),
             )
-        val info =
-            AuthCheckInfo(
-                tsaAccountId = tsaAccountId,
-                symbolicAccountId = symbolicAccountId,
-                isStateInit = isStateInit,
-                code = code,
-                data = data,
-                boundStateInitHash = boundStateInitHash,
-            )
-        return address.asCellRef() to info
+        return address.asCellRef() to tsaAccountId
     }
 
 // second value is workchain

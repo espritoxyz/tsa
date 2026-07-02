@@ -55,6 +55,7 @@ import org.usvm.isTrue
 import org.usvm.machine.intblast.TvmMultiplication
 import org.usvm.machine.intblast.TvmSignedDivision
 import org.usvm.machine.intblast.TvmSignedModulo
+import org.usvm.machine.state.TsaAccountId
 import org.usvm.machine.state.TvmBadDestinationAddress
 import org.usvm.machine.state.TvmCellOverflowError
 import org.usvm.machine.state.TvmCellUnderflowError
@@ -260,6 +261,26 @@ class TvmContext(
             .createIfContextActive {
                 TvmSignedModulo(this, lhs, rhs, lhs.sort)
             }.cast()
+
+    private val tsaAccountIdInterner = mkAstInterner<TsaAccountId>()
+
+    fun mkTsaAccountId(
+        symbolicCode: UConcreteHeapRef,
+        symbolicData: UConcreteHeapRef,
+        isStateInit: UExpr<KBoolSort>,
+        boundStateInitHash: UExpr<KBvSort>,
+        symbolicAccountId: UExpr<KBvSort>,
+    ): TsaAccountId =
+        tsaAccountIdInterner.createIfContextActive {
+            TsaAccountId(
+                ctx = this,
+                symbolicAccountId = symbolicAccountId,
+                isStateInit = isStateInit,
+                code = symbolicCode,
+                data = symbolicData,
+                boundStateInitHash = boundStateInitHash,
+            )
+        }
 
     private val tvmHashCache = mkAstInterner<TvmHashSymbol>()
 
