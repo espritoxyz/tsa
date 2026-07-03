@@ -30,7 +30,7 @@ import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.TvmDoubleSendRemainingValue
 import org.usvm.test.resolver.TvmExecutionWithSoftFailure
 import org.usvm.test.resolver.TvmSuccessfulExecution
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput
 import org.usvm.test.resolver.TvmTestResult
@@ -155,7 +155,7 @@ class CheckersTest {
         checkerPathStr: String,
         fetchedKeys: Set<Int>,
         contractPath: String,
-        additionalCheck: (TvmSymbolicTest) -> Boolean = { true },
+        additionalCheck: (TvmSymbolicTestFull) -> Boolean = { true },
     ) {
         val path = extractResource(contractPath)
         val checkerPath = extractResource(checkerPathStr)

@@ -1,12 +1,13 @@
 package org.usvm.machine.ps
 
+import mu.KLogging
 import org.usvm.UPathSelector
 import org.usvm.machine.state.C5ActionIdentifier
 import org.usvm.machine.state.TvmState
 import kotlin.random.Random
 
 class TvmOutOpcodePathSelector(
-    private val createBasePathSelector: (TvmState) -> UPathSelector<TvmState>,
+    private val createBasePathSelector: () -> UPathSelector<TvmState>,
 ) : UPathSelector<TvmState> {
     private val random: Random = Random(0)
 
@@ -19,8 +20,18 @@ class TvmOutOpcodePathSelector(
     override fun isEmpty(): Boolean = innerPathSelectors.isEmpty()
 
     override fun peek(): TvmState {
+        val keys = innerPathSelectors.keys.toList()
         val idx = random.nextInt(0, innerPathSelectors.size)
-        return innerPathSelectors.values.toList()[idx].peek()
+        val key = keys[idx]
+        val ps =
+            innerPathSelectors[key]
+                ?: error("Path selector $key not found")
+
+        logger.debug {
+            "Chose key $key for the step"
+        }
+
+        return ps.peek()
     }
 
     override fun remove(state: TvmState) {
@@ -44,24 +55,16 @@ class TvmOutOpcodePathSelector(
     }
 
     fun add(state: TvmState) {
-        val oldSet =
-            stateKey[state]
-                ?: setOf()
-
-        val setOfMessageIds =
-            state.registersOfCurrentContract.c5.identifierList
-                ?.mapNotNull {
-                    (it as? C5ActionIdentifier.MsgIdentifier)?.hash()
-                }?.toSet() ?: emptySet()
-
-        val key = oldSet + setOfMessageIds
+        val key = getStateKey(state)
         stateKey[state] = key
 
         val ps =
             innerPathSelectors[key]?.also {
                 it.add(listOf(state))
             } ?: run {
-                createBasePathSelector(state)
+                createBasePathSelector().also {
+                    it.add(listOf(state))
+                }
             }
 
         innerPathSelectors[key] = ps
@@ -70,5 +73,20 @@ class TvmOutOpcodePathSelector(
     override fun update(state: TvmState) {
         remove(state)
         add(state)
+    }
+
+    companion object {
+        fun getStateKey(state: TvmState): Set<Int> {
+            val setOfMessageIds =
+                state.c5IdentifierList.values
+                    .flatMap { it.toList() }
+                    .mapNotNull {
+                        (it as? C5ActionIdentifier.MsgIdentifier)?.hash()
+                    }.toSet()
+
+            return setOfMessageIds
+        }
+
+        private val logger = object : KLogging() {}.logger
     }
 }

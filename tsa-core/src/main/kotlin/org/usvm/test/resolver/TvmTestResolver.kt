@@ -35,6 +35,20 @@ data object TvmTestResolver {
         val stateResolver =
             TvmTestStateResolver(ctx, model, state, ctx.tvmOptions.performAdditionalChecksWhileResolving)
 
+        if (ctx.tvmOptions.shortResolve) {
+            return TvmSymbolicTestShort(
+                methodId = methodId,
+                time = stateResolver.resolveTime(),
+                rootContract = state.rootContractId,
+                initialBalance = stateResolver.resolveInitialContractBalance(state.rootContractId),
+                fetchedValues = stateResolver.resolveFetchedValues(),
+                result = stateResolver.resolveResultStack(),
+                lastStmt = state.lastRealStmt,
+                intercontractPath = state.intercontractPath,
+                messageIdentifierMapping = state.messageIdentifierMapping,
+            )
+        }
+
         val input = stateResolver.resolveInput()
         val fetchedValues = stateResolver.resolveFetchedValues()
         val config = stateResolver.resolveConfig()
@@ -52,7 +66,7 @@ data object TvmTestResolver {
                 .size
         val events = stateResolver.resolveEvents()
 
-        return TvmSymbolicTest(
+        return TvmSymbolicTestFull(
             methodId = methodId,
             config = config,
             contractAddresses = contractAddress,
@@ -139,34 +153,69 @@ data class TvmMethodCoverage(
 )
 
 /**
+ * Common interface for the symbolic test representations.
+ *
+ * [TvmSymbolicTestFull] carries the complete resolved data, while [TvmSymbolicTestShort] carries
+ * only the subset that is resolved when [org.usvm.machine.TvmOptions.shortResolve] is enabled.
+ */
+sealed interface TvmSymbolicTest {
+    val methodId: MethodId
+    val time: TvmTestIntegerValue
+    val rootContract: ContractId
+    val initialBalance: TvmTestIntegerValue
+    val fetchedValues: Map<Int, TvmTestValue>
+    val result: TvmTestResult
+    val lastStmt: TvmRealInst? // null if the body is empty
+    val intercontractPath: List<ContractId>
+    val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>
+}
+
+/**
+ * Lightweight variant of [TvmSymbolicTest] produced when
+ * [org.usvm.machine.TvmOptions.shortResolve] is enabled. Only a small subset of the execution
+ * data is resolved.
+ */
+data class TvmSymbolicTestShort(
+    override val methodId: MethodId,
+    override val time: TvmTestIntegerValue,
+    override val rootContract: ContractId,
+    override val initialBalance: TvmTestIntegerValue,
+    override val fetchedValues: Map<Int, TvmTestValue>,
+    override val result: TvmTestResult,
+    override val lastStmt: TvmRealInst?,
+    override val intercontractPath: List<ContractId>,
+    override val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
+) : TvmSymbolicTest
+
+/**
  * @param outMessages values of the map are `null` iff the corresponding message caused cell overflow
  * during construction
  */
-data class TvmSymbolicTest(
-    val methodId: MethodId,
+data class TvmSymbolicTestFull(
+    override val methodId: MethodId,
     val config: TvmTestDictCellValue,
     val contractAddresses: Map<ContractId, TvmTestDataCellValue>,
-    val time: TvmTestIntegerValue,
-    val rootContract: ContractId,
+    override val time: TvmTestIntegerValue,
+    override val rootContract: ContractId,
     val contractStatesBefore: Map<ContractId, TvmContractState>,
 //    val contractStatesAfter: Map<ContractId, TvmContractState>,
     val initialData: Map<ContractId, TvmTestCellValue>,
     val input: TvmTestInput,
     val additionalInputs: Map<Int, TvmTestInput.ReceiverInput>,
-    val fetchedValues: Map<Int, TvmTestValue>,
-    val result: TvmTestResult,
-    val lastStmt: TvmRealInst?, // null if the body is empty
+    override val fetchedValues: Map<Int, TvmTestValue>,
+    override val result: TvmTestResult,
+    override val lastStmt: TvmRealInst?, // null if the body is empty
     val gasUsage: Int,
     val additionalFlags: Set<String>,
-    val intercontractPath: List<ContractId>,
+    override val intercontractPath: List<ContractId>,
     val outMessages: List<Pair<ContractId, TvmTestMessage?>>,
     // a list of the covered instructions in the order they are visited
     val coveredInstructions: List<TvmInst>,
     val eventsList: List<TvmMessageDrivenContractExecutionTestEntry>,
     val initialSeed: BigInteger?,
     val debugInfo: TvmTestDebugInfo,
-    val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
-) {
+    override val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
+) : TvmSymbolicTest {
     val initialRootContractState: TvmContractState
         get() =
             contractStatesBefore[rootContract]
@@ -175,8 +224,11 @@ data class TvmSymbolicTest(
     val rootInitialData: TvmTestCellValue
         get() = initialRootContractState.data
 
-    val initialRootContractBalance: TvmTestIntegerValue
+    override val initialBalance: TvmTestIntegerValue
         get() = initialRootContractState.balance
+
+    val initialRootContractBalance: TvmTestIntegerValue
+        get() = initialBalance
 }
 
 data class TvmTestDebugInfo(

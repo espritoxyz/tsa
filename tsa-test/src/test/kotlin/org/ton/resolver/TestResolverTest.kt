@@ -6,7 +6,7 @@ import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.usvm.machine.state.TvmIntegerOverflowError
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestFailure
@@ -107,11 +107,11 @@ class TestResolverTest {
 
     private fun findMethodTest(
         symbolicResult: TvmContractSymbolicTestResult,
-        predicate: (TvmSymbolicTest) -> Boolean,
-    ): Pair<Int, TvmSymbolicTest> =
+        predicate: (TvmSymbolicTestFull) -> Boolean,
+    ): Pair<Int, TvmSymbolicTestFull> =
         symbolicResult.firstNotNullOf { (method, _, tests) ->
             val test =
-                tests.firstOrNull(predicate)
+                tests.filterIsInstance<TvmSymbolicTestFull>().firstOrNull(predicate)
                     ?: return@firstNotNullOf null
 
             method.toInt() to test

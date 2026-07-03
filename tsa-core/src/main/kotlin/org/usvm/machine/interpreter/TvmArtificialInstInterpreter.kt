@@ -527,7 +527,7 @@ class TvmArtificialInstInterpreter(
             val commitedActions = scope.calcOnState { commitedState.c5.value.value }
             val identifiers =
                 scope.calcOnState {
-                    commitedState.c5.identifierList
+                    c5IdentifierList[commitedState.c5.value.value]
                         ?.reversed()
                         ?.toImmutableList()
                 }

@@ -7,6 +7,7 @@ import io.ksmt.expr.KExpr
 import io.ksmt.sort.KBoolSort
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
+import mu.KLogging
 import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
@@ -66,6 +67,10 @@ import kotlin.collections.map
 class TvmHashConstraintsResolver(
     val scope: TvmStepScopeManager,
 ) {
+    companion object {
+        private val logger = object : KLogging() {}.logger
+    }
+
     fun generateNewPathConstraints(): TvmPathConstraints? {
         val state = scope.calcOnState { this }
         val transformer = HashEqualityTransformer(scope.ctx, scope, state)
@@ -221,16 +226,21 @@ class TvmHashConstraintsResolver(
             r: UExpr<*>,
         ): UBoolExpr? {
             if (l is TvmHashSymbol && r is TvmHashSymbol) {
+                logger.debug("Hash equality in path constraints")
                 val possibleLhsTypes = state.getPossibleTypes(l.ref).toList()
                 val possibleRhsTypes = state.getPossibleTypes(r.ref).toList()
                 if (TvmDataCellType in possibleLhsTypes && TvmDataCellType in possibleRhsTypes) {
                     val lhsValue = state.extractFullCellIfItIsConcrete(l.ref)
                     val rhsValue = state.extractFullCellIfItIsConcrete(r.ref)
                     if (lhsValue != null) {
-                        return transformToCellEquality(l.ref, r.ref)
+                        return transformToCellEquality(l.ref, r.ref)?.also {
+                            logger.debug("Transformed to cell equality")
+                        }
                     }
                     if (rhsValue != null) {
-                        return transformToCellEquality(r.ref, l.ref)
+                        return transformToCellEquality(r.ref, l.ref)?.also {
+                            logger.debug("Transformed to cell equality")
+                        }
                     }
                 }
             }

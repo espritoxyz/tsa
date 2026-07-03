@@ -6,7 +6,7 @@ import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
 import org.ton.test.utils.propertiesFound
 import org.ton.test.utils.testOptionsToAnalyzeSpecificMethod
 import org.usvm.test.resolver.TvmCellDataTypeLoad
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestCellDataBitArrayRead
 import org.usvm.test.resolver.TvmTestCellDataIntegerRead
 import org.usvm.test.resolver.TvmTestCellDataMaybeConstructorBitRead
@@ -83,10 +83,10 @@ class TypeVariantsExample {
         )
     }
 
-    private fun generatePredicate1(variant: List<TvmCellDataTypeLoad>): (TvmSymbolicTest) -> Boolean =
+    private fun generatePredicate1(variant: List<TvmCellDataTypeLoad>): (TvmSymbolicTestFull) -> Boolean =
         generatePredicate(listOf(variant))
 
-    private fun generatePredicate(variants: List<List<TvmCellDataTypeLoad>>): (TvmSymbolicTest) -> Boolean =
+    private fun generatePredicate(variants: List<List<TvmCellDataTypeLoad>>): (TvmSymbolicTestFull) -> Boolean =
         result@{ test ->
             val casted = (test.input.usedParameters.last() as? TvmTestSliceValue)?.cell ?: return@result false
             variants.any { variant ->

@@ -85,7 +85,7 @@ class CalculatedTlbLabelInfoTest {
 
     @Test
     fun testMaybeStructureValues() {
-        assertTrue(info.labelHasUnknownLeaves(maybeStructure) == false)
+        assertEquals(false, info.labelHasUnknownLeaves(maybeStructure))
         assertEquals(0, info.minimalLabelDepth(maybeStructure))
         assertEquals(1, info.maxRefSize(maybeStructure))
         assertEquals(maxTlbDepth, info.getIndividualTlbDepthBound(maybeStructure))
@@ -111,7 +111,7 @@ class CalculatedTlbLabelInfoTest {
 
     @Test
     fun testIntSwitchValues() {
-        assertTrue(info.labelHasUnknownLeaves(intSwitchStructure) == false)
+        assertEquals(false, info.labelHasUnknownLeaves(intSwitchStructure))
         assertEquals(0, info.minimalLabelDepth(intSwitchStructure))
         assertEquals(0, info.maxRefSize(intSwitchStructure))
         assertEquals(maxTlbDepth, info.getIndividualTlbDepthBound(intSwitchStructure))
@@ -144,7 +144,7 @@ class CalculatedTlbLabelInfoTest {
     @Test
     fun testHasUnknownLeaves() {
         assertEquals(maxTlbDepth, info.getIndividualTlbDepthBound(prefixInt64Structure))
-        assertTrue(info.labelHasUnknownLeaves(prefixInt64Structure) == true)
+        assertEquals(true, info.labelHasUnknownLeaves(prefixInt64Structure))
         assertEquals(TvmContext.MAX_REFS_NUMBER, info.maxRefSize(prefixInt64Structure))
         val address = dummyState.generateSymbolicCell()
         assertEquals(
@@ -164,7 +164,7 @@ class CalculatedTlbLabelInfoTest {
 
     @Test
     fun testStructureX() {
-        assertTrue(info.labelHasUnknownLeaves(structureX) == false)
+        assertEquals(false, info.labelHasUnknownLeaves(structureX))
         assertEquals(0, info.minimalLabelDepth(structureX))
         assertEquals(0, info.maxRefSize(structureX))
         assertEquals(maxTlbDepth, info.getIndividualTlbDepthBound(structureX))
@@ -185,7 +185,7 @@ class CalculatedTlbLabelInfoTest {
 
     @Test
     fun testStructureY() {
-        assertTrue(info.labelHasUnknownLeaves(structureY) == false)
+        assertEquals(false, info.labelHasUnknownLeaves(structureY))
         assertEquals(1, info.minimalLabelDepth(structureY))
         assertEquals(0, info.maxRefSize(structureY))
         assertEquals(maxTlbDepth, info.getIndividualTlbDepthBound(structureY))
@@ -206,7 +206,7 @@ class CalculatedTlbLabelInfoTest {
 
     @Test
     fun testRecursiveStructure() {
-        assertTrue(info.labelHasUnknownLeaves(recursiveStructure) == false)
+        assertEquals(false, info.labelHasUnknownLeaves(recursiveStructure))
         assertEquals(0, info.minimalLabelDepth(recursiveStructure))
         assertEquals(0, info.maxRefSize(recursiveStructure))
         assertEquals(maxTlbDepth, info.getIndividualTlbDepthBound(recursiveStructure))
@@ -252,7 +252,7 @@ class CalculatedTlbLabelInfoTest {
 
     @Test
     fun testRecursiveWithRefStructure() {
-        assertTrue(info.labelHasUnknownLeaves(recursiveWithRefStructure) == false)
+        assertEquals(false, info.labelHasUnknownLeaves(recursiveWithRefStructure))
         assertEquals(0, info.minimalLabelDepth(recursiveWithRefStructure))
         assertEquals(4, info.maxRefSize(recursiveWithRefStructure))
         assertEquals(0, info.maxRefSize(recursiveWithRefStructure, maxDepth = 0))

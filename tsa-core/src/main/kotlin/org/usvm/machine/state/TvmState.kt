@@ -114,6 +114,7 @@ class TvmState(
             persistentSetOf(),
         ),
     var fixatedHashes: PersistentSet<TvmHashSymbol> = persistentSetOf(),
+    var c5IdentifierList: PersistentMap<UConcreteHeapRef, PersistentList<C5ActionIdentifier>> = persistentMapOf(),
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -259,6 +260,7 @@ class TvmState(
             callstackCounter = callstackCounter,
             functionalDependencyAssertion = functionalDependencyAssertion.copy(),
             fixatedHashes = fixatedHashes,
+            c5IdentifierList = c5IdentifierList,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

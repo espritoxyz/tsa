@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.utils.uncheckedCast
+import mu.KLogging
 import org.ton.api.pk.PrivateKeyEd25519
 import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
@@ -53,6 +54,10 @@ class TvmPostProcessor(
     private val publicKey by lazy { privateKey.publicKey() }
     private val publicKeyHex by lazy { publicKey.key.encodeHex() }
 
+    companion object {
+        private val logger = object : KLogging() {}.logger
+    }
+
     fun postProcessState(state: TvmState): TvmState? =
         with(ctx) {
             // hack
@@ -69,9 +74,13 @@ class TvmPostProcessor(
             val hashEqualityTransformer = TvmHashConstraintsResolver(scope)
             val newPathConstraints =
                 hashEqualityTransformer.generateNewPathConstraints()
-                    ?: return null
+                    ?: run {
+                        logger.debug("Death in hashEqualityTransformer")
+                        return null
+                    }
             if (newPathConstraints != state.pathConstraints) {
                 if (newPathConstraints.isFalse) {
+                    logger.debug("Contradicting constraints after hashEqualityTransformer")
                     return null
                 }
                 val someCurrentModel = state.models.first()
@@ -84,12 +93,18 @@ class TvmPostProcessor(
                     } else {
                         val solverResult = solver<TvmType>().check(newPathConstraints)
                         (solverResult as? USatResult)?.model?.wrap(ctx)
-                            ?: return@with null
+                            ?: run {
+                                logger.debug {
+                                    "Cannot get model after hashEqualityTransformer (solver result: $solverResult)"
+                                }
+                                return@with null
+                            }
                     }
 
                 val newState = state.clone(newPathConstraints)
                 newState.models = listOf(newModel)
                 newState.isExceptional = oldIsExceptional
+                logger.debug("Changing state after solving constraints from hashEqualityTransformer")
                 return postProcessState(newState)
             }
 
@@ -99,12 +114,18 @@ class TvmPostProcessor(
             assertConstraints(scope) { resolver ->
                 generateRandomAddressConstraint(scope, resolver)
                     ?: return@assertConstraints null
-            } ?: return null
+            } ?: run {
+                logger.debug("Cannot assert random address constraints")
+                return null
+            }
 
             // In some cases, public keys may be included in the hashed values
             assertConstraints(scope) { resolver ->
                 generatePublicKeyConstraints(scope, resolver)
-            } ?: return null
+            } ?: run {
+                logger.debug("Cannot assert public key constraints")
+                return null
+            }
 
             // forward fees might depend on the hashes, so we must fixate the hashes first
             assertConstraints(scope) { resolver ->
@@ -112,14 +133,20 @@ class TvmPostProcessor(
                     generateHashConstraint(scope, resolver)
                         ?: return@assertConstraints null
                 hashConstraint
-            } ?: return null
+            } ?: run {
+                logger.debug("Cannot assert hash constraints")
+                return null
+            }
 
             assertConstraints(scope) { resolver ->
                 val sha256Constraint =
                     generateSha256Constraints(scope, resolver)
                         ?: return@assertConstraints null
                 sha256Constraint
-            } ?: return null
+            } ?: run {
+                logger.debug("Cannot assert sha256 constraints")
+                return null
+            }
 
             assertConstraints(scope) { resolver ->
                 val depthConstraint =
@@ -135,16 +162,25 @@ class TvmPostProcessor(
                         ?: return@assertConstraints null
 
                 depthConstraint and fwdFeeConstraint and datasizeConstraint
-            } ?: return null
+            } ?: run {
+                logger.debug("Cannot assert (depth or fwd_fee or cdatasize) constraints")
+                return null
+            }
 
             // must be asserted separately since it relies on correct hash values
             assertConstraints(scope) { resolver ->
                 generateSignatureConstraints(scope, resolver)
-            } ?: return null
+            } ?: run {
+                logger.debug("Cannot assert signature constraints")
+                return null
+            }
 
             val structuralConstraintsHolder = state.structuralConstraintsHolder
             structuralConstraintsHolder.applyTo(scope)
-                ?: return null
+                ?: run {
+                    logger.debug("Cannot assert structural constraints")
+                    return null
+                }
 
             return state
         }

@@ -5,7 +5,7 @@ import org.ton.bytecode.TvmRealInst
 import org.ton.options.AnalysisOptions
 import org.usvm.machine.FollowTrace
 import org.usvm.test.resolver.TvmContractSymbolicTestResult
-import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.exitCode
 import kotlin.io.path.writeText
@@ -16,7 +16,7 @@ fun writeCoveredInstructions(
 ) {
     val insts =
         result.flatMap { tests ->
-            tests.flatMap {
+            tests.filterIsInstance<TvmSymbolicTestFull>().flatMap {
                 it.coveredInstructions
             }
         }
@@ -29,7 +29,7 @@ fun writeCoveredInstructions(
     tests: TvmSymbolicTestSuite,
 ) {
     val insts =
-        tests.flatMap {
+        tests.filterIsInstance<TvmSymbolicTestFull>().flatMap {
             it.coveredInstructions
         }
 
@@ -59,7 +59,7 @@ fun writeTraceForExitCode(
     analysisOptions: AnalysisOptions,
     result: TvmContractSymbolicTestResult,
 ) {
-    val tests = result.flatMap { it.tests }
+    val tests = result.flatMap { it.tests }.filterIsInstance<TvmSymbolicTestFull>()
     writeTraceForExitCode(analysisOptions, tests)
 }
 
@@ -67,12 +67,12 @@ fun writeTraceForExitCode(
     analysisOptions: AnalysisOptions,
     result: TvmSymbolicTestSuite,
 ) {
-    writeTraceForExitCode(analysisOptions, result.tests)
+    writeTraceForExitCode(analysisOptions, result.tests.filterIsInstance<TvmSymbolicTestFull>())
 }
 
 private fun writeTraceForExitCode(
     analysisOptions: AnalysisOptions,
-    tests: List<TvmSymbolicTest>,
+    tests: List<TvmSymbolicTestFull>,
 ) {
     val path = analysisOptions.saveTracePath ?: return
     val exitCode =

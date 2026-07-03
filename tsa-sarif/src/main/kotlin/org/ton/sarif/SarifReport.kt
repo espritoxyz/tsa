@@ -21,6 +21,7 @@ import org.usvm.test.resolver.TvmExecutionWithStructuralError
 import org.usvm.test.resolver.TvmSuccessfulActionPhase
 import org.usvm.test.resolver.TvmSuccessfulExecution
 import org.usvm.test.resolver.TvmSymbolicTest
+import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestFailure
 import java.math.BigInteger
@@ -117,19 +118,29 @@ private fun List<TvmSymbolicTest>.toSarifResult(
     val properties =
         PropertyBag(
             listOfNotNull(
-                "usedParameters" to json.encodeToJsonElement(it.input),
+                (it as? TvmSymbolicTestFull)?.let { fullTest ->
+                    "usedParameters" to json.encodeToJsonElement(fullTest.input)
+                },
                 it.fetchedValues.takeIf { it.isNotEmpty() }?.let {
                     "fetchedValues" to json.encodeToJsonElement(it)
                 },
-                "rootContractInitialC4" to json.encodeToJsonElement(it.rootInitialData),
-                "additionalInputs" to json.encodeToJsonElement(it.additionalInputs),
-                "events" to json.encodeToJsonElement(it.eventsList),
-                "initialBalance" to
-                    json.encodeToJsonElement(
-                        it.contractStatesBefore
-                            .map { (contractId, contractState) -> contractId to contractState.balance }
-                            .toMap(),
-                    ),
+                (it as? TvmSymbolicTestFull)?.let { fullTest ->
+                    "rootContractInitialC4" to json.encodeToJsonElement(fullTest.rootInitialData)
+                },
+                (it as? TvmSymbolicTestFull)?.let { fullTest ->
+                    "additionalInputs" to json.encodeToJsonElement(fullTest.additionalInputs)
+                },
+                (it as? TvmSymbolicTestFull)?.let { fullTest ->
+                    "events" to json.encodeToJsonElement(fullTest.eventsList)
+                },
+                (it as? TvmSymbolicTestFull)?.let { fullTest ->
+                    "initialBalance" to
+                        json.encodeToJsonElement(
+                            fullTest.contractStatesBefore
+                                .map { (contractId, contractState) -> contractId to contractState.balance }
+                                .toMap(),
+                        )
+                },
                 "msgIds" to json.encodeToJsonElement(it.messageIdentifierMapping),
             ).toMap(),
         )
