@@ -16,6 +16,7 @@ import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
+import org.usvm.machine.tctx
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UReadOnlyMemory
 import org.usvm.solver.UExprTranslator
@@ -56,9 +57,7 @@ interface TvmBvTransformer : TvmTransformer {
     override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
 
     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> =
-        expr.ctx.tctx().mkTsaAccountIdSymbol(
-            expr.code,
-            expr.data,
+        expr.tctx.mkIte(
             apply(expr.isStateInit),
             apply(expr.boundStateInitHash),
             apply(expr.symbolicAccountId),
@@ -102,13 +101,17 @@ class TvmComposer(
     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> =
         transformExprAfterTransformed(
             expr,
-            expr.symbolicAccountId,
             expr.isStateInit,
+            expr.boundStateInitHash,
+            expr.symbolicAccountId,
             expr.code,
             expr.data,
-            expr.boundStateInitHash,
-        ) { symbAccId, newIsStateinit, newCode, newData, newBoundStateInitHash ->
-            ctx.mkIte(newIsStateinit, newBoundStateInitHash, symbAccId)
+        ) { newIsStateinit, newBoundStateInitHash, newSymbolicAccountId, _, _ ->
+            ctx.mkIte(
+                newIsStateinit,
+                newBoundStateInitHash,
+                newSymbolicAccountId,
+            )
         }
 }
 
@@ -164,12 +167,16 @@ class TvmTranslator(
     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> =
         transformExprAfterTransformed(
             expr,
-            expr.symbolicAccountId,
             expr.isStateInit,
+            expr.boundStateInitHash,
+            expr.symbolicAccountId,
             expr.code,
             expr.data,
-            expr.boundStateInitHash,
-        ) { symbAccId, newIsStateinit, newCode, newData, newBoundStateInitHash ->
-            ctx.mkIte(newIsStateinit, newBoundStateInitHash, symbAccId)
+        ) { newIsStateinit, newBoundStateInitHash, symbAccId, _, _ ->
+            ctx.mkIte(
+                newIsStateinit,
+                newBoundStateInitHash,
+                symbAccId,
+            )
         }
 }

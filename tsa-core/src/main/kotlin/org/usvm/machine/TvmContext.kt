@@ -265,22 +265,24 @@ class TvmContext(
     private val tsaAccountIdSymbolInterner = mkAstInterner<TsaAccountIdSymbol>()
 
     fun mkTsaAccountIdSymbol(
-        symbolicCode: UHeapRef,
-        symbolicData: UHeapRef,
         isStateInit: UExpr<KBoolSort>,
-        boundStateInitHash: UExpr<KBvSort>,
+        boundStateInitHash: TvmSymbolicHashSymbol,
         symbolicAccountId: UExpr<KBvSort>,
-    ): TsaAccountIdSymbol =
-        tsaAccountIdSymbolInterner.createIfContextActive {
+        symbolicData: UHeapRef,
+        symbolicCode: UHeapRef,
+    ): TsaAccountIdSymbol {
+        require(symbolicAccountId.sort.sizeBits == 256u)
+        return tsaAccountIdSymbolInterner.createIfContextActive {
             TsaAccountIdSymbol(
                 ctx = this,
-                symbolicAccountId = symbolicAccountId,
                 isStateInit = isStateInit,
+                boundStateInitHash = boundStateInitHash,
+                symbolicAccountId = symbolicAccountId,
                 code = symbolicCode,
                 data = symbolicData,
-                boundStateInitHash = boundStateInitHash,
             )
         }
+    }
 
     private val tvmHashCache = mkAstInterner<TvmHashSymbol>()
 

@@ -1,6 +1,7 @@
 package org.usvm.machine.state
 
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.powerOfTwo
@@ -49,6 +50,7 @@ import org.usvm.machine.intValue
 import org.usvm.machine.maxUnsignedValue
 import org.usvm.machine.state.TvmStack.TvmStackIntValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.messages.bounce
 import org.usvm.machine.state.messages.bounced
@@ -707,10 +709,11 @@ fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, TsaAccoun
         builderStoreNextRefNoOverflowCheck(stateInitBuilder, data)
         val stateInit = builderToCell(stateInitBuilder)
         val boundStateInitHash =
-            mockHash(stateInit).extractToSort(mkBvSort(256u))
+            (mockHash(stateInit) as? KBvZeroExtensionExpr)?.value as? TvmSymbolicHashSymbol
+                ?: error("wrong symbol")
         val symbolicAccountId = makeSymbolicPrimitive(mkBvSort(256u), TvmTrackedLiteral("symbolic_account_id"))
         val isStateInit = makeSymbolicPrimitive(boolSort, TvmTrackedLiteral("is_mock_account_id_stateinit"))
-        val tsaAccountId = ctx.mkTsaAccountIdSymbol(code, data, isStateInit, boundStateInitHash, symbolicAccountId)
+        val tsaAccountId = ctx.mkTsaAccountIdSymbol(isStateInit, boundStateInitHash, symbolicAccountId, data, code)
         val address =
             allocDataCellFromData(
                 mkBvConcatExpr(

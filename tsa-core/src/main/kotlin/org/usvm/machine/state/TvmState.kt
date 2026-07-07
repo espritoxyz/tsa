@@ -123,6 +123,10 @@ class TvmState(
     var fixatedHashes: PersistentSet<TvmHashSymbol> = persistentSetOf(),
     var c5IdentifierList: PersistentMap<UConcreteHeapRef, PersistentList<C5ActionIdentifier>> = persistentMapOf(),
     var inputIdToTsaAccountId: PersistentMap<Int, AccountIdInfo> = persistentMapOf(),
+    /**
+     * Authorized entities enumerated for the `tsa_enable_auth_check` intrinsic. Computed during post-processing.
+     */
+    var resolvedAuthValues: AuthAnalysisResult = AuthAnalysisResult.NotCollected,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -159,11 +163,6 @@ class TvmState(
 
     val isTerminated: Boolean
         get() = phase == TvmTerminated
-
-    /**
-     * Authorized entities enumerated for the `tsa_enable_auth_check` intrinsic. Computed during post-processing.
-     */
-    var resolvedAuthValues: AuthAnalysisResult = AuthAnalysisResult.NotCollected
 
     lateinit var dataCellInfoStorage: TvmDataCellInfoStorage
     lateinit var registersOfCurrentContract: TvmRegisters
@@ -275,6 +274,7 @@ class TvmState(
             fixatedHashes = fixatedHashes,
             c5IdentifierList = c5IdentifierList,
             inputIdToTsaAccountId = inputIdToTsaAccountId,
+            resolvedAuthValues = resolvedAuthValues,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

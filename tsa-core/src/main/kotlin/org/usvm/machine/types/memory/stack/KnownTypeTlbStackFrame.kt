@@ -22,9 +22,7 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.slicesDataBitsAreEqual
-import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.ContinueLoadOnNextFrameData
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmReadingOfUnexpectedType

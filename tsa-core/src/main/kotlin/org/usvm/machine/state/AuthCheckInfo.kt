@@ -12,6 +12,8 @@ import org.usvm.UHeapRef
 import org.usvm.USymbol
 import org.usvm.machine.TvmContext
 import org.usvm.machine.intblast.TvmTransformer
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
+import org.usvm.machine.tctx
 
 /**
  * `account_id` is the last 256 bits of the address.
@@ -22,14 +24,14 @@ import org.usvm.machine.intblast.TvmTransformer
  */
 class TsaAccountIdSymbol(
     ctx: TvmContext,
-    val symbolicAccountId: UExpr<UBvSort>,
     val isStateInit: UBoolExpr,
+    val boundStateInitHash: TvmSymbolicHashSymbol,
+    val symbolicAccountId: UExpr<UBvSort>,
     val code: UHeapRef,
     val data: UHeapRef,
-    val boundStateInitHash: UExpr<UBvSort>,
 ) : USymbol<UBvSort>(ctx) {
     override val sort: UBvSort
-        get() = ctx.mkBvSort(256u)
+        get() = tctx.mkBvSort(TvmContext.HASH_BITS)
 
     override fun print(printer: ExpressionPrinter) {
         printer.append("myaddr<")

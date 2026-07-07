@@ -33,9 +33,7 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocSliceFromCell
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.generateSymbolicAuthCheckAddress
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.initializeContractExecutionMemory

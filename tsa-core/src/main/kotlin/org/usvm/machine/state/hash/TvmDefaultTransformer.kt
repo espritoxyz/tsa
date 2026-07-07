@@ -121,14 +121,20 @@ open class TvmDefaultTransformer(
     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> =
         transformExprAfterTransformed(
             expr,
+            expr.isStateInit,
+            expr.boundStateInitHash,
+            expr.symbolicAccountId,
             expr.code,
             expr.data,
-            expr.isStateInit,
-            expr.symbolicAccountId,
-            expr.boundStateInitHash,
-        ) { newCode, newData, newIsStateInit, newSymbolicAccountId, newBoundStateInitHash ->
+        ) { newIsStateInit, newBoundStateInitHash, newSymbolicAccountId, newCode, newData ->
             ctx
                 .tctx()
-                .mkTsaAccountIdSymbol(newCode, newData, newIsStateInit, newBoundStateInitHash, newSymbolicAccountId)
+                .mkTsaAccountIdSymbol(
+                    newIsStateInit,
+                    newBoundStateInitHash as TvmSymbolicHashSymbol,
+                    newSymbolicAccountId,
+                    newData,
+                    newCode,
+                )
         }
 }
