@@ -19,6 +19,7 @@ import org.usvm.ps.DfsPathSelector
 import org.usvm.ps.IterativeDeepeningPs
 import org.usvm.ps.LoopLimiterPs
 import org.usvm.statistics.TimeStatistics
+import org.usvm.statistics.UMachineObserver
 import org.usvm.util.RealTimeStopwatch
 import kotlin.time.Duration
 
@@ -27,9 +28,13 @@ data class PSCreationContext(
     val timeStatistics: TimeStatistics<TvmCodeBlock, TvmState>,
     val loopTracker: TvmLoopTracker,
     val extendingTimeStrategy: TvmCompositeExtendingTimeStrategy?,
-    val uncoveredInstObserver: TvmUncoveredInstSeedStrategy.Observer<*>,
+    val uncoveredInstObserverDfs: TvmUncoveredInstSeedStrategy.Observer<*>,
+    val uncoveredInstObserverBfs: TvmUncoveredInstPathSelector.Observer,
     val randomTreeObserver: TvmRandomTreeSeedStrategy.Observer,
-)
+) {
+    val observers: List<UMachineObserver<TvmState>>
+        get() = listOf(uncoveredInstObserverDfs, uncoveredInstObserverBfs, randomTreeObserver)
+}
 
 fun createPsContext(
     options: TvmOptions,
@@ -59,6 +64,7 @@ fun createPsContext(
         loopTracker = TvmLoopTracker(),
         extendingTimeStrategy,
         uncoveredInstObserver,
+        TvmUncoveredInstPathSelector.Observer(),
         TvmRandomTreeSeedStrategy.Observer(),
     )
 }
@@ -185,8 +191,13 @@ private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmS
 
 private fun createPathSelectorLevel2(ctx: PSCreationContext): UPathSelector<TvmState> =
     when (ctx.options.pathSelectionStrategy) {
-        TvmPathSelectionStrategy.DFS_BASED -> createSeedBasedPathSelector(ctx)
-        TvmPathSelectionStrategy.BFS -> addIterativeDeepening(ctx.options, BfsPathSelector(), ctx.loopTracker)
+        TvmPathSelectionStrategy.DFS_BASED -> {
+            createSeedBasedPathSelector(ctx)
+        }
+        TvmPathSelectionStrategy.BFS_BASED -> {
+            val ps = addIterativeDeepening(ctx.options, BfsPathSelector(), ctx.loopTracker)
+            TvmUncoveredInstPathSelector(ps, ctx.uncoveredInstObserverBfs)
+        }
     }
 
 private fun createSeedBasedPathSelector(ctx: PSCreationContext): TvmSeedBasedPathSelector {
@@ -194,7 +205,7 @@ private fun createSeedBasedPathSelector(ctx: PSCreationContext): TvmSeedBasedPat
         if (ctx.options.addTimeoutIfNotSatiated) {
             TvmCompositeSeedStrategy(
                 listOf(
-                    TvmUncoveredInstSeedStrategy(ctx.uncoveredInstObserver),
+                    TvmUncoveredInstSeedStrategy(ctx.uncoveredInstObserverDfs),
                     TvmRandomTreeSeedStrategy(PathNode.root(), ctx.randomTreeObserver),
                 ),
             )

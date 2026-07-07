@@ -849,6 +849,9 @@ class TvmInterpreter(
         }
 
     override fun step(state: TvmState): StepResult<TvmState> {
+        manualStateProcessor.preprocessStateBeforeStep(state)
+            ?: return StepResult(emptySequence(), originalStateAlive = false)
+
         val stmt = state.lastStmt
         logger.debug("Current contract: {}", state.currentContract)
         logger.debug("State id: {}", state.id)

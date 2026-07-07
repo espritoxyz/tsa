@@ -6,10 +6,10 @@ import org.usvm.UExpr
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTerminated
-import org.usvm.machine.state.generateSymbolicSlice
+import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.killCurrentState
-import org.usvm.machine.state.sliceLoadIntTlb
+import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
 import java.math.BigInteger
 import kotlin.random.Random
 import kotlin.time.Duration
@@ -35,7 +35,7 @@ class TvmOpcodeExtractor(
                         excludeExecutionsWithFailures = true,
                         quietMode = true,
                         turnOnTLBParsingChecks = false,
-                        pathSelectionStrategy = TvmPathSelectionStrategy.BFS,
+                        pathSelectionStrategy = TvmPathSelectionStrategy.BFS_BASED,
                         timeout = timeout,
                         collectNonTerminatedState = true,
                         addTimeoutIfNotSatiated = false,
@@ -61,7 +61,8 @@ class TvmOpcodeExtractor(
             states.forEach { state ->
                 // terminated states were already processed by manual state processor
                 if (state.phase != TvmTerminated) {
-                    opcodes += extractOpcodeFromState(state)
+                    val (cur, _) = extractOpcodeFromState(state, isEnd = true)
+                    opcodes += cur
                 }
             }
         }
@@ -74,20 +75,23 @@ class TvmOpcodeExtractor(
         val extractor: TvmOpcodeExtractor,
     ) : TvmManualStateProcessor() {
         override fun postProcessBeforePartialConcretization(state: TvmState): List<TvmState> {
-            result += extractor.extractOpcodeFromState(state)
+            val (cur, _) = extractor.extractOpcodeFromState(state, isEnd = true)
+            result += cur
             return emptyList()
+        }
+
+        override fun preprocessStateBeforeStep(state: TvmState): Unit? {
+            val (cur, status) = extractor.extractOpcodeFromState(state, isEnd = false)
+            result += cur
+            return status
         }
     }
 
-    private fun extractOpcodeFromState(state: TvmState): Set<BigInteger> =
+    private fun extractOpcodeFromState(
+        state: TvmState,
+        isEnd: Boolean,
+    ): Pair<Set<BigInteger>, Unit?> =
         with(state.ctx) {
-            val input =
-                state.initialInput as? RecvInternalInput
-                    ?: error("Unexpected input: ${state.initialInput}")
-
-            // hack
-            state.isExceptional = false
-
             val scope =
                 TvmStepScopeManager(
                     state,
@@ -97,27 +101,50 @@ class TvmOpcodeExtractor(
 
             val opcodes = mutableSetOf<BigInteger>()
 
-            sliceLoadIntTlb(
-                scope,
-                input.msgBodySliceMaybeBounced,
-                state.generateSymbolicSlice(),
-                sizeBits = opcodeLength,
-                isSigned = false,
-            ) { value ->
-                checkSat(value eq randomOpcode.toBv257())
-                    ?: run {
-                        // get here if [value == random opcode] couldn't be satisfied (maybe due to unknown)
+            val status =
+                loadOpcode(scope) { value ->
+                    checkSat(value eq randomOpcode.toBv257())
+                        ?: run {
+                            // get here if [value == random opcode] couldn't be satisfied (maybe due to unknown)
 
-                        opcodes += listPossibleOpcodes(this, value)
+                            opcodes += listPossibleOpcodes(this, value)
 
-                        return@sliceLoadIntTlb
-                    }
+                            return@loadOpcode null
+                        }
 
-                // to skip postprocess phase
-                killCurrentState()
+                    if (isEnd) null else Unit
+                }
+
+            return opcodes to status
+        }
+
+    private fun loadOpcode(
+        scope: TvmStepScopeManager,
+        onOpcode: TvmStepScopeManager.(UExpr<TvmContext.TvmInt257Sort>) -> Unit?,
+    ): Unit? =
+        scope.calcOnStateCtx {
+            val input =
+                initialInput as? RecvInternalInput
+                    ?: error("Unexpected input: $initialInput")
+
+            // hack
+            val oldIsExceptional = isExceptional
+            isExceptional = false
+
+            val (_, value) =
+                sliceLoadIntTlbNoForkAndNoRegister(
+                    scope,
+                    input.msgBodySliceMaybeBounced,
+                    sizeBits = opcodeLength,
+                    isSigned = false,
+                ) ?: return@calcOnStateCtx null
+
+            scope.onOpcode(value)
+                ?: return@calcOnStateCtx null
+
+            scope.calcOnState {
+                isExceptional = oldIsExceptional
             }
-
-            return opcodes
         }
 
     private fun listPossibleOpcodes(
@@ -127,6 +154,7 @@ class TvmOpcodeExtractor(
     ): List<BigInteger> =
         with(scope.ctx) {
             if (limit <= 0) {
+                scope.killCurrentState()
                 return emptyList()
             }
             val concreteValue =

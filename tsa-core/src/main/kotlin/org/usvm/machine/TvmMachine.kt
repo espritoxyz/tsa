@@ -162,9 +162,9 @@ class TvmMachine(
                 coverageStatistics,
                 timeStatistics,
                 additionalStopStrategy,
-                psContext.randomTreeObserver,
-                psContext.uncoveredInstObserver,
             )
+
+        observers += psContext.observers
 
         if (logger.isDebugEnabled && contractsCode.size == 1) {
             val code = contractsCode.single()
