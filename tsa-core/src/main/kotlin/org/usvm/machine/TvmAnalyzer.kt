@@ -468,7 +468,7 @@ private fun runAnalysis(
 ): Pair<List<TvmState>, TvmMethodCoverage> {
     val coverageStatistics = TvmCoverageStatistics(contractIdForCoverageStats, contractForCoverageStats.mainMethod)
 
-    val states = analysisRun(coverageStatistics)
+    val states = analysisRun(coverageStatistics).filter { it.isTerminated }
 
     val coverage =
         TvmMethodCoverage(
@@ -502,7 +502,7 @@ fun analyzeInterContract(
     additionalStopStrategy: TvmAdditionalStopStrategy = NoAdditionalStopStrategy,
     interestingExitCodes: Set<Int> = emptySet(),
 ): TvmSymbolicTestSuite {
-    val machine = TvmMachine(tvmOptions = options)
+    val machine = TvmMachine(tvmOptions = options.copy(collectNonTerminatedState = true))
 
     val (states, coverage) =
         machine.use { machine ->
@@ -528,7 +528,7 @@ fun analyzeInterContract(
             }
         }
 
-    return TvmTestResolver.resolveSingleMethod(methodId, states, coverage)
+    return TvmTestResolver.resolveSingleMethod(methodId, states.filter { it.isTerminated }, coverage)
 }
 
 fun analyzeAllMethods(
