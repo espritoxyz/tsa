@@ -30,10 +30,7 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.callMethod
-import org.usvm.machine.state.doWithCtx
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.initializeContractExecutionMemory
 import org.usvm.machine.state.input.ReceiverInput
@@ -381,8 +378,10 @@ class TsaCheckerFunctionsInterpreter(
                         val dataCellInfoStorage = scope.calcOnState { dataCellInfoStorage }
 
                         val msgBodyCell =
-                            scope.calcOnStateCtx {
-                                memory.readField(it.msgBodySliceNonBounced, TvmContext.sliceCellField, addressSort)
+                            scope.calcOnState {
+                                with(ctx) {
+                                    memory.readField(it.msgBodySliceNonBounced, TvmContext.sliceCellField, addressSort)
+                                }
                             } as UConcreteHeapRef
 
                         if (msgBodyCell.isStatic && stackOperations.body == null) {
@@ -459,8 +458,10 @@ class TsaCheckerFunctionsInterpreter(
             }
 
         if (handlerMethod != null && stackOperations is NewReceiverInput) {
-            scope.doWithStateCtx {
-                stack.addInt(stackOperations.inputId.toBv257())
+            scope.doWithState {
+                with(ctx) {
+                    stack.addInt(stackOperations.inputId.toBv257())
+                }
             }
             check(receiverInput != null) {
                 "Receiver input should have been calculated by now"
@@ -626,7 +627,7 @@ class TsaCheckerFunctionsInterpreter(
             scope.takeLastIntOrThrowTypeError()
                 ?: return
         val cond =
-            scope.doWithCtx {
+            with(scope.ctx) {
                 if (invert) flag eq zeroValue else flag neq zeroValue
             }
         scope.assert(cond)
@@ -655,26 +656,28 @@ class TsaCheckerFunctionsInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
     ) {
-        scope.doWithStateCtx {
-            val isSigned = getConcreteIntFromStack(parameterName = "is_signed", functionName = "tsa_mk_int")
-            val bits = getConcreteIntFromStack(parameterName = "bits", functionName = "tsa_mk_int")
+        scope.doWithState {
+            with(ctx) {
+                val isSigned = getConcreteIntFromStack(parameterName = "is_signed", functionName = "tsa_mk_int")
+                val bits = getConcreteIntFromStack(parameterName = "bits", functionName = "tsa_mk_int")
 
-            check(bits >= 0) {
-                "Bits count must be non-negative, but found $bits"
-            }
-
-            val value =
-                makeSymbolicPrimitive(mkBvSort(bits.toUInt()), TvmCheckerSymbolicPrimitive()).let {
-                    if (isSigned == FALSE_CONCRETE_VALUE) {
-                        it.zeroExtendToSort(int257sort)
-                    } else {
-                        // every non-zero integer is considered a true value.
-                        it.signExtendToSort(int257sort)
-                    }
+                check(bits >= 0) {
+                    "Bits count must be non-negative, but found $bits"
                 }
 
-            stack.addInt(value)
-            newStmt(stmt.nextStmt())
+                val value =
+                    makeSymbolicPrimitive(mkBvSort(bits.toUInt()), TvmCheckerSymbolicPrimitive()).let {
+                        if (isSigned == FALSE_CONCRETE_VALUE) {
+                            it.zeroExtendToSort(int257sort)
+                        } else {
+                            // every non-zero integer is considered a true value.
+                            it.signExtendToSort(int257sort)
+                        }
+                    }
+
+                stack.addInt(value)
+                newStmt(stmt.nextStmt())
+            }
         }
     }
 
@@ -701,7 +704,7 @@ class TsaCheckerFunctionsInterpreter(
         val value =
             scope.takeLastCell()
                 ?: run {
-                    scope.calcOnStateCtx { throwTypeCheckError(this) }
+                    scope.calcOnState { ctx.throwTypeCheckError(this) }
                     return
                 }
 
@@ -809,7 +812,7 @@ class TsaCheckerFunctionsInterpreter(
             scope.calcOnState {
                 takeLastSlice()
             } ?: run {
-                scope.calcOnStateCtx { throwTypeCheckError(this) }
+                scope.calcOnState { ctx.throwTypeCheckError(this) }
                 return
             }
 
@@ -855,7 +858,7 @@ class TsaCheckerFunctionsInterpreter(
             scope.calcOnState {
                 takeLastSlice()
             } ?: run {
-                scope.calcOnStateCtx { throwTypeCheckError(this) }
+                scope.calcOnState { ctx.throwTypeCheckError(this) }
                 return
             }
 

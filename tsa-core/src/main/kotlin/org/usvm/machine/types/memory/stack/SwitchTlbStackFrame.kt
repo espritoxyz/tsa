@@ -9,7 +9,6 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.types.SizedCellDataTypeRead
 import org.usvm.machine.types.TvmCellMaybeConstructorBitRead
 import org.usvm.machine.types.TvmReadingOutOfSwitchBounds
@@ -37,79 +36,82 @@ data class SwitchTlbStackFrame(
         badCellSizeIsExceptional: Boolean,
         onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>> =
-        scope.calcOnStateCtx {
-            val possibleVariants =
-                dataCellInfoStorage.mapper.calculatedTlbLabelInfo
-                    .getPossibleSwitchVariants(struct, leftTlbDepth)
+        scope.calcOnState {
+            val state = this
+            with(ctx) {
+                val possibleVariants =
+                    dataCellInfoStorage.mapper.calculatedTlbLabelInfo
+                        .getPossibleSwitchVariants(struct, leftTlbDepth)
 
-            // reading long tag with `load_maybe_ref` or `load_dict` (which is actually the same instruction)
-            // means that something probably went wrong --- so we report it as an error
-            val isBadMaybeRead = struct.switchSize > 1 && loadData.type is TvmCellMaybeConstructorBitRead
+                // reading long tag with `load_maybe_ref` or `load_dict` (which is actually the same instruction)
+                // means that something probably went wrong --- so we report it as an error
+                val isBadMaybeRead = struct.switchSize > 1 && loadData.type is TvmCellMaybeConstructorBitRead
 
-            if (loadData.type !is SizedCellDataTypeRead || isBadMaybeRead) {
-                return@calcOnStateCtx listOf(
-                    GuardedResult(
-                        trueExpr,
-                        StepError(
-                            TvmStructuralError(
-                                TvmReadingSwitchWithUnexpectedType(loadData.type),
-                                phase,
+                if (loadData.type !is SizedCellDataTypeRead || isBadMaybeRead) {
+                    return@calcOnState listOf(
+                        GuardedResult(
+                            trueExpr,
+                            StepError(
+                                TvmStructuralError(
+                                    TvmReadingSwitchWithUnexpectedType(loadData.type),
+                                    phase,
+                                ),
                             ),
+                            value = null,
                         ),
-                        value = null,
-                    ),
-                )
-            }
+                    )
+                }
 
-            val readSize = loadData.type.sizeBits
-            val switchSize = mkSizeExpr(struct.switchSize)
+                val readSize = loadData.type.sizeBits
+                val switchSize = mkSizeExpr(struct.switchSize)
 
-            val result =
-                mutableListOf<GuardedResult<ReadResult>>(
-                    GuardedResult(
-                        mkSizeGtExpr(readSize, switchSize),
-                        StepError(
-                            TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), phase),
+                val result =
+                    mutableListOf<GuardedResult<ReadResult>>(
+                        GuardedResult(
+                            mkSizeGtExpr(readSize, switchSize),
+                            StepError(
+                                TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), phase),
+                            ),
+                            value = null,
                         ),
-                        value = null,
-                    ),
-                )
+                    )
 
-            possibleVariants.forEachIndexed { idx, (key, variant) ->
-                val guard = generateGuardForSwitch(struct, idx, possibleVariants, this, loadData.cellRef, path)
+                possibleVariants.forEachIndexed { idx, (key, variant) ->
+                    val guard = generateGuardForSwitch(struct, idx, possibleVariants, state, loadData.cellRef, path)
 
-                // full read of switch
-                val stepResult =
-                    buildFrameForStructure(
-                        ctx,
-                        variant,
-                        path,
-                        leftTlbDepth,
-                    )?.let {
-                        NextFrame(it)
-                    } ?: EndOfStackFrame
+                    // full read of switch
+                    val stepResult =
+                        buildFrameForStructure(
+                            ctx,
+                            variant,
+                            path,
+                            leftTlbDepth,
+                        )?.let {
+                            NextFrame(it)
+                        } ?: EndOfStackFrame
 
-                val value = loadData.type.readFromConstant(this, zeroSizeExpr, key)
+                    val value = loadData.type.readFromConstant(state, zeroSizeExpr, key)
 
-                result.add(
-                    GuardedResult(
-                        (readSize eq switchSize) and guard,
-                        stepResult,
-                        value,
-                    ),
-                )
+                    result.add(
+                        GuardedResult(
+                            (readSize eq switchSize) and guard,
+                            stepResult,
+                            value,
+                        ),
+                    )
 
-                // partial read of switch
-                result.add(
-                    GuardedResult(
-                        mkSizeLtExpr(readSize, switchSize) and guard,
-                        NextFrame(ConstTlbStackFrame(key, variant, readSize, path, leftTlbDepth)),
-                        value,
-                    ),
-                )
+                    // partial read of switch
+                    result.add(
+                        GuardedResult(
+                            mkSizeLtExpr(readSize, switchSize) and guard,
+                            NextFrame(ConstTlbStackFrame(key, variant, readSize, path, leftTlbDepth)),
+                            value,
+                        ),
+                    )
+                }
+
+                result
             }
-
-            result
         }
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null

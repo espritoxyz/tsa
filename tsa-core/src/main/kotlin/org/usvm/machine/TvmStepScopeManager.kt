@@ -210,6 +210,10 @@ class TvmStepScopeManager(
                     forkedStates += state
                 }
             }
+
+            if (originalState !in states) {
+                scope.stepScopeState = DEAD
+            }
         }
     }
 

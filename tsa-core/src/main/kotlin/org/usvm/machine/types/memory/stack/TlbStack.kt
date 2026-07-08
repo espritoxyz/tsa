@@ -16,7 +16,6 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.allocSliceFromData
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.types.TvmUnexpectedDataReading
 import org.usvm.machine.types.UExprReadResult
 import org.usvm.machine.types.isEmptyRead
@@ -44,7 +43,7 @@ data class TlbStack(
         badCellSizeIsExceptional: Boolean,
         onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>>? =
-        scope.doWithCtx {
+        with(scope.ctx) {
             val ctx = scope.ctx
             val result = mutableListOf<GuardedResult<ReadResult>>()
 
@@ -52,7 +51,7 @@ data class TlbStack(
 
             if (frames.isEmpty() || emptyRead.isTrue) {
                 // finished parsing
-                return@doWithCtx scope.calcOnState {
+                return@with scope.calcOnState {
                     listOf(
                         GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
                         GuardedResult(
@@ -73,7 +72,7 @@ data class TlbStack(
 
             val frameSteps =
                 lastFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
-                    ?: return@doWithCtx null
+                    ?: return@with null
             frameSteps.forEach { (guard, stackFrameStepResult, value) ->
                 if (guard.isFalse) {
                     return@forEach
@@ -82,7 +81,7 @@ data class TlbStack(
                 when (stackFrameStepResult) {
                     is EndOfStackFrame -> {
                         val newFrames =
-                            calcOnState {
+                            scope.calcOnState {
                                 skipSingleStep(this, loadData.cellRef, frames.viewWithoutLast())
                             }
                         result.add(
@@ -124,7 +123,7 @@ data class TlbStack(
                                 )
                             val newStepResult =
                                 newStack.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
-                                    ?: return@doWithCtx null
+                                    ?: return@with null
                             newStepResult.forEach { (innerGuard, stepResult, value) ->
                                 val newGuard = ctx.mkAnd(guard, innerGuard)
                                 result.add(GuardedResult(newGuard and emptyRead.not(), stepResult, value))
@@ -157,13 +156,13 @@ data class TlbStack(
                     is ContinueLoadOnNextFrame<ReadResult> -> {
                         val newLoadData = stackFrameStepResult.loadData
                         val newFrames =
-                            calcOnState {
+                            scope.calcOnState {
                                 skipSingleStep(this, loadData.cellRef, frames)
                             }
                         val newStack = TlbStack(newFrames, deepestError)
                         val stepResults =
                             newStack.step(scope, newLoadData, badCellSizeIsExceptional, onBadCellSize)
-                                ?: return@doWithCtx null
+                                ?: return@with null
                         stepResults.forEach { (innerGuard, stepResult, _) ->
                             // values from steps are discarded as we are only interested
                             // in concrete bitvector reads when reading values across multiple

@@ -6,7 +6,6 @@ import org.usvm.UExpr
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTerminated
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.killCurrentState
 import org.usvm.machine.state.sliceLoadIntTlbNoForkAndNoRegister
@@ -122,7 +121,7 @@ class TvmOpcodeExtractor(
         scope: TvmStepScopeManager,
         onOpcode: TvmStepScopeManager.(UExpr<TvmContext.TvmInt257Sort>) -> Unit?,
     ): Unit? =
-        scope.calcOnStateCtx {
+        scope.calcOnState {
             val input =
                 initialInput as? RecvInternalInput
                     ?: error("Unexpected input: $initialInput")
@@ -137,10 +136,10 @@ class TvmOpcodeExtractor(
                     input.msgBodySliceMaybeBounced,
                     sizeBits = opcodeLength,
                     isSigned = false,
-                ) ?: return@calcOnStateCtx null
+                ) ?: return@calcOnState null
 
             scope.onOpcode(value)
-                ?: return@calcOnStateCtx null
+                ?: return@calcOnState null
 
             scope.calcOnState {
                 isExceptional = oldIsExceptional

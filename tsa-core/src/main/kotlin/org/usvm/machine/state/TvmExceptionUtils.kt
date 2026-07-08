@@ -22,7 +22,7 @@ fun checkOutOfRange(
     scope: TvmStepScopeManager,
     min: Int,
     max: Int,
-) = scope.doWithCtx {
+) = with(scope.ctx) {
     val cond = mkBvSignedLessOrEqualExpr(min.toBv257(), expr) and mkBvSignedLessOrEqualExpr(expr, max.toBv257())
 
     scope.fork(

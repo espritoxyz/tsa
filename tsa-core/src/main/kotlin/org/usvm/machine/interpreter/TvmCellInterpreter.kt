@@ -136,7 +136,6 @@ import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
 import org.usvm.machine.state.doSwap
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.lastStmt
@@ -1818,8 +1817,8 @@ class TvmCellInterpreter(
 
         // TODO: Exotic cells are not supported, so we handle this instruction as CTOS
         doCellToSlice(scope, stmt) {
-            doWithStateCtx {
-                stack.addInt(falseValue)
+            doWithState {
+                stack.addInt(ctx.falseValue)
             }
         }
     }
@@ -1830,15 +1829,15 @@ class TvmCellInterpreter(
     ) {
         scope.consumeDefaultGas(stmt)
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             val slice = takeLastSlice()
             if (slice == null) {
-                throwTypeCheckError(this)
-                return@doWithStateCtx
+                ctx.throwTypeCheckError(this)
+                return@doWithState
             }
             val result = getSliceRemainingRefsCount(slice)
 
-            stack.addInt(result.signedExtendToInteger())
+            stack.addInt(with(ctx) { result.signedExtendToInteger() })
             newStmt(stmt.nextStmt())
         }
     }
@@ -1849,16 +1848,16 @@ class TvmCellInterpreter(
     ) {
         scope.consumeDefaultGas(stmt)
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             val slice = takeLastSlice()
             if (slice == null) {
-                throwTypeCheckError(this)
-                return@doWithStateCtx
+                ctx.throwTypeCheckError(this)
+                return@doWithState
             }
 
             val result = getSliceRemainingBitsCount(slice)
 
-            stack.addInt(result.signedExtendToInteger())
+            stack.addInt(with(ctx) { result.signedExtendToInteger() })
             newStmt(stmt.nextStmt())
         }
     }
@@ -1869,17 +1868,17 @@ class TvmCellInterpreter(
     ) {
         scope.consumeDefaultGas(stmt)
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             val slice = takeLastSlice()
             if (slice == null) {
-                throwTypeCheckError(this)
-                return@doWithStateCtx
+                ctx.throwTypeCheckError(this)
+                return@doWithState
             }
             val sizeBits = getSliceRemainingBitsCount(slice)
             val sizeRefs = getSliceRemainingRefsCount(slice)
 
-            stack.addInt(sizeBits.signedExtendToInteger())
-            stack.addInt(sizeRefs.signedExtendToInteger())
+            stack.addInt(with(ctx) { sizeBits.signedExtendToInteger() })
+            stack.addInt(with(ctx) { sizeRefs.signedExtendToInteger() })
             newStmt(stmt.nextStmt())
         }
     }
@@ -1891,7 +1890,7 @@ class TvmCellInterpreter(
     ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             val ref =
                 takeLastRef(operandType)
                     ?: run {
@@ -1903,7 +1902,7 @@ class TvmCellInterpreter(
                             throwTypeCheckError(this)
                         }
 
-                        return@doWithStateCtx
+                        return@doWithState
                     }
 
             val depth = mockCellDepth(ref)
@@ -2086,7 +2085,7 @@ class TvmCellInterpreter(
     ) {
         scope.consumeDefaultGas(stmt)
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             val builder = emptyRefValue.emptyBuilder
 
             scope.addOnStack(builder, TvmBuilderType)

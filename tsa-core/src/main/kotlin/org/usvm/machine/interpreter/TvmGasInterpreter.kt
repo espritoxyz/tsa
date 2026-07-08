@@ -12,7 +12,6 @@ import org.usvm.machine.state.TvmOutOfGas
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.calcConsumedGas
 import org.usvm.machine.state.consumeDefaultGas
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
@@ -55,11 +54,13 @@ class TvmGasInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmAppGasGasconsumedInst,
     ) {
-        scope.doWithStateCtx {
-            val usedGas = calcConsumedGas()
+        scope.doWithState {
+            with(ctx) {
+                val usedGas = calcConsumedGas()
 
-            stack.addInt(usedGas.zeroExtendToSort(int257sort))
-            newStmt(stmt.nextStmt())
+                stack.addInt(usedGas.zeroExtendToSort(int257sort))
+                newStmt(stmt.nextStmt())
+            }
         }
     }
 

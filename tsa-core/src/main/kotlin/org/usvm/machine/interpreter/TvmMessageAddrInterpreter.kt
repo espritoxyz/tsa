@@ -23,7 +23,6 @@ import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.consumeDefaultGas
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.getSliceRemainingRefsCount
 import org.usvm.machine.state.newStmt
@@ -265,73 +264,75 @@ class TvmMessageAddrInterpreter(
         scope: TvmStepScopeManager,
         inst: TvmAppAddrRewritestdaddrInst,
     ) {
-        scope.doWithStateCtx {
-            // TODO support var address
+        scope.doWithState {
+            with(ctx) {
+                // TODO support var address
 
-            val slice = takeLastSlice()
-            if (slice == null) {
-                throwTypeCheckError(this)
-                return@doWithStateCtx
+                val slice = takeLastSlice()
+                if (slice == null) {
+                    throwTypeCheckError(this@doWithState)
+                    return@doWithState
+                }
+
+                val copySlice = memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
+                val addrConstructor =
+                    scope.slicePreloadDataBits(copySlice, bits = 2)
+                        ?: TODO("Deal with incorrect address")
+                sliceMoveDataPtr(copySlice, bits = 2)
+
+                scope.assert(
+                    addrConstructor eq mkBv(value = 2, sizeBits = 2u),
+                    unsatBlock = {
+                        // TODO Deal with non addr_std
+                        logger.debug { "Non-std addr found, dropping the state" }
+                    },
+                ) ?: return@doWithState
+
+                val anycastBit =
+                    scope.slicePreloadDataBits(copySlice, bits = 1)
+                        ?: TODO("Deal with incorrect address")
+                sliceMoveDataPtr(copySlice, bits = 1)
+                scope.assert(
+                    anycastBit eq zeroBit,
+                    unsatBlock = {
+                        // TODO Deal with anycast
+                        logger.debug { "Cannot assume no anycast" }
+                    },
+                ) ?: return@doWithState
+
+                val workchain =
+                    scope.slicePreloadDataBits(copySlice, bits = STD_WORKCHAIN_BITS)?.signedExtendToInteger()
+                        ?: TODO("Deal with incorrect address")
+                sliceMoveDataPtr(copySlice, bits = STD_WORKCHAIN_BITS)
+
+                val workchainValueConstraint = workchain eq baseChain
+                scope.assert(
+                    workchainValueConstraint,
+                    unsatBlock = {
+                        error("Cannot assume valid workchain value")
+                    },
+                ) ?: return@doWithState
+
+                val address =
+                    scope.slicePreloadDataBits(copySlice, bits = ADDRESS_BITS)
+                        ?: TODO("Deal with incorrect address")
+                sliceMoveDataPtr(copySlice, bits = ADDRESS_BITS)
+
+                val bitsLeft = getSliceRemainingBitsCount(copySlice)
+                val refsLeft = getSliceRemainingRefsCount(copySlice)
+                val emptySuffixConstraint = (bitsLeft eq zeroSizeExpr) and (refsLeft eq zeroSizeExpr)
+                scope.fork(
+                    emptySuffixConstraint,
+                    falseStateIsExceptional = true,
+                    // TODO set cell deserialization failure
+                    blockOnFalseState = throwUnknownCellUnderflowError,
+                ) ?: return@doWithState
+
+                stack.addInt(workchain)
+                stack.addInt(address.unsignedExtendToInteger())
+
+                newStmt(inst.nextStmt())
             }
-
-            val copySlice = memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
-            val addrConstructor =
-                scope.slicePreloadDataBits(copySlice, bits = 2)
-                    ?: TODO("Deal with incorrect address")
-            sliceMoveDataPtr(copySlice, bits = 2)
-
-            scope.assert(
-                addrConstructor eq mkBv(value = 2, sizeBits = 2u),
-                unsatBlock = {
-                    // TODO Deal with non addr_std
-                    logger.debug { "Non-std addr found, dropping the state" }
-                },
-            ) ?: return@doWithStateCtx
-
-            val anycastBit =
-                scope.slicePreloadDataBits(copySlice, bits = 1)
-                    ?: TODO("Deal with incorrect address")
-            sliceMoveDataPtr(copySlice, bits = 1)
-            scope.assert(
-                anycastBit eq zeroBit,
-                unsatBlock = {
-                    // TODO Deal with anycast
-                    logger.debug { "Cannot assume no anycast" }
-                },
-            ) ?: return@doWithStateCtx
-
-            val workchain =
-                scope.slicePreloadDataBits(copySlice, bits = STD_WORKCHAIN_BITS)?.signedExtendToInteger()
-                    ?: TODO("Deal with incorrect address")
-            sliceMoveDataPtr(copySlice, bits = STD_WORKCHAIN_BITS)
-
-            val workchainValueConstraint = workchain eq baseChain
-            scope.assert(
-                workchainValueConstraint,
-                unsatBlock = {
-                    error("Cannot assume valid workchain value")
-                },
-            ) ?: return@doWithStateCtx
-
-            val address =
-                scope.slicePreloadDataBits(copySlice, bits = ADDRESS_BITS)
-                    ?: TODO("Deal with incorrect address")
-            sliceMoveDataPtr(copySlice, bits = ADDRESS_BITS)
-
-            val bitsLeft = getSliceRemainingBitsCount(copySlice)
-            val refsLeft = getSliceRemainingRefsCount(copySlice)
-            val emptySuffixConstraint = (bitsLeft eq zeroSizeExpr) and (refsLeft eq zeroSizeExpr)
-            scope.fork(
-                emptySuffixConstraint,
-                falseStateIsExceptional = true,
-                // TODO set cell deserialization failure
-                blockOnFalseState = throwUnknownCellUnderflowError,
-            ) ?: return@doWithStateCtx
-
-            stack.addInt(workchain)
-            stack.addInt(address.unsignedExtendToInteger())
-
-            newStmt(inst.nextStmt())
         }
     }
 }

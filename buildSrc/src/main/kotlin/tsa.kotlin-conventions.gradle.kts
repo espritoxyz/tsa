@@ -29,17 +29,13 @@ tasks {
         sourceCompatibility = JavaVersion.VERSION_1_8.toString()
         targetCompatibility = JavaVersion.VERSION_1_8.toString()
         options.encoding = "UTF-8"
-        // For now, we have some compiler warnings about context receivers.
-        // When we resolve it, option -Werror should be turned on.
-        options.compilerArgs = options.compilerArgs + "-Xlint:all" + "-Xlint:-options" // + "-Werror"
+        options.compilerArgs = options.compilerArgs + "-Xlint:all" + "-Xlint:-options" + "-Werror"
     }
     withType<KotlinCompile> {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_1_8)
-            freeCompilerArgs.addAll(listOf("-Xsam-conversions=class", "-Xcontext-receivers"))
-            // For now, we have some compiler warnings about context receivers.
-            // When we resolve it, option [allWarningsAsErrors] should be turned on.
-//            allWarningsAsErrors = true
+            freeCompilerArgs.addAll(listOf("-Xsam-conversions=class"))
+            allWarningsAsErrors = true
         }
     }
 }
