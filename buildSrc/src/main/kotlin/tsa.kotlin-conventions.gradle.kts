@@ -29,13 +29,13 @@ tasks {
         sourceCompatibility = JavaVersion.VERSION_1_8.toString()
         targetCompatibility = JavaVersion.VERSION_1_8.toString()
         options.encoding = "UTF-8"
-        options.compilerArgs = options.compilerArgs + "-Xlint:all" + "-Xlint:-options" // + "-Werror"
+        options.compilerArgs = options.compilerArgs + "-Xlint:all" + "-Xlint:-options" + "-Werror"
     }
     withType<KotlinCompile> {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_1_8)
             freeCompilerArgs.addAll(listOf("-Xsam-conversions=class"))
-//            allWarningsAsErrors = true
+            allWarningsAsErrors = true
         }
     }
 }
