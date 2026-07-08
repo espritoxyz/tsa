@@ -1,0 +1,26 @@
+#include "../depth/stdlib.fc";
+
+int nested_sha256() impure method_id (0) {
+    var c1 = begin_cell()
+        .store_uint(7, 32)
+        .end_cell();
+    var h1 = string_hash(c1.begin_parse());
+    var c2 = begin_cell()
+        .store_uint(h1, 256)
+        .end_cell();
+    var h2 = string_hash(c2.begin_parse());
+    return h2;
+}
+
+
+int sha256_of_depth() impure method_id (1) {
+    var c1 = begin_cell()
+        .store_uint(7, 32)
+        .end_cell();
+    var h1 = c1.cell_depth();
+    var c2 = begin_cell()
+        .store_uint(h1, 256)
+        .end_cell();
+    var h2 = string_hash(c2.begin_parse());
+    return h2;
+}

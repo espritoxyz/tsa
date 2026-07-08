@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import io.ksmt.utils.uncheckedCast
 import mu.KLogging
@@ -10,18 +11,25 @@ import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
+import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
+import org.usvm.USort
+import org.usvm.UTrackedSymbol
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isTrue
+import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
+import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmContext.TvmInt257Sort
+import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.hash.DefaultUExprTransformer
 import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
@@ -33,8 +41,24 @@ import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
+import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
+import org.usvm.machine.state.readCellData
+import org.usvm.machine.state.readCellRef
+import org.usvm.machine.state.readCellRefsCount
+import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.state.readSliceDataPos
+import org.usvm.machine.tctx
+import org.usvm.machine.types.TvmBuilderType
+import org.usvm.machine.types.TvmCellType
+import org.usvm.machine.types.TvmDataCellType
+import org.usvm.machine.types.TvmDictCellType
+import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.getPossibleTypes
 import org.usvm.machine.types.wrap
+import org.usvm.mkSizeExpr
+import org.usvm.solver.UExprTranslator
 import org.usvm.solver.USatResult
 import org.usvm.test.resolver.TvmTestAuthValue
 import org.usvm.test.resolver.TvmTestBuilderValue
@@ -47,6 +71,8 @@ import org.usvm.test.resolver.TvmTestStateResolver
 import org.usvm.test.resolver.endCell
 import org.usvm.test.resolver.transformTestCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
+import org.usvm.utils.flattenReferenceIte
+import org.usvm.utils.intValueOrNull
 import java.math.BigInteger
 import java.security.MessageDigest
 import kotlin.random.Random
@@ -146,30 +172,15 @@ class TvmPostProcessor(
                 return null
             }
 
-            assertConstraints(scope) { resolver ->
-                val sha256Constraint =
-                    generateSha256Constraints(scope, resolver)
-                        ?: return@assertConstraints null
-                sha256Constraint
-            } ?: run {
-                logger.debug("Cannot assert sha256 constraints")
-                return null
-            }
+            // only assert depth for the time being
+            postprocessInTheGoodOrder(state, scope)
+                ?: return null
 
             assertConstraints(scope) { resolver ->
-                val depthConstraint =
-                    generateDepthConstraint(scope, resolver)
-                        ?: return@assertConstraints null
-
                 val fwdFeeConstraint =
                     generateFwdFeeConstraints(scope, resolver)
                         ?: return@assertConstraints null
-
-                val datasizeConstraint =
-                    generateDatasizeConstraints(scope, resolver)
-                        ?: return@assertConstraints null
-
-                depthConstraint and fwdFeeConstraint and datasizeConstraint
+                fwdFeeConstraint
             } ?: run {
                 logger.debug("Cannot assert (depth or fwd_fee or cdatasize) constraints")
                 return null
@@ -194,6 +205,300 @@ class TvmPostProcessor(
 
             return state
         }
+
+    sealed interface DeferredEvaluationSymbol {
+        val symbol: UExpr<*>
+        val args: List<UHeapRef>
+
+        fun createFixationConstraint(
+            scope: TvmStepScopeManager,
+            resolver: TvmTestStateResolver,
+        ): UBoolExpr?
+    }
+
+    inner class DepthSymbol(
+        override val symbol: UExpr<*>,
+        override val args: List<UHeapRef>,
+        val depth: Int257Expr,
+    ) : DeferredEvaluationSymbol {
+        override fun createFixationConstraint(
+            scope: TvmStepScopeManager,
+            resolver: TvmTestStateResolver,
+        ): UBoolExpr? = fixateValueAndDepth(scope, args.single() as UConcreteHeapRef, depth, resolver)
+    }
+
+    inner class Sha256Symbol(
+        override val symbol: UExpr<*>,
+        override val args: List<UHeapRef>,
+        val sha256: Int257Expr,
+    ) : DeferredEvaluationSymbol {
+        override fun createFixationConstraint(
+            scope: TvmStepScopeManager,
+            resolver: TvmTestStateResolver,
+        ): UBoolExpr? = fixateValueAndSha256(scope, args.first(), sha256, resolver)
+    }
+
+    inner class CDataSizeSymbol(
+        val connectedSymbols: List<UExpr<*>>,
+        override val args: List<UHeapRef>,
+        val cdatasizeInfo: DataSizeInfo,
+    ) : DeferredEvaluationSymbol {
+        override val symbol: UExpr<*>
+            get() = args.first().tctx.nullValue
+
+        override fun createFixationConstraint(
+            scope: TvmStepScopeManager,
+            resolver: TvmTestStateResolver,
+        ): UBoolExpr? = fixateCdatasizeInfo(scope, cdatasizeInfo, resolver)
+    }
+
+    private fun UHeapRef.listLeaves(): List<UConcreteHeapRef> =
+        with(tctx) {
+            flattenReferenceIte(
+                this@listLeaves,
+                extractAllocated = true,
+                extractStatic = true,
+            )
+        }.map { it.second }
+
+    private fun collectReachableCells(
+        ref: UHeapRef,
+        state: TvmState,
+    ): HashSet<UHeapRef> =
+        with(state.ctx) {
+            val flattenedInitial = ref.listLeaves()
+            // TODO: handle the cases where this is a slice or a builder (not relevant yet as sha is not yet updated)
+            val result = hashSetOf<UHeapRef>(*flattenedInitial.toTypedArray())
+            val visitingQueue = mutableListOf<UHeapRef>(*flattenedInitial.toTypedArray())
+            while (visitingQueue.isNotEmpty()) {
+                val front = visitingQueue.removeAt(0)
+                val refCount = state.readCellRefsCount(front.asCellRef()).intValueOrNull
+                if (refCount != null) {
+                    for (i in 0 until refCount) {
+                        val nextChild = state.readCellRef(front, ctx.mkSizeExpr(i))
+                        for (leaf in nextChild.listLeaves()) {
+                            if (result.add(leaf)) {
+                                visitingQueue.add(leaf)
+                            }
+                        }
+                    }
+                }
+            }
+            result
+        }
+
+    /**
+     * In this section, we say that expression A *depends* on expression B
+     * iff we have to fixate the value of B before evaluating/fixating the value of A.
+     *
+     * The plan is to construct the dependency graph on the deferred evaluation symbols
+     * (the symbols that require the computation on the resolved values) and using the said graph separate the symbols into optimal
+     * batches such that a batch does not contain dependent symbols.
+     *
+     * We construct the dependency graph via the intermediate cells:  if `h = hash(c)`, then `h` depends on `c`, and if
+     * `c.data` (or `c.refs[0].refs[1].data`) contain symbol s in subexpression, `c` depends on `s`, so, by transitivity,
+     * `h` depends on `s`
+     *
+     */
+    private fun TvmContext.postprocessInTheGoodOrder(
+        state: TvmState,
+        scope: TvmStepScopeManager,
+    ): Unit? {
+        val deferredEvalSymbols = collectDeferredEvalSymbols(state)
+
+        /*
+            In this section, we say that expression A *depends* on expression B
+            iff we have to fixate the value of B before evaluating/fixating the value of A.
+
+            We want to establish a dependency graph on the deferred evaluation symbols
+         */
+
+        val deferredEvaluationSymbolsToDependentRefs =
+            deferredEvalSymbols.associateWith { symbol ->
+                if (symbol !is Sha256Symbol) {
+                    symbol.args.flatMap { collectReachableCells(it, state) }
+                } else {
+                    symbol.args.flatMap { it.listLeaves() } // no recursion, as sha256 only fixates leaves
+                }
+            }
+        val refsToConsider = deferredEvaluationSymbolsToDependentRefs.values.flatten().toHashSet()
+
+        val refsToDependentSymbols =
+            collectDeferredEvalSymbolsDependentOnRefs(scope, deferredEvalSymbols, refsToConsider)
+                ?: return null
+        val deferredEvalSymbolDependency =
+            deferredEvaluationSymbolsToDependentRefs.mapValues { entry ->
+                entry.value.flatMap { refsToDependentSymbols.getOrDefault(it, listOf()) }
+            }
+
+        val processOrder = splitIntoLayers(deferredEvalSymbols, deferredEvalSymbolDependency)
+        for (layer in processOrder) {
+            val resolver =
+                scope.calcOnState {
+                    TvmTestStateResolver(ctx, tvmModels.first(), state)
+                }
+            val toAssert = mutableListOf<UBoolExpr>()
+            for (expr in layer) {
+                val constraint =
+                    expr.createFixationConstraint(scope, resolver)
+                        ?: return null
+                toAssert.add(constraint)
+            }
+            scope.assert(ctx.mkAnd(toAssert))
+                ?: return null
+        }
+        return Unit
+    }
+
+    /**
+     * Takes in a graph and returns the minimal amount of batches that disjointly cover all the nodes and
+     * such that there are no edges that belong to a single batch.
+     */
+    private fun splitIntoLayers(
+        deferredEvalSymbols: List<DeferredEvaluationSymbol>,
+        deferredEvalSymbolDependency: Map<DeferredEvaluationSymbol, List<DeferredEvaluationSymbol>>,
+    ): List<HashSet<DeferredEvaluationSymbol>> {
+        // TODO: the algorithm here is quadratic, but I am pretty sure that this can be done in linear time
+        val result = mutableListOf<HashSet<DeferredEvaluationSymbol>>()
+        val prevLayers = hashSetOf<DeferredEvaluationSymbol>()
+        val unprocessedSymbols = mutableSetOf<DeferredEvaluationSymbol>()
+        unprocessedSymbols.addAll(deferredEvalSymbols)
+        while (unprocessedSymbols.isNotEmpty()) {
+            val nextLayer = hashSetOf<DeferredEvaluationSymbol>()
+            for (symbol in unprocessedSymbols) {
+                val refDeps = deferredEvalSymbolDependency[symbol] ?: hashSetOf()
+                if (refDeps.all { prevLayers.contains(it) }) {
+                    nextLayer.add(symbol)
+                }
+            }
+            result.add(nextLayer)
+            prevLayers.addAll(nextLayer)
+            unprocessedSymbols.removeAll(nextLayer)
+        }
+        return result
+    }
+
+    private fun collectDeferredEvalSymbolsDependentOnRefs(
+        scope: TvmStepScopeManager,
+        deferredEvalSymbols: MutableList<DeferredEvaluationSymbol>,
+        refsToConsider: HashSet<UHeapRef>,
+    ): Map<UHeapRef, List<DeferredEvaluationSymbol>>? {
+        val interestingSymbolVisitor =
+            object : TvmBvTransformer, UExprTranslator<TvmType, TvmSizeSort>(ctx.tctx()) {
+                val found = hashSetOf<UExpr<*>>()
+
+                override fun <Sort : USort> transform(expr: UTrackedSymbol<Sort>): UExpr<Sort> {
+                    if (deferredEvalSymbols.any {
+                            if (it is CDataSizeSymbol) {
+                                expr in it.connectedSymbols
+                            } else {
+                                it.symbol == expr
+                            }
+                        }
+                    ) {
+                        found.add(expr)
+                    }
+                    return super<UExprTranslator>.transform(expr)
+                }
+
+                override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> {
+                    found.add(expr)
+                    return expr
+                }
+
+                override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> {
+                    found.add(expr)
+                    return expr
+                }
+
+                override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> {
+                    found.add(expr)
+                    return expr
+                }
+            }
+        val refsToDependentSymbols = mutableMapOf<UHeapRef, List<DeferredEvaluationSymbol>>()
+        for (ref in refsToConsider) {
+            interestingSymbolVisitor.found.clear()
+            //  TODO: maybe reuse TLb somehow?
+            val possibleTypes =
+                scope
+                    .calcOnState { getPossibleTypes(ref as UConcreteHeapRef) }
+                    .toList()
+                    .filter { it !is TvmDictCellType }
+            val data =
+                when (possibleTypes) {
+                    listOf(TvmSliceType) -> {
+                        scope.calcOnState {
+                            val dataLeft = getSliceRemainingBitsCount(ref)
+                            val dataPosition = readSliceDataPos(ref)
+                            val cell = readSliceCell(ref)
+                            scope.preloadDataBitsFromCellWithoutChecks(cell, dataPosition, dataLeft)
+                                ?: return@calcOnState null
+                        }
+                    }
+
+                    listOf(TvmCellType), listOf(TvmDataCellType), listOf(TvmBuilderType) -> {
+                        val data =
+                            scope.readCellData(ref)
+                                ?: return null
+                        data
+                    }
+
+                    listOf<TvmType>() -> { // tvm dict type
+                        continue
+                    }
+
+                    else -> {
+                        error("Unsupported type in postprocessing")
+                    }
+                }
+
+            data ?: continue
+            interestingSymbolVisitor.apply(data)
+            val found = interestingSymbolVisitor.found
+            refsToDependentSymbols[ref] =
+                deferredEvalSymbols.filter {
+                    if (it is CDataSizeSymbol) {
+                        it.connectedSymbols.any { symbol -> symbol in found }
+                    } else {
+                        it.symbol in found
+                    }
+                }
+        }
+        return refsToDependentSymbols
+    }
+
+    private fun collectDeferredEvalSymbols(state: TvmState): MutableList<DeferredEvaluationSymbol> {
+        val deferredEvalSymbols = mutableListOf<DeferredEvaluationSymbol>()
+        for ((ref, depth) in state.refToDepth) {
+            deferredEvalSymbols.add(
+                DepthSymbol(
+                    (depth as KBvZeroExtensionExpr).value,
+                    listOf(ctx.mkConcreteHeapRef(ref)),
+                    depth,
+                ),
+            )
+        }
+        for (datasizeInfo in state.cdatasizeInfos) {
+            deferredEvalSymbols.add(
+                CDataSizeSymbol(
+                    listOf(
+                        datasizeInfo.distinctCells,
+                        datasizeInfo.cellRefs,
+                        datasizeInfo.dataBits,
+                    ).map { (it as KBvZeroExtensionExpr).value },
+                    listOf(datasizeInfo.analyzedCell),
+                    datasizeInfo,
+                ),
+            )
+        }
+        for ((ref, sha256) in state.refToSha256) {
+            deferredEvalSymbols.add(
+                Sha256Symbol((sha256 as KBvZeroExtensionExpr).value, listOf(ctx.mkConcreteHeapRef(ref)), sha256),
+            )
+        }
+        return deferredEvalSymbols
+    }
 
     private fun enumerateAuthValues(state: TvmState): AuthAnalysisResult =
         with(ctx) {
@@ -294,16 +599,6 @@ class TvmPostProcessor(
             }
         }
 
-    private fun generateDatasizeConstraints(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val datasizeInfos = scope.calcOnState { cdatasizeInfos }
-
-            mkAnd(datasizeInfos.map { fixateCdatasizeInfo(scope, it, resolver) ?: return@with null })
-        }
-
     private fun generatePublicKeyConstraints(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
@@ -328,36 +623,6 @@ class TvmPostProcessor(
             signatureChecks.fold(trueExpr as UBoolExpr) { acc, signatureCheck ->
                 val curConstraint = fixateSignatureCheck(signatureCheck, resolver)
 
-                acc and curConstraint
-            }
-        }
-
-    private fun generateDepthConstraint(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val addressToDepth = scope.calcOnState { refToDepth }
-
-            addressToDepth.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
-                val curConstraint =
-                    fixateValueAndDepth(scope, mkConcreteHeapRef(ref), depth, resolver)
-                        ?: return@with null
-                acc and curConstraint
-            }
-        }
-
-    private fun generateSha256Constraints(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val refToSha256 = scope.calcOnState { refToSha256 }
-
-            refToSha256.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
-                val curConstraint =
-                    fixateValueAndSha256(scope, mkConcreteHeapRef(ref), depth, resolver)
-                        ?: return@with null
                 acc and curConstraint
             }
         }

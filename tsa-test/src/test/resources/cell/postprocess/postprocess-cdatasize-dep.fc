@@ -1,0 +1,12 @@
+#include "../depth/stdlib.fc";
+
+int hash_of_cdatasize() impure method_id (0) {
+    var c = begin_cell()
+        .store_uint(0, 100)
+        .end_cell();
+    (int cells, int bits, int refs) = compute_data_size(c, 100);
+    var c2 = begin_cell()
+        .store_uint(bits, 32)
+        .end_cell();
+    return string_hash(c2.begin_parse());
+}
