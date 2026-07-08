@@ -9,7 +9,6 @@ import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreGramsTlb
 import org.usvm.machine.state.consumeDefaultGas
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.sliceCopy
@@ -41,11 +40,11 @@ class TvmCurrencyInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmAppCurrencyLdgramsInst,
     ) {
-        scope.doWithStateCtx {
+        scope.doWithState {
             val slice = takeLastSlice()
             if (slice == null) {
-                throwTypeCheckError(this)
-                return@doWithStateCtx
+                ctx.throwTypeCheckError(this)
+                return@doWithState
             }
 
             val updatedSlice = memory.allocConcrete(TvmSliceType).also { sliceCopy(slice, it) }
@@ -77,7 +76,7 @@ class TvmCurrencyInterpreter(
         builderStoreGramsTlb(scope, builder, updatedBuilder, grams)
             ?: return@with
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             addOnStack(updatedBuilder, TvmBuilderType)
             newStmt(stmt.nextStmt())
         }

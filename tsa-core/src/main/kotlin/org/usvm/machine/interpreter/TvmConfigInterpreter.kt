@@ -58,7 +58,6 @@ import org.usvm.machine.state.addTuple
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.configContainsParam
 import org.usvm.machine.state.consumeDefaultGas
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.getConfigParam
 import org.usvm.machine.state.getContractInfoParam
@@ -100,12 +99,12 @@ class TvmConfigInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmAppConfigGetparamInst,
     ) {
-        scope.doWithStateCtx {
+        scope.doWithState {
             when (val i = stmt.i) {
                 TAG_PARAMETER_IDX -> { // TAG
                     val tag =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(tag)
                 }
@@ -113,7 +112,7 @@ class TvmConfigInterpreter(
                 ACTIONS_PARAMETER_IDX -> { // ACTIONS
                     val actionNum =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(actionNum)
                 }
@@ -121,7 +120,7 @@ class TvmConfigInterpreter(
                 MSGS_SENT_PARAMETER_IDX -> { // MSGS_SENT
                     val messagesSent =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(messagesSent)
                 }
@@ -129,7 +128,7 @@ class TvmConfigInterpreter(
                 TIME_PARAMETER_IDX -> { // NOW
                     val now =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(now)
                 }
@@ -137,7 +136,7 @@ class TvmConfigInterpreter(
                 BLOCK_TIME_PARAMETER_IDX -> { // BLOCK_LTIME
                     val blockLogicalTime =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(blockLogicalTime)
                 }
@@ -145,7 +144,7 @@ class TvmConfigInterpreter(
                 TRANSACTION_TIME_PARAMETER_IDX -> { // LTIME
                     val logicalTime =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(logicalTime)
                 }
@@ -153,7 +152,7 @@ class TvmConfigInterpreter(
                 SEED_PARAMETER_IDX -> { // RAND_SEED
                     val randomSeed =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(randomSeed)
                 }
@@ -161,7 +160,7 @@ class TvmConfigInterpreter(
                 BALANCE_PARAMETER_IDX -> { // BALANCE
                     val balanceValue =
                         getContractInfoParam(i).tupleValue
-                            ?: return@doWithStateCtx ctx.throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
 
                     stack.addTuple(balanceValue)
                 }
@@ -169,7 +168,7 @@ class TvmConfigInterpreter(
                 ADDRESS_PARAMETER_IDX -> { // MYADDR
                     val cell =
                         scope.getCellContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     val slice = scope.calcOnState { allocSliceFromCell(cell) }
                     scope.calcOnState { dataCellInfoStorage.mapper.addAddressSlice(slice) }
@@ -179,7 +178,7 @@ class TvmConfigInterpreter(
                 CONFIG_PARAMETER_IDX -> { // GLOBAL_CONFIG
                     val cell =
                         scope.getCellContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     addOnStack(cell, TvmCellType)
                 }
@@ -187,7 +186,7 @@ class TvmConfigInterpreter(
                 CODE_PARAMETER_IDX -> { // MYCODE
                     val cell =
                         getContractInfoParam(i).cellValue
-                            ?: return@doWithStateCtx ctx.throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
 
                     addOnStack(cell, TvmCellType)
                 }
@@ -195,7 +194,7 @@ class TvmConfigInterpreter(
                 DUE_PAYMENT_IDX -> {
                     val duePayment =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(duePayment)
                 }
@@ -203,7 +202,7 @@ class TvmConfigInterpreter(
                 STORAGE_FEES_PARAMETER_IDX -> {
                     val storageFee =
                         scope.getIntContractInfoParam(i)
-                            ?: return@doWithStateCtx
+                            ?: return@doWithState
 
                     stack.addInt(storageFee)
                 }

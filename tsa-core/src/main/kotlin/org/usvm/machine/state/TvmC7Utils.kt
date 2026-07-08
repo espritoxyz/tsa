@@ -64,7 +64,7 @@ fun TvmStepScopeManager.getCellContractInfoParam(idx: Int): UHeapRef? {
     val cell = calcOnState { getContractInfoParam(idx).cellValue }
 
     if (cell == null) {
-        doWithStateCtx {
+        doWithState {
             ctx.throwTypeCheckError(this)
         }
     }
@@ -76,7 +76,7 @@ fun TvmStepScopeManager.getIntContractInfoParam(idx: Int): UExpr<TvmInt257Sort>?
     val cell = calcOnState { getContractInfoParam(idx).intValue }
 
     if (cell == null) {
-        doWithStateCtx {
+        doWithState {
             ctx.throwTypeCheckError(this)
         }
     }
@@ -121,19 +121,20 @@ fun TvmState.setContractInfoParam(
     registers.c7 = C7Register(updatedC7)
 }
 
-fun TvmStepScopeManager.getConfigParam(idx: UExpr<TvmInt257Sort>): UHeapRef? {
-    val configDict = calcOnState { getConfig() }
-    val sliceValue =
-        calcOnStateCtx {
-            dictGetValue(
-                configDict,
-                DictId(CONFIG_KEY_LENGTH),
-                idx.extractToSort(mkBvSort(CONFIG_KEY_LENGTH.toUInt())),
-            )
-        }
+fun TvmStepScopeManager.getConfigParam(idx: UExpr<TvmInt257Sort>): UHeapRef? =
+    with(ctx) {
+        val configDict = calcOnState { getConfig() }
+        val sliceValue =
+            calcOnState {
+                dictGetValue(
+                    configDict,
+                    DictId(CONFIG_KEY_LENGTH),
+                    idx.extractToSort(mkBvSort(CONFIG_KEY_LENGTH.toUInt())),
+                )
+            }
 
-    return slicePreloadNextRef(sliceValue)
-}
+        slicePreloadNextRef(sliceValue)
+    }
 
 fun TvmState.configContainsParam(idx: UExpr<TvmInt257Sort>): UBoolExpr =
     with(ctx) {

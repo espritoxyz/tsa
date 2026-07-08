@@ -21,8 +21,6 @@ import org.usvm.machine.state.TvmCreatedLt
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.addSoftConstraints
 import org.usvm.machine.state.allocSliceFromCell
-import org.usvm.machine.state.calcOnStateCtx
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.getContractInfoParamOf
@@ -68,7 +66,7 @@ sealed class ReceiverInput(
         minMessageCurrencyValue: UExpr<TvmInt257Sort>,
     ): Unit? {
         val constraint =
-            scope.doWithCtx {
+            with(scope.ctx) {
                 check(!scope.allowFailuresOnCurrentStep) {
                     "Expected scope not to allow failures"
                 }
@@ -104,7 +102,7 @@ sealed class ReceiverInput(
                                     msgBodySliceNonBounced,
                                     sizeBits = opcodeLength,
                                 )
-                                    ?: return@doWithCtx null
+                                    ?: return@with null
 
                             messageConcreteData.opcodeInfo.opcodes.fold(trueExpr as UBoolExpr) { acc, value ->
                                 acc and (opcode neq value.toBv257())
@@ -118,7 +116,7 @@ sealed class ReceiverInput(
                                     msgBodySliceNonBounced,
                                     sizeBits = opcodeLength,
                                 )
-                                    ?: return@doWithCtx null
+                                    ?: return@with null
 
                             opcode eq messageConcreteData.opcodeInfo.opcode.toBv257()
                         }
@@ -167,9 +165,11 @@ sealed class ReceiverInput(
             scope.calcOnState { getBalanceOf(receiverContractId) }
                 ?: error("Unexpected incorrect config balance value")
 
-        scope.calcOnStateCtx {
-            addBalanceSoftConstraints(this, balance)
-            addBalanceSoftConstraints(this, msgValue)
+        scope.calcOnState {
+            with(ctx) {
+                addBalanceSoftConstraints(this@calcOnState, balance)
+                addBalanceSoftConstraints(this@calcOnState, msgValue)
+            }
         }
     }
 

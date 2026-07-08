@@ -144,34 +144,36 @@ fun TvmState.takeLastRef(type: TvmRealReferenceType): UHeapRef? =
     }
 
 fun TvmStepScopeManager.takeLastTuple(): TvmStackTupleValue? =
-    calcOnStateCtx {
-        val lastEntry = stack.takeLastEntry()
+    calcOnState {
+        with(ctx) {
+            val lastEntry = stack.takeLastEntry()
 
-        when (lastEntry) {
-            is TvmConcreteStackEntry -> {
-                lastEntry.cell(stack) as? TvmStackTupleValue
-            }
-
-            is TvmInputStackEntry -> {
-                val cell = lastEntry.cell(stack)
-                if (cell != null) {
-                    return@calcOnStateCtx cell as? TvmStackTupleValue
+            when (lastEntry) {
+                is TvmConcreteStackEntry -> {
+                    lastEntry.cell(stack) as? TvmStackTupleValue
                 }
 
-                val size = ctx.mkRegisterReading(lastEntry.id, ctx.int257sort)
-                val sizeConstraint =
-                    mkAnd(
-                        mkBvSignedLessOrEqualExpr(zeroValue, size),
-                        mkBvSignedLessOrEqualExpr(size, maxTupleSizeValue),
-                    )
-                assert(
-                    sizeConstraint,
-                    unsatBlock = { error("Cannot assert tuple size constraints") },
-                ) ?: return@calcOnStateCtx null
+                is TvmInputStackEntry -> {
+                    val cell = lastEntry.cell(stack)
+                    if (cell != null) {
+                        return@calcOnState cell as? TvmStackTupleValue
+                    }
 
-                val symbolicTuple = TvmStack.TvmStackTupleValueInputNew(entries = mutableMapOf(), size = size)
-                symbolicTuple.also {
-                    stack.putInputEntryValue(lastEntry, it)
+                    val size = ctx.mkRegisterReading(lastEntry.id, ctx.int257sort)
+                    val sizeConstraint =
+                        mkAnd(
+                            mkBvSignedLessOrEqualExpr(zeroValue, size),
+                            mkBvSignedLessOrEqualExpr(size, maxTupleSizeValue),
+                        )
+                    assert(
+                        sizeConstraint,
+                        unsatBlock = { error("Cannot assert tuple size constraints") },
+                    ) ?: return@calcOnState null
+
+                    val symbolicTuple = TvmStack.TvmStackTupleValueInputNew(entries = mutableMapOf(), size = size)
+                    symbolicTuple.also {
+                        stack.putInputEntryValue(lastEntry, it)
+                    }
                 }
             }
         }

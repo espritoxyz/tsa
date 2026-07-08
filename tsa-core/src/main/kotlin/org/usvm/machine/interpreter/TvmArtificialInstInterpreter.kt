@@ -56,7 +56,6 @@ import org.usvm.machine.state.callCheckerMethodIfExists
 import org.usvm.machine.state.callContinuation
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.contractEpilogue
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.generateSymbolicTime
 import org.usvm.machine.state.getBalance
@@ -841,7 +840,7 @@ class TvmArtificialInstInterpreter(
                 ?: return
         }
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             phase = TvmExitPhase(stmt.computePhaseResult, stmt.actionPhaseResult)
 
             if (stmt.actionPhaseResult != null) {
@@ -861,7 +860,7 @@ class TvmArtificialInstInterpreter(
             val isReturnFromHandler = contractStack.isNotEmpty() && contractStack.last().contractId != checkerContractId
             if (isReturnFromHandler) {
                 processContractStackReturn(scope, stmt)
-            } else if (tvmOptions.intercontractOptions.isIntercontractEnabled && !messageQueue.isEmpty()) {
+            } else if (ctx.tvmOptions.intercontractOptions.isIntercontractEnabled && !messageQueue.isEmpty()) {
                 currentPhaseBeginTime = pseudologicalTime
                 processIntercontractExit(scope, stmt)
             } else {

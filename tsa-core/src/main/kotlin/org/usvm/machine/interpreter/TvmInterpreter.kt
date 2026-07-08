@@ -310,8 +310,6 @@ import org.usvm.machine.state.doPop
 import org.usvm.machine.state.doPush
 import org.usvm.machine.state.doPuxc
 import org.usvm.machine.state.doSwap
-import org.usvm.machine.state.doWithCtx
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.doXchg
 import org.usvm.machine.state.doXchg2
 import org.usvm.machine.state.doXchg3
@@ -1693,7 +1691,7 @@ class TvmInterpreter(
             is TvmConstDataPushsliceInst -> {
                 check(stmt.s.refs.isEmpty()) { "Unexpected refs in $stmt" }
 
-                scope.doWithStateCtx {
+                scope.doWithState {
                     val slice = scope.calcOnState { allocSliceFromCell(stmt.s) }
 
                     scope.addOnStack(slice, TvmSliceType)
@@ -1703,7 +1701,7 @@ class TvmInterpreter(
             }
 
             is TvmConstDataPushcontInst -> {
-                scope.doWithStateCtx {
+                scope.doWithState {
                     val continuationValue = TvmOrdContinuation(TvmLambda(stmt.c.list.toMutableList()), stmt.c.raw)
                     stack.addContinuation(continuationValue)
 
@@ -1713,7 +1711,7 @@ class TvmInterpreter(
             }
 
             is TvmConstDataPushrefcontInst -> {
-                scope.doWithStateCtx {
+                scope.doWithState {
                     val continuationValue = TvmOrdContinuation(TvmLambda(stmt.c.list.toMutableList()), stmt.c.raw)
                     stack.addContinuation(continuationValue)
 
@@ -1730,7 +1728,7 @@ class TvmInterpreter(
                     TODO("Non-empty refs in TvmConstDataPushsliceLongInst")
                 }
 
-                scope.doWithStateCtx {
+                scope.doWithState {
                     val slice = scope.calcOnState { allocSliceFromCell(stmt.slice) }
 
                     scope.addOnStack(slice, TvmSliceType)
@@ -2729,40 +2727,40 @@ class TvmInterpreter(
     private fun visitSetContCtr(
         scope: TvmStepScopeManager,
         stmt: TvmContRegistersSetcontctrInst,
-    ) = scope.doWithStateCtx {
+    ) = scope.doWithState {
         scope.consumeDefaultGas(stmt)
 
         val cont =
             stack.takeLastContinuation()
-                ?: return@doWithStateCtx throwTypeCheckError(this)
+                ?: return@doWithState ctx.throwTypeCheckError(this)
 
         val updatedCont =
             when (stmt.i) {
                 0 -> {
                     val contToStore =
                         stack.takeLastContinuation()
-                            ?: return@doWithStateCtx throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
                     cont.defineC0(contToStore)
                 }
 
                 1 -> {
                     val contToStore =
                         stack.takeLastContinuation()
-                            ?: return@doWithStateCtx throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
                     cont.defineC1(contToStore)
                 }
 
                 2 -> {
                     val contToStore =
                         stack.takeLastContinuation()
-                            ?: return@doWithStateCtx throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
                     cont.defineC2(contToStore)
                 }
 
                 3 -> {
                     val contToStore =
                         stack.takeLastContinuation()
-                            ?: return@doWithStateCtx throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
                     val oldC3 = registersOfCurrentContract.c3
 
                     require(oldC3.value == contToStore) {
@@ -2775,7 +2773,7 @@ class TvmInterpreter(
                 4 -> {
                     val cell =
                         takeLastCell()
-                            ?: return@doWithStateCtx throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
 
                     cont.defineC4(cell)
                 }
@@ -2783,7 +2781,7 @@ class TvmInterpreter(
                 5 -> {
                     val cell =
                         takeLastCell()
-                            ?: return@doWithStateCtx throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
 
                     cont.defineC5(cell)
                 }
@@ -2791,7 +2789,7 @@ class TvmInterpreter(
                 7 -> {
                     val tuple =
                         scope.takeLastTuple()
-                            ?: return@doWithStateCtx throwTypeCheckError(this)
+                            ?: return@doWithState ctx.throwTypeCheckError(this)
 
                     cont.defineC7(tuple)
                 }
@@ -2847,7 +2845,7 @@ class TvmInterpreter(
     private fun visitTvmPopCtrInst(
         scope: TvmStepScopeManager,
         stmt: TvmContRegistersPopctrInst,
-    ) = scope.doWithStateCtx {
+    ) = scope.doWithState {
         scope.consumeDefaultGas(stmt)
 
         val registerIndex = stmt.i
@@ -2857,28 +2855,28 @@ class TvmInterpreter(
             0 -> {
                 val cont =
                     stack.takeLastContinuation()
-                        ?: return@doWithStateCtx throwTypeCheckError(this)
+                        ?: return@doWithState ctx.throwTypeCheckError(this)
                 registers.c0 = C0Register(cont)
             }
 
             1 -> {
                 val cont =
                     stack.takeLastContinuation()
-                        ?: return@doWithStateCtx throwTypeCheckError(this)
+                        ?: return@doWithState ctx.throwTypeCheckError(this)
                 registers.c1 = C1Register(cont)
             }
 
             2 -> {
                 val cont =
                     stack.takeLastContinuation()
-                        ?: return@doWithStateCtx throwTypeCheckError(this)
+                        ?: return@doWithState ctx.throwTypeCheckError(this)
                 registers.c2 = C2Register(cont)
             }
 
             3 -> {
                 val cont =
                     stack.takeLastContinuation()
-                        ?: return@doWithStateCtx throwTypeCheckError(this)
+                        ?: return@doWithState ctx.throwTypeCheckError(this)
                 if (
                     cont !is TvmOrdContinuation ||
                     // support only ordinary continuations
@@ -2897,7 +2895,7 @@ class TvmInterpreter(
             4 -> {
                 val newData =
                     takeLastCell()
-                        ?: return@doWithStateCtx throwTypeCheckError(this)
+                        ?: return@doWithState ctx.throwTypeCheckError(this)
 
                 registers.c4 = C4Register(TvmCellValue(newData))
             }
@@ -2905,7 +2903,7 @@ class TvmInterpreter(
             5 -> {
                 val newData =
                     takeLastCell()
-                        ?: return@doWithStateCtx throwTypeCheckError(this)
+                        ?: return@doWithState ctx.throwTypeCheckError(this)
 
                 registers.c5 = C5Register(TvmCellValue(newData))
             }
@@ -2913,7 +2911,7 @@ class TvmInterpreter(
             7 -> {
                 val newC7 =
                     scope.takeLastTuple()
-                        ?: return@doWithStateCtx throwTypeCheckError(this)
+                        ?: return@doWithState ctx.throwTypeCheckError(this)
 
                 require(newC7 is TvmStackTupleValueConcreteNew) {
                     TODO("Support non-concrete tuples")
@@ -3133,7 +3131,7 @@ class TvmInterpreter(
         val cond =
             scope.takeLastIntOrThrowTypeError()
                 ?: return
-        val neqZero = scope.doWithCtx { mkEq(cond, zeroValue).not() }
+        val neqZero = with(scope.ctx) { mkEq(cond, zeroValue).not() }
         scope.fork(
             neqZero,
             falseStateIsExceptional = false,
@@ -3305,27 +3303,29 @@ class TvmInterpreter(
         stmt: TvmInst,
     ) {
         val flag = takeLastIntOrThrowTypeError() ?: return
-        doWithStateCtx {
-            val ifConstraint = mkEq(flag, zeroValue).not()
+        doWithState {
+            with(ctx) {
+                val ifConstraint = mkEq(flag, zeroValue).not()
 
-            fork(
-                ifConstraint,
-                falseStateIsExceptional = false,
-                blockOnTrueState = {
-                    // TODO really?
+                fork(
+                    ifConstraint,
+                    falseStateIsExceptional = false,
+                    blockOnTrueState = {
+                        // TODO really?
 //                        registers = continuation.registers
 //                        stack = continuation.stack
 
-                    newStmt(TsaArtificialExecuteContInst(firstContinuation, stmt.location))
-                },
-                blockOnFalseState = {
-                    // TODO really?
+                        newStmt(TsaArtificialExecuteContInst(firstContinuation, stmt.location))
+                    },
+                    blockOnFalseState = {
+                        // TODO really?
 //                        registers = continuation.registers
 //                        stack = continuation.stack
 
-                    newStmt(TsaArtificialExecuteContInst(secondContinuation, stmt.location))
-                },
-            )
+                        newStmt(TsaArtificialExecuteContInst(secondContinuation, stmt.location))
+                    },
+                )
+            }
         }
     }
 
@@ -3383,10 +3383,12 @@ class TvmInterpreter(
 
                 val continuation = TvmOrdContinuation(contractCode.mainMethod, contractCode.codeCell)
 
-                scope.doWithStateCtx {
-                    stack.addInt(stmt.n.toBv257())
-                    stack.addContinuation(continuation)
-                    newStmt(stmt.nextStmt())
+                scope.doWithState {
+                    with(ctx) {
+                        stack.addInt(stmt.n.toBv257())
+                        stack.addContinuation(continuation)
+                        newStmt(stmt.nextStmt())
+                    }
                 }
             }
 

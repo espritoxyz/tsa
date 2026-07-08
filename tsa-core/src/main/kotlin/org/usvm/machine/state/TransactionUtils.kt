@@ -88,7 +88,7 @@ fun sliceLoadAddrTlbNoFork(
     slice: UHeapRef,
     quietBlock: (TvmState.() -> Unit)? = null,
 ): Pair<UHeapRef, UHeapRef>? =
-    scope.doWithCtx {
+    with(scope.ctx) {
         var result: UHeapRef? = null
         val originalStateId = scope.calcOnState { id }
         val updatedSlice =

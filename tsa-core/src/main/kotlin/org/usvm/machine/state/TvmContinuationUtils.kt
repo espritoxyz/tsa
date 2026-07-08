@@ -108,7 +108,7 @@ fun TvmStepScopeManager.jumpToContinuation(cont: TvmContinuation) {
 fun TvmStepScopeManager.jumpToContinuationComplex(
     cont: TvmContinuation,
     passArgs: UInt? = null,
-) = doWithStateCtx {
+) = doWithState {
     // TODO stack depth checks ?
 
     var copy = cont.nargs
@@ -167,16 +167,16 @@ fun TvmStepScopeManager.callContinuationComplex(
     continuation: TvmContinuation,
     passArgs: UInt? = null,
     returnArgs: UInt? = null,
-) = doWithStateCtx {
+) = doWithState {
     if (continuation.savelist.c0 != null) {
         // call reduces to a jump
-        return@doWithStateCtx jumpToContinuationComplex(continuation, passArgs)
+        return@doWithState jumpToContinuationComplex(continuation, passArgs)
     }
 
     val contNargs = continuation.nargs
     if (contNargs != null && passArgs != null && contNargs > passArgs) {
         // stack underflow while calling a closure continuation: not enough arguments passed
-        return@doWithStateCtx throwStackUnderflowError(this)
+        return@doWithState ctx.throwStackUnderflowError(this)
     }
 
     var copy = continuation.nargs
@@ -236,8 +236,8 @@ fun TvmStepScopeManager.callContinuationComplex(
 fun TvmStepScopeManager.returnFromContinuation() {
     val c0 = calcOnState { registersOfCurrentContract.c0.value }
 
-    doWithStateCtx {
-        registersOfCurrentContract.c0 = C0Register(quit0Cont)
+    doWithState {
+        registersOfCurrentContract.c0 = C0Register(ctx.quit0Cont)
     }
 
     jumpToContinuation(c0)
@@ -246,8 +246,8 @@ fun TvmStepScopeManager.returnFromContinuation() {
 fun TvmStepScopeManager.returnAltFromContinuation() {
     val c1 = calcOnState { registersOfCurrentContract.c1.value }
 
-    doWithStateCtx {
-        registersOfCurrentContract.c1 = C1Register(quit1Cont)
+    doWithState {
+        registersOfCurrentContract.c1 = C1Register(ctx.quit1Cont)
     }
 
     jumpToContinuation(c1)
@@ -391,7 +391,7 @@ private fun TvmStepScopeManager.doUntilJump(cont: TvmUntilContinuation) {
     doWithState { adjustRegisters(cont) }
 
     val x = takeLastIntOrThrowTypeError() ?: return
-    val continueLoopCondition = calcOnStateCtx { mkEq(x, ctx.zeroValue) }
+    val continueLoopCondition = calcOnState { with(ctx) { mkEq(x, zeroValue) } }
 
     fork(
         continueLoopCondition,
@@ -413,7 +413,7 @@ private fun TvmStepScopeManager.doRepeatJump(cont: TvmRepeatContinuation) {
 
     val count = cont.count
 
-    val isPositive = calcOnStateCtx { mkBvSignedLessExpr(zeroValue, count) }
+    val isPositive = calcOnState { with(ctx) { mkBvSignedLessExpr(zeroValue, count) } }
 
     fork(
         isPositive,
@@ -423,9 +423,11 @@ private fun TvmStepScopeManager.doRepeatJump(cont: TvmRepeatContinuation) {
         },
     ) ?: return
 
-    doWithStateCtx {
-        val newCont = cont.copy(count = mkBvSubExpr(cont.count, oneValue), savelist = TvmRegisterSavelist.EMPTY)
-        registersOfCurrentContract.c0 = C0Register(newCont)
+    doWithState {
+        with(ctx) {
+            val newCont = cont.copy(count = mkBvSubExpr(cont.count, oneValue), savelist = TvmRegisterSavelist.EMPTY)
+            registersOfCurrentContract.c0 = C0Register(newCont)
+        }
     }
 
     jump(cont.body)
@@ -442,7 +444,7 @@ private fun TvmStepScopeManager.doWhileJump(cont: TvmWhileContinuation) {
     }
 
     val cond = takeLastIntOrThrowTypeError() ?: return
-    val continueLoopCondition = calcOnStateCtx { mkEq(cond, zeroValue).not() }
+    val continueLoopCondition = calcOnState { with(ctx) { mkEq(cond, zeroValue).not() } }
 
     fork(
         continueLoopCondition,

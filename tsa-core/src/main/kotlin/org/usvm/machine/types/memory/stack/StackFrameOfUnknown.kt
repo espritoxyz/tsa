@@ -16,7 +16,6 @@ import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.UnknownBlockLengthField
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
@@ -54,7 +53,8 @@ data class StackFrameOfUnknown(
         badCellSizeIsExceptional: Boolean,
         onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>>? =
-        scope.doWithCtx {
+        with(scope.ctx) {
+            val ctx = scope.ctx
             val inferenceManager =
                 scope.calcOnState {
                     fieldManagers.cellDataFieldManager.inferenceManager
@@ -70,7 +70,7 @@ data class StackFrameOfUnknown(
                     buildFrameForStructure(ctx, inferredStruct, path.add(TlbStructure.Unknown.id), leftTlbDepth)
                         ?: error("Unexpected null frame")
 
-                return@doWithCtx nextFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
+                return@with nextFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
             }
 
             val defaultResult =
@@ -83,12 +83,12 @@ data class StackFrameOfUnknown(
                 )
 
             if (hasOffset || inferenceManager.isFixated(loadData.cellRef) || !loadData.guard.isTrue) {
-                return@doWithCtx defaultResult
+                return@with defaultResult
             }
 
             val label =
                 loadData.type.defaultTlbLabel()
-                    ?: return@doWithCtx defaultResult
+                    ?: return@with defaultResult
 
             val curSizeField = UnknownBlockLengthField(path)
             val curSize =
@@ -117,7 +117,7 @@ data class StackFrameOfUnknown(
                     )
 
                 scope.checkSat(assumeValue)
-                    ?: return@doWithCtx defaultResult
+                    ?: return@with defaultResult
 
                 var badSizeContext = BadSizeContext.GoodSizeIsSat
 
@@ -143,7 +143,7 @@ data class StackFrameOfUnknown(
                             onBadCellSize(this, badSizeContext)
                         },
                         doNotAddConstraintToTrueState = true, // because further constraints are stronger
-                    ) ?: return@doWithCtx null
+                    ) ?: return@with null
                 } else {
                     // case when [!badCellSizeIsExceptional]
                     scope.fork(
@@ -156,7 +156,7 @@ data class StackFrameOfUnknown(
                             // badSizeContext doesn't matter here
                             onBadCellSize(this, BadSizeContext.GoodSizeIsUnknown)
                         },
-                    ) ?: return@doWithCtx null
+                    ) ?: return@with null
                 }
             }
 
@@ -214,11 +214,11 @@ data class StackFrameOfUnknown(
             scope.checkSat(tlbConstraint)
                 ?: run {
                     scope.assert(forgottenConstraint)
-                        ?: return@doWithCtx null
+                        ?: return@with null
 
                     inferenceManager.fixateRef(loadData.cellRef) // because UnknownBlockField got into constraints
 
-                    return@doWithCtx defaultResult
+                    return@with defaultResult
                 }
 
             scope.assert(tlbConstraint)

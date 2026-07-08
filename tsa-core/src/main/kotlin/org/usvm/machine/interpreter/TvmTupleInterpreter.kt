@@ -52,10 +52,8 @@ import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.addTuple
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.consumeDefaultGas
 import org.usvm.machine.state.consumeGas
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastIntOrThrowTypeError
@@ -287,7 +285,7 @@ class TvmTupleInterpreter(
             consumeGas(SIMPLE_GAS_USAGE + size)
         }
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             val tupleElements = List(size) { stack.takeLastEntry() }.asReversed()
             val tupleConcreteStackEntry = TvmStackTupleValueConcreteNew(ctx, tupleElements.toPersistentList())
 
@@ -335,7 +333,7 @@ class TvmTupleInterpreter(
                     ) ?: return
                 }
 
-                scope.doWithStateCtx {
+                scope.doWithState {
                     (0..<size).forEach {
                         val element = tuple[it, stack]
                         stack.addStackEntry(element)
@@ -360,16 +358,18 @@ class TvmTupleInterpreter(
             if (!quiet) {
                 scope.doWithState(ctx.throwTypeCheckError)
             } else {
-                scope.doWithStateCtx {
-                    stack.addInt(minusOneValue)
-                    newStmt(stmt.nextStmt())
+                scope.doWithState {
+                    with(ctx) {
+                        stack.addInt(minusOneValue)
+                        newStmt(stmt.nextStmt())
+                    }
                 }
             }
 
             return
         }
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             stack.addInt(tuple.size)
             newStmt(stmt.nextStmt())
         }
@@ -434,19 +434,19 @@ class TvmTupleInterpreter(
             "Unexpected tuple index $index"
         }
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             consumeGas(SIMPLE_GAS_USAGE)
         }
 
         val (isValueNull, value) = scope.calcOnState { stack.lastIsNull() to stack.takeLastEntry() }
         val lastIsNull = scope.calcOnState { stack.lastIsNull() }
         if (lastIsNull) {
-            scope.doWithStateCtx {
+            scope.doWithState {
                 if (quiet) {
                     stack.pop(0)
                     TvmStackTupleValueConcreteNew(ctx, persistentListOf())
                 } else {
-                    throwTypeCheckError(this)
+                    ctx.throwTypeCheckError(this)
                 }
             }
 
@@ -480,10 +480,12 @@ class TvmTupleInterpreter(
                 tuple.set(index, value)
             }
 
-        scope.doWithStateCtx {
-            stack.addTuple(updatedTuple)
-            consumeGas(size.extractToSizeSort())
-            newStmt(stmt.nextStmt())
+        scope.doWithState {
+            with(ctx) {
+                stack.addTuple(updatedTuple)
+                consumeGas(size.extractToSizeSort())
+                newStmt(stmt.nextStmt())
+            }
         }
     }
 
@@ -523,28 +525,34 @@ class TvmTupleInterpreter(
     private fun visitIsNull(
         scope: TvmStepScopeManager,
         stmt: TvmTupleIsnullInst,
-    ) = scope.doWithStateCtx {
-        val isNull = stack.lastIsNull()
-        stack.pop(0)
-        stack.addInt(if (isNull) trueValue else falseValue)
-        newStmt(stmt.nextStmt())
+    ) = scope.doWithState {
+        with(ctx) {
+            val isNull = stack.lastIsNull()
+            stack.pop(0)
+            stack.addInt(if (isNull) trueValue else falseValue)
+            newStmt(stmt.nextStmt())
+        }
     }
 
     private fun visitIsTupleInst(
         scope: TvmStepScopeManager,
         stmt: TvmTupleIstupleInst,
-    ) = scope.doWithStateCtx {
-        val lastTuple = scope.takeLastTuple()
-        stack.addInt(if (lastTuple != null) trueValue else falseValue)
-        newStmt(stmt.nextStmt())
+    ) = scope.doWithState {
+        with(ctx) {
+            val lastTuple = scope.takeLastTuple()
+            stack.addInt(if (lastTuple != null) trueValue else falseValue)
+            newStmt(stmt.nextStmt())
+        }
     }
 
     private fun visitNullInst(
         scope: TvmStepScopeManager,
         stmt: TvmTupleNullInst,
-    ) = scope.doWithStateCtx {
-        scope.addOnStack(nullValue, TvmNullType)
-        newStmt(stmt.nextStmt())
+    ) = scope.doWithState {
+        with(ctx) {
+            scope.addOnStack(nullValue, TvmNullType)
+            newStmt(stmt.nextStmt())
+        }
     }
 
     private fun doPushNullIf(
@@ -556,9 +564,11 @@ class TvmTupleInterpreter(
     ) {
         val value = scope.takeLastIntOrThrowTypeError() ?: return
         val condition =
-            scope.calcOnStateCtx {
-                val cond = mkEq(value, zeroValue)
-                if (swapIfZero) cond else cond.not()
+            scope.calcOnState {
+                with(ctx) {
+                    val cond = mkEq(value, zeroValue)
+                    if (swapIfZero) cond else cond.not()
+                }
             }
         scope.fork(
             condition,

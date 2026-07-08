@@ -147,21 +147,6 @@ fun TvmState.setExit(result: TvmResult.TvmTerminalResult) {
     }
 }
 
-fun <R> TvmStepScopeManager.calcOnStateCtx(block: context(TvmContext) TvmState.() -> R): R =
-    calcOnState {
-        block(ctx, this)
-    }
-
-fun <R> TvmStepScopeManager.doWithCtx(block: context(TvmContext) TvmStepScopeManager.() -> R): R {
-    val ctx = calcOnState { ctx }
-    return block(ctx, this)
-}
-
-fun TvmStepScopeManager.doWithStateCtx(block: context(TvmContext) TvmState.() -> Unit) =
-    doWithState {
-        block(ctx, this)
-    }
-
 fun TvmState.generateSymbolicCell(): UConcreteHeapRef = generateSymbolicRef(TvmCellType)
 
 fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) = ensureSymbolicRefInitialized(ref, TvmCellType)
@@ -466,7 +451,7 @@ private fun TvmStepScopeManager.assertConcreteCellType(
 ): Unit? {
     val refOldTypes = calcOnState { getRefLeaves(value) }
     val badCellTypeGuard =
-        doWithCtx {
+        with(ctx) {
             refOldTypes.fold(falseExpr as UBoolExpr) { acc, info ->
                 if (info.type != badType) {
                     acc
@@ -525,7 +510,7 @@ fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? =
     )
 
 fun TvmStepScopeManager.killCurrentState() =
-    doWithCtx {
+    with(ctx) {
         assert(falseExpr).also {
             check(it == null) {
                 "Unexpected not null [assert(falseExpr)] result"

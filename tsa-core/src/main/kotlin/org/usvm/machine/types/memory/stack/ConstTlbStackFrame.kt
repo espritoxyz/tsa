@@ -13,7 +13,6 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.types.SizedCellDataTypeRead
 import org.usvm.machine.types.TvmCellDataBitArrayRead
 import org.usvm.machine.types.TvmCellDataCoinsRead
@@ -43,88 +42,97 @@ data class ConstTlbStackFrame(
         badCellSizeIsExceptional: Boolean,
         onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>> =
-        scope.calcOnStateCtx {
-            val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
-            val leftBits = mkSizeSubExpr(mkSizeExpr(data.length), offset)
+        scope.calcOnState {
+            val state = this
+            with(ctx) {
+                val concreteOffset = if (offset is KInterpretedValue) offset.intValue() else null
+                val leftBits = mkSizeSubExpr(mkSizeExpr(data.length), offset)
 
-            val type = loadData.type
-            val readSize =
-                extractReadSizeFromType(type, concreteOffset) ?: return@calcOnStateCtx listOf(
-                    GuardedResult(
-                        trueExpr,
-                        StepError(
-                            TvmStructuralError(
-                                TvmReadingSwitchWithUnexpectedType(type),
-                                phase,
+                val type = loadData.type
+                val readSize =
+                    extractReadSizeFromType(type, concreteOffset) ?: return@calcOnState listOf(
+                        GuardedResult(
+                            trueExpr,
+                            StepError(
+                                TvmStructuralError(
+                                    TvmReadingSwitchWithUnexpectedType(type),
+                                    phase,
+                                ),
                             ),
+                            value = null,
                         ),
-                        value = null,
-                    ),
-                )
+                    )
 
-            val concreteBvRead = readConcreteBv(ctx, concreteOffset, data, readSize)
-            // full read of constant
-            val stepResult =
-                buildFrameForStructure(
-                    ctx,
-                    nextStruct,
-                    path,
-                    leftTlbDepth,
-                )?.let {
-                    NextFrame(it, concreteBvRead)
-                } ?: EndOfStackFrame
+                val concreteBvRead = readConcreteBv(ctx, concreteOffset, data, readSize)
+                // full read of constant
+                val stepResult =
+                    buildFrameForStructure(
+                        ctx,
+                        nextStruct,
+                        path,
+                        leftTlbDepth,
+                    )?.let {
+                        NextFrame(it, concreteBvRead)
+                    } ?: EndOfStackFrame
 
-            val value = type.readFromConstant(this, offset, data)
+                val value = type.readFromConstant(state, offset, data)
 
-            val result =
-                mutableListOf(
-                    GuardedResult(
-                        mkSizeLtExpr(readSize, leftBits),
-                        NextFrame(
-                            ConstTlbStackFrame(data, nextStruct, mkSizeAddExpr(offset, readSize), path, leftTlbDepth),
-                            concreteBvRead,
-                        ),
-                        value,
-                    ),
-                    GuardedResult(
-                        readSize eq leftBits,
-                        stepResult,
-                        value,
-                    ),
-                )
-
-            if (type is TvmCellDataBitArrayRead) {
-                val curGuard = loadData.guard and mkSizeGtExpr(readSize, leftBits)
-                result.add(
-                    GuardedResult(
-                        mkSizeGtExpr(readSize, leftBits),
-                        ContinueLoadOnNextFrame(
-                            LimitedLoadData(
-                                loadData.cellRef,
-                                curGuard,
-                                type.createLeftBitsDataLoad(mkSizeSubExpr(readSize, leftBits)),
+                val result =
+                    mutableListOf(
+                        GuardedResult(
+                            mkSizeLtExpr(readSize, leftBits),
+                            NextFrame(
+                                ConstTlbStackFrame(
+                                    data,
+                                    nextStruct,
+                                    mkSizeAddExpr(offset, readSize),
+                                    path,
+                                    leftTlbDepth,
+                                ),
+                                concreteBvRead,
                             ),
-                            concreteBvRead,
+                            value,
                         ),
-                        value = value,
-                    ),
-                )
-            } else {
-                result.add(
-                    GuardedResult(
-                        mkSizeGtExpr(readSize, leftBits),
-                        StepError(
-                            TvmStructuralError(
-                                TvmReadingOutOfSwitchBounds(type),
-                                phase,
+                        GuardedResult(
+                            readSize eq leftBits,
+                            stepResult,
+                            value,
+                        ),
+                    )
+
+                if (type is TvmCellDataBitArrayRead) {
+                    val curGuard = loadData.guard and mkSizeGtExpr(readSize, leftBits)
+                    result.add(
+                        GuardedResult(
+                            mkSizeGtExpr(readSize, leftBits),
+                            ContinueLoadOnNextFrame(
+                                LimitedLoadData(
+                                    loadData.cellRef,
+                                    curGuard,
+                                    type.createLeftBitsDataLoad(mkSizeSubExpr(readSize, leftBits)),
+                                ),
+                                concreteBvRead,
                             ),
+                            value = value,
                         ),
-                        value = null,
-                    ),
-                )
+                    )
+                } else {
+                    result.add(
+                        GuardedResult(
+                            mkSizeGtExpr(readSize, leftBits),
+                            StepError(
+                                TvmStructuralError(
+                                    TvmReadingOutOfSwitchBounds(type),
+                                    phase,
+                                ),
+                            ),
+                            value = null,
+                        ),
+                    )
+                }
+
+                result
             }
-
-            result
         }
 
     /**

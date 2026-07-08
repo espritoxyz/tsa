@@ -181,7 +181,6 @@ import org.usvm.machine.state.assertIfSat
 import org.usvm.machine.state.builderCopyFromBuilder
 import org.usvm.machine.state.builderStoreIntTlb
 import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.checkCellOverflow
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
@@ -190,7 +189,6 @@ import org.usvm.machine.state.dictAddKeyValue
 import org.usvm.machine.state.dictGetValue
 import org.usvm.machine.state.dictRemoveKey
 import org.usvm.machine.state.dictValueRegion
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.generateSymbolicSlice
 import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.newStmt
@@ -1492,7 +1490,7 @@ class TvmDictOperationInterpreter(
         returnUpdatedSlice: Boolean,
         putDictOnStack: Boolean = true,
     ) {
-        val slice = scope.calcOnStateCtx { takeLastSlice() }
+        val slice = scope.calcOnState { takeLastSlice() }
         if (slice == null) {
             scope.doWithState(ctx.throwTypeCheckError)
             return
@@ -1535,7 +1533,7 @@ class TvmDictOperationInterpreter(
             // Hack: here newSlice is just to copy tlb stack from the old one.
             // We mustn't copy it in this specific case, so we just pass a dummy new slice instead.
             sliceLoadRefTlb(this, slice, calcOnState { generateSymbolicSlice() }) { dictCellRef ->
-                doWithStateCtx {
+                doWithState {
                     if (putDictOnStack) {
                         addOnStack(dictCellRef, TvmCellType)
                     }
@@ -1557,7 +1555,7 @@ class TvmDictOperationInterpreter(
         inst: TvmDictSerialInst,
         scope: TvmStepScopeManager,
     ) = with(scope.ctx) {
-        val builder = scope.calcOnStateCtx { takeLastBuilder() }
+        val builder = scope.calcOnState { takeLastBuilder() }
         if (builder == null) {
             scope.doWithState(ctx.throwTypeCheckError)
             return
@@ -1567,8 +1565,8 @@ class TvmDictOperationInterpreter(
         val (dictCellRef, status) = popDictFromStack(scope, keyLengthForAssertingDictType = null)
         status ?: return
 
-        val resultBuilder = scope.calcOnStateCtx { memory.allocConcrete(TvmBuilderType) }
-        scope.doWithStateCtx { builderCopyFromBuilder(builder, resultBuilder) }
+        val resultBuilder = scope.calcOnState { memory.allocConcrete(TvmBuilderType) }
+        scope.doWithState { builderCopyFromBuilder(builder, resultBuilder) }
 
         if (dictCellRef == null) {
             builderStoreIntTlb(
@@ -1606,7 +1604,7 @@ class TvmDictOperationInterpreter(
             }
         }
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             addOnStack(resultBuilder, TvmBuilderType)
             newStmt(inst.nextStmt())
         }
@@ -1803,7 +1801,7 @@ class TvmDictOperationInterpreter(
             inputDictionaryStorage = inputDictionaryStorage.createDictEntry(resultDict, newInputDict)
         }
 
-        val oldValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
+        val oldValue = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
 
         assertDictValueDoesNotOverflow(scope, dictId, oldValue)
             ?: return
@@ -2007,7 +2005,7 @@ class TvmDictOperationInterpreter(
             },
         ) ?: return
 
-        val sliceValue = scope.calcOnStateCtx { dictGetValue(dictCellRef, dictId, key) }
+        val sliceValue = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
 
         val unwrappedValue =
             unwrapDictValue(scope, sliceValue, valueType)
@@ -2211,7 +2209,7 @@ class TvmDictOperationInterpreter(
                 ?: return
         val appliedModification = Modification.Remove(TypedDictKey(key, keyKind))
         val newInputDict = initInputDict.withModification(appliedModification)
-        scope.calcOnStateCtx {
+        scope.calcOnState {
             copyDictValuesMemoryRepresentation(dictCellRef, resultDictRef, dictId, keySort)
             inputDictionaryStorage = inputDictionaryStorage.createDictEntry(resultDictRef, newInputDict)
         }
@@ -2410,7 +2408,7 @@ class TvmDictOperationInterpreter(
     ): Boolean {
         // since these entries were stored during execution, value overflow constraints have already been asserted
         val allSetEntries =
-            scope.calcOnStateCtx {
+            scope.calcOnState {
                 memory.setEntries(dictCellRef, keyLength.asDictId(), keyLength.asDictSort(scope.ctx), DictKeyInfo)
             }
         val storedKeys =
@@ -2683,20 +2681,20 @@ class TvmDictOperationInterpreter(
         val dictId = keyLength.asDictId()
         val keySort = keyLength.asDictSort(scope.ctx)
         val allSetEntries =
-            scope.calcOnStateCtx {
+            scope.calcOnState {
                 memory.setEntries(dictCellRef, dictId, keySort, DictKeyInfo)
             }
         val storedKeys =
-            scope.calcOnStateCtx {
+            scope.calcOnState {
                 allSetEntries.entries.map { entry ->
                     val setContainsEntry = allocatedDictContainsKey(dictCellRef, dictId, entry.setElement)
                     entry.setElement to setContainsEntry
                 }
             }
 
-        val resultElement = scope.calcOnStateCtx { makeSymbolicPrimitive(keySort) }
+        val resultElement = scope.calcOnState { makeSymbolicPrimitive(keySort) }
         val dictContainsResultElement =
-            scope.calcOnStateCtx {
+            scope.calcOnState {
                 allocatedDictContainsKey(dictCellRef, dictId, resultElement)
             }
 
@@ -2974,7 +2972,7 @@ class TvmDictOperationInterpreter(
         val definitelyNotEmpty =
             entries.any { entry ->
                 val contains =
-                    scope.calcOnStateCtx {
+                    scope.calcOnState {
                         allocatedDictContainsKey(dict, dictId, entry.setElement)
                     }
                 contains.isTrue
@@ -3121,13 +3119,13 @@ class TvmDictOperationInterpreter(
     ) {
         val resultDict = scope.calcOnState { memory.allocConcrete(TvmDictCellType) }
 
-        scope.doWithStateCtx {
+        scope.doWithState {
             copyDict(dictCellRef, resultDict, dictId, key.sort)
             dictRemoveKey(resultDict, dictId, key)
         }
 
         val resultSetEntries =
-            scope.calcOnStateCtx {
+            scope.calcOnState {
                 memory.setEntries(resultDict, dictId, key.sort, DictKeyInfo)
             }
 

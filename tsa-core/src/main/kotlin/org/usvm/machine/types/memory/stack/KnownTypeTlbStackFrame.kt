@@ -22,7 +22,6 @@ import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
-import org.usvm.machine.state.calcOnStateCtx
 import org.usvm.machine.state.slicesAreEqual
 import org.usvm.machine.types.ContinueLoadOnNextFrameData
 import org.usvm.machine.types.TvmCellDataBitArrayRead
@@ -50,84 +49,87 @@ data class KnownTypeTlbStackFrame(
         badCellSizeIsExceptional: Boolean,
         onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     ): List<GuardedResult<ReadResult>> =
-        scope.calcOnStateCtx {
-            if (struct.typeLabel !is TlbBuiltinLabel) {
-                return@calcOnStateCtx listOf(GuardedResult(trueExpr, StepError(error = null), value = null))
-            }
+        scope.calcOnState {
+            val state = this
+            with(ctx) {
+                if (struct.typeLabel !is TlbBuiltinLabel) {
+                    return@calcOnState listOf(GuardedResult(trueExpr, StepError(error = null), value = null))
+                }
 
-            val args = struct.typeArgs(this, loadData.cellRef, path)
+                val args = struct.typeArgs(state, loadData.cellRef, path)
 
-            val frameIsEmpty = struct.typeLabel.isEmptyLabel(ctx, args)
+                val frameIsEmpty = struct.typeLabel.isEmptyLabel(ctx, args)
 
-            val continueLoadingOnNextFrameData = createContinueLoadingOnNextFrame(loadData, struct.typeLabel, args)
+                val continueLoadingOnNextFrameData = createContinueLoadingOnNextFrame(loadData, struct.typeLabel, args)
 
-            val continueReadOnNextFrameCondition =
-                continueLoadingOnNextFrameData?.let {
-                    continueLoadingOnNextFrameData.guard or frameIsEmpty
-                } ?: frameIsEmpty
+                val continueReadOnNextFrameCondition =
+                    continueLoadingOnNextFrameData?.let {
+                        continueLoadingOnNextFrameData.guard or frameIsEmpty
+                    } ?: frameIsEmpty
 
-            val accept = struct.typeLabel.accepts(ctx, args, loadData.type)
-            val readBvValue =
-                if (loadData.type is TvmCellDataBitArrayRead) {
-                    extractKBvOfConcreteSizeFromTlbIfPossible(
+                val accept = struct.typeLabel.accepts(ctx, args, loadData.type)
+                val readBvValue =
+                    if (loadData.type is TvmCellDataBitArrayRead) {
+                        extractKBvOfConcreteSizeFromTlbIfPossible(
+                            struct,
+                            loadData.cellRef,
+                            path,
+                            state,
+                        )
+                    } else {
+                        null
+                    }
+                val nextFrame =
+                    buildFrameForStructure(
+                        ctx,
+                        struct.rest,
+                        path,
+                        leftTlbDepth,
+                    )?.let {
+                        NextFrame(it, readBvValue)
+                    } ?: EndOfStackFrame
+
+                val error = createStepError(struct.typeLabel, args, loadData, state)
+                val value =
+                    struct.typeLabel.extractTlbValueIfPossible(
                         struct,
+                        loadData.type,
                         loadData.cellRef,
                         path,
-                        this,
+                        state,
+                        leftTlbDepth,
                     )
-                } else {
-                    null
-                }
-            val nextFrame =
-                buildFrameForStructure(
-                    ctx,
-                    struct.rest,
-                    path,
-                    leftTlbDepth,
-                )?.let {
-                    NextFrame(it, readBvValue)
-                } ?: EndOfStackFrame
 
-            val error = createStepError(struct.typeLabel, args, loadData, this)
-            val value =
-                struct.typeLabel.extractTlbValueIfPossible(
-                    struct,
-                    loadData.type,
-                    loadData.cellRef,
-                    path,
-                    this,
-                    leftTlbDepth,
-                )
+                val result: MutableList<GuardedResult<ReadResult>> =
+                    mutableListOf(
+                        GuardedResult(frameIsEmpty, ContinueLoadOnNextFrame(loadData), null),
+                        GuardedResult(continueReadOnNextFrameCondition.not() and accept, nextFrame, value),
+                        GuardedResult(continueReadOnNextFrameCondition.not() and accept.not(), StepError(error), null),
+                    )
 
-            val result: MutableList<GuardedResult<ReadResult>> =
-                mutableListOf(
-                    GuardedResult(frameIsEmpty, ContinueLoadOnNextFrame(loadData), null),
-                    GuardedResult(continueReadOnNextFrameCondition.not() and accept, nextFrame, value),
-                    GuardedResult(continueReadOnNextFrameCondition.not() and accept.not(), StepError(error), null),
-                )
+                if (continueLoadingOnNextFrameData != null) {
+                    require(loadData.type is TvmCellDataBitArrayRead) {
+                        "loading across different frames is not supported for non-bit-array reads"
+                    }
 
-            if (continueLoadingOnNextFrameData != null) {
-                require(loadData.type is TvmCellDataBitArrayRead) {
-                    "loading across different frames is not supported for non-bit-array reads"
+                    val continueLoadOnNextFrameAction =
+                        createLoadAcrossFramesAction(
+                            loadData,
+                            continueLoadingOnNextFrameData.leftBits,
+                            readBvValue,
+                            loadData.guard and continueLoadingOnNextFrameData.guard,
+                        )
+                    result.add(
+                        GuardedResult(
+                            continueLoadingOnNextFrameData.guard,
+                            continueLoadOnNextFrameAction,
+                            value = value,
+                        ),
+                    )
                 }
 
-                val continueLoadOnNextFrameAction =
-                    createLoadAcrossFramesAction(
-                        loadData,
-                        continueLoadingOnNextFrameData.leftBits,
-                        readBvValue,
-                        loadData.guard and continueLoadingOnNextFrameData.guard,
-                    )
-                result.add(
-                    GuardedResult(
-                        continueLoadingOnNextFrameData.guard,
-                        continueLoadOnNextFrameAction,
-                        value = value,
-                    ),
-                )
+                result
             }
-
-            result
         }
 
     private fun <ReadResult> createLoadAcrossFramesAction(

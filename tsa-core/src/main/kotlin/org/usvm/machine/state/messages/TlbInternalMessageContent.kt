@@ -30,7 +30,6 @@ import org.usvm.machine.state.builderStoreSliceTransaction
 import org.usvm.machine.state.builderStoreSliceWithForkOnOverflow
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.createSliceIsEmptyConstraint
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.getCellContractInfoParam
 import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.readCellDataLength
@@ -671,24 +670,24 @@ data class TlbInternalMessageContent(
             resolver: TvmTestStateResolver,
             quietBlock: (TvmState.() -> Unit)?,
         ): ValueOrDeadScope<CellRef?> =
-            scope.doWithCtx {
+            with(scope.ctx) {
                 val maybeBit =
                     sliceLoadIntTlbNoForkAndNoRegister(scope, ptr.slice, 1, quietBlock = quietBlock)?.unwrap(ptr)
-                        ?: return@doWithCtx scopeDied
+                        ?: return@with scopeDied
 
                 val refIsMissing = maybeBit eq zeroValue
 
                 val value =
                     if (resolver.eval(refIsMissing).isTrue) {
                         scope.assert(refIsMissing)
-                            ?: return@doWithCtx scopeDied
+                            ?: return@with scopeDied
                         null
                     } else {
                         scope.assert(refIsMissing.not())
-                            ?: return@doWithCtx scopeDied
+                            ?: return@with scopeDied
 
                         sliceLoadRefNoFork(scope, ptr.slice)?.unwrap(ptr)
-                            ?: return@doWithCtx scopeDied
+                            ?: return@with scopeDied
                     }
                 value.ok()
             }

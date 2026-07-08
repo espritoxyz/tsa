@@ -29,7 +29,6 @@ import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.checkCellOverflow
 import org.usvm.machine.state.checkOutOfRange
 import org.usvm.machine.state.consumeDefaultGas
-import org.usvm.machine.state.doWithStateCtx
 import org.usvm.machine.state.newStmt
 import org.usvm.machine.state.nextStmt
 import org.usvm.machine.state.takeLastCell
@@ -194,7 +193,7 @@ class TvmActionsInterpreter(
         stmt: TvmRealInst,
     ): Unit =
         with(ctx) {
-            scope.doWithStateCtx {
+            scope.doWithState {
                 val registers = registersOfCurrentContract
                 val actions = registers.c5.value.value
                 val updatedActions = allocEmptyCell()
@@ -210,7 +209,7 @@ class TvmActionsInterpreter(
                     isSigned = false,
                 ) {
                     error("Unexpected cell overflow during $stmt instruction")
-                } ?: return@doWithStateCtx
+                } ?: return@doWithState
                 builderStoreNextRefNoOverflowCheck(updatedActions, msg)
 
                 val callstack =

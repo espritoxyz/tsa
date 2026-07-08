@@ -36,8 +36,6 @@ import org.usvm.machine.state.MemoryAccessInformation
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmStructuralError
 import org.usvm.machine.state.allocSliceFromData
-import org.usvm.machine.state.calcOnStateCtx
-import org.usvm.machine.state.doWithCtx
 import org.usvm.machine.state.lastStmt
 import org.usvm.machine.state.setExit
 import org.usvm.machine.state.slicePreloadIntWithoutChecks
@@ -103,7 +101,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     noRegister: Boolean = false,
     onBadCellSize: (TvmState, BadSizeContext) -> Unit,
     restActions: TvmStepScopeManager.(ReadResult?) -> Unit,
-) = doWithCtx {
+) = with(ctx) {
     val conditionsForFork = mutableListOf<Triple<UBoolExpr, MakeSliceTypeLoadOutcome, ReadResult?>>()
 
     val outcomes = hashMapOf<MakeSliceTypeLoadOutcome, MutableMap<ReadResult?, UBoolExpr>>()
@@ -128,7 +126,12 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
             }
 
         val stepResult: List<TlbStack.GuardedResult<ReadResult>> =
-            tlbStack.step(this, LimitedLoadData.fromLoadData(load), badCellSizeIsExceptional, onBadCellSize)
+            tlbStack.step(
+                this@makeSliceTypeLoad,
+                LimitedLoadData.fromLoadData(load),
+                badCellSizeIsExceptional,
+                onBadCellSize,
+            )
                 ?: run {
                     died = true
                     return@forEach
@@ -176,7 +179,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
     }
 
     if (died) {
-        return@doWithCtx
+        return@with
     }
 
     outcomes.entries.forEach { (outcome, readValueToGuardMap) ->
@@ -308,29 +311,31 @@ private fun processMakeSliceTypeLoadOutcome(
     }
 
 fun TvmStepScopeManager.assertEndOfCell(slice: UHeapRef): Unit? {
-    val turnOnTLBParsingChecks = doWithCtx { tvmOptions.turnOnTLBParsingChecks }
+    val turnOnTLBParsingChecks = ctx.tvmOptions.turnOnTLBParsingChecks
     if (!turnOnTLBParsingChecks) {
         return Unit
     }
-    return calcOnStateCtx {
-        val cellAddress = memory.readField(slice, TvmContext.sliceCellField, addressSort)
-        val offset = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this, slice)
-        val refNumber = memory.readField(slice, TvmContext.sliceRefPosField, sizeSort)
-        val actions = dataCellLoadedTypeInfo.makeEndOfCell(cellAddress, offset, refNumber)
-        actions.forEach {
-            val noConflictCond =
-                if (it.cellRef.isAllocated) {
-                    trueExpr
-                } else {
-                    dataCellInfoStorage.getNoUnexpectedEndOfReadingCondition(this, it)
-                }
-            fork(
-                noConflictCond,
-                falseStateIsExceptional = true,
-                blockOnFalseState = {
-                    setExit(TvmStructuralError(TvmUnexpectedEndOfReading, phase))
-                },
-            ) ?: return@calcOnStateCtx null
+    return calcOnState {
+        with(ctx) {
+            val cellAddress = memory.readField(slice, TvmContext.sliceCellField, addressSort)
+            val offset = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(this@calcOnState, slice)
+            val refNumber = memory.readField(slice, TvmContext.sliceRefPosField, sizeSort)
+            val actions = dataCellLoadedTypeInfo.makeEndOfCell(cellAddress, offset, refNumber)
+            actions.forEach {
+                val noConflictCond =
+                    if (it.cellRef.isAllocated) {
+                        trueExpr
+                    } else {
+                        dataCellInfoStorage.getNoUnexpectedEndOfReadingCondition(this@calcOnState, it)
+                    }
+                fork(
+                    noConflictCond,
+                    falseStateIsExceptional = true,
+                    blockOnFalseState = {
+                        setExit(TvmStructuralError(TvmUnexpectedEndOfReading, phase))
+                    },
+                ) ?: return@calcOnState null
+            }
         }
     }
 }
@@ -340,27 +345,29 @@ fun TvmStepScopeManager.makeSliceRefLoad(
     newSlice: UConcreteHeapRef,
     restActions: TvmStepScopeManager.() -> Unit,
 ) {
-    val turnOnTLBParsingChecks = doWithCtx { tvmOptions.turnOnTLBParsingChecks }
+    val turnOnTLBParsingChecks = ctx.tvmOptions.turnOnTLBParsingChecks
     if (turnOnTLBParsingChecks) {
-        calcOnStateCtx {
-            val cellAddress = memory.readField(oldSlice, TvmContext.sliceCellField, addressSort)
-            val refNumber =
-                mkSizeAddExpr(memory.readField(oldSlice, TvmContext.sliceRefPosField, sizeSort), oneSizeExpr)
-            val loadList = dataCellLoadedTypeInfo.loadRef(cellAddress, refNumber)
-            loadList.forEach { load ->
-                val noConflictCond =
-                    if (load.cellRef.isAllocated) {
-                        trueExpr
-                    } else {
-                        dataCellInfoStorage.getNoUnexpectedLoadRefCondition(this, load)
-                    }
-                fork(
-                    noConflictCond,
-                    falseStateIsExceptional = true,
-                    blockOnFalseState = {
-                        setExit(TvmStructuralError(TvmUnexpectedRefReading, phase))
-                    },
-                ) ?: return@calcOnStateCtx null
+        calcOnState {
+            with(ctx) {
+                val cellAddress = memory.readField(oldSlice, TvmContext.sliceCellField, addressSort)
+                val refNumber =
+                    mkSizeAddExpr(memory.readField(oldSlice, TvmContext.sliceRefPosField, sizeSort), oneSizeExpr)
+                val loadList = dataCellLoadedTypeInfo.loadRef(cellAddress, refNumber)
+                loadList.forEach { load ->
+                    val noConflictCond =
+                        if (load.cellRef.isAllocated) {
+                            trueExpr
+                        } else {
+                            dataCellInfoStorage.getNoUnexpectedLoadRefCondition(this@calcOnState, load)
+                        }
+                    fork(
+                        noConflictCond,
+                        falseStateIsExceptional = true,
+                        blockOnFalseState = {
+                            setExit(TvmStructuralError(TvmUnexpectedRefReading, phase))
+                        },
+                    ) ?: return@calcOnState null
+                }
             }
         } ?: return
     }
@@ -370,11 +377,13 @@ fun TvmStepScopeManager.makeSliceRefLoad(
     // This is why type of the key is [TlbStack?]
     val possibleTlbStacks = mutableMapOf<TlbStack?, UBoolExpr>()
 
-    calcOnStateCtx {
-        val concreteSlices = flattenReferenceIte(oldSlice, extractAllocated = true)
-        concreteSlices.forEach { (guard, slice) ->
-            val stack = dataCellInfoStorage.sliceMapper.getTlbStack(slice)
-            possibleTlbStacks.addGuardedOutcome(stack, guard)
+    calcOnState {
+        with(ctx) {
+            val concreteSlices = flattenReferenceIte(oldSlice, extractAllocated = true)
+            concreteSlices.forEach { (guard, slice) ->
+                val stack = dataCellInfoStorage.sliceMapper.getTlbStack(slice)
+                possibleTlbStacks.addGuardedOutcome(stack, guard)
+            }
         }
     }
 
@@ -432,7 +441,7 @@ fun TvmStepScopeManager.makeCellToSlice(
     // breaks the invariants (such as that there are no input expressions of Address sort.
     val possibleLabels = mutableMapOf<TlbCompositeLabel?, Map<UConcreteHeapRef, UBoolExpr>>()
 
-    calcOnStateCtx {
+    calcOnState {
         val infoVariants = dataCellInfoStorage.getLabelForFreshSlice(cellAddress)
         infoVariants.forEach { (cellInfo, cellsToGuards) ->
             val label = (cellInfo as? TvmParameterInfo.DataCellInfo)?.dataCellStructure
@@ -680,7 +689,7 @@ fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
     newBuilder: UConcreteHeapRef,
     value: UExpr<TvmCellDataSort>,
     sizeBits: UExpr<TvmSizeSort>,
-) = doWithCtx {
+) {
     if (value is KBitVecValue && sizeBits is KInterpretedValue) {
         val constValue = (value as KBitVecValue<*>).stringValue.takeLast(sizeBits.intValue())
         calcOnState {
