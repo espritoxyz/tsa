@@ -1,0 +1,11 @@
+#include "../depth/stdlib.fc";
+
+int nested_sha256(slice msg_body) impure method_id (0) {
+    var non_fixed_ref = msg_body.preload_ref();
+    var c1 = begin_cell()
+        .store_uint(msg_body.preload_uint(32), 32)
+        .store_ref(non_fixed_ref)
+        .end_cell();
+    var h1 = string_hash(c1.begin_parse());
+    return h1;
+}
