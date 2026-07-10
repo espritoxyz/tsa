@@ -1,6 +1,7 @@
 package org.usvm.machine.state.hash
 
 import io.ksmt.sort.KBvSort
+import io.ksmt.utils.uncheckedCast
 import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
@@ -111,9 +112,13 @@ open class TvmDefaultTransformer(
             ctx.tctx().mkTvmSignedMod(l, r)
         }
 
-    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> =
+        (transform(expr.fallbackExpr) as? UExpr<*>)?.uncheckedCast()
+            ?: error("failed transformation")
 
-    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> =
+        (transform(expr.fallbackExpr) as? UExpr<*>)?.uncheckedCast()
+            ?: error("failed transformation")
 
     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> =
         transformExprAfterTransformed(

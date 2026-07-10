@@ -5,8 +5,14 @@ import org.usvm.test.resolver.TvmTestAuthValue
 
 @Serializable
 sealed interface AuthAnalysisResult {
+    /**
+     * Means "We failed to retrieve any information"
+     */
     data object Unknown : AuthAnalysisResult
 
+    /**
+     * Means "We did not run an authorization analysis on this state"
+     */
     data object NotCollected : AuthAnalysisResult
 
     data class Collected(

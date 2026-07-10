@@ -210,6 +210,7 @@ class TvmPostProcessor(
                 }
             state.pathConstraints.tvmConstraintsSequence().forEach { visitor.apply(it) }
             if (visitor.foundTsaAccountId) {
+                // we failed to eliminate the equalities with tsaAccountId, so we cannot extract any information
                 return AuthAnalysisResult.Unknown
             }
 
