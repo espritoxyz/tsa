@@ -15,7 +15,6 @@ import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.hasExitCode
 import org.usvm.machine.TvmConcreteContractData
-import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.interpreter.AuthAnalysisResult
 import org.usvm.test.resolver.TvmSymbolicTest
@@ -25,6 +24,7 @@ import org.usvm.test.resolver.TvmTestCellValue
 import org.usvm.test.resolver.toTvmCell
 import org.usvm.test.resolver.transformTestCellIntoCell
 import kotlin.test.Test
+import kotlin.test.assertNotEquals
 
 const val INF = 5
 
@@ -158,20 +158,16 @@ class AuthByCodeTests {
                         TvmConcreteContractData(contractC4 = checkerC4),
                         TvmConcreteContractData(contractC4 = contractData),
                     ),
-                options =
-                    TvmOptions(
-                        useIntBlasting = false,
-                    ),
             )
         tests.assertPropertiesFound(hasExitCode(1000))
         // the assertion is as such, because there are not-an-error exits that do not mean that we have
         // passed an authorization
         val someHasPassedAuth =
-            tests.filter(hasExitCode(1000)).any {
+            tests.filter(hasExitCode(1000)).filter {
                 it.authorizedCodes().size == 1
             }
 
-        assert(someHasPassedAuth)
+        assertNotEquals(emptyList(), someHasPassedAuth)
 
         tests.filter(hasExitCode(1000)).assertInvariantHolds {
             val fetchedCode = it.authorizedCodes()

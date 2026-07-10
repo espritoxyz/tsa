@@ -58,7 +58,7 @@ fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null els
 
 data class AccountIdInfo(
     val symbol: TsaAccountIdSymbol,
-    val address: ConcreteSliceRef,
+    val addressRef: ConcreteSliceRef,
 )
 
 class TvmState(

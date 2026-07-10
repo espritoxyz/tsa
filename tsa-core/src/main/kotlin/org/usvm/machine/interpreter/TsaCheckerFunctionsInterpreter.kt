@@ -370,7 +370,7 @@ class TsaCheckerFunctionsInterpreter(
                                     givenAddress =
                                         scope.calcOnState {
                                             inputIdToTsaAccountId[stackOperations.inputId]
-                                                ?.address
+                                                ?.addressRef
                                         },
                                 )
                             }

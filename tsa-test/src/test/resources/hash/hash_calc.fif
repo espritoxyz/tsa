@@ -20,11 +20,11 @@ PROGRAM{
   15 DECLMETHOD no_unnecessary_fixes
 
   simple_cell_hash PROC:<{
-//       NEWC
-//       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
-//       STSLICER
-//       ENDC
-//       HASHCU
+      NEWC
+      x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
+      STSLICER
+      ENDC
+      HASHCU
   }>
   simple_slice_hash PROC:<{
       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice

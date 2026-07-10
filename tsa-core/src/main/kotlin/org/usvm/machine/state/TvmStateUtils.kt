@@ -708,9 +708,10 @@ fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, TsaAccoun
         builderStoreNextRefNoOverflowCheck(stateInitBuilder, code)
         builderStoreNextRefNoOverflowCheck(stateInitBuilder, data)
         val stateInit = builderToCell(stateInitBuilder)
+        val mockedHash = mockHash(stateInit)
         val boundStateInitHash =
-            (mockHash(stateInit) as? KBvZeroExtensionExpr)?.value as? TvmSymbolicHashSymbol
-                ?: error("wrong symbol")
+            (mockedHash as? KBvZeroExtensionExpr)?.value as? TvmSymbolicHashSymbol
+                ?: error("Unexpected symbol: $mockedHash")
         val symbolicAccountId = makeSymbolicPrimitive(mkBvSort(256u), TvmTrackedLiteral("symbolic_account_id"))
         val isStateInit = makeSymbolicPrimitive(boolSort, TvmTrackedLiteral("is_mock_account_id_stateinit"))
         val tsaAccountId = ctx.mkTsaAccountIdSymbol(isStateInit, boundStateInitHash, symbolicAccountId, data, code)

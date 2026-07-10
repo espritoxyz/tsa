@@ -40,9 +40,6 @@ import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.types.TvmType
 import org.usvm.regions.Region
 
-/**
- * Defines all the methods as identity functions
- */
 open class TvmDefaultTransformer(
     ctx: TvmContext,
 ) : UExprTransformer<TvmType, TvmSizeSort>(ctx),
@@ -131,7 +128,8 @@ open class TvmDefaultTransformer(
                 .tctx()
                 .mkTsaAccountIdSymbol(
                     newIsStateInit,
-                    newBoundStateInitHash as TvmSymbolicHashSymbol,
+                    newBoundStateInitHash as? TvmSymbolicHashSymbol
+                        ?: error("newBoundStateInitHash=$newBoundStateInitHash expected to be TvmSymbolicHashSymbol"),
                     newSymbolicAccountId,
                     newData,
                     newCode,

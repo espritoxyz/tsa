@@ -13,7 +13,6 @@ import org.usvm.UBoolExpr
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
-import org.usvm.UIteExpr
 import org.usvm.USort
 import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.TvmContext
@@ -197,7 +196,7 @@ class TvmHashConstraintsResolver(
             return result
         }
 
-        private fun transformToCellEqualityAlternative(
+        private fun transformToCellEqualityWhenOneRefsLengthIsConcrete(
             withConcreteRefsLength: UConcreteHeapRef,
             rhsCell: UConcreteHeapRef,
         ): UBoolExpr? {
@@ -252,9 +251,6 @@ class TvmHashConstraintsResolver(
                             stateWasKilled = true
                             return null
                         }
-                if (ref1.value is UIteExpr<*> || ref2.value is UIteExpr<*>) {
-                    return null
-                }
 
                 if (ref1.value !is UConcreteHeapRef || ref2.value !is UConcreteHeapRef) {
                     return null
@@ -341,9 +337,9 @@ class TvmHashConstraintsResolver(
                     val lhsRefs = state.readCellRefsCount(l.ref.asCellRef()).intValueOrNull
                     val rhsRefs = state.readCellRefsCount(r.ref.asCellRef()).intValueOrNull
                     if (lhsRefs != null) {
-                        return transformToCellEqualityAlternative(l.ref, r.ref)
+                        return transformToCellEqualityWhenOneRefsLengthIsConcrete(l.ref, r.ref)
                     } else if (rhsRefs != null) {
-                        return transformToCellEqualityAlternative(r.ref, l.ref)
+                        return transformToCellEqualityWhenOneRefsLengthIsConcrete(r.ref, l.ref)
                     }
                 }
             }
