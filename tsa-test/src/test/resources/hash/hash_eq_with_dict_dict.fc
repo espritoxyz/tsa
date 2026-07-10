@@ -1,0 +1,9 @@
+#include "util.fc";
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    var d1 = new_dict() .udict_set(32, 0, wrap_int(13));
+    var d2 = new_dict() .udict_set(32, 0, wrap_int(13));
+    return compare_cells_with_refs(d1, d2);
+}

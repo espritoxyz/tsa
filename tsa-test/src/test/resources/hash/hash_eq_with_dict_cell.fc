@@ -1,0 +1,19 @@
+#include "util.fc";
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    var d1 = new_dict().udict_set(32, 0, wrap_int(in_msg.preload_uint(32)));
+    var d2 = in_msg.preload_ref();
+
+    int hash1 = d1.cell_hash();
+    int hash2 = d2.cell_hash();
+    if (hash1 == hash2) {
+        throw(111);
+    } else {
+        throw(112);
+    }
+    return ();
+    ;; return compare_cells_with_refs(d1, d2);
+
+}
