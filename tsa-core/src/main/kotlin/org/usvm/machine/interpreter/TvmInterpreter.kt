@@ -843,7 +843,7 @@ class TvmInterpreter(
         when (stmt) {
             is TsaArtificialLoopEntranceInst -> "${stmt.mnemonic}(id=${stmt.id})"
             is TvmArtificialInst -> stmt.mnemonic
-            else -> formatInstruction(stmt, includeTvmCell = false)
+            else -> formatInstruction(stmt, includeTvmCell = false, includeTvmInstList = false)
         }
 
     override fun step(state: TvmState): StepResult<TvmState> {

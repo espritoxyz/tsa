@@ -11,7 +11,7 @@ object Versions {
     const val junitParams = "5.9.3"
     const val logback = "1.5.27"
     const val usvm = "dab6d43261eba1c4e72b35d8eda91763b6494934"
-    const val tvmDisasm = "ac4baedf7cb7bc04ca9ba3d5cf9f4e294f00b10f"
+    const val tvmDisasm = "783c965fa3e45fb51ae8f58796b40ab5fd0160d2"
     const val tonKotlin = "0.3.1"
     const val kotlinterPluginVersion = "5.0.0"
     const val asyncProfiler = "4.1"
