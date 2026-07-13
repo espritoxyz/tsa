@@ -89,8 +89,7 @@ class HashEqualityTest {
         val tests =
             funcCompileAndAnalyzeAllMethods(
                 path,
-                tvmOptions =
-                tvmOptions,
+                tvmOptions = tvmOptions,
                 methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
             ).single()
 

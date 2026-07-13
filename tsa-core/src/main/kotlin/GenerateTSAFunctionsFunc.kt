@@ -114,7 +114,7 @@ fun main() {
             return return_1();
         }
         
-        ;; sets sender to a symbolic authorized address and returns (code, data) of the bound stateinit
+        ;; sets sender to a symbolic authorized address and enables the authorization checks in the postprocess phase
         () tsa_enable_auth_check(int input_id) impure method_id(22) {
             ;; do nothing
         }
