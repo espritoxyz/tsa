@@ -18,7 +18,7 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.intblast.TvmTransformer
+import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmState
@@ -87,7 +87,7 @@ class TvmHashConstraintsResolver(
         val scope: TvmStepScopeManager,
         val state: TvmState,
     ) : TvmDefaultTransformer(ctx),
-        TvmTransformer {
+        TvmBvTransformer {
         var stateWasKilled: Boolean = false
 
         override fun <Sort : KBvSort> transform(expr: KBvOrExpr<Sort>): UExpr<Sort> =
@@ -370,5 +370,9 @@ class TvmHashConstraintsResolver(
             }
 
         override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
+
+        override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
+
+        override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = expr
     }
 }

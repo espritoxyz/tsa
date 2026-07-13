@@ -17,6 +17,7 @@ import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmSignatureCheck
@@ -200,7 +201,7 @@ class TvmPostProcessor(
                     ?.symbol
                     ?: return AuthAnalysisResult.NotCollected
             val visitor =
-                object : TvmDefaultTransformer(ctx) {
+                object : TvmDefaultTransformer(ctx), TvmBvTransformer {
                     var foundTsaAccountId = false
 
                     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> {
