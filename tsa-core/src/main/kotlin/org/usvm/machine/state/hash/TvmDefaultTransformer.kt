@@ -74,7 +74,10 @@ open class TvmDefaultTransformer(
 
     override fun <ElemSort : USort, Reg : Region<Reg>> transform(
         expr: UAllocatedSetReading<TvmType, ElemSort, Reg>,
-    ): UBoolExpr = error("unreachable")
+    ): UBoolExpr =
+        transformExprAfterTransformed(expr, expr.element) { newElement ->
+            ctx.tctx().mkAllocatedSetReading(expr.collection, newElement)
+        }
 
     override fun <ElemSort : USort, Reg : Region<Reg>> transform(
         expr: UInputSetReading<TvmType, ElemSort, Reg>,
@@ -98,48 +101,4 @@ open class TvmDefaultTransformer(
     override fun transform(expr: UNullRef): UExpr<UAddressSort> = error("unreachable")
 
     override fun <Sort : USort> transform(expr: UTrackedSymbol<Sort>): UExpr<Sort> = expr
-
-//    override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> =
-//        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-//            ctx.tctx().mkTvmSignedDiv(l, r)
-//        }
-//
-//    override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> =
-//        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-//            ctx.tctx().mkTvmMulNoSimplify(l, r)
-//        }
-
-//    override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> =
-//        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-//            ctx.tctx().mkTvmSignedMod(l, r)
-//        }
-//
-//    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> =
-//        (apply(expr.fallbackExpr) as? UExpr<*>)?.uncheckedCast()
-//            ?: error("failed transformation")
-//
-//    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> =
-//        (apply(expr.fallbackExpr) as? UExpr<*>)?.uncheckedCast()
-//            ?: error("failed transformation")
-//
-//    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> =
-//        transformExprAfterTransformed(
-//            expr,
-//            expr.isStateInit,
-//            expr.boundStateInitHash,
-//            expr.symbolicAccountId,
-//            expr.code,
-//            expr.data,
-//        ) { newIsStateInit, newBoundStateInitHash, newSymbolicAccountId, newCode, newData ->
-//            ctx
-//                .tctx()
-//                .mkTsaAccountIdSymbol(
-//                    newIsStateInit,
-//                    newBoundStateInitHash as? TvmSymbolicHashSymbol
-//                        ?: error("newBoundStateInitHash=$newBoundStateInitHash expected to be TvmSymbolicHashSymbol"),
-//                    newSymbolicAccountId,
-//                    newData,
-//                    newCode,
-//                )
-//        }
 }
