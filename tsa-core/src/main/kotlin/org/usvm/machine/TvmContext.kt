@@ -606,6 +606,29 @@ class TvmContext(
         ) {
             return arg.arg0.zeroExtendToSort(arg.sort)
         }
+
+        if (shift is KInterpretedValue &&
+            arg is KBvConcatExpr &&
+            arg.arg1.sort.sizeBits
+                .toInt()
+                .toBigInteger() < shift.bigIntValue()
+        ) {
+            val w0 =
+                arg.arg0.sort.sizeBits
+                    .toInt()
+                    .toBigInteger()
+            val toTakeFromFirst =
+                shift.bigIntValue() -
+                    arg.arg1.sort.sizeBits
+                        .toInt()
+                        .toBigInteger()
+            if (toTakeFromFirst >= w0) {
+                return mkBv(0, arg.sort).uncheckedCast()
+            }
+            return mkBvLogicalShiftRightExpr(arg.arg0, mkBv(toTakeFromFirst, arg.arg0.sort))
+                .zeroExtendToSort(arg.sort)
+                .uncheckedCast()
+        }
         return super.mkBvLogicalShiftRightExpr(arg, shift)
     }
 

@@ -34,7 +34,7 @@ class TsaAccountIdSymbol(
         get() = tctx.mkBvSort(TvmContext.HASH_BITS)
 
     override fun print(printer: ExpressionPrinter) {
-        printer.append("myaddr<")
+        printer.append("tsa_account_id<")
         printer.append(symbolicAccountId)
         printer.append(">")
     }

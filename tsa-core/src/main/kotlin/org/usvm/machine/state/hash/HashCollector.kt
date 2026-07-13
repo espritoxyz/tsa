@@ -20,5 +20,5 @@ open class HashCollector(
         return super<TvmBvTransformer>.transform(expr)
     }
 
-    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = super<TvmBvTransformer>.transform(expr)
+    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = expr
 }

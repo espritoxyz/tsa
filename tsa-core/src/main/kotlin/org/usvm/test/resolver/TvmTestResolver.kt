@@ -47,6 +47,7 @@ data object TvmTestResolver {
                 lastStmt = state.lastRealStmt,
                 intercontractPath = state.intercontractPath,
                 messageIdentifierMapping = state.messageIdentifierMapping,
+                resolvedAuthValues = state.resolvedAuthValues,
             )
         }
 
@@ -171,6 +172,7 @@ sealed interface TvmSymbolicTest {
     val lastStmt: TvmRealInst? // null if the body is empty
     val intercontractPath: List<ContractId>
     val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>
+    val resolvedAuthValues: AuthAnalysisResult
 }
 
 /**
@@ -188,6 +190,7 @@ data class TvmSymbolicTestShort(
     override val lastStmt: TvmRealInst?,
     override val intercontractPath: List<ContractId>,
     override val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
+    override val resolvedAuthValues: AuthAnalysisResult,
 ) : TvmSymbolicTest
 
 /**
@@ -218,7 +221,7 @@ data class TvmSymbolicTestFull(
     val initialSeed: BigInteger?,
     val debugInfo: TvmTestDebugInfo,
     override val messageIdentifierMapping: Map<Int, C5ActionIdentifier.MsgIdentifier>,
-    val resolvedAuthValues: AuthAnalysisResult,
+    override val resolvedAuthValues: AuthAnalysisResult,
 ) : TvmSymbolicTest {
     val initialRootContractState: TvmContractState
         get() =

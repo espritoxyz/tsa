@@ -9,6 +9,7 @@ import io.github.detekt.sarif4k.Run
 import io.github.detekt.sarif4k.SarifSchema210
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.modules.SerializersModule
 import org.ton.bigint.BigIntSerializer
@@ -118,48 +119,8 @@ private fun List<TvmSymbolicTest>.toSarifResult(
     val methodId = test.methodId
     val methodName = methodsMapping[methodId]
 
-    val authValues = (test as? TvmSymbolicTestFull)?.resolvedAuthValues
-    val resultAuthValue =
-        if (authValues != null) {
-            when (authValues) {
-                is AuthAnalysisResult.Collected -> {
-                    Json.encodeToJsonElement(
-                        authValues.authorizedEntities.map {
-                            when (it) {
-                                is TvmTestAuthValue.AuthorizedCode -> {
-                                    val cellBase64 = it.code.toBase64()
-                                    Json.encodeToJsonElement(
-                                        mapOf(
-                                            "type" to "code",
-                                            "code" to cellBase64,
-                                        ),
-                                    )
-                                }
-
-                                is TvmTestAuthValue.AuthorizedOwner -> {
-                                    Json.encodeToJsonElement(
-                                        mapOf(
-                                            "type" to "owner",
-                                            "address" to "0:${it.accountId.value.toString(16).padStart(64, '0')}",
-                                        ),
-                                    )
-                                }
-                            }
-                        },
-                    )
-                }
-
-                AuthAnalysisResult.NotCollected -> {
-                    Json.encodeToJsonElement("Not collected")
-                }
-
-                AuthAnalysisResult.Unknown -> {
-                    Json.encodeToJsonElement("Unknown")
-                }
-            }
-        } else {
-            null
-        }
+    val authValues = test.resolvedAuthValues
+    val resultAuthValue = convertAuthValuesToJson(authValues)
     val properties =
         PropertyBag(
             listOfNotNull(
@@ -229,5 +190,43 @@ private fun List<TvmSymbolicTest>.toSarifResult(
         )
     }
 }
+
+private fun convertAuthValuesToJson(authValues: AuthAnalysisResult): JsonElement =
+    when (authValues) {
+        is AuthAnalysisResult.Collected -> {
+            Json.encodeToJsonElement(
+                authValues.authorizedEntities.map {
+                    when (it) {
+                        is TvmTestAuthValue.AuthorizedCode -> {
+                            val cellBase64 = it.code.toBase64()
+                            Json.encodeToJsonElement(
+                                mapOf(
+                                    "type" to "code",
+                                    "code" to cellBase64,
+                                ),
+                            )
+                        }
+
+                        is TvmTestAuthValue.AuthorizedOwner -> {
+                            Json.encodeToJsonElement(
+                                mapOf(
+                                    "type" to "owner",
+                                    "address" to "0:${it.accountId.value.toString(16).padStart(64, '0')}",
+                                ),
+                            )
+                        }
+                    }
+                },
+            )
+        }
+
+        AuthAnalysisResult.NotCollected -> {
+            Json.encodeToJsonElement("Not collected")
+        }
+
+        AuthAnalysisResult.Unknown -> {
+            Json.encodeToJsonElement("Unknown")
+        }
+    }
 
 private fun resolveRuleId(methodResult: TvmFailure): String = methodResult.exit.ruleName

@@ -5,6 +5,7 @@ import io.ksmt.expr.KBvAndExpr
 import io.ksmt.expr.KBvOrExpr
 import io.ksmt.expr.KEqExpr
 import io.ksmt.expr.KExpr
+import io.ksmt.expr.transformer.KNonRecursiveTransformerBase
 import io.ksmt.sort.KBoolSort
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
@@ -18,7 +19,10 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.intblast.TvmBvTransformer
+import org.usvm.machine.intblast.TvmMultiplication
+import org.usvm.machine.intblast.TvmSignedDivision
+import org.usvm.machine.intblast.TvmSignedModulo
+import org.usvm.machine.intblast.TvmTransformer
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmState
@@ -29,6 +33,7 @@ import org.usvm.machine.state.makeCellToSliceTlbNoFork
 import org.usvm.machine.state.readCellRefsCount
 import org.usvm.machine.state.sliceLoadRefNoForkNoUnderflowCHeck
 import org.usvm.machine.state.slicesDataBitsAreEqual
+import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.getPossibleTypes
@@ -86,8 +91,8 @@ class TvmHashConstraintsResolver(
         override val ctx: TvmContext,
         val scope: TvmStepScopeManager,
         val state: TvmState,
-    ) : TvmDefaultTransformer(ctx),
-        TvmBvTransformer {
+    ) : DefaultUExprTransformer(ctx),
+        TvmTransformer {
         var stateWasKilled: Boolean = false
 
         override fun <Sort : KBvSort> transform(expr: KBvOrExpr<Sort>): UExpr<Sort> =
@@ -207,7 +212,10 @@ class TvmHashConstraintsResolver(
             val possibleLhsTypes = state.getPossibleTypes(withConcreteRefsLength).toList()
             val possibleRhsTypes = state.getPossibleTypes(rhsCell).toList()
 
-            if (TvmDataCellType !in possibleLhsTypes || TvmDataCellType !in possibleRhsTypes) {
+            val okTypes =
+                (TvmDataCellType in possibleRhsTypes || TvmBuilderType in possibleRhsTypes) &&
+                    (TvmDataCellType in possibleLhsTypes || TvmBuilderType in possibleLhsTypes)
+            if (!okTypes) {
                 return null
             }
             val lhsRefsCount =
@@ -321,7 +329,9 @@ class TvmHashConstraintsResolver(
                 logger.debug("Hash equality in path constraints")
                 val possibleLhsTypes = state.getPossibleTypes(l.ref).toList()
                 val possibleRhsTypes = state.getPossibleTypes(r.ref).toList()
-                if (TvmDataCellType in possibleLhsTypes && TvmDataCellType in possibleRhsTypes) {
+                if (TvmDataCellType in possibleLhsTypes &&
+                    (TvmDataCellType in possibleRhsTypes || TvmBuilderType in possibleRhsTypes)
+                ) {
                     val lhsValue = state.extractFullCellIfItIsConcrete(l.ref)
                     val rhsValue = state.extractFullCellIfItIsConcrete(r.ref)
                     if (lhsValue != null) {
@@ -369,6 +379,12 @@ class TvmHashConstraintsResolver(
                     ?: ctx.mkEq(l, r)
             }
 
+        override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> = transformDefault(expr)
+
+        override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> = transformDefault(expr)
+
+        override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> = transformDefault(expr)
+
         override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
 
         override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
@@ -376,3 +392,18 @@ class TvmHashConstraintsResolver(
         override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = expr
     }
 }
+
+fun <Sort : KBvSort> KNonRecursiveTransformerBase.transformDefault(expr: TvmSignedDivision<Sort>): KExpr<Sort> =
+    transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { newLhs, newRhs ->
+        ctx.tctx().mkTvmSignedDiv(newLhs, newRhs)
+    }
+
+fun <Sort : KBvSort> KNonRecursiveTransformerBase.transformDefault(expr: TvmMultiplication<Sort>): KExpr<Sort> =
+    transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { newLhs, newRhs ->
+        ctx.tctx().mkTvmMul(newLhs, newRhs)
+    }
+
+fun <Sort : KBvSort> KNonRecursiveTransformerBase.transformDefault(expr: TvmSignedModulo<Sort>): KExpr<Sort> =
+    transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { newLhs, newRhs ->
+        ctx.tctx().mkTvmSignedMod(newLhs, newRhs)
+    }

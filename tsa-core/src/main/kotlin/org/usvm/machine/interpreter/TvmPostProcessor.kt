@@ -22,8 +22,8 @@ import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.hash.DefaultUExprTransformer
 import org.usvm.machine.state.hash.HashCollector
-import org.usvm.machine.state.hash.TvmDefaultTransformer
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.hash.calculateConcreteHash
 import org.usvm.machine.state.messages.FwdFeeInfo
@@ -201,7 +201,7 @@ class TvmPostProcessor(
                     ?.symbol
                     ?: return AuthAnalysisResult.NotCollected
             val visitor =
-                object : TvmDefaultTransformer(ctx), TvmBvTransformer {
+                object : DefaultUExprTransformer(ctx), TvmBvTransformer {
                     var foundTsaAccountId = false
 
                     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> {

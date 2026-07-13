@@ -33,7 +33,7 @@ import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.types.TvmType
 import org.usvm.regions.Region
 
-open class TvmDefaultTransformer(
+open class DefaultUExprTransformer(
     ctx: TvmContext,
 ) : UExprTransformer<TvmType, TvmSizeSort>(ctx) {
     override fun <Sort : USort> transform(expr: URegisterReading<Sort>): UExpr<Sort> = expr
@@ -43,6 +43,21 @@ open class TvmDefaultTransformer(
             ctx.tctx().mkInputFieldReading(expr.collection, newRef)
         }
 
+    override fun <ElemSort : USort, Reg : Region<Reg>> transform(
+        expr: UAllocatedSetReading<TvmType, ElemSort, Reg>,
+    ): UBoolExpr =
+        transformExprAfterTransformed(expr, expr.element) { newElement ->
+            ctx.tctx().mkAllocatedSetReading(expr.collection, newElement)
+        }
+
+    override fun transform(expr: UConcreteHeapRef): UExpr<UAddressSort> = expr
+
+    override fun <Sort : USort> transform(expr: UTrackedSymbol<Sort>): UExpr<Sort> = expr
+
+    override fun <KeySort : USort, Sort : USort, Reg : Region<Reg>> transform(
+        expr: UAllocatedMapReading<TvmType, KeySort, Sort, Reg>,
+    ): UExpr<Sort> = error("unreachable")
+
     override fun <Sort : USort> transform(expr: UAllocatedArrayReading<TvmType, Sort, TvmSizeSort>): UExpr<Sort> =
         error("unreachable")
 
@@ -51,10 +66,6 @@ open class TvmDefaultTransformer(
 
     override fun transform(expr: UInputArrayLengthReading<TvmType, TvmSizeSort>): UExpr<TvmSizeSort> =
         error("unreachable")
-
-    override fun <KeySort : USort, Sort : USort, Reg : Region<Reg>> transform(
-        expr: UAllocatedMapReading<TvmType, KeySort, Sort, Reg>,
-    ): UExpr<Sort> = error("unreachable")
 
     override fun <KeySort : USort, Sort : USort, Reg : Region<Reg>> transform(
         expr: UInputMapReading<TvmType, KeySort, Sort, Reg>,
@@ -73,13 +84,6 @@ open class TvmDefaultTransformer(
         error("unreachable")
 
     override fun <ElemSort : USort, Reg : Region<Reg>> transform(
-        expr: UAllocatedSetReading<TvmType, ElemSort, Reg>,
-    ): UBoolExpr =
-        transformExprAfterTransformed(expr, expr.element) { newElement ->
-            ctx.tctx().mkAllocatedSetReading(expr.collection, newElement)
-        }
-
-    override fun <ElemSort : USort, Reg : Region<Reg>> transform(
         expr: UInputSetReading<TvmType, ElemSort, Reg>,
     ): UBoolExpr = error("unreachable")
 
@@ -96,9 +100,5 @@ open class TvmDefaultTransformer(
 
     override fun transform(expr: UIsSupertypeExpr<TvmType>): UBoolExpr = error("unreachable")
 
-    override fun transform(expr: UConcreteHeapRef): UExpr<UAddressSort> = expr
-
     override fun transform(expr: UNullRef): UExpr<UAddressSort> = error("unreachable")
-
-    override fun <Sort : USort> transform(expr: UTrackedSymbol<Sort>): UExpr<Sort> = expr
 }
