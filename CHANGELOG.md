@@ -1,5 +1,32 @@
 # TSA Changelog
 
+## v0.5.4 - v0.5.5
+
+* Implemented `CDATASIZE` by @tochilinak in https://github.com/espritoxyz/tsa/pull/316
+* Added mode with trace following by @tochilinak in https://github.com/espritoxyz/tsa/pull/317
+* Fixed the postprocces fixation order by @metametamoon in https://github.com/espritoxyz/tsa/pull/320
+* metametamoon/dict-ites by @metametamoon in https://github.com/espritoxyz/tsa/pull/321
+* Fixed the debug logback file by @metametamoon in https://github.com/espritoxyz/tsa/pull/326
+* Optimized RESERVE by @tochilinak in https://github.com/espritoxyz/tsa/pull/319
+* Message identifiers by @metametamoon in https://github.com/espritoxyz/tsa/pull/315
+* Added SHA256 instructions support by @metametamoon in https://github.com/espritoxyz/tsa/pull/324
+* Implemented set address intrinsic by @metametamoon in https://github.com/espritoxyz/tsa/pull/329
+* Added concrete time parameter for the first transaction by @tochilinak in https://github.com/espritoxyz/tsa/pull/331
+* Better emulation of C7 parameters + optimizations by @tochilinak in https://github.com/espritoxyz/tsa/pull/318
+* Changes in opcode extractor logic by @tochilinak in https://github.com/espritoxyz/tsa/pull/333
+* `TvmOutOpcodePathSelector` + small fixes by @tochilinak in https://github.com/espritoxyz/tsa/pull/336
+* Better handling of hash values in models by @metametamoon in https://github.com/espritoxyz/tsa/pull/330
+* Fork when slice ref index is symbolic by @tochilinak in https://github.com/espritoxyz/tsa/pull/338
+* TSA fork without solver intrinsic by @metametamoon in https://github.com/espritoxyz/tsa/pull/340
+* Fixed another memory explosion in int-blasting by @metametamoon in https://github.com/espritoxyz/tsa/pull/341
+* Path selector improvements + fixes by @tochilinak in https://github.com/espritoxyz/tsa/pull/337
+* Better strategy for extracting input opcodes by @tochilinak in https://github.com/espritoxyz/tsa/pull/343
+* Got rid of context receivers by @tochilinak in https://github.com/espritoxyz/tsa/pull/345
+* Removed continuation logging by @metametamoon in https://github.com/espritoxyz/tsa/pull/347
+
+
+**Full Changelog**: https://github.com/espritoxyz/tsa/compare/v0.5.4...v0.5.5
+
 ## v0.5.3 - v0.5.4
 
 * Fixed CI (fix in int-blasting) by @tochilinak in https://github.com/espritoxyz/tsa/pull/309
