@@ -4,7 +4,9 @@ import io.ksmt.expr.KBitVecValue
 import io.ksmt.utils.BvUtils.toBigIntegerSigned
 import io.ksmt.utils.powerOfTwo
 import io.ksmt.utils.toBigInteger
+import io.ktor.util.encodeBase64
 import kotlinx.collections.immutable.ImmutableList
+import org.ton.boc.BagOfCells
 import org.ton.bytecode.MethodId
 import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellData
@@ -19,6 +21,8 @@ import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmContext.TvmInt257Sort
+import org.usvm.test.resolver.TvmTestCellValue
+import org.usvm.test.resolver.transformTestCellIntoCell
 import java.io.File
 import java.math.BigInteger
 import java.nio.file.Path
@@ -96,3 +100,9 @@ fun <T> ImmutableList<T>.splitHeadTail(): Pair<T, ImmutableList<T>>? =
 fun <T> List<T>.dropFirstWithoutChecks(): List<T> = subList(1, size)
 
 fun <T> List<T>.tailUnsafe(): List<T> = subList(1, size)
+
+fun TvmTestCellValue.toBase64(): String {
+    val cell = transformTestCellIntoCell(this)
+    val bocBinary = BagOfCells(cell).toByteArray()
+    return bocBinary.encodeBase64()
+}
