@@ -51,10 +51,6 @@ interface TvmBvTransformer : TvmTransformer {
         expr.transformToBv {
             apply(it)
         }
-
-    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
-
-    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
 }
 
 class TvmBvNonRecursiveTransformer(
@@ -84,6 +80,10 @@ class TvmBvNonRecursiveTransformer(
         }
     }
 
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
+
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
+
     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = error("Should've been erased in translator")
 }
 
@@ -108,6 +108,10 @@ class TvmComposer(
                 newSymbolicAccountId,
             )
         }
+
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
+
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
 }
 
 class TvmTranslator(

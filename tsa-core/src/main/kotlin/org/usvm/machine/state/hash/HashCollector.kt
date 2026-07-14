@@ -17,8 +17,10 @@ open class HashCollector(
 
     override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> {
         collectedHashes.add(expr)
-        return super<TvmBvTransformer>.transform(expr)
+        return expr
     }
+
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
 
     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = expr
 }
