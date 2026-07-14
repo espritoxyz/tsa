@@ -32,6 +32,7 @@ import org.usvm.machine.state.messages.TlbCommonMessageInfo
 import org.usvm.machine.state.messages.TlbInternalMessageContent
 import org.usvm.machine.state.messages.TlbStateInit
 import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.types.ConcreteSliceRef
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.asSliceRef
 import org.usvm.sizeSort
@@ -41,6 +42,7 @@ class RecvInternalInput(
     messageConcreteData: MessageConcreteData,
     receiverContractId: ContractId,
     givenMsgBody: UConcreteHeapRef? = null,
+    givenAddress: ConcreteSliceRef? = null,
 ) : ReceiverInput(receiverContractId, messageConcreteData, givenMsgBody, state) {
     override val msgValue: Int257Expr =
         with(state.ctx) {
@@ -52,16 +54,17 @@ class RecvInternalInput(
         }
 
     override val srcAddressSlice: UConcreteHeapRef =
-        if (messageConcreteData.senderBits == null) {
-            state.allocSliceFromCell(state.generateSymbolicAddressCell(TvmMessageSender()).first)
-        } else {
-            state.allocSliceFromData(
-                state.ctx.mkBv(
-                    messageConcreteData.senderBits,
-                    TvmContext.stdMsgAddrSize.toUInt(),
-                ),
-            )
-        }
+        givenAddress?.value
+            ?: if (messageConcreteData.senderBits == null) {
+                state.allocSliceFromCell(state.generateSymbolicAddressCell(TvmMessageSender()).first)
+            } else {
+                state.allocSliceFromData(
+                    state.ctx.mkBv(
+                        messageConcreteData.senderBits,
+                        TvmContext.stdMsgAddrSize.toUInt(),
+                    ),
+                )
+            }
 
     private val bouncedFlag =
         if (state.ctx.tvmOptions.analyzeBouncedMessaged) {

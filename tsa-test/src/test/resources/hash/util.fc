@@ -1,0 +1,26 @@
+#include "../imports/stdlib.fc";
+
+slice wrap_int(int x) {
+    return begin_cell().store_uint(x, 32).end_cell().begin_parse();
+}
+
+() compare_cells_with_refs(cell d1, cell d2) impure {
+    var c1 = begin_cell()
+        .store_ref(d1)
+        .end_cell();
+
+    var c2 = begin_cell()
+        .store_ref(d2)
+        .end_cell();
+
+    int hash1 = c1.cell_hash();
+    int hash2 = c2.cell_hash();
+    if (hash1 == hash2) {
+        throw(111);
+    } else {
+        throw(112);
+    }
+    return ();
+}
+
+int builder_hash(builder b) asm "HASHBU";

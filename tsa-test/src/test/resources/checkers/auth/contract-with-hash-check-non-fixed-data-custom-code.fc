@@ -1,0 +1,19 @@
+#include "util.fc";
+#include "../../imports/stdlib.fc";
+
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    var msg_cell = in_msg_full.begin_parse();
+    msg_cell~load_uint(4); ;; flags
+    var sender = msg_cell~load_msg_addr();
+
+    var data = get_data().begin_parse();
+    var expected_code = data~load_ref();
+    var expected_nonce = msg_body~load_uint(64);
+    var expected_data = begin_cell().store_uint(expected_nonce, 64).end_cell();
+    var expected_sender = form_stateinit(expected_code, expected_data).cell_hash();
+    (_, var senderHash) = parse_std_addr(sender);
+    if (senderHash != expected_sender) {
+        throw(500);
+    }
+}

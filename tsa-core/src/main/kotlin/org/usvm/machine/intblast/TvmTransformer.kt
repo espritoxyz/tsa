@@ -2,7 +2,9 @@ package org.usvm.machine.intblast
 
 import io.ksmt.expr.KBvAndExpr
 import io.ksmt.expr.KBvOrExpr
+import io.ksmt.expr.KExpr
 import io.ksmt.expr.transformer.KNonRecursiveTransformer
+import io.ksmt.expr.transformer.KNonRecursiveTransformerBase
 import io.ksmt.expr.transformer.KTransformerBase
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
@@ -13,7 +15,11 @@ import org.usvm.collections.immutable.internal.MutabilityOwnership
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
-import org.usvm.machine.state.hash.TvmHashSymbol
+import org.usvm.machine.state.TsaAccountIdSymbol
+import org.usvm.machine.state.hash.TvmConstantHashSymbol
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
+import org.usvm.machine.state.hash.transformDefault
+import org.usvm.machine.tctx
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UReadOnlyMemory
 import org.usvm.solver.UExprTranslator
@@ -26,7 +32,11 @@ interface TvmTransformer : KTransformerBase {
 
     fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort>
 
-    fun transform(expr: TvmHashSymbol): UExpr<UBvSort>
+    fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort>
+
+    fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort>
+
+    fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort>
 }
 
 interface TvmBvTransformer : TvmTransformer {
@@ -44,8 +54,6 @@ interface TvmBvTransformer : TvmTransformer {
         expr.transformToBv {
             apply(it)
         }
-
-    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> = apply(expr.fallbackMock)
 }
 
 class TvmBvNonRecursiveTransformer(
@@ -74,6 +82,12 @@ class TvmBvNonRecursiveTransformer(
             TvmSignedModulo.transformToBv(l, r)
         }
     }
+
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = error("Should've been erased in translator")
+
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = error("Should've been erased in translator")
+
+    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = error("Should've been erased in translator")
 }
 
 class TvmComposer(
@@ -81,29 +95,29 @@ class TvmComposer(
     memory: UReadOnlyMemory<TvmType>,
     ownership: MutabilityOwnership,
 ) : UComposer<TvmType, TvmSizeSort>(ctx, memory, ownership),
-    TvmBvTransformer
+    TvmBvTransformer {
+    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = transformDefault(expr)
+
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
+
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
+}
 
 class TvmTranslator(
     ctx: TvmContext,
 ) : UExprTranslator<TvmType, TvmSizeSort>(ctx),
     TvmTransformer {
-    override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-            ctx.tctx().mkTvmSignedDiv(l, r)
-        }
+    override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> = transformDefault(expr)
 
-    override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-            ctx.tctx().mkTvmMulNoSimplify(l, r)
-        }
+    override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> = transformDefault(expr)
 
-    override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-            ctx.tctx().mkTvmSignedMod(l, r)
-        }
+    override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> = transformDefault(expr)
 
-    override fun transform(expr: TvmHashSymbol): UExpr<UBvSort> =
-        transformExprAfterTransformed(expr, expr.fallbackMock) { it }
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> =
+        transformExprAfterTransformed(expr, expr.fallbackExpr) { it }
+
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> =
+        transformExprAfterTransformed(expr, expr.fallbackExpr) { it }
 
     override fun <Sort : KBvSort> transform(expr: KBvOrExpr<Sort>): UExpr<Sort> =
         transformExprAfterTransformed(expr, expr.arg0, expr.arg1) { l, r ->
@@ -128,4 +142,22 @@ class TvmTranslator(
                 mkBvAndExpr(l, r)
             }
         }
+
+    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = transformDefault(expr)
 }
+
+fun KNonRecursiveTransformerBase.transformDefault(expr: TsaAccountIdSymbol): KExpr<UBvSort> =
+    transformExprAfterTransformed(
+        expr,
+        expr.isStateInit,
+        expr.boundStateInitHash,
+        expr.symbolicAccountId,
+        expr.code,
+        expr.data,
+    ) { newIsStateinit, newBoundStateInitHash, symbAccId, _, _ ->
+        ctx.mkIte(
+            newIsStateinit,
+            newBoundStateInitHash,
+            symbAccId,
+        )
+    }

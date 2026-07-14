@@ -113,6 +113,11 @@ fun main() {
         int tsa_fork_without_solver(int from, int to_inclusive) impure method_id(21) {
             return return_1();
         }
+        
+        ;; sets sender to a symbolic authorized address and enables the authorization checks in the postprocess phase
+        () tsa_enable_auth_check(int input_id) impure method_id(22) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

@@ -1,5 +1,7 @@
 package org.usvm.machine.interpreter
 
+import io.ksmt.expr.KBitVecValue
+import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import io.ksmt.utils.uncheckedCast
 import mu.KLogging
 import org.ton.api.pk.PrivateKeyEd25519
@@ -7,6 +9,7 @@ import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
+import org.usvm.UBvSort
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.forkblacklists.UForkBlackList
@@ -14,11 +17,17 @@ import org.usvm.isTrue
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.state.DataSizeInfo
+import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.hash.DefaultUExprTransformer
 import org.usvm.machine.state.hash.HashCollector
+import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
+import org.usvm.machine.state.hash.calculateConcreteHash
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
@@ -27,17 +36,16 @@ import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
+import org.usvm.test.resolver.TvmTestAuthValue
 import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestCellValue
 import org.usvm.test.resolver.TvmTestDataCellValue
-import org.usvm.test.resolver.TvmTestDictCellValue
+import org.usvm.test.resolver.TvmTestIntegerValue
 import org.usvm.test.resolver.TvmTestReferenceValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestStateResolver
 import org.usvm.test.resolver.endCell
 import org.usvm.test.resolver.transformTestCellIntoCell
-import org.usvm.test.resolver.transformTestDataCellIntoCell
-import org.usvm.test.resolver.transformTestDictCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
 import java.security.MessageDigest
@@ -182,7 +190,77 @@ class TvmPostProcessor(
                     return null
                 }
 
+            state.resolvedAuthValues = enumerateAuthValues(state)
+
             return state
+        }
+
+    private fun enumerateAuthValues(state: TvmState): AuthAnalysisResult =
+        with(ctx) {
+            val tsaAccountId =
+                state.inputIdToTsaAccountId.values
+                    .singleOrNull()
+                    ?.symbol
+                    ?: return AuthAnalysisResult.NotCollected
+            val visitor =
+                object : DefaultUExprTransformer(ctx), TvmBvTransformer {
+                    var foundTsaAccountId = false
+
+                    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> {
+                        foundTsaAccountId = true
+                        return expr
+                    }
+
+                    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
+
+                    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
+                }
+            state.pathConstraints.tvmConstraintsSequence().forEach { visitor.apply(it) }
+            if (visitor.foundTsaAccountId) {
+                // we failed to eliminate the equalities with tsaAccountId, so we cannot extract any information
+                return AuthAnalysisResult.Unknown
+            }
+
+            val scope =
+                TvmStepScopeManager(
+                    state.clone(),
+                    UForkBlackList.Companion.createDefault(),
+                    allowFailuresOnCurrentStep = false,
+                )
+            val values = mutableListOf<TvmTestAuthValue>()
+            val modelsCountLimit = ctx.tvmOptions.enumeratingModelsCountLimit
+            while (true) {
+                val model = scope.calcOnState { tvmModels.first() }
+                val isStateInit = model.eval(tsaAccountId.isStateInit).isTrue
+                if (isStateInit) {
+                    val resolver = TvmTestStateResolver(ctx, model, state)
+                    val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
+                    val code =
+                        resolver.resolveRef(tsaAccountId.code) as? TvmTestCellValue
+                            ?: break
+                    val codeEqCs =
+                        fixator.fixateConcreteValue(scope, tsaAccountId.code)
+                            ?: break
+                    values.add(TvmTestAuthValue.AuthorizedCode(code))
+                    scope.assert(tsaAccountId.isStateInit.not() or (tsaAccountId.isStateInit and codeEqCs.not()))
+                        ?: break
+                } else {
+                    val accountIdValue =
+                        (model.eval(tsaAccountId.symbolicAccountId) as KBitVecValue<*>).toBigIntegerUnsigned()
+                    values.add(TvmTestAuthValue.AuthorizedOwner(TvmTestIntegerValue(accountIdValue)))
+                    val accountIdEqCs =
+                        mkEq(
+                            tsaAccountId.symbolicAccountId,
+                            mkBv(accountIdValue, tsaAccountId.symbolicAccountId.sort.sizeBits),
+                        )
+                    scope.assert(tsaAccountId.isStateInit or (tsaAccountId.isStateInit.not() and accountIdEqCs.not()))
+                        ?: break
+                }
+                if (values.size > modelsCountLimit) {
+                    break
+                }
+            }
+            return AuthAnalysisResult.Collected(values, modelsCountLimit)
         }
 
     private fun assertConstraints(
@@ -587,28 +665,3 @@ class TvmPostProcessor(
         return 1 + cell.refs.maxOf { calculateCellDepth(it) }
     }
 }
-
-fun calculateConcreteHash(value: TvmTestReferenceValue): BigInteger =
-    when (value) {
-        is TvmTestDataCellValue -> {
-            val cell = transformTestDataCellIntoCell(value)
-            calculateHashOfCell(cell)
-        }
-
-        is TvmTestDictCellValue -> {
-            val cell = transformTestDictCellIntoCell(value)
-            calculateHashOfCell(cell)
-        }
-
-        is TvmTestBuilderValue -> {
-            val cell = transformTestDataCellIntoCell(value.toCell())
-            calculateHashOfCell(cell)
-        }
-
-        is TvmTestSliceValue -> {
-            val restCell = truncateSliceCell(value)
-            calculateConcreteHash(restCell)
-        }
-    }
-
-private fun calculateHashOfCell(cell: Cell): BigInteger = BigInteger(ByteArray(1) { 0 } + cell.hash().toByteArray())

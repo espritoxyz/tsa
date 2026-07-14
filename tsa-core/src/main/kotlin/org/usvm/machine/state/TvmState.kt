@@ -29,6 +29,7 @@ import org.usvm.machine.Int257Expr
 import org.usvm.machine.MessageConcreteData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
+import org.usvm.machine.interpreter.AuthAnalysisResult
 import org.usvm.machine.interpreter.DispatchedMessageContent
 import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
@@ -37,6 +38,7 @@ import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.TvmInput
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.ReceivedMessage
+import org.usvm.machine.types.ConcreteSliceRef
 import org.usvm.machine.types.TvmCellDataTypeRead
 import org.usvm.machine.types.TvmDataCellInfoStorage
 import org.usvm.machine.types.TvmDataCellLoadedTypeInfo
@@ -53,6 +55,11 @@ import java.math.BigInteger
 typealias ContractId = Int
 
 fun <T> PathNode<T>.statementOrNull() = if (this == PathNode.root<T>()) null else statement
+
+data class AccountIdInfo(
+    val symbol: TsaAccountIdSymbol,
+    val addressRef: ConcreteSliceRef,
+)
 
 class TvmState(
     ctx: TvmContext,
@@ -115,6 +122,11 @@ class TvmState(
         ),
     var fixatedHashes: PersistentSet<TvmHashSymbol> = persistentSetOf(),
     var c5IdentifierList: PersistentMap<UConcreteHeapRef, PersistentList<C5ActionIdentifier>> = persistentMapOf(),
+    var inputIdToTsaAccountId: PersistentMap<Int, AccountIdInfo> = persistentMapOf(),
+    /**
+     * Authorized entities enumerated for the `tsa_enable_auth_check` intrinsic. Computed during post-processing.
+     */
+    var resolvedAuthValues: AuthAnalysisResult = AuthAnalysisResult.NotCollected,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -261,6 +273,8 @@ class TvmState(
             functionalDependencyAssertion = functionalDependencyAssertion.copy(),
             fixatedHashes = fixatedHashes,
             c5IdentifierList = c5IdentifierList,
+            inputIdToTsaAccountId = inputIdToTsaAccountId,
+            resolvedAuthValues = resolvedAuthValues,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData

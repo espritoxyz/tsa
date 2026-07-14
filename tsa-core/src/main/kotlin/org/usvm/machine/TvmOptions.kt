@@ -54,6 +54,12 @@ data class TvmOptions(
     val addTimeoutIfNotSatiated: Boolean = false,
     val shortResolve: Boolean = false,
     val groupByOutOpcodes: Boolean = false,
+    val groupStatesByOutMessages: Boolean = false,
+    /**
+     * The limit of how many models will be extracted for any expression fetched by the `TvmState.fetchedValuesForModelEnum`
+     * variable.
+     */
+    val enumeratingModelsCountLimit: Int = 5,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {

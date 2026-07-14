@@ -2,42 +2,47 @@ package org.ton.examples.hash
 
 import org.ton.test.gen.dsl.render.TsRenderer.ContractType
 import org.ton.test.utils.TvmTestExecutor
+import org.ton.test.utils.assertInvariantHolds
+import org.ton.test.utils.assertInvariantHoldsOrEmpty
+import org.ton.test.utils.assertPropertiesFound
+import org.ton.test.utils.doesNotEndWithExitCode
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractFuncContractFromResource
 import org.ton.test.utils.extractResource
 import org.ton.test.utils.funcCompileAndAnalyzeAllMethods
+import org.ton.test.utils.hasExitCode
 import org.ton.test.utils.propertiesFound
 import org.usvm.machine.TlbOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
 import org.usvm.test.resolver.TvmTestFailure
-import kotlin.test.Ignore
 import kotlin.test.Test
 
 class HashEqualityTest {
     private val hashEqPath = "/hash/hash_eq.fc"
+    private val hashEqDictsPath = "/hash/hash_eq_with_dict_dict.fc"
+    private val hashEqDictCellPath = "/hash/hash_eq_with_dict_cell.fc"
+    private val hashEqCellBuilderPath = "/hash/hash_eq_with_cell_builder.fc"
+    private val hashEqBuilderBuilderPath = "/hash/hash_eq_with_builder_builder.fc"
     private val hashEqConcretePath = "/hash/hash_eq_concrete.fc"
 
     private val drainWithStateInitChecker = "/hash/drain-check/drain_checker_stateinit.fc"
     private val vulnerableContract = "/hash/drain-check/vulnerable.fc"
 
-    @Ignore("Current implementation of hashes doesn't solve such constraints")
+    private val tvmOptions =
+        TvmOptions(
+            performAdditionalChecksWhileResolving = true,
+            tlbOptions = TlbOptions(performTlbChecksOnAllocatedCells = true),
+        )
+
     @Test
     fun testHashEquality() {
         val path = extractResource(hashEqPath)
-
         val tests =
             funcCompileAndAnalyzeAllMethods(
                 path,
-                tvmOptions =
-                    TvmOptions(
-                        performAdditionalChecksWhileResolving = true,
-                        tlbOptions =
-                            TlbOptions(
-                                performTlbChecksOnAllocatedCells = true,
-                            ),
-                    ),
+                tvmOptions = this.tvmOptions,
                 methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
             ).single()
 
@@ -52,20 +57,63 @@ class HashEqualityTest {
     }
 
     @Test
-    fun testHashEqualityConcrete() {
-        val path = extractResource(hashEqConcretePath)
-
+    fun `test hash equality with dicts`() {
         val tests =
             funcCompileAndAnalyzeAllMethods(
-                path,
-                tvmOptions =
-                    TvmOptions(
-                        performAdditionalChecksWhileResolving = true,
-                        tlbOptions =
-                            TlbOptions(
-                                performTlbChecksOnAllocatedCells = true,
-                            ),
-                    ),
+                extractResource(hashEqDictsPath),
+                tvmOptions = tvmOptions,
+                methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
+            ).single()
+
+        tests.assertPropertiesFound(hasExitCode(111))
+        tests.assertInvariantHolds(doesNotEndWithExitCode(112))
+    }
+
+    @Test
+    fun `test hash equality builder cell`() {
+        val tests =
+            funcCompileAndAnalyzeAllMethods(
+                extractResource(hashEqCellBuilderPath),
+                tvmOptions = tvmOptions,
+                methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
+            ).single()
+
+        tests.assertPropertiesFound(hasExitCode(111))
+        tests.assertPropertiesFound(hasExitCode(112))
+    }
+
+    @Test
+    fun `test hash equality builder builder`() {
+        val tests =
+            funcCompileAndAnalyzeAllMethods(
+                extractResource(hashEqBuilderBuilderPath),
+                tvmOptions = tvmOptions,
+                methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
+            ).single()
+
+        tests.assertPropertiesFound(hasExitCode(111))
+        tests.assertPropertiesFound(hasExitCode(112))
+    }
+
+    @Test
+    fun `test hash equality with dict and cell `() {
+        val tests =
+            funcCompileAndAnalyzeAllMethods(
+                extractResource(hashEqDictCellPath),
+                tvmOptions = tvmOptions,
+                methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
+            ).single()
+
+        // the support for dicts is very partial, so we cannot be sure yet whether we found the expected execution
+        tests.assertInvariantHoldsOrEmpty(doesNotEndWithExitCode(111))
+    }
+
+    @Test
+    fun testHashEqualityConcrete() {
+        val tests =
+            funcCompileAndAnalyzeAllMethods(
+                extractResource(hashEqConcretePath),
+                tvmOptions = tvmOptions,
                 methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
             ).single()
 
@@ -78,7 +126,7 @@ class HashEqualityTest {
             ),
         )
 
-        TvmTestExecutor.executeGeneratedTests(tests, path, ContractType.Func)
+        TvmTestExecutor.executeGeneratedTests(tests, extractResource(hashEqConcretePath), ContractType.Func)
     }
 
     @Test

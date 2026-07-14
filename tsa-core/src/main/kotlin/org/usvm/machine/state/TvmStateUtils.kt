@@ -1,6 +1,7 @@
 package org.usvm.machine.state
 
 import io.ksmt.expr.KBitVecValue
+import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KInterpretedValue
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.powerOfTwo
@@ -49,6 +50,7 @@ import org.usvm.machine.intValue
 import org.usvm.machine.maxUnsignedValue
 import org.usvm.machine.state.TvmStack.TvmStackIntValue
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.messages.ReceivedMessage
 import org.usvm.machine.state.messages.bounce
 import org.usvm.machine.state.messages.bounced
@@ -60,6 +62,7 @@ import org.usvm.machine.state.messages.msgValue
 import org.usvm.machine.state.messages.srcAddressSlice
 import org.usvm.machine.state.messages.stateInit
 import org.usvm.machine.toTvmCell
+import org.usvm.machine.types.ConcreteCellRef
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
 import org.usvm.machine.types.TvmDataCellType
@@ -68,6 +71,8 @@ import org.usvm.machine.types.TvmFinalReferenceType
 import org.usvm.machine.types.TvmNullType
 import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
+import org.usvm.machine.types.asCellRef
+import org.usvm.machine.types.getPossibleTypes
 import org.usvm.machine.types.wrap
 import org.usvm.memory.GuardedExpr
 import org.usvm.memory.foldHeapRef
@@ -509,6 +514,14 @@ fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? =
         TvmDataCellOperationOnDict,
     )
 
+fun TvmStepScopeManager.assertBuilderType(value: UHeapRef): Unit? =
+    assertConcreteCellType(
+        value,
+        newType = TvmBuilderType,
+        badType = TvmDictCellType, // any non-builder type will do
+        TvmDataCellOperationOnDict,
+    )
+
 fun TvmStepScopeManager.killCurrentState() =
     with(ctx) {
         assert(falseExpr).also {
@@ -683,6 +696,49 @@ fun TvmState.switchToFirstMethodInContract(
 
 fun TvmState.switchDirectlyToMethodInContract(method: TvmMethod) = newStmt(method.instList.first())
 
+/**
+ * Generates a symbolic sender address for the `tsa_enable_auth_check` intrinsic.
+ * @return (address, authCheckInfo)
+ */
+fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, TsaAccountIdSymbol> =
+    with(ctx) {
+        val workchain = mkBv(0, 8u)
+        val code = generateSymbolicCell()
+        val data = generateSymbolicCell()
+        val stateInitBuilder = allocEmptyBuilder()
+        /*
+        _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
+        code:(Maybe ^Cell) data:(Maybe ^Cell)
+        library:(HashmapE 256 SimpleLib) = StateInit;
+         */
+        val stateInitBits = 0b00110
+        builderSetDataUnsafe(stateInitBuilder, mkBv(stateInitBits, 5U))
+        builderStoreNextRefNoOverflowCheck(stateInitBuilder, code)
+        builderStoreNextRefNoOverflowCheck(stateInitBuilder, data)
+        val stateInit = builderToCell(stateInitBuilder)
+        val mockedHash = mockHash(stateInit)
+        val boundStateInitHash =
+            (mockedHash as? KBvZeroExtensionExpr)?.value as? TvmSymbolicHashSymbol
+                ?: error("Unexpected symbol: $mockedHash")
+        val symbolicAccountId = makeSymbolicPrimitive(mkBvSort(256u), TvmTrackedLiteral("symbolic_account_id"))
+        val isStateInit = makeSymbolicPrimitive(boolSort, TvmTrackedLiteral("is_mock_account_id_stateinit"))
+        val tsaAccountId = ctx.mkTsaAccountIdSymbol(isStateInit, boundStateInitHash, symbolicAccountId, data, code)
+        val address =
+            allocDataCellFromData(
+                mkBvConcatExpr(
+                    mkBvConcatExpr(
+                        // addr_std$10 anycast:(Maybe Anycast)
+                        mkBv("100", 3u),
+                        // workchain_id:int8
+                        workchain,
+                    ),
+                    // address:bits256
+                    tsaAccountId,
+                ),
+            )
+        return address.asCellRef() to tsaAccountId
+    }
+
 // second value is workchain
 fun TvmState.generateSymbolicAddressCell(literal: TvmTrackedLiteral): Pair<UConcreteHeapRef, UExpr<UBvSort>> =
     with(ctx) {
@@ -802,9 +858,18 @@ fun TvmState.mockSha256(ref: UHeapRef): UExpr<TvmInt257Sort> = mockValueForRef(r
 fun TvmState.mockHash(ref: UConcreteHeapRef): UExpr<TvmInt257Sort> =
     refToHash[ref.address]?.let {
         with(ctx) { it.zeroExtendToSort(int257sort) }
-    } ?: mockNonNegativeInt(TvmHash(ref)) {
-        ctx.mkTvmHash(ref, it).also { hash ->
-            refToHash = refToHash.put(ref.address, hash)
+    } ?: mockNonNegativeInt(TvmHash(ref)) { nonNegativeIntMock ->
+        val possibleTypes = getPossibleTypes(ref).toList()
+        val isCell = possibleTypes.all { it is TvmDataCellType } && possibleTypes.isNotEmpty()
+        val concreteCellValue = if (isCell) extractFullCellIfItIsConcrete(ref) else null
+        if (concreteCellValue != null) {
+            ctx.mkTvmConstantHash(ref, concreteCellValue).also { hash ->
+                refToHash = refToHash.put(ref.address, hash)
+            }
+        } else {
+            ctx.mkTvmHash(ref, nonNegativeIntMock).also { hash ->
+                refToHash = refToHash.put(ref.address, hash)
+            }
         }
     }
 

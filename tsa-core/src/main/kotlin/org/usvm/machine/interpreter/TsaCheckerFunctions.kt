@@ -21,6 +21,7 @@ const val ASSERT_SLICE_IS_DEPENDENT = 16
 const val ASSERT_SLICE_DETERMINES = 17
 const val SET_ADDRESS = 20
 const val FORK_WITHOUT_SOLVER = 21
+const val ENABLE_AUTH_CHECK = 22
 
 /**
  * Were calculated using python script:

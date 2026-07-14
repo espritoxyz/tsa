@@ -110,6 +110,16 @@ data class TvmTestSliceValue(
 ) : TvmTestValue,
     TvmTestReferenceValue
 
+sealed interface TvmTestAuthValue {
+    data class AuthorizedCode(
+        val code: TvmTestCellValue,
+    ) : TvmTestAuthValue
+
+    data class AuthorizedOwner(
+        val accountId: TvmTestIntegerValue,
+    ) : TvmTestAuthValue
+}
+
 @Serializable
 data object TvmTestNullValue : TvmTestValue
 
