@@ -26,6 +26,7 @@ import org.usvm.machine.intblast.TvmTransformer
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmPathConstraints
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.assertBuilderType
 import org.usvm.machine.state.assertDataCellType
 import org.usvm.machine.state.extractFullCellIfItIsConcrete
 import org.usvm.machine.state.killCurrentState
@@ -38,8 +39,11 @@ import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.getPossibleTypes
 import org.usvm.mkSizeExpr
-import org.usvm.test.resolver.TvmTestCellValue
+import org.usvm.test.resolver.TvmTestBuilderValue
 import org.usvm.test.resolver.TvmTestDataCellValue
+import org.usvm.test.resolver.TvmTestDictCellValue
+import org.usvm.test.resolver.TvmTestReferenceValue
+import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestStateResolver
 import org.usvm.utils.groupIntoParts
 import org.usvm.utils.intValueOrNull
@@ -130,24 +134,23 @@ class TvmHashConstraintsResolver(
             val possibleLhsTypes = state.getPossibleTypes(fullyConcreteRef).toList()
             val possibleRhsTypes = state.getPossibleTypes(refToFixate).toList()
 
-            if (TvmDataCellType !in possibleLhsTypes || TvmDataCellType !in possibleRhsTypes) {
+            // TODO: consider the case where a either ref could be a slice
+            val okTypes =
+                (TvmDataCellType in possibleLhsTypes || TvmBuilderType in possibleLhsTypes) &&
+                    (TvmDataCellType in possibleRhsTypes || TvmBuilderType in possibleRhsTypes)
+            if (!okTypes) {
                 return null
             }
 
             val resolver = TvmTestStateResolver(ctx, state.tvmModels.first(), state)
             val value =
-                resolver.resolveRef(fullyConcreteRef) as? TvmTestCellValue
+                resolver
+                    .resolveRef(fullyConcreteRef)
+                    .convertToCellValuePreservingHash()
                     ?: error("Unexpected resolver value")
 
-            // no support for dicts yet
-            if (value !is TvmTestDataCellValue) {
-                return null
-            }
-
-            scope.assertDataCellType(fullyConcreteRef)
-                ?: error("Unexpected unsat")
-            scope.assertDataCellType(refToFixate)
-                ?: error("Unexpected unsat")
+            assertTypeCellOrBuilderType(fullyConcreteRef)
+            assertTypeCellOrBuilderType(refToFixate)
 
             var slice1 = makeCellToSliceTlbNoFork(scope, fullyConcreteRef)
             var slice2 = makeCellToSliceTlbNoFork(scope, refToFixate)
@@ -199,6 +202,39 @@ class TvmHashConstraintsResolver(
             }
 
             return result
+        }
+
+        private fun TvmTestReferenceValue.convertToCellValuePreservingHash(): TvmTestDataCellValue? {
+            return when (this) {
+                is TvmTestBuilderValue -> {
+                    TvmTestDataCellValue(
+                        data = this.data,
+                        refs = this.refs.map { it.convertToCellValuePreservingHash() ?: return null },
+                    )
+                }
+
+                is TvmTestDataCellValue -> {
+                    this
+                }
+
+                is TvmTestDictCellValue -> {
+                    null
+                }
+
+                is TvmTestSliceValue -> {
+                    null
+                }
+            }
+        }
+
+        private fun assertTypeCellOrBuilderType(fullyConcreteRef: UConcreteHeapRef) {
+            if (TvmDataCellType in state.getPossibleTypes(fullyConcreteRef)) {
+                scope.assertDataCellType(fullyConcreteRef)
+                    ?: error("Unexpected unsat")
+            } else if (TvmBuilderType in state.getPossibleTypes(fullyConcreteRef)) {
+                scope.assertBuilderType(fullyConcreteRef)
+                    ?: error("Unexpected unsat")
+            }
         }
 
         private fun transformToCellEqualityWhenOneRefsLengthIsConcrete(
@@ -329,7 +365,7 @@ class TvmHashConstraintsResolver(
                 logger.debug("Hash equality in path constraints")
                 val possibleLhsTypes = state.getPossibleTypes(l.ref).toList()
                 val possibleRhsTypes = state.getPossibleTypes(r.ref).toList()
-                if (TvmDataCellType in possibleLhsTypes &&
+                if ((TvmDataCellType in possibleLhsTypes || TvmBuilderType in possibleLhsTypes) &&
                     (TvmDataCellType in possibleRhsTypes || TvmBuilderType in possibleRhsTypes)
                 ) {
                     val lhsValue = state.extractFullCellIfItIsConcrete(l.ref)

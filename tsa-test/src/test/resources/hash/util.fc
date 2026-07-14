@@ -22,3 +22,5 @@ slice wrap_int(int x) {
     }
     return ();
 }
+
+int builder_hash(builder b) asm "HASHBU";

@@ -23,6 +23,8 @@ class HashEqualityTest {
     private val hashEqPath = "/hash/hash_eq.fc"
     private val hashEqDictsPath = "/hash/hash_eq_with_dict_dict.fc"
     private val hashEqDictCellPath = "/hash/hash_eq_with_dict_cell.fc"
+    private val hashEqCellBuilderPath = "/hash/hash_eq_with_cell_builder.fc"
+    private val hashEqBuilderBuilderPath = "/hash/hash_eq_with_builder_builder.fc"
     private val hashEqConcretePath = "/hash/hash_eq_concrete.fc"
 
     private val drainWithStateInitChecker = "/hash/drain-check/drain_checker_stateinit.fc"
@@ -56,10 +58,9 @@ class HashEqualityTest {
 
     @Test
     fun `test hash equality with dicts`() {
-        val path = extractResource(hashEqDictsPath)
         val tests =
             funcCompileAndAnalyzeAllMethods(
-                path,
+                extractResource(hashEqDictsPath),
                 tvmOptions = tvmOptions,
                 methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
             ).single()
@@ -69,11 +70,36 @@ class HashEqualityTest {
     }
 
     @Test
-    fun `test hash equality with dict and cell `() {
-        val path = extractResource(hashEqDictCellPath)
+    fun `test hash equality builder cell`() {
         val tests =
             funcCompileAndAnalyzeAllMethods(
-                path,
+                extractResource(hashEqCellBuilderPath),
+                tvmOptions = tvmOptions,
+                methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
+            ).single()
+
+        tests.assertPropertiesFound(hasExitCode(111))
+        tests.assertPropertiesFound(hasExitCode(112))
+    }
+
+    @Test
+    fun `test hash equality builder builder`() {
+        val tests =
+            funcCompileAndAnalyzeAllMethods(
+                extractResource(hashEqBuilderBuilderPath),
+                tvmOptions = tvmOptions,
+                methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
+            ).single()
+
+        tests.assertPropertiesFound(hasExitCode(111))
+        tests.assertPropertiesFound(hasExitCode(112))
+    }
+
+    @Test
+    fun `test hash equality with dict and cell `() {
+        val tests =
+            funcCompileAndAnalyzeAllMethods(
+                extractResource(hashEqDictCellPath),
                 tvmOptions = tvmOptions,
                 methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
             ).single()
@@ -84,11 +110,9 @@ class HashEqualityTest {
 
     @Test
     fun testHashEqualityConcrete() {
-        val path = extractResource(hashEqConcretePath)
-
         val tests =
             funcCompileAndAnalyzeAllMethods(
-                path,
+                extractResource(hashEqConcretePath),
                 tvmOptions = tvmOptions,
                 methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
             ).single()
@@ -102,7 +126,7 @@ class HashEqualityTest {
             ),
         )
 
-        TvmTestExecutor.executeGeneratedTests(tests, path, ContractType.Func)
+        TvmTestExecutor.executeGeneratedTests(tests, extractResource(hashEqConcretePath), ContractType.Func)
     }
 
     @Test

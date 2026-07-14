@@ -514,6 +514,14 @@ fun TvmStepScopeManager.assertDataCellType(value: UHeapRef): Unit? =
         TvmDataCellOperationOnDict,
     )
 
+fun TvmStepScopeManager.assertBuilderType(value: UHeapRef): Unit? =
+    assertConcreteCellType(
+        value,
+        newType = TvmBuilderType,
+        badType = TvmDictCellType, // any non-builder type will do
+        TvmDataCellOperationOnDict,
+    )
+
 fun TvmStepScopeManager.killCurrentState() =
     with(ctx) {
         assert(falseExpr).also {
