@@ -24,7 +24,9 @@ import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.hash.DefaultUExprTransformer
 import org.usvm.machine.state.hash.HashCollector
+import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
+import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.hash.calculateConcreteHash
 import org.usvm.machine.state.messages.FwdFeeInfo
 import org.usvm.machine.state.messages.calculateConcreteForwardFee
@@ -208,6 +210,10 @@ class TvmPostProcessor(
                         foundTsaAccountId = true
                         return expr
                     }
+
+                    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
+
+                    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
                 }
             state.pathConstraints.tvmConstraintsSequence().forEach { visitor.apply(it) }
             if (visitor.foundTsaAccountId) {

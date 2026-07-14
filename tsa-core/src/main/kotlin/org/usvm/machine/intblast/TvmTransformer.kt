@@ -2,7 +2,9 @@ package org.usvm.machine.intblast
 
 import io.ksmt.expr.KBvAndExpr
 import io.ksmt.expr.KBvOrExpr
+import io.ksmt.expr.KExpr
 import io.ksmt.expr.transformer.KNonRecursiveTransformer
+import io.ksmt.expr.transformer.KNonRecursiveTransformerBase
 import io.ksmt.expr.transformer.KTransformerBase
 import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
@@ -16,6 +18,7 @@ import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
+import org.usvm.machine.state.hash.transformDefault
 import org.usvm.machine.tctx
 import org.usvm.machine.types.TvmType
 import org.usvm.memory.UReadOnlyMemory
@@ -80,9 +83,9 @@ class TvmBvNonRecursiveTransformer(
         }
     }
 
-    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = expr
+    override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> = error("Should've been erased in translator")
 
-    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = expr
+    override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = error("Should've been erased in translator")
 
     override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = error("Should've been erased in translator")
 }
@@ -93,21 +96,7 @@ class TvmComposer(
     ownership: MutabilityOwnership,
 ) : UComposer<TvmType, TvmSizeSort>(ctx, memory, ownership),
     TvmBvTransformer {
-    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> =
-        transformExprAfterTransformed(
-            expr,
-            expr.isStateInit,
-            expr.boundStateInitHash,
-            expr.symbolicAccountId,
-            expr.code,
-            expr.data,
-        ) { newIsStateinit, newBoundStateInitHash, newSymbolicAccountId, _, _ ->
-            ctx.mkIte(
-                newIsStateinit,
-                newBoundStateInitHash,
-                newSymbolicAccountId,
-            )
-        }
+    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = transformDefault(expr)
 
     override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> = apply(expr.fallbackExpr)
 
@@ -118,20 +107,11 @@ class TvmTranslator(
     ctx: TvmContext,
 ) : UExprTranslator<TvmType, TvmSizeSort>(ctx),
     TvmTransformer {
-    override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-            ctx.tctx().mkTvmSignedDiv(l, r)
-        }
+    override fun <Sort : KBvSort> transform(expr: TvmSignedDivision<Sort>): UExpr<Sort> = transformDefault(expr)
 
-    override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-            ctx.tctx().mkTvmMulNoSimplify(l, r)
-        }
+    override fun <Sort : KBvSort> transform(expr: TvmMultiplication<Sort>): UExpr<Sort> = transformDefault(expr)
 
-    override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> =
-        transformExprAfterTransformed(expr, expr.lhs, expr.rhs) { l, r ->
-            ctx.tctx().mkTvmSignedMod(l, r)
-        }
+    override fun <Sort : KBvSort> transform(expr: TvmSignedModulo<Sort>): UExpr<Sort> = transformDefault(expr)
 
     override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> =
         transformExprAfterTransformed(expr, expr.fallbackExpr) { it }
@@ -163,19 +143,21 @@ class TvmTranslator(
             }
         }
 
-    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> =
-        transformExprAfterTransformed(
-            expr,
-            expr.isStateInit,
-            expr.boundStateInitHash,
-            expr.symbolicAccountId,
-            expr.code,
-            expr.data,
-        ) { newIsStateinit, newBoundStateInitHash, symbAccId, _, _ ->
-            ctx.mkIte(
-                newIsStateinit,
-                newBoundStateInitHash,
-                symbAccId,
-            )
-        }
+    override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> = transformDefault(expr)
 }
+
+fun KNonRecursiveTransformerBase.transformDefault(expr: TsaAccountIdSymbol): KExpr<UBvSort> =
+    transformExprAfterTransformed(
+        expr,
+        expr.isStateInit,
+        expr.boundStateInitHash,
+        expr.symbolicAccountId,
+        expr.code,
+        expr.data,
+    ) { newIsStateinit, newBoundStateInitHash, symbAccId, _, _ ->
+        ctx.mkIte(
+            newIsStateinit,
+            newBoundStateInitHash,
+            symbAccId,
+        )
+    }
