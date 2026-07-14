@@ -194,7 +194,7 @@ private fun List<TvmSymbolicTest>.toSarifResult(
 private fun convertAuthValuesToJson(authValues: AuthAnalysisResult): JsonElement =
     when (authValues) {
         is AuthAnalysisResult.Collected -> {
-            Json.encodeToJsonElement(
+            val authorizedEntities =
                 authValues.authorizedEntities.map {
                     when (it) {
                         is TvmTestAuthValue.AuthorizedCode -> {
@@ -216,7 +216,12 @@ private fun convertAuthValuesToJson(authValues: AuthAnalysisResult): JsonElement
                             )
                         }
                     }
-                },
+                }
+            Json.encodeToJsonElement(
+                mapOf(
+                    "entities" to Json.encodeToJsonElement(authorizedEntities),
+                    "limit" to Json.encodeToJsonElement(authValues.collectionLimit),
+                ),
             )
         }
 

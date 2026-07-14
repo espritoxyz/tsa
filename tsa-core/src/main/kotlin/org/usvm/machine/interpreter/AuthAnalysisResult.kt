@@ -17,5 +17,6 @@ sealed interface AuthAnalysisResult {
 
     data class Collected(
         val authorizedEntities: List<TvmTestAuthValue>,
+        val collectionLimit: Int,
     ) : AuthAnalysisResult
 }

@@ -254,7 +254,7 @@ class TvmPostProcessor(
                     break
                 }
             }
-            return AuthAnalysisResult.Collected(values)
+            return AuthAnalysisResult.Collected(values, modelsCountLimit)
         }
 
     private fun assertConstraints(
