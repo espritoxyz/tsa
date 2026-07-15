@@ -9,6 +9,7 @@ import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import org.ton.Endian
 import org.ton.bytecode.TvmCell
+import org.ton.cell.Cell
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
@@ -1331,9 +1332,40 @@ fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef =
         cell
     }
 
+// also handles exotic cells
+fun TvmState.allocateCell(cellValue: Cell): UConcreteHeapRef =
+    with(ctx) {
+        val bits = cellValue.bits.toBinary()
+        val refsSizeCondition = cellValue.refs.size <= TvmContext.MAX_REFS_NUMBER
+        val cellDataSizeCondition = bits.length <= MAX_DATA_LENGTH
+        check(refsSizeCondition && cellDataSizeCondition) { "Unexpected cellValue: $cellValue" }
+
+        val cell = allocEmptyCell()
+
+        if (cellValue.type.isExotic) {
+            fieldManagers.cellExoticFieldManager.writeCellData(this@allocateCell, cell, trueExpr)
+        } else {
+            fieldManagers.cellExoticFieldManager.writeCellData(this@allocateCell, cell, falseExpr)
+        }
+
+        if (bits.isNotEmpty()) {
+            val data = mkBv(bits, bits.length.toUInt())
+            builderStoreDataBitsNoOverflowCheck(cell, data)
+        }
+
+        cellValue.refs.forEach { refValue ->
+            val ref = allocateCell(refValue)
+
+            builderStoreNextRefNoOverflowCheck(cell, ref)
+        }
+
+        cell
+    }
+
 fun TvmState.allocEmptyCell() =
     with(ctx) {
         memory.allocConcrete(TvmDataCellType).also { cell ->
+            fieldManagers.cellExoticFieldManager.writeCellData(memory, cell, falseExpr)
             fieldManagers.cellDataFieldManager.writeCellData(memory, cell, mkBv(0, cellDataSort))
             fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
                 this@allocEmptyCell,

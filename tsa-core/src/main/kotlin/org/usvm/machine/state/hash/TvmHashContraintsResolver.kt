@@ -162,6 +162,8 @@ class TvmHashConstraintsResolver(
                         return null
                     }
 
+            result = ctx.mkAnd(result, exoticFieldsAreEqual(fullyConcreteRef, refToFixate))
+
             val refs =
                 scope.calcOnState {
                     fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this, refToFixate)
@@ -227,6 +229,16 @@ class TvmHashConstraintsResolver(
             }
         }
 
+        private fun exoticFieldsAreEqual(
+            ref1: UConcreteHeapRef,
+            ref2: UConcreteHeapRef,
+        ): UBoolExpr =
+            with(ctx) {
+                val exotic1 = state.fieldManagers.cellExoticFieldManager.readCellData(state, ref1)
+                val exotic2 = state.fieldManagers.cellExoticFieldManager.readCellData(state, ref2)
+                mkEq(exotic1, exotic2)
+            }
+
         private fun assertTypeCellOrBuilderType(fullyConcreteRef: UConcreteHeapRef) {
             if (TvmDataCellType in state.getPossibleTypes(fullyConcreteRef)) {
                 scope.assertDataCellType(fullyConcreteRef)
@@ -272,6 +284,7 @@ class TvmHashConstraintsResolver(
                         return null
                     },
             )
+            result.add(exoticFieldsAreEqual(withConcreteRefsLength, rhsCell))
 
             val rhsRefsCount =
                 scope.calcOnState {

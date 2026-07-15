@@ -3,7 +3,6 @@ package org.usvm.machine.fields
 import org.ton.bytecode.TvmField
 import org.ton.bytecode.TvmFieldImpl
 import org.usvm.UBoolExpr
-import org.usvm.UConcreteHeapRef
 import org.usvm.UHeapRef
 import org.usvm.api.readField
 import org.usvm.api.writeField
@@ -16,10 +15,7 @@ import org.usvm.memory.UWritableMemory
 class TvmCellExoticFieldManager(
     private val ctx: TvmContext,
 ) {
-    fun clone(): TvmCellExoticFieldManager =
-        TvmCellExoticFieldManager(
-            ctx,
-        )
+    fun clone(): TvmCellExoticFieldManager = TvmCellExoticFieldManager(ctx)
 
     fun writeCellData(
         state: TvmState,
@@ -37,7 +33,7 @@ class TvmCellExoticFieldManager(
 
     fun readCellData(
         state: TvmState,
-        cellRef: UConcreteHeapRef,
+        cellRef: UHeapRef,
     ): UBoolExpr =
         with(ctx) {
             state.memory.readField(cellRef, isExoticField, boolSort)

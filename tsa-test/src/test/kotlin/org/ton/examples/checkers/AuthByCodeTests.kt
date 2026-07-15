@@ -124,7 +124,12 @@ class AuthByCodeTests {
         val exoticCode =
             buildCell {
                 isExotic = true
-                storeBits(List(256) { false })
+                val bits =
+                    buildList {
+                        addAll(listOf(0, 0, 0, 0, 0, 0, 1, 0).map { it == 1 }) // 0b2 = library reference
+                        addAll(List(256) { false }) // the hash value
+                    }
+                storeBits(bits)
             }
 
         val contractData = CellBuilder().storeRef(exoticCode).endCell()

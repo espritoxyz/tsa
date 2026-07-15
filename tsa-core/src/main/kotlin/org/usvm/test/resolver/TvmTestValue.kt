@@ -47,6 +47,7 @@ data class TvmTestDataCellValue(
     val data: String = "",
     val refs: List<TvmTestCellValue> = listOf(),
     val knownTypes: List<TvmCellDataTypeLoad> = listOf(),
+    val isExotic: Boolean = false,
 ) : TvmTestCellValue {
     fun dataCellDepth(): Int =
         if (refs.isEmpty()) {
