@@ -258,10 +258,8 @@ class TvmHashConstraintsResolver(
                 state.readCellRefsCount(withConcreteRefsLength.asCellRef()).intValueOrNull
                     ?: return null
 
-            scope.assertDataCellType(withConcreteRefsLength)
-                ?: error("Unexpected unsat")
-            scope.assertDataCellType(rhsCell)
-                ?: error("Unexpected unsat")
+            assertTypeCellOrBuilderType(withConcreteRefsLength)
+            assertTypeCellOrBuilderType(rhsCell)
 
             var slice1 = makeCellToSliceTlbNoFork(scope, withConcreteRefsLength)
             var slice2 = makeCellToSliceTlbNoFork(scope, rhsCell)
