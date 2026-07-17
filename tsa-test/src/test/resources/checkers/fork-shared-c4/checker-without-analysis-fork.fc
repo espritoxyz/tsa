@@ -1,0 +1,35 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+global slice initial_sender;
+global slice initial_body;
+
+global int found_equal_slice_execution;
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    initial_body = msg_body;
+
+    slice cs = in_msg_full.begin_parse();
+    cs~load_uint(4);
+    slice current_sender = cs~load_msg_addr();
+
+    if (input_id == 0) {
+        initial_sender = current_sender;
+    }
+    if (input_id == 1) {
+        tsa_assert(equal_slice_bits(initial_sender, current_sender));
+        found_equal_slice_execution = 1;
+    }
+}
+
+() main() impure {
+    found_equal_slice_execution = 0;
+    tsa_forbid_failures();
+    tsa_send_internal_message(1, 0);
+    tsa_send_internal_message_with_body(initial_body, 1, 1);
+    tsa_allow_failures();
+    cell c4 = tsa_get_c4(1);
+    slice cs = c4.begin_parse();
+    cs~load_msg_addr();
+    int counter = cs~load_uint(64);
+    throw(1000 + found_equal_slice_execution);
+}
