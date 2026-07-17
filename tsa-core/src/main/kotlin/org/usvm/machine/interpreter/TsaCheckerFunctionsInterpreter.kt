@@ -98,7 +98,7 @@ class TsaCheckerFunctionsInterpreter(
                 stackOperations = stmt.checkerMemorySavelist.stackOperations,
                 stmt = stmt.checkerMemorySavelist.stmt,
                 oldMemory = oldMemory,
-                newRegisters = stmt.checkerMemorySavelist.newRegisters,
+                newRegisters = stmt.checkerMemorySavelist.newRegisters.clone(),
                 nextContractId = stmt.checkerMemorySavelist.nextContractId,
                 nextMethodId = stmt.checkerMemorySavelist.nextMethodId,
             )
