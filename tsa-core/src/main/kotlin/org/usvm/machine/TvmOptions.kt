@@ -40,7 +40,7 @@ data class TvmOptions(
      * is unspecified).
      */
     val stopOnFirstError: Boolean = true,
-    val useIntBlasting: Boolean = true,
+    val useIntBlasting: Boolean = false,
     val useSoftConstraints: Boolean = true,
     val collectTlbMemoryStats: Boolean = false,
     val pathSelectionStrategy: TvmPathSelectionStrategy = TvmPathSelectionStrategy.DFS_BASED,
@@ -105,5 +105,6 @@ data class IntercontractOptions(
 
 enum class TvmPathSelectionStrategy {
     DFS_BASED,
+    DFS_STRICT,
     BFS_BASED,
 }

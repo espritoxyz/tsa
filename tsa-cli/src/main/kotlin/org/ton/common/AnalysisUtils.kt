@@ -20,6 +20,7 @@ import org.usvm.machine.TvmAnalyzer
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
+import org.usvm.machine.TvmPathSelectionStrategy
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.hexToCell
 import org.usvm.machine.state.ContractId
@@ -73,6 +74,12 @@ private fun createTvmOptions(
             addTimeoutIfNotSatiated = analysisOptions.addTimeoutIfNotSatiated,
             shortResolve = analysisOptions.shortResolve,
             groupByOutOpcodes = analysisOptions.groupStatesByOutMessages,
+            pathSelectionStrategy =
+                if (analysisOptions.useStrictDfsPathSelector) {
+                    TvmPathSelectionStrategy.DFS_STRICT
+                } else {
+                    TvmPathSelectionStrategy.DFS_BASED
+                },
         )
 
     if (interContractSchemePath != null) {

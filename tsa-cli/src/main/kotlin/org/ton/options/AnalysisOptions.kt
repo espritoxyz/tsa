@@ -111,4 +111,8 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
     val groupStatesByOutMessages by option("--group-states-by-out-messages")
         .flag(default = false)
         .help("Use path selector that groups states by out messages")
+
+    val useStrictDfsPathSelector by option("--strict-dfs-path-selector")
+        .flag(default = false)
+        .help("Path selector")
 }
