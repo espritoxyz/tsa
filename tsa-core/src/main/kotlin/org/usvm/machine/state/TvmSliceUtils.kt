@@ -9,6 +9,7 @@ import io.ksmt.sort.KBvSort
 import io.ksmt.utils.uncheckedCast
 import org.ton.Endian
 import org.ton.bytecode.TvmCell
+import org.ton.bytecode.toCell
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
@@ -1305,32 +1306,7 @@ fun TvmStepScopeManager.allocSliceFromData(
     return calcOnState { allocSliceFromCell(sliceCell) }
 }
 
-fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef =
-    with(ctx) {
-        val refsSizeCondition = cellValue.refs.size <= TvmContext.MAX_REFS_NUMBER
-        val cellDataSizeCondition = cellValue.data.bits.length <= MAX_DATA_LENGTH
-        check(refsSizeCondition && cellDataSizeCondition) { "Unexpected cellValue: $cellValue" }
-
-        val cell = allocEmptyCell()
-
-        if (cellValue.data.bits.isNotEmpty()) {
-            val data =
-                mkBv(
-                    cellValue.data.bits,
-                    cellValue.data.bits.length
-                        .toUInt(),
-                )
-            builderStoreDataBitsNoOverflowCheck(cell, data)
-        }
-
-        cellValue.refs.forEach { refValue ->
-            val ref = allocateCell(refValue)
-
-            builderStoreNextRefNoOverflowCheck(cell, ref)
-        }
-
-        cell
-    }
+fun TvmState.allocateCell(cellValue: TvmCell): UConcreteHeapRef = allocateCell(cellValue.toCell())
 
 // also handles exotic cells
 fun TvmState.allocateCell(cellValue: Cell): UConcreteHeapRef =
