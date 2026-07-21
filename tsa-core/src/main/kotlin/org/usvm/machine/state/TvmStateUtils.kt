@@ -402,7 +402,9 @@ fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell? =
 
         val children =
             List(refsLength.intValue()) { i ->
-                val child = readCellRef(ref, i.toBv()) as UConcreteHeapRef
+                val child =
+                    readCellRef(ref, i.toBv()) as? UConcreteHeapRef
+                        ?: return@with null
                 extractFullCellIfItIsConcrete(child)
                     ?: return@with null
             }
