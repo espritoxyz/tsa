@@ -1,0 +1,8 @@
+#include "../../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    var to_reserve = msg_body~load_uint(64);
+    ;; with mode 2 the reserved amount is clamped by the remaining balance,
+    ;; so this must not fail even if to_reserve is greater than the balance
+    raw_reserve(to_reserve, 2);
+}
