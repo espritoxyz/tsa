@@ -254,15 +254,12 @@ class TvmStepScopeManager(
          * Determines whether we interact this scope on the current step.
          * @see [StepScopeState].
          */
-        internal var stepScopeState: StepScopeState = CAN_BE_PROCESSED
+        var stepScopeState: StepScopeState = CAN_BE_PROCESSED
 
         /**
          * @return forked states and the status of initial state.
          */
         fun stepResult(): StepResult<TvmState> = StepResult(forkedStates.asSequence(), alive)
-
-        inline val isDead: Boolean get() = stepScopeState === DEAD
-        inline val canBeProcessed: Boolean get() = stepScopeState == CAN_BE_PROCESSED
 
         /**
          * Executes [block] on a state.
@@ -526,7 +523,5 @@ class TvmStepScopeManager(
              */
             CAN_BE_PROCESSED,
         }
-
-        private inline val UBoolExpr.isConcrete get() = isTrue || isFalse
     }
 }

@@ -134,7 +134,12 @@ fun doInputDictNextPrev(
         )
     val actions =
         dictNextApplied.map {
-            TvmStepScopeManager.ActionOnCondition({}, false, ctx.mkAnd(it.constraintSet), it)
+            TvmStepScopeManager.ActionOnCondition(
+                {},
+                caseIsExceptional = false,
+                condition = ctx.mkAnd(it.constraintSet),
+                paramForDoForAllBlock = it,
+            )
         }
     scope.doWithConditions(actions) {
         calcOnState {

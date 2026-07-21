@@ -4,7 +4,6 @@ import org.usvm.UAddressSort
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
-import org.usvm.UExprTransformer
 import org.usvm.UIndexedMethodReturnValue
 import org.usvm.UIsSubtypeExpr
 import org.usvm.UIsSupertypeExpr
@@ -32,10 +31,11 @@ import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.types.TvmType
 import org.usvm.regions.Region
+import org.usvm.solver.UExprTranslator
 
 open class DefaultUExprTransformer(
     ctx: TvmContext,
-) : UExprTransformer<TvmType, TvmSizeSort>(ctx) {
+) : UExprTranslator<TvmType, TvmSizeSort>(ctx) {
     override fun <Sort : USort> transform(expr: URegisterReading<Sort>): UExpr<Sort> = expr
 
     override fun <Field, Sort : USort> transform(expr: UInputFieldReading<Field, Sort>): UExpr<Sort> =
@@ -47,7 +47,10 @@ open class DefaultUExprTransformer(
         expr: UAllocatedSetReading<TvmType, ElemSort, Reg>,
     ): UBoolExpr =
         transformExprAfterTransformed(expr, expr.element) { newElement ->
-            ctx.tctx().mkAllocatedSetReading(expr.collection, newElement)
+            val translator =
+                setRegionDecoder(expr.collection.collectionId)
+                    .allocatedSetTranslator(expr.collection.collectionId)
+            translator.translateReading(expr.collection, newElement)
         }
 
     override fun transform(expr: UConcreteHeapRef): UExpr<UAddressSort> = expr
