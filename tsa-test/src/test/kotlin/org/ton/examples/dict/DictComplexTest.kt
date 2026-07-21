@@ -123,13 +123,7 @@ class DictComplexTest {
     @Test
     fun testDictFixationInputRef() {
         val path = extractResource(dictFixationInputRef)
-        val results =
-            funcCompileAndAnalyzeAllMethods(path)
-
-//        assertEquals(1, results.size)
-
-//        val tests = results
-//
-//        assertTrue { tests.isNotEmpty() }
+        // we check that we do not throw a runtime exception when we try to fixate the values of ite dict refs
+        funcCompileAndAnalyzeAllMethods(path)
     }
 }
