@@ -3,6 +3,7 @@ package org.ton.examples.checkers
 import org.ton.boc.BagOfCells
 import org.ton.bytecode.toCell
 import org.ton.cell.CellBuilder
+import org.ton.cell.buildCell
 import org.ton.examples.intercontract.implies
 import org.ton.test.utils.assertInvariantHolds
 import org.ton.test.utils.assertInvariantsHold
@@ -108,6 +109,47 @@ class AuthByCodeTests {
                     assert(fetched.size == 1)
                     val cellValue = transformTestCellIntoCell(fetched.single())
                     cellValue == contractData.refs.single()
+                } else {
+                    true
+                }
+            },
+        )
+    }
+
+    @Test
+    fun `hash-based auth with not fixed data with checking the code as exotic ref`() {
+        val checker = extractCheckerContractFromResource(checker)
+        val contract =
+            extractFuncContractFromResource(authWithCodeFromC4)
+        val exoticCode =
+            buildCell {
+                isExotic = true
+                val bits =
+                    buildList {
+                        addAll(listOf(0, 0, 0, 0, 0, 0, 1, 0).map { it == 1 }) // 0b2 = library reference
+                        addAll(List(256) { false }) // the hash value
+                    }
+                storeBits(bits)
+            }
+
+        val contractData = CellBuilder().storeRef(exoticCode).endCell()
+        val tests =
+            analyzeInterContract(
+                contracts = listOf(checker, contract),
+                concreteContractData =
+                    listOf(
+                        TvmConcreteContractData(),
+                        TvmConcreteContractData(contractC4 = contractData),
+                    ),
+            )
+        tests.assertPropertiesFound(hasExitCode(1000))
+        tests.assertInvariantsHold(
+            {
+                if (it.exitCode() == 1000) {
+                    val fetched = it.authorizedCodes()
+                    assert(fetched.size == 1)
+                    val cellValue = transformTestCellIntoCell(fetched.single())
+                    cellValue == exoticCode
                 } else {
                     true
                 }

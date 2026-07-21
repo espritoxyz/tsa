@@ -105,5 +105,6 @@ data class IntercontractOptions(
 
 enum class TvmPathSelectionStrategy {
     DFS_BASED,
+    DFS_STRICT,
     BFS_BASED,
 }

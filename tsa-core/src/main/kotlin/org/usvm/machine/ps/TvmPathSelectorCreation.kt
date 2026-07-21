@@ -194,6 +194,11 @@ private fun createPathSelectorLevel2(ctx: PSCreationContext): UPathSelector<TvmS
         TvmPathSelectionStrategy.DFS_BASED -> {
             createSeedBasedPathSelector(ctx)
         }
+
+        TvmPathSelectionStrategy.DFS_STRICT -> {
+            addIterativeDeepening(ctx.options, DfsPathSelector(), ctx.loopTracker)
+        }
+
         TvmPathSelectionStrategy.BFS_BASED -> {
             val ps = addIterativeDeepening(ctx.options, BfsPathSelector(), ctx.loopTracker)
             TvmUncoveredInstPathSelector(ps, ctx.uncoveredInstObserverBfs)

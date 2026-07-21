@@ -4,6 +4,7 @@ import org.ton.bitstring.BitString
 import org.ton.cell.Cell
 import org.ton.cell.CellBuilder
 import org.ton.cell.CellSlice
+import org.ton.cell.buildCell
 import org.ton.hashmap.HashMapE
 import org.ton.tlb.TlbCodec
 import java.math.BigInteger
@@ -34,7 +35,15 @@ fun transformTestCellIntoCell(value: TvmTestCellValue): Cell =
 fun transformTestDataCellIntoCell(value: TvmTestDataCellValue): Cell {
     val refs = value.refs.map(::transformTestCellIntoCell)
     val binaryData = BitString(value.data.map { it == '1' })
-    return Cell(binaryData, *refs.toTypedArray())
+    return if (value.isExotic) {
+        buildCell {
+            isExotic = true
+            storeBits(binaryData)
+            refs.forEach { storeRef(it) }
+        }
+    } else {
+        Cell(binaryData, *refs.toTypedArray())
+    }
 }
 
 fun transformMapIntoHashMapE(

@@ -472,7 +472,7 @@ class TvmInterpreter(
                     val givenData = concreteContractData.getOrNull(it)?.contractC4
                     val ref =
                         if (givenData != null) {
-                            state.allocateCell(givenData.toTvmCell())
+                            state.allocateCell(givenData)
                         } else {
                             state.generateSymbolicCell()
                         }

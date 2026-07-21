@@ -25,6 +25,7 @@ import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmMethod
 import org.ton.bytecode.TvmOrdContinuation
 import org.ton.cell.Cell
+import org.ton.cell.buildCell
 import org.ton.hashmap.HashMapE
 import org.ton.tlb.exception.UnknownTlbConstructorException
 import org.usvm.NULL_ADDRESS
@@ -152,7 +153,12 @@ fun TvmState.setExit(result: TvmResult.TvmTerminalResult) {
     }
 }
 
-fun TvmState.generateSymbolicCell(): UConcreteHeapRef = generateSymbolicRef(TvmCellType)
+fun TvmState.generateSymbolicCell(mightBeExotic: Boolean = false): UConcreteHeapRef =
+    generateSymbolicRef(TvmCellType).also {
+        if (!mightBeExotic) {
+            fieldManagers.cellExoticFieldManager.writeCellData(this@generateSymbolicCell, it, ctx.falseExpr)
+        }
+    }
 
 fun TvmState.ensureSymbolicCellInitialized(ref: UHeapRef) = ensureSymbolicRefInitialized(ref, TvmCellType)
 
@@ -384,7 +390,13 @@ fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell? =
         val refsLength =
             fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this@extractFullCellIfItIsConcrete, ref)
 
-        if (data !is KInterpretedValue || dataLength !is KInterpretedValue || refsLength !is KInterpretedValue) {
+        val isExotic = fieldManagers.cellExoticFieldManager.readCellData(this@extractFullCellIfItIsConcrete, ref)
+
+        if (data !is KInterpretedValue ||
+            dataLength !is KInterpretedValue ||
+            refsLength !is KInterpretedValue ||
+            isExotic !is KInterpretedValue
+        ) {
             return null
         }
 
@@ -397,7 +409,15 @@ fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell? =
 
         val dataStr = (data as KBitVecValue).stringValue.take(dataLength.intValue()).map { it == '1' }
 
-        return Cell(BitString.of(dataStr), *children.toTypedArray())
+        return if (isExotic.isTrue) {
+            buildCell {
+                this.isExotic = true
+                storeBits(dataStr)
+                children.forEach { storeRef(it) }
+            }
+        } else {
+            Cell(BitString.of(dataStr), *children.toTypedArray())
+        }
     }
 
 /**
@@ -703,8 +723,8 @@ fun TvmState.switchDirectlyToMethodInContract(method: TvmMethod) = newStmt(metho
 fun TvmState.generateSymbolicAuthCheckAddress(): Pair<ConcreteCellRef, TsaAccountIdSymbol> =
     with(ctx) {
         val workchain = mkBv(0, 8u)
-        val code = generateSymbolicCell()
-        val data = generateSymbolicCell()
+        val code = generateSymbolicCell(mightBeExotic = true)
+        val data = generateSymbolicCell(mightBeExotic = true)
         val stateInitBuilder = allocEmptyBuilder()
         /*
         _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)

@@ -606,7 +606,10 @@ class TvmTestStateResolver(
             }
 
             val knownActions = state.dataCellLoadedTypeInfo.referenceToActions[modelRef] ?: persistentListOf()
-            val tvmCellValue = TvmTestDataCellValue(data, refs, resolveTypeLoad(knownActions))
+            val isExotic =
+                eval(state.fieldManagers.cellExoticFieldManager.readCellData(state, cell))
+                    .isTrue
+            val tvmCellValue = TvmTestDataCellValue(data, refs, resolveTypeLoad(knownActions), isExotic)
 
             tvmCellValue.also { resolvedCache[modelRef.address] = tvmCellValue }
         }

@@ -106,6 +106,7 @@ import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.api.readField
+import org.usvm.logger
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.MAX_DATA_LENGTH
 import org.usvm.machine.TvmContext.Companion.sliceCellField
@@ -1780,7 +1781,16 @@ class TvmCellInterpreter(
             scope.doWithState(ctx.throwTypeCheckError)
             return
         }
+        val isExotic = scope.calcOnState { fieldManagers.cellExoticFieldManager.readCellData(this, cell) }
 
+        scope.assert(
+            with(ctx) { isExotic.not() },
+            unsatBlock = {
+                logger.warn {
+                    "Performing CTOS on a cell with a symbolic `isExotic` field. Killing the `isExotic=true` path"
+                }
+            },
+        ) ?: return
         scope.assertDataCellType(cell)
             ?: return
 
