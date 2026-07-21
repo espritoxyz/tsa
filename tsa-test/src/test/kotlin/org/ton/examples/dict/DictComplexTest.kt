@@ -30,6 +30,7 @@ class DictComplexTest {
 
     private val potentialDictOverflow = "/dict/value_overflow.fc"
     private val dictFixation = "/dict/dict_fixation.fc"
+    private val dictFixationInputRef = "/dict/dict-fixation-input-dict.fc"
 
     @Test
     fun nearestTest() {
@@ -117,5 +118,12 @@ class DictComplexTest {
         )
 
         TvmTestExecutor.executeGeneratedTests(results, path, TsRenderer.ContractType.Func)
+    }
+
+    @Test
+    fun testDictFixationInputRef() {
+        val path = extractResource(dictFixationInputRef)
+        // we check that we do not throw a runtime exception when we try to fixate the values of ite dict refs
+        funcCompileAndAnalyzeAllMethods(path)
     }
 }

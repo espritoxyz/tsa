@@ -317,12 +317,12 @@ class TvmValueFixator(
                 val inputDict =
                     scope.calcOnState {
                         val inputDict =
-                            inputDictionaryStorage.memory[ref]
+                            inputDictionaryStorage.memory[modelRef]
                                 ?: error("Input dict not found")
                         inputDict
                     }
                 val asserts =
-                    fixateInputDictEntries(scope, inputDict, ref, dictId, value)
+                    fixateInputDictEntries(scope, inputDict, modelRef, dictId, value)
                         ?: return@with null
                 result = result and mkAnd(asserts)
             }
