@@ -32,12 +32,20 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
         error("Forbidden call")
     }
 
+    private fun ensureBvSolverIfNotIntBlastable(intBlastable: Boolean) {
+        if (intBlastable) return
+
+        if (isRewriteSolver) {
+            reassertExprsToBvSolver()
+        } else {
+            encounterdBvExpr = true
+        }
+    }
+
     override fun assert(expr: KExpr<KBoolSort>) {
         require(currentScope == 1)
 
-        if (isRewriteSolver && !exprFilter.applyVisitor(expr)) {
-            reassertExprsToBvSolver()
-        }
+        ensureBvSolverIfNotIntBlastable(exprFilter.applyVisitor(expr))
 
         val bvExpr = transformer.apply(expr)
         if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
@@ -56,9 +64,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
     override fun assert(exprs: List<KExpr<KBoolSort>>) {
         require(currentScope == 1)
 
-        if (isRewriteSolver && !exprs.all { exprFilter.applyVisitor(it) }) {
-            reassertExprsToBvSolver()
-        }
+        ensureBvSolverIfNotIntBlastable(exprs.all { exprFilter.applyVisitor(it) })
 
         val bvExprs = exprs.map { transformer.apply(it) }
         if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
@@ -77,9 +83,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
     override fun assertAndTrack(expr: KExpr<KBoolSort>) {
         require(currentScope == 1)
 
-        if (isRewriteSolver && !exprFilter.applyVisitor(expr)) {
-            reassertExprsToBvSolver()
-        }
+        ensureBvSolverIfNotIntBlastable(exprFilter.applyVisitor(expr))
 
         val bvExpr = transformer.apply(expr)
         if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
@@ -98,9 +102,7 @@ class Bv2IntSolverWrapper<C1 : KSolverConfiguration, C2 : KSolverConfiguration>(
     override fun assertAndTrack(exprs: List<KExpr<KBoolSort>>) {
         require(currentScope == 1)
 
-        if (isRewriteSolver && !exprs.all { exprFilter.applyVisitor(it) }) {
-            reassertExprsToBvSolver()
-        }
+        ensureBvSolverIfNotIntBlastable(exprs.all { exprFilter.applyVisitor(it) })
 
         val bvExprs = exprs.map { transformer.apply(it) }
         if (!isRewriteSolver && !encounterdBvExpr && transformer.visitedHardExpression) {
