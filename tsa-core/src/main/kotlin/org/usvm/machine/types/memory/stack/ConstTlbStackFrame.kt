@@ -60,6 +60,7 @@ data class ConstTlbStackFrame(
                                 ),
                             ),
                             value = null,
+                            doWhenForked = {},
                         ),
                     )
 
@@ -92,11 +93,13 @@ data class ConstTlbStackFrame(
                                 concreteBvRead,
                             ),
                             value,
+                            doWhenForked = {},
                         ),
                         GuardedResult(
                             readSize eq leftBits,
                             stepResult,
                             value,
+                            doWhenForked = {},
                         ),
                     )
 
@@ -114,6 +117,7 @@ data class ConstTlbStackFrame(
                                 concreteBvRead,
                             ),
                             value = value,
+                            doWhenForked = {},
                         ),
                     )
                 } else {
@@ -127,6 +131,7 @@ data class ConstTlbStackFrame(
                                 ),
                             ),
                             value = null,
+                            doWhenForked = {},
                         ),
                     )
                 }

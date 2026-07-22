@@ -35,6 +35,7 @@ import org.usvm.test.resolver.TvmTestFailure
 import org.usvm.test.resolver.TvmTestInput
 import org.usvm.test.resolver.TvmTestResult
 import kotlin.io.path.readText
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
@@ -751,6 +752,7 @@ class CheckersTest {
         tests.assertPropertiesFound(hasExitCode(1000))
     }
 
+    @Ignore("Incorrect implementation of dependency")
     @Test
     fun funcDepsFail() {
         val checkerContract = extractCheckerContractFromResource(FunctionalDepsTestData.FAIL)

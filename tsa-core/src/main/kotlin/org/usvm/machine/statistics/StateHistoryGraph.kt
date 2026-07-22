@@ -84,13 +84,13 @@ class StateHistoryGraph : UMachineObserver<TvmState> {
         edgeList.add(edge to to)
     }
 
-    fun getPath(stateId: StateId): List<Edge> {
-        val result = mutableListOf<Edge>()
+    fun getPath(stateId: StateId): List<Pair<Edge, StateId>> {
+        val result = mutableListOf<Pair<Edge, StateId>>()
 
         var cur = stateId
         var edge = backEdges[cur]
         while (edge != null) {
-            result.add(edge.first)
+            result.add(edge.first to edge.second)
             cur = edge.second
             edge = backEdges[cur]
         }
@@ -112,7 +112,7 @@ class StateHistoryGraph : UMachineObserver<TvmState> {
     fun getPathPretty(stateId: StateId): String {
         val path = getPath(stateId)
         return path.joinToString(separator = "\n") {
-            printLoc(it)
+            printLoc(it.first)
         }
     }
 

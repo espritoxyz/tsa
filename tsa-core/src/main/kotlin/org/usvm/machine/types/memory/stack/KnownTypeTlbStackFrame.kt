@@ -53,7 +53,9 @@ data class KnownTypeTlbStackFrame(
             val state = this
             with(ctx) {
                 if (struct.typeLabel !is TlbBuiltinLabel) {
-                    return@calcOnState listOf(GuardedResult(trueExpr, StepError(error = null), value = null))
+                    return@calcOnState listOf(
+                        GuardedResult(trueExpr, StepError(error = null), value = null, doWhenForked = {}),
+                    )
                 }
 
                 val args = struct.typeArgs(state, loadData.cellRef, path)
@@ -102,9 +104,19 @@ data class KnownTypeTlbStackFrame(
 
                 val result: MutableList<GuardedResult<ReadResult>> =
                     mutableListOf(
-                        GuardedResult(frameIsEmpty, ContinueLoadOnNextFrame(loadData), null),
-                        GuardedResult(continueReadOnNextFrameCondition.not() and accept, nextFrame, value),
-                        GuardedResult(continueReadOnNextFrameCondition.not() and accept.not(), StepError(error), null),
+                        GuardedResult(frameIsEmpty, ContinueLoadOnNextFrame(loadData), null, doWhenForked = {}),
+                        GuardedResult(
+                            continueReadOnNextFrameCondition.not() and accept,
+                            nextFrame,
+                            value,
+                            doWhenForked = {},
+                        ),
+                        GuardedResult(
+                            continueReadOnNextFrameCondition.not() and accept.not(),
+                            StepError(error),
+                            null,
+                            doWhenForked = {},
+                        ),
                     )
 
                 if (continueLoadingOnNextFrameData != null) {
@@ -124,6 +136,7 @@ data class KnownTypeTlbStackFrame(
                             continueLoadingOnNextFrameData.guard,
                             continueLoadOnNextFrameAction,
                             value = value,
+                            doWhenForked = {},
                         ),
                     )
                 }

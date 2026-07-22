@@ -13,6 +13,7 @@ import org.ton.TlbStructure
 import org.ton.TlbStructure.KnownTypePrefix
 import org.ton.TlbStructure.LoadRef
 import org.ton.TlbStructure.SwitchPrefix
+import org.ton.resolvePossibleVariants
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
@@ -240,8 +241,7 @@ fun generateTlbFieldConstraints(
 
             is SwitchPrefix -> {
                 val possibleVariants =
-                    possibleSwitchVariants[maxTlbDepth][structure]
-                        ?: error("Possible variants for switch $structure not found")
+                    structure.resolvePossibleVariants(possibleSwitchVariants[maxTlbDepth])
                 possibleVariants.fold(trueExpr as UBoolExpr) { acc, (_, variant) ->
                     acc and generateTlbFieldConstraints(state, ref, variant, path, possibleSwitchVariants, maxTlbDepth)
                 }

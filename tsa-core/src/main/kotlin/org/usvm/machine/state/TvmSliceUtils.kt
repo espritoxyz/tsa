@@ -1609,24 +1609,10 @@ fun sliceLoadAddrTlb(
                         val originalCell = memory.readField(slice, sliceCellField, addressSort)
                         val dataPos = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(state, slice)
 
-                        checkCellDataUnderflow(
-                            this@makeSliceTypeLoad,
-                            originalCell,
-                            minSize = mkBvAddExpr(dataPos, twoSizeExpr),
-                            maxSize = null,
-                            quietBlock = quietBlock,
-                        ) ?: return@calcOnState
-
-                        val tag =
-                            slicePreloadDataBitsWithoutChecks(slice, sizeBits = 2)
-                                ?: return@calcOnState
-
-                        // Special case: when tag is concrete, we don't want to assert that this is StdAddress
-                        // (even if our options for that are set)
                         val addrLength =
                             slicePreloadAddrLengthWithoutSetException(
                                 slice,
-                                mustProcessAllAddressFormats = tag is KInterpretedValue,
+                                mustProcessAllAddressFormats = true,
                             ) ?: return@calcOnState
                         sliceMoveDataPtr(updatedSlice, addrLength)
 

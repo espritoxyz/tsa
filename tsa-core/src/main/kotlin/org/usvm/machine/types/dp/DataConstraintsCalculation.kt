@@ -4,6 +4,7 @@ import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
+import org.ton.resolvePossibleVariants
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -127,8 +128,7 @@ private fun getDataConstraint(
             is TlbStructure.SwitchPrefix -> {
                 val switchSize = mkSizeExpr(struct.switchSize)
                 val possibleVariants =
-                    possibleSwitchVariants[curMaxTlbDepth][struct]
-                        ?: error("Switch variants not found for switch $struct")
+                    struct.resolvePossibleVariants(possibleSwitchVariants[curMaxTlbDepth])
 
                 possibleVariants.foldIndexed(falseExpr as UBoolExpr) { idx, acc, (key, variant) ->
                     val further =

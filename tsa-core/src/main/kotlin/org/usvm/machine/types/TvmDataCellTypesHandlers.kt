@@ -50,17 +50,23 @@ import org.usvm.mkSizeSubExpr
 import org.usvm.sizeSort
 import org.usvm.utils.flattenReferenceIte
 
-sealed interface MakeSliceTypeLoadOutcome
+sealed interface MakeSliceTypeLoadOutcome {
+    val doWhenForked: (TvmState) -> Unit
+}
 
 private data class NewTlbStack(
     val stack: TlbStack,
+    override val doWhenForked: (TvmState) -> Unit,
 ) : MakeSliceTypeLoadOutcome
 
 private data class Error(
     val error: TvmStructuralError,
+    override val doWhenForked: (TvmState) -> Unit,
 ) : MakeSliceTypeLoadOutcome
 
-private data object NoTlbStack : MakeSliceTypeLoadOutcome
+private data class NoTlbStack(
+    override val doWhenForked: (TvmState) -> Unit,
+) : MakeSliceTypeLoadOutcome
 
 private fun <T> MutableMap<T, UBoolExpr>.addGuardedOutcome(
     key: T,
@@ -121,7 +127,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
             calcOnState {
                 dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceRef)
             } ?: run {
-                outcomes.addGuardedTypeloadOutcome(NoTlbStack, null, load.guard)
+                outcomes.addGuardedTypeloadOutcome(NoTlbStack(doWhenForked = {}), null, load.guard)
                 return@forEach
             }
 
@@ -138,7 +144,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                 }
 
         stepResult
-            .flatMap { (guard, stepResult, oldValue) ->
+            .flatMap { (guard, stepResult, oldValue, doWhenForked) ->
                 if (load.type is TvmCellDataIntegerRead &&
                     stepResult is TlbStack.Error &&
                     stepResult.ignore(ctx, load.cellRef)
@@ -156,22 +162,22 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                         return@forEach
                     }
                 } else {
-                    listOf(TlbStack.GuardedResult(guard, stepResult, oldValue))
+                    listOf(TlbStack.GuardedResult(guard, stepResult, oldValue, doWhenForked))
                 }
-            }.forEach { (guard, stepResult, value) ->
+            }.forEach { (guard, stepResult, value, doWhenForked) ->
                 when (stepResult) {
                     is TlbStack.Error -> {
                         val outcome =
                             if (!stepResult.ignore(ctx, load.cellRef)) {
-                                Error(stepResult.error)
+                                Error(stepResult.error, doWhenForked)
                             } else {
-                                NoTlbStack
+                                NoTlbStack(doWhenForked)
                             }
                         outcomes.addGuardedTypeloadOutcome(outcome, value, guard and load.guard)
                     }
 
                     is TlbStack.NewStack -> {
-                        val outcome = NewTlbStack(stepResult.stack)
+                        val outcome = NewTlbStack(stepResult.stack, doWhenForked)
                         outcomes.addGuardedTypeloadOutcome(outcome, value, guard and load.guard)
                     }
                 }
@@ -266,7 +272,7 @@ private fun <ReadResult> retryWithBitvectorRead(
             ?: return null
     return newResult
         .map {
-            val (guard, newStepResult, value) = it
+            val (guard, newStepResult, value, doWhenForked) = it
             val stepResultOrOldError =
                 if (newStepResult is TlbStack.Error) {
                     stepResult
@@ -274,7 +280,7 @@ private fun <ReadResult> retryWithBitvectorRead(
                     newStepResult
                 }
             val expr =
-                value?.expr ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null)
+                value?.expr ?: return@map TlbStack.GuardedResult(guard, stepResultOrOldError, null, doWhenForked)
             val result =
                 scope.slicePreloadIntWithoutChecks(
                     expr,
@@ -287,6 +293,7 @@ private fun <ReadResult> retryWithBitvectorRead(
                 guard,
                 newStepResult,
                 UExprReadResult(result).uncheckedCast<Any, ReadResult>(),
+                doWhenForked,
             )
         }
 }
@@ -297,16 +304,21 @@ private fun processMakeSliceTypeLoadOutcome(
 ): TvmState.() -> Unit =
     when (outcome) {
         is NoTlbStack -> {
-            // nothing
-            {}
+            { outcome.doWhenForked(this) }
         }
 
         is Error -> {
-            { setExit(outcome.error) }
+            {
+                outcome.doWhenForked(this)
+                setExit(outcome.error)
+            }
         }
 
         is NewTlbStack -> {
-            { dataCellInfoStorage.sliceMapper.mapSliceToTlbStack(newSlice, outcome.stack) }
+            {
+                outcome.doWhenForked(this)
+                dataCellInfoStorage.sliceMapper.mapSliceToTlbStack(newSlice, outcome.stack)
+            }
         }
     }
 
@@ -679,6 +691,14 @@ private fun TvmStepScopeManager.sliceIsAddress(
         }
 
         val result = results.single()
+
+        if (!result.guard.isTrue) {
+            return false
+        }
+
+        calcOnState {
+            result.doWhenForked(this)
+        }
 
         // check that start is "100"
         return result.value?.expr?.let { (it eq fourSizeExpr.unsignedExtendToInteger()).isTrue } == true

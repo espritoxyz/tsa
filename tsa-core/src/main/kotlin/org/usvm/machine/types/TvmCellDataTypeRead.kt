@@ -67,21 +67,33 @@ sealed interface TvmCellDataTypeRead<ReadResult> {
 
     fun createLeftBitsDataLoad(leftBits: UExpr<TvmSizeSort>): TvmCellDataTypeRead<ReadResult>? = null
 
-    fun defaultTlbLabel(): TlbLabel?
+    fun defaultTlbLabel(dataSuffix: UExpr<TvmContext.TvmCellDataSort>): List<InferredTlbLabel>
+}
 
-    fun defaultTlbLabelSize(
+sealed interface InferredTlbLabel {
+    sealed interface Structure
+
+    class TypeLabel(
+        val label: TlbLabel,
+    ) : Structure
+
+    class Const(
+        val value: String,
+    ) : Structure
+
+    val struct: Structure
+    val guard: UBoolExpr
+
+    fun labelSize(
         state: TvmState,
         ref: UConcreteHeapRef,
         path: List<Int>,
-    ): UExpr<TvmSizeSort>?
+    ): UExpr<TvmSizeSort>
 
-    /**
-     * The first returned value is the [sizeIsBad] guard, the second is a value for assume.
-     * */
     fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ): Pair<UBoolExpr, UBoolExpr>
+    ): UBoolExpr
 
     fun writeToNextLabelFields(
         state: TvmState,
@@ -161,7 +173,19 @@ data class TvmCellDataIntegerRead(
             UExprReadResult(result)
         }
 
-    override fun defaultTlbLabel(): TlbLabel =
+    override fun defaultTlbLabel(dataSuffix: UExpr<TvmContext.TvmCellDataSort>): List<InferredIntegerLabel> =
+        listOf(
+            InferredIntegerLabel(sizeBits, isSigned, endian, guard = sizeBits.ctx.trueExpr),
+        )
+}
+
+class InferredIntegerLabel(
+    val sizeBits: UExpr<TvmSizeSort>,
+    val isSigned: Boolean,
+    val endian: Endian,
+    override val guard: UBoolExpr,
+) : InferredTlbLabel {
+    override val struct =
         if (sizeBits is KInterpretedValue) {
             TlbIntegerLabelOfConcreteSize(sizeBits.intValue(), isSigned, endian)
         } else {
@@ -170,9 +194,9 @@ data class TvmCellDataIntegerRead(
                 endian,
                 arity = 0,
             ) { _, _ -> TlbIntegerLabel.SizeExprBits(sizeBits) }
-        }
+        }.let { InferredTlbLabel.TypeLabel(it) }
 
-    override fun defaultTlbLabelSize(
+    override fun labelSize(
         state: TvmState,
         ref: UConcreteHeapRef,
         path: List<Int>,
@@ -181,9 +205,10 @@ data class TvmCellDataIntegerRead(
     override fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ) = with(dataSuffix.ctx.tctx()) {
-        mkSizeLtExpr(dataSuffixLength, sizeBits) to trueExpr
-    }
+    ): UBoolExpr =
+        with(dataSuffix.ctx.tctx()) {
+            mkSizeLtExpr(dataSuffixLength, sizeBits)
+        }
 
     override fun writeToNextLabelFields(
         state: TvmState,
@@ -256,20 +281,34 @@ class TvmCellMaybeConstructorBitRead(
             UExprReadResult(expr)
         }
 
-    override fun defaultTlbLabel(): TlbLabel = defaultTlbMaybeRefLabel
+    override fun defaultTlbLabel(dataSuffix: UExpr<TvmContext.TvmCellDataSort>) =
+        listOf(
+            ConcreteSizeInferredLabel(
+                InferredTlbLabel.TypeLabel(defaultTlbMaybeRefLabel),
+                guard = ctx.trueExpr,
+                concreteSize = 1,
+            ),
+        )
+}
 
-    override fun defaultTlbLabelSize(
+class ConcreteSizeInferredLabel(
+    override val struct: InferredTlbLabel.Structure,
+    override val guard: UBoolExpr,
+    val concreteSize: Int,
+) : InferredTlbLabel {
+    override fun labelSize(
         state: TvmState,
         ref: UConcreteHeapRef,
         path: List<Int>,
-    ) = ctx.oneSizeExpr
+    ): UExpr<TvmSizeSort> = state.ctx.mkSizeExpr(concreteSize)
 
     override fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ) = with(dataSuffix.ctx.tctx()) {
-        mkSizeLtExpr(dataSuffixLength, oneSizeExpr) to trueExpr
-    }
+    ): UBoolExpr =
+        with(dataSuffixLength.ctx.tctx()) {
+            mkSizeLtExpr(dataSuffixLength, mkSizeExpr(concreteSize))
+        }
 
     override fun writeToNextLabelFields(
         state: TvmState,
@@ -278,7 +317,13 @@ class TvmCellMaybeConstructorBitRead(
         structureId: Int,
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
     ) {
-        writeToNextLabelFieldsForConcreteSize(state, ref, path, structureId, dataSuffix, 1)
+        writeToNextLabelFieldsForConcreteSize(state, ref, path, structureId, dataSuffix, concreteSize)
+    }
+
+    init {
+        check(concreteSize > 0) {
+            "Unexpected empty read"
+        }
     }
 }
 
@@ -399,29 +444,45 @@ class TvmCellDataMsgAddrRead(
             }
         }
 
-    override fun defaultTlbLabel() = TlbBasicMsgAddrLabel
+    override fun defaultTlbLabel(dataSuffix: UExpr<TvmContext.TvmCellDataSort>): List<InferredTlbLabel> =
+        with(dataSuffix.ctx.tctx()) {
+            val tag =
+                mkBvExtractExpr(
+                    high = cellDataSort.sizeBits.toInt() - 1,
+                    low = cellDataSort.sizeBits.toInt() - 2,
+                    dataSuffix,
+                )
+            return listOf(
+                ConcreteSizeInferredLabel(
+                    InferredTlbLabel.Const("00"),
+                    guard = tag eq mkBv("00", tag.sort.sizeBits),
+                    concreteSize = 2,
+                ),
+                BasicAddressInferredLabel(
+                    guard = tag eq mkBv("10", tag.sort.sizeBits),
+                ),
+            )
+        }
+}
 
-    override fun defaultTlbLabelSize(
+class BasicAddressInferredLabel(
+    override val guard: UBoolExpr,
+) : InferredTlbLabel {
+    override val struct = InferredTlbLabel.TypeLabel(TlbBasicMsgAddrLabel)
+
+    override fun labelSize(
         state: TvmState,
         ref: UConcreteHeapRef,
         path: List<Int>,
-    ) = ctx.mkSizeExpr(TvmContext.stdMsgAddrSize)
+    ): UExpr<TvmSizeSort> = state.ctx.mkSizeExpr(TvmContext.stdMsgAddrSize)
 
     override fun sizeIsBad(
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
         dataSuffixLength: UExpr<TvmSizeSort>,
-    ) = with(dataSuffix.ctx.tctx()) {
-        val tag =
-            mkBvExtractExpr(
-                high = cellDataSort.sizeBits.toInt() - 1,
-                low = cellDataSort.sizeBits.toInt() - 2,
-                dataSuffix,
-            )
-        val assumeCond = tag eq mkBv("10", tag.sort.sizeBits)
-        val badSizeCond = mkSizeLtExpr(dataSuffixLength, mkSizeExpr(TvmContext.stdMsgAddrSize))
-
-        badSizeCond to assumeCond
-    }
+    ): UBoolExpr =
+        with(dataSuffix.ctx.tctx()) {
+            mkSizeLtExpr(dataSuffixLength, mkSizeExpr(TvmContext.stdMsgAddrSize))
+        }
 
     override fun writeToNextLabelFields(
         state: TvmState,
@@ -429,9 +490,8 @@ class TvmCellDataMsgAddrRead(
         path: PersistentList<Int>,
         structureId: Int,
         dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
-    ) = with(state.ctx) {
-        val label = defaultTlbLabel()
-        val struct = label.internalStructure
+    ) = with(state.ctx.tctx()) {
+        val struct = (struct.label as TlbCompositeLabel).internalStructure
 
         check(struct is SwitchPrefix && struct.variants.size == 1) {
             "Unexpected default struct for message address"
@@ -525,41 +585,19 @@ data class TvmCellDataBitArrayRead(
     override fun createLeftBitsDataLoad(leftBits: UExpr<TvmSizeSort>): TvmCellDataBitArrayRead =
         TvmCellDataBitArrayRead(leftBits)
 
-    override fun defaultTlbLabel(): TlbLabel? =
+    override fun defaultTlbLabel(dataSuffix: UExpr<TvmContext.TvmCellDataSort>): List<InferredTlbLabel> =
         if (sizeBits is KInterpretedValue) {
-            TlbBitArrayOfConcreteSize(sizeBits.intValue())
+            val size = sizeBits.intValue()
+            listOf(
+                ConcreteSizeInferredLabel(
+                    InferredTlbLabel.TypeLabel(TlbBitArrayOfConcreteSize(size)),
+                    guard = sizeBits.ctx.trueExpr,
+                    size,
+                ),
+            )
         } else {
-            null
+            emptyList()
         }
-
-    override fun defaultTlbLabelSize(
-        state: TvmState,
-        ref: UConcreteHeapRef,
-        path: List<Int>,
-    ) = sizeBits
-
-    override fun sizeIsBad(
-        dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
-        dataSuffixLength: UExpr<TvmSizeSort>,
-    ) = with(dataSuffix.ctx.tctx()) {
-        mkSizeLtExpr(dataSuffixLength, sizeBits) to trueExpr
-    }
-
-    override fun writeToNextLabelFields(
-        state: TvmState,
-        ref: UConcreteHeapRef,
-        path: PersistentList<Int>,
-        structureId: Int,
-        dataSuffix: UExpr<TvmContext.TvmCellDataSort>,
-    ) {
-        if (sizeBits !is KInterpretedValue) {
-            return
-        }
-        check(sizeBits.intValue() != 0) {
-            "Unexpected empty read"
-        }
-        writeToNextLabelFieldsForConcreteSize(state, ref, path, structureId, dataSuffix, sizeBits.intValue())
-    }
 }
 
 // As a read result expects bitvector of size 4 (coin prefix) + coin value as int257
@@ -603,40 +641,52 @@ class TvmCellDataCoinsRead(
         return extractTlbValueFromTlbCoinsLabelFields(address, newPath, state)
     }
 
-    private fun extractTlbValueFromTlbCoinsLabelFields(
-        ref: UHeapRef,
-        path: List<Int>,
-        state: TvmState,
-    ): UExprPairReadResult<KBvSort, TvmContext.TvmInt257Sort> =
-        with(state.ctx) {
-            val lengthStruct = TlbCoinsLabel.internalStructure as KnownTypePrefix
-            check(lengthStruct.typeLabel is TlbIntegerLabelOfConcreteSize)
+    override fun defaultTlbLabel(dataSuffix: UExpr<TvmContext.TvmCellDataSort>): List<InferredTlbLabel> =
+        listOf(
+            CoinsInferredLabel(
+                guard = dataSuffix.ctx.trueExpr,
+            ),
+        )
+}
 
-            val gramsStruct = lengthStruct.rest as KnownTypePrefix
-            check(gramsStruct.typeLabel is TlbIntegerLabelOfSymbolicSize)
+fun extractTlbValueFromTlbCoinsLabelFields(
+    ref: UHeapRef,
+    path: List<Int>,
+    state: TvmState,
+): UExprPairReadResult<KBvSort, TvmContext.TvmInt257Sort> =
+    with(state.ctx) {
+        val lengthStruct = TlbCoinsLabel.internalStructure as KnownTypePrefix
+        check(lengthStruct.typeLabel is TlbIntegerLabelOfConcreteSize)
 
-            val gramsField = SymbolicSizeBlockField(gramsStruct.typeLabel.lengthUpperBound, gramsStruct.id, path)
-            val gramsValue =
-                state.memory
-                    .readField(
-                        ref,
-                        gramsField,
-                        gramsField.getSort(this),
-                    ).unsignedExtendToInteger()
+        val gramsStruct = lengthStruct.rest as KnownTypePrefix
+        check(gramsStruct.typeLabel is TlbIntegerLabelOfSymbolicSize)
 
-            val lengthField = ConcreteSizeBlockField(lengthStruct.typeLabel.concreteSize, lengthStruct.id, path)
-            val lengthValue = state.memory.readField(ref, lengthField, lengthField.getSort(this))
+        val gramsField = SymbolicSizeBlockField(gramsStruct.typeLabel.lengthUpperBound, gramsStruct.id, path)
+        val gramsValue =
+            state.memory
+                .readField(
+                    ref,
+                    gramsField,
+                    gramsField.getSort(this),
+                ).unsignedExtendToInteger()
 
-            UExprPairReadResult(lengthValue, gramsValue)
-        }
+        val lengthField = ConcreteSizeBlockField(lengthStruct.typeLabel.concreteSize, lengthStruct.id, path)
+        val lengthValue = state.memory.readField(ref, lengthField, lengthField.getSort(this))
 
-    override fun defaultTlbLabel() = TlbCoinsLabel
+        UExprPairReadResult(lengthValue, gramsValue)
+    }
 
-    override fun defaultTlbLabelSize(
+class CoinsInferredLabel(
+    override val guard: UBoolExpr,
+) : InferredTlbLabel {
+    override val struct: InferredTlbLabel.Structure
+        get() = InferredTlbLabel.TypeLabel(TlbCoinsLabel)
+
+    override fun labelSize(
         state: TvmState,
         ref: UConcreteHeapRef,
         path: List<Int>,
-    ) = with(ctx) {
+    ) = with(state.ctx) {
         val value = extractTlbValueFromTlbCoinsLabelFields(ref, path, state)
         val coinsLength = mkBvShiftLeftExpr(value.first.zeroExtendToSort(sizeSort), threeSizeExpr)
         val fullLength = mkBvAddExpr(coinsLength, fourSizeExpr)
@@ -656,7 +706,7 @@ class TvmCellDataCoinsRead(
         val coinPartLength = mkBvMulExpr(prefix.zeroExtendToSort(sizeSort), eightSizeExpr)
         val minLength = mkBvAddExpr(coinPartLength, fourSizeExpr)
 
-        mkSizeLtExpr(dataSuffixLength, minLength) to trueExpr
+        mkSizeLtExpr(dataSuffixLength, minLength)
     }
 }
 

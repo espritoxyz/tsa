@@ -16,6 +16,7 @@ import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmStepScopeManager
 import org.usvm.machine.intValue
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.types.InferredTlbLabel
 import org.usvm.machine.types.memory.UnknownBlockField
 import org.usvm.machine.types.memory.UnknownBlockLengthField
 import org.usvm.machine.types.memory.stack.TlbStackFrame.GuardedResult
@@ -79,6 +80,7 @@ data class StackFrameOfUnknown(
                         ctx.trueExpr,
                         NextFrame(StackFrameOfUnknown(path, leftTlbDepth, hasOffset = true)),
                         value = null,
+                        doWhenForked = {},
                     ),
                 )
 
@@ -86,9 +88,19 @@ data class StackFrameOfUnknown(
                 return@with defaultResult
             }
 
-            val label =
-                loadData.type.defaultTlbLabel()
-                    ?: return@with defaultResult
+            val field = UnknownBlockField(TlbStructure.Unknown.id, path)
+            val dataSymbolic =
+                scope.calcOnState {
+                    memory.readField(loadData.cellRef, field, field.getSort(ctx))
+                }
+
+            val labelVariants =
+                loadData.type.defaultTlbLabel(dataSuffix = dataSymbolic)
+
+            val assumeValue = labelVariants.fold(falseExpr as UBoolExpr) { a, b -> a or b.guard }
+
+            scope.checkSat(assumeValue)
+                ?: return@with defaultResult
 
             val curSizeField = UnknownBlockLengthField(path)
             val curSize =
@@ -101,118 +113,173 @@ data class StackFrameOfUnknown(
                         ).zeroExtendToSort(sizeSort)
                 }
 
-            val field = UnknownBlockField(TlbStructure.Unknown.id, path)
-            val dataSymbolic =
-                scope.calcOnState {
-                    memory.readField(loadData.cellRef, field, field.getSort(ctx))
-                }
-
             var forgottenConstraint = trueExpr as UBoolExpr
 
             if (scope.allowFailuresOnCurrentStep || !badCellSizeIsExceptional) {
-                val (sizeIsBad, assumeValue) =
-                    loadData.type.sizeIsBad(
-                        dataSuffix = dataSymbolic,
-                        dataSuffixLength = curSize,
-                    )
+                forgottenConstraint = assumeValue
 
-                scope.checkSat(assumeValue)
-                    ?: return@with defaultResult
+                labelVariants.forEach { label ->
+                    val sizeIsBad =
+                        label.sizeIsBad(
+                            dataSuffix = dataSymbolic,
+                            dataSuffixLength = curSize,
+                        )
 
-                var badSizeContext = BadSizeContext.GoodSizeIsSat
+                    var badSizeContext = BadSizeContext.GoodSizeIsSat
 
-                check(loadData.guard.isTrue) {
-                    "Unexpected loadData guard"
-                }
-
-                forgottenConstraint = sizeIsBad.not() and assumeValue
-
-                if (scope.allowFailuresOnCurrentStep) {
-                    scope.forkWithCheckerStatusKnowledge(
-                        assumeValue implies sizeIsBad.not(),
-                        blockOnUnknownTrueState = {
-                            badSizeContext = BadSizeContext.GoodSizeIsUnknown
-                        },
-                        blockOnUnsatTrueState = {
-                            badSizeContext = BadSizeContext.GoodSizeIsUnsat
-                        },
-                        blockOnFalseState = {
-                            // because UnknownBlockField got into constraints
-                            fieldManagers.cellDataFieldManager.inferenceManager.fixateRef(loadData.cellRef)
-
-                            onBadCellSize(this, badSizeContext)
-                        },
-                        doNotAddConstraintToTrueState = true, // because further constraints are stronger
-                    ) ?: return@with null
-                } else {
-                    // case when [!badCellSizeIsExceptional]
-                    scope.fork(
-                        assumeValue implies sizeIsBad.not(),
-                        falseStateIsExceptional = false,
-                        blockOnFalseState = {
-                            // because UnknownBlockField got into constraints
-                            fieldManagers.cellDataFieldManager.inferenceManager.fixateRef(loadData.cellRef)
-
-                            // badSizeContext doesn't matter here
-                            onBadCellSize(this, BadSizeContext.GoodSizeIsUnknown)
-                        },
-                    ) ?: return@with null
-                }
-            }
-
-            val newStructure =
-                TlbStructure.KnownTypePrefix(
-                    id = TlbStructureIdProvider.provideId(),
-                    typeLabel = label,
-                    typeArgIds = emptyList(),
-                    owner = TlbStructure.UnknownStructOwner,
-                    rest = TlbStructure.Unknown,
-                )
-
-            val newPath = path.add(TlbStructure.Unknown.id)
-
-            val labelSize =
-                loadData.type.defaultTlbLabelSize(
-                    scope.calcOnState { this },
-                    loadData.cellRef,
-                    newPath.add(newStructure.id),
-                )
-                    ?: error("Unexpected null defaultTlbLabelSize")
-
-            val restSizeValue = mkSizeSubExpr(curSize, labelSize)
-            val restSizeField = UnknownBlockLengthField(newPath)
-
-            // if we don't use this scheme after all, we will just ignore this field
-            scope.doWithState {
-                memory.writeField(
-                    loadData.cellRef,
-                    restSizeField,
-                    restSizeField.getSort(ctx),
-                    restSizeValue,
-                    guard = trueExpr,
-                )
-            }
-
-            val tlbFieldConstraint =
-                if (label is TlbCompositeLabel) {
-                    scope.calcOnState {
-                        dataCellInfoStorage.mapper.calculatedTlbLabelInfo
-                            .getTlbFieldConstraints(
-                                this,
-                                loadData.cellRef,
-                                label,
-                                newPath.add(newStructure.id),
-                            )
+                    check(loadData.guard.isTrue) {
+                        "Unexpected loadData guard"
                     }
-                } else {
-                    trueExpr
+
+                    forgottenConstraint = forgottenConstraint and (label.guard implies sizeIsBad.not())
+
+                    if (scope.allowFailuresOnCurrentStep) {
+                        scope.forkWithCheckerStatusKnowledge(
+                            label.guard implies sizeIsBad.not(),
+                            blockOnUnknownTrueState = {
+                                badSizeContext = BadSizeContext.GoodSizeIsUnknown
+                            },
+                            blockOnUnsatTrueState = {
+                                badSizeContext = BadSizeContext.GoodSizeIsUnsat
+                            },
+                            blockOnFalseState = {
+                                // because UnknownBlockField got into constraints
+                                fieldManagers.cellDataFieldManager.inferenceManager.fixateRef(loadData.cellRef)
+
+                                onBadCellSize(this, badSizeContext)
+                            },
+                            doNotAddConstraintToTrueState = true, // because further constraints are stronger
+                        ) ?: return@with null
+                    } else {
+                        // case when [!badCellSizeIsExceptional]
+                        scope.fork(
+                            label.guard implies sizeIsBad.not(),
+                            falseStateIsExceptional = false,
+                            blockOnFalseState = {
+                                // because UnknownBlockField got into constraints
+                                fieldManagers.cellDataFieldManager.inferenceManager.fixateRef(loadData.cellRef)
+
+                                // badSizeContext doesn't matter here
+                                onBadCellSize(this, BadSizeContext.GoodSizeIsUnknown)
+                            },
+                        ) ?: return@with null
+                    }
                 }
+            }
 
-            val tlbSizeConstraint = mkSizeGeExpr(restSizeValue, zeroSizeExpr)
-            val tlbConstraint = tlbSizeConstraint and tlbFieldConstraint
+            return labelVariants
+                .flatMap<InferredTlbLabel, GuardedResult<ReadResult>> { label ->
+                    val newStructure =
+                        when (label.struct) {
+                            is InferredTlbLabel.TypeLabel ->
+                                TlbStructure.KnownTypePrefix(
+                                    id = TlbStructureIdProvider.provideId(),
+                                    typeLabel = (label.struct as InferredTlbLabel.TypeLabel).label,
+                                    typeArgIds = emptyList(),
+                                    owner = TlbStructure.UnknownStructOwner,
+                                    rest = TlbStructure.Unknown,
+                                )
+                            is InferredTlbLabel.Const ->
+                                TlbStructure.SwitchPrefix(
+                                    id = TlbStructureIdProvider.provideId(),
+                                    switchSize = (label.struct as InferredTlbLabel.Const).value.length,
+                                    givenVariants =
+                                        mapOf(
+                                            (label.struct as InferredTlbLabel.Const).value to TlbStructure.Unknown,
+                                        ),
+                                    owner = TlbStructure.UnknownStructOwner,
+                                )
+                        }
 
-            scope.checkSat(tlbConstraint)
-                ?: run {
+                    val newPath = path.add(TlbStructure.Unknown.id)
+
+                    val labelSize =
+                        label.labelSize(
+                            scope.calcOnState { this },
+                            loadData.cellRef,
+                            newPath.add(newStructure.id),
+                        )
+
+                    val restSizeValue = mkSizeSubExpr(curSize, labelSize)
+
+                    val tlbLabel = (label.struct as? InferredTlbLabel.TypeLabel)?.label as? TlbCompositeLabel
+                    val tlbFieldConstraint =
+                        if (tlbLabel != null) {
+                            scope.calcOnState {
+                                dataCellInfoStorage.mapper.calculatedTlbLabelInfo
+                                    .getTlbFieldConstraints(
+                                        this,
+                                        loadData.cellRef,
+                                        tlbLabel,
+                                        newPath.add(newStructure.id),
+                                    )
+                            }
+                        } else {
+                            trueExpr
+                        }
+
+                    val tlbSizeConstraint = mkSizeGeExpr(restSizeValue, zeroSizeExpr)
+                    val tlbConstraint = tlbSizeConstraint and tlbFieldConstraint
+
+                    scope.checkSat(label.guard and tlbConstraint)
+                        ?: return@flatMap emptyList()
+
+                    val nextFrame =
+                        buildFrameForStructure(ctx, newStructure, newPath, leftTlbDepth)
+                            ?: error("Unexpected null frame")
+
+                    check(nextFrame is KnownTypeTlbStackFrame || nextFrame is ConstTlbStackFrame) {
+                        "Unexpected tlb frame: $nextFrame"
+                    }
+
+                    // we will need this only for [nextFrame.step], on the next iteration this might be rewritten
+                    scope.doWithState {
+                        label.writeToNextLabelFields(
+                            this,
+                            loadData.cellRef,
+                            newPath,
+                            newStructure.id,
+                            dataSymbolic,
+                        )
+                    }
+                    val nextFrameStepResult =
+                        nextFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
+                            ?: return null
+
+                    nextFrameStepResult.map { res ->
+                        GuardedResult(
+                            guard = label.guard and tlbConstraint and res.guard,
+                            result = res.result,
+                            value = res.value,
+                        ) {
+                            val restSizeField = UnknownBlockLengthField(newPath)
+                            it.memory.writeField(
+                                loadData.cellRef,
+                                restSizeField,
+                                restSizeField.getSort(ctx),
+                                restSizeValue,
+                                guard = trueExpr,
+                            )
+
+                            it.fieldManagers.cellDataFieldManager.inferenceManager.addInferredStruct(
+                                loadData.cellRef,
+                                path,
+                                newStructure,
+                            )
+
+                            // restore the value
+                            label.writeToNextLabelFields(
+                                it,
+                                loadData.cellRef,
+                                newPath,
+                                newStructure.id,
+                                dataSymbolic,
+                            )
+
+                            res.doWhenForked(it)
+                        }
+                    }
+                }.ifEmpty {
                     scope.assert(forgottenConstraint)
                         ?: return@with null
 
@@ -220,27 +287,6 @@ data class StackFrameOfUnknown(
 
                     return@with defaultResult
                 }
-
-            scope.assert(tlbConstraint)
-                ?: error("Unexpected solver result")
-
-            inferenceManager.addInferredStruct(loadData.cellRef, path, newStructure)
-
-            loadData.type.writeToNextLabelFields(
-                scope.calcOnState {
-                    this
-                },
-                loadData.cellRef,
-                newPath,
-                newStructure.id,
-                dataSymbolic,
-            )
-
-            val nextFrame =
-                buildFrameForStructure(ctx, newStructure, newPath, leftTlbDepth)
-                    ?: error("Unexpected null frame")
-
-            nextFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
         }
 
     override fun expandNewStackFrame(ctx: TvmContext): TlbStackFrame? = null
