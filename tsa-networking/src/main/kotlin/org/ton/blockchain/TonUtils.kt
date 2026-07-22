@@ -31,13 +31,13 @@ fun makeRequest(
 fun readableAddressToHex(address: String): String = AddrStd.parse(address).address.toHex()
 
 @OptIn(ExperimentalEncodingApi::class)
-fun ByteArray.toBase64() = Base64.Default.encode(this)
+fun ByteArray.toBase64() = Base64.encode(this)
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalEncodingApi::class)
-fun String.base64ToHex() = Base64.Default.decode(this).toHexString()
+fun String.base64ToHex() = Base64.decode(this).toHexString()
 
 @OptIn(ExperimentalEncodingApi::class)
-fun String.fromBase64() = Base64.Default.decode(this)
+fun String.fromBase64() = Base64.decode(this)
 
 @OptIn(ExperimentalStdlibApi::class)
 fun String.hexToBase64() = hexToByteArray().toBase64()
