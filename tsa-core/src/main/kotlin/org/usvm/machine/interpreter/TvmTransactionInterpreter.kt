@@ -421,7 +421,6 @@ class TvmTransactionInterpreter(
     ) {
         val mode = ReserveMode(reserveAction.mode)
         if (mode.hasReserveAllExcept() ||
-            mode.hasReserveAtMost() ||
             mode.hasInvertSign() ||
             mode.hasReserveBounceIfActionFail()
         ) {
@@ -438,6 +437,14 @@ class TvmTransactionInterpreter(
                                 currentMessageHandlingState.remainingBalance bvSub
                                     currentMessageHandlingState.remainingInboundMessageValue
                             reserveTmp bvAdd originalBalance
+                        }
+                }
+                if (mode.hasReserveAtMost() && currentMessageHandlingState is MessageHandlingState.Ok) {
+                    // reserve = min(reserve, remaining_balance)
+                    reserveTmp =
+                        with(ctx) {
+                            val remainingBalance = currentMessageHandlingState.remainingBalance
+                            mkIte(reserveTmp bvUle remainingBalance, reserveTmp, remainingBalance)
                         }
                 }
                 reserveTmp
@@ -709,8 +716,8 @@ class TvmTransactionInterpreter(
                 TvmStepScopeManager.ActionOnCondition(
                     action,
                     isActionExceptional,
-                    predicate,
-                    updatedMessageHandlingState,
+                    condition = predicate,
+                    paramForDoForAllBlock = updatedMessageHandlingState,
                 )
             }
         scope.doWithConditions(actions) { updatedState ->
