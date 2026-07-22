@@ -194,12 +194,12 @@ class TsaCheckerFunctionsInterpreter(
                 performRecvExternalCallWithBody(scope, stmt)
             }
 
-            ASSERT_SLICE_IS_DEPENDENT -> {
-                performAssertSliceIsDependent(scope, stmt)
+            ASSERT_SLICE_IS_INDEPENDENT -> {
+                performAssertSliceIsIndependent(scope, stmt)
             }
 
-            ASSERT_SLICE_DETERMINES -> {
-                performAssertSliceDetermines(scope, stmt)
+            MARK_SLICE_AS_DETERMINER -> {
+                performMarkSliceAsDeterminer(scope, stmt)
             }
 
             ENABLE_AUTH_CHECK -> {
@@ -849,7 +849,7 @@ class TsaCheckerFunctionsInterpreter(
         }
     }
 
-    private fun performAssertSliceIsDependent(
+    private fun performAssertSliceIsIndependent(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
     ) {
@@ -857,13 +857,13 @@ class TsaCheckerFunctionsInterpreter(
             scope.takeLastSliceOrThrowTypeError()
                 ?: return
         scope.doWithState {
-            this.functionalDependencyAssertion.dependentRefs =
-                this.functionalDependencyAssertion.dependentRefs.add(slice)
+            this.functionalIndependenceAssertion.independentRefs =
+                this.functionalIndependenceAssertion.independentRefs.add(slice)
             newStmt(stmt.nextStmt())
         }
     }
 
-    private fun performAssertSliceDetermines(
+    private fun performMarkSliceAsDeterminer(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
     ) {
@@ -871,8 +871,8 @@ class TsaCheckerFunctionsInterpreter(
             scope.takeLastSliceOrThrowTypeError()
                 ?: return
         scope.doWithState {
-            this.functionalDependencyAssertion.determinerRefs =
-                this.functionalDependencyAssertion.determinerRefs.add(slice)
+            this.functionalIndependenceAssertion.determinerRefs =
+                this.functionalIndependenceAssertion.determinerRefs.add(slice)
             newStmt(stmt.nextStmt())
         }
     }

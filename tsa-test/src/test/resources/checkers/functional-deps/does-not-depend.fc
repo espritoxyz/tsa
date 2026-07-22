@@ -10,8 +10,11 @@ slice choose(slice a, slice b) impure method_id (214) {
     slice left = msg~load_msg_addr();
     slice right = msg~load_msg_addr();
     slice result = choose(left, right);
-    tsa_assert_belongs_to_functionally_determiners_scope(left);
-    tsa_assert_belongs_to_functionally_dependent_scope(result); ;; should succeed
+    if (msg.preload_uint(1) == 0) {
+        result = begin_cell().end_cell().begin_parse();
+    }
+    tsa_mark_as_belonging_to_determiners_scope(left);
+    tsa_assert_belongs_to_functionally_independent_scope(result);
     throw(1000);
 }
 
