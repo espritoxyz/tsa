@@ -348,6 +348,7 @@ fun <Sort : USort> UExpr<Sort>.isIteWithConcreteLeaves(depth: Int = 0): Boolean 
 fun unpackConcat(
     expr: UExpr<KBvSort>,
     depth: Int = 0,
+    unpackItes: Boolean = true,
 ): List<UExpr<UBvSort>>? {
     if (depth > MAX_RECURSION_DEPTH) {
         return null
@@ -371,6 +372,22 @@ fun unpackConcat(
                 unpackedArg0 + unpackedArg1
             }
 
+            is KIteExpr -> {
+                if (!unpackItes) {
+                    return listOf(expr)
+                }
+                val groups =
+                    groupIntoParts(expr.trueBranch, expr.falseBranch, unpackItes = false)
+                        ?: return null
+                groups.map { (trueBranch, falseBranch) ->
+                    mkIte(
+                        expr.condition,
+                        trueBranch,
+                        falseBranch,
+                    )
+                }
+            }
+
             else -> {
                 listOf(expr)
             }
@@ -381,6 +398,7 @@ fun unpackConcat(
 fun groupIntoParts(
     a: UExpr<KBvSort>,
     b: UExpr<KBvSort>,
+    unpackItes: Boolean = true,
 ): List<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>? {
     check(a.sort == b.sort) {
         "Incompatible sorts"
@@ -390,8 +408,8 @@ fun groupIntoParts(
         return listOf(a to b)
     }
 
-    val aParts = ArrayDeque(unpackConcat(a) ?: return null)
-    val bParts = ArrayDeque(unpackConcat(b) ?: return null)
+    val aParts = ArrayDeque(unpackConcat(a, unpackItes = unpackItes) ?: return null)
+    val bParts = ArrayDeque(unpackConcat(b, unpackItes = unpackItes) ?: return null)
 
     val result = mutableListOf<Pair<UExpr<KBvSort>, UExpr<KBvSort>>>()
 

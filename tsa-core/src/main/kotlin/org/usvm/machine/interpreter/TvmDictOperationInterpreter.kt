@@ -1951,7 +1951,15 @@ class TvmDictOperationInterpreter(
         and dictionary type (input dictionary or non-input dictionary).
          */
         val dicts = flattenDictIte(scope, dictCellRef, DictId(keyLength), scope.ctx.mkBvSort(keyLength.toUInt()))
-        val actions = dicts.map { (cond, dict) -> TvmStepScopeManager.ActionOnCondition({}, false, cond, dict) }
+        val actions =
+            dicts.map { (cond, dict) ->
+                TvmStepScopeManager.ActionOnCondition(
+                    action = {},
+                    caseIsExceptional = false,
+                    cond,
+                    paramForDoForAllBlock = dict,
+                )
+            }
         scope.doWithConditions(actions) { dictCellRef ->
             doDictGetImpl(this, keyLength, dictCellRef, keyKind, key, nullDefaultValue, inst, valueType, inRange)
         }
