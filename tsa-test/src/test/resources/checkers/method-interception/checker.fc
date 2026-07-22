@@ -1,0 +1,32 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+int sub_1_1(int x) method_id(41) {
+    return x + 100;
+}
+
+(int, int) sub_1_2(int x) method_id(42) {
+    return (x + 200, x + 210);
+}
+
+int sub_2_1(int a, int b) method_id(43) {
+    return a * b;
+}
+
+int sub_0_1() method_id(44) {
+    return 777;
+}
+
+() sub_1_0(int x) impure method_id(45) {
+    ;; do nothing
+}
+
+() main() impure {
+    tsa_register_method_interception(1001, 41, 1, 1);
+    tsa_register_method_interception(1002, 42, 1, 2);
+    tsa_register_method_interception(1003, 43, 2, 1);
+    tsa_register_method_interception(1004, 44, 0, 1);
+    tsa_register_method_interception(1005, 45, 1, 0);
+
+    tsa_send_internal_message(1, 0);
+}

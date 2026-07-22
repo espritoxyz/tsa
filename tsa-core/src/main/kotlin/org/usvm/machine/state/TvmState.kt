@@ -31,6 +31,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.fields.TvmFieldManagers
 import org.usvm.machine.interpreter.AuthAnalysisResult
 import org.usvm.machine.interpreter.DispatchedMessageContent
+import org.usvm.machine.interpreter.MethodInterception
 import org.usvm.machine.interpreter.inputdict.InputDictionaryStorage
 import org.usvm.machine.state.TvmStack.TvmStackTupleValueConcreteNew
 import org.usvm.machine.state.hash.TvmHashSymbol
@@ -87,6 +88,7 @@ class TvmState(
     var contractStack: PersistentList<TvmEventInformation> = persistentListOf(),
     var currentContract: ContractId,
     var fetchedValues: PersistentMap<Int, TvmStack.TvmStackEntry> = persistentMapOf(),
+    var registeredMethodInterceptions: PersistentMap<Int, MethodInterception> = persistentMapOf(),
     var additionalFlags: PersistentSet<String> = persistentHashSetOf(),
     var unprocessedMessages: PersistentList<Pair<ContractId, DispatchedMessageContent>> = persistentListOf(),
     // inter-contract fields
@@ -246,6 +248,7 @@ class TvmState(
             refToDepth = refToDepth,
             signatureChecks = signatureChecks,
             fetchedValues = fetchedValues,
+            registeredMethodInterceptions = registeredMethodInterceptions,
             additionalFlags = additionalFlags,
             fieldManagers = fieldManagers.clone(),
             messageQueue = messageQueue,
