@@ -1,0 +1,20 @@
+#include "../../imports/stdlib.fc";
+
+global int cg;
+
+int f(int x) method_id(1001) {
+    return 0; ;; original body, should be intercepted
+}
+
+() recv_internal(int balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    cg = 42;
+
+    int r = f(7); ;; intercepted: jumps into the checker's substitution method
+
+    ;; the called contract's global must be untouched by the interception
+    throw_unless(101, cg == 42);
+    ;; the substitution result must be observed
+    throw_unless(102, r == 107);
+
+    ;; return normally so control goes back to the checker's main
+}

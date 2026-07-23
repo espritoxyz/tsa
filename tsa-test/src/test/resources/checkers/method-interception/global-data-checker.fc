@@ -1,0 +1,19 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+global int kg;
+
+int sub(int x) method_id(41) {
+    throw_unless(201, kg == 7);
+    kg = 8;
+    throw_unless(202, kg == 8);
+    return x + 100;
+}
+
+() main() impure {
+    kg = 7;
+    tsa_register_method_interception(1001, 41, 1, 1);
+    tsa_send_internal_message(1, 0);
+    throw_unless(301, kg == 8);
+    throw(1000);
+}

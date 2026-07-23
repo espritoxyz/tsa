@@ -1,0 +1,9 @@
+#include "../../imports/stdlib.fc";
+#include "../../imports/tsa_functions.fc";
+
+() main() impure {
+    ;; substitution method id 999 does not exist in the checker - must error out
+    tsa_register_method_interception(1001, 999, 1, 1);
+
+    tsa_send_internal_message(1, 0);
+}

@@ -62,6 +62,7 @@ import org.usvm.machine.state.messages.getMsgValue
 import org.usvm.machine.state.messages.msgValue
 import org.usvm.machine.state.messages.srcAddressSlice
 import org.usvm.machine.state.messages.stateInit
+import org.usvm.machine.toMethodId
 import org.usvm.machine.toTvmCell
 import org.usvm.machine.types.ConcreteCellRef
 import org.usvm.machine.types.TvmBuilderType
@@ -854,6 +855,73 @@ fun TvmStepScopeManager.callCheckerMethodIfExists(
         switchDirectlyToMethodInContract(method)
         return@calcOnState CheckerCallResult.WAS_CALLED
     }
+
+fun TvmStepScopeManager.interceptCallForSubstitution(
+    substitutionMethodId: Int,
+    argCount: Int,
+    retCount: Int,
+    returnStmt: TvmInst,
+    contractsCode: List<TsaContractCode>,
+) = calcOnState {
+    val checkerContractIds =
+        contractsCode.mapIndexedNotNull { index, code ->
+            if (code.isContractWithTSACheckerFunctions) index to code else null
+        }
+    if (checkerContractIds.size >= 2) {
+        error("Too many checker contracts (ids: ${checkerContractIds.map { it.first }})")
+    }
+    val (checkerContractId, checkerCode) =
+        checkerContractIds.singleOrNull()
+            ?: error("Method interception requires a checker contract, but none was found")
+    require(checkerContractId != currentContract) {
+        "interceptCallIntoChecker is expected to be called outside of checker"
+    }
+    val method =
+        checkerCode.methods[substitutionMethodId.toMethodId()]
+            ?: error("Substitution method with id $substitutionMethodId not found in the checker contract")
+
+    val oldStack = stack // no clone: we mutate it later
+    val oldMemory = TvmContractExecutionMemory(oldStack, registersOfCurrentContract)
+    contractStack =
+        contractStack.add(
+            TvmEventInformation(
+                currentContract,
+                returnStmt,
+                oldMemory,
+                retCount,
+                phaseBeginTime = currentPhaseBeginTime,
+                phaseEndTime = currentPhaseEndTime,
+                receivedMessage = receivedMessage,
+                computeFee = currentComputeFeeUsed,
+                isExceptional = isExceptional,
+                phase = phase,
+            ),
+        )
+    val executionMemory =
+        initializeContractExecutionMemory(
+            contractsCode,
+            this,
+            checkerContractId,
+            message = null,
+            allowInputStackValues = false,
+        )
+
+    phase = TvmComputePhase
+    currentPhaseBeginTime = pseudologicalTime
+    currentPhaseEndTime = null
+    receivedMessage = null
+    currentComputeFeeUsed = null
+    isExceptional = false
+    currentContract = checkerContractId
+    registersOfCurrentContract = executionMemory.registers
+    stack = executionMemory.stack
+    stack.takeValuesFromOtherStack(oldStack, argCount)
+    val storedC7 = checkerC7
+    if (storedC7 != null) {
+        registersOfCurrentContract.c7 = storedC7
+    }
+    switchDirectlyToMethodInContract(method)
+}
 
 private fun TvmState.mockValueForRef(
     ref: UHeapRef,

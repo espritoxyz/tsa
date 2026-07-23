@@ -1,0 +1,40 @@
+#include "../../imports/stdlib.fc";
+
+int f_1_1(int x) method_id(1001) {
+    return x + 1;
+}
+
+(int, int) f_1_2(int x) method_id(1002) {
+    return (x + 1, x + 2);
+}
+
+int f_2_1(int a, int b) method_id(1003) {
+    return a + b;
+}
+
+int f_0_1() method_id(1004) {
+    return 0;
+}
+
+() f_1_0(int x) impure method_id(1005) {
+    throw(299);
+}
+
+() recv_internal(int balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    int r1 = f_1_1(10);
+    throw_unless(101, r1 == 110);
+
+    (int a, int b) = f_1_2(10);
+    throw_unless(102, a == 210);
+    throw_unless(103, b == 220);
+
+    int r2 = f_2_1(3, 4);
+    throw_unless(104, r2 == 12);
+
+    int r3 = f_0_1();
+    throw_unless(105, r3 == 777);
+
+    f_1_0(5); ;; original throws 299, substitution does nothing
+
+    throw(1000);
+}
