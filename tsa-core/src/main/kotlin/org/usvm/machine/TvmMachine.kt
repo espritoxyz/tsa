@@ -5,6 +5,7 @@ import org.ton.TvmInputInfo
 import org.ton.bytecode.TsaContractCode
 import org.ton.bytecode.TvmCodeBlock
 import org.usvm.StateCollectionStrategy
+import org.usvm.StateId
 import org.usvm.UMachine
 import org.usvm.UMachineOptions
 import org.usvm.machine.interpreter.TvmInterpreter
@@ -17,6 +18,7 @@ import org.usvm.machine.statistics.getTvmDebugProfileObserver
 import org.usvm.statistics.CompositeUMachineObserver
 import org.usvm.statistics.StepsStatistics
 import org.usvm.statistics.TimeStatistics
+import org.usvm.statistics.UMachineObserver
 import org.usvm.statistics.collectors.AllStatesCollector
 import org.usvm.statistics.collectors.StatesCollector
 import org.usvm.stopstrategies.GroupedStopStrategy
@@ -154,6 +156,28 @@ class TvmMachine(
                     }
                 }
             }
+        val opcodeAtTheEndObserver =
+            object : UMachineObserver<TvmState> {
+                override fun onMachineStopped() {
+                    val nonTerminatedStates = statesCollector.collectedStates.filter { !it.isTerminated }
+                    val result = mutableMapOf<StateId, Set<BigInteger>>()
+                    for (state in nonTerminatedStates) {
+                        val (opcodes, status) =
+                            TvmOpcodeExtractor(32).extractOpcodeFromState(
+                                state.clone(),
+                                isEnd = true,
+                                loadFromStandardInput = false,
+                            )
+                        result.compute(
+                            state.id,
+                            { _, oldValue -> if (oldValue != null) oldValue + opcodes else opcodes },
+                        )
+                        result[state.id] = opcodes
+                    }
+                    super.onMachineStopped()
+                    logger.info { "Opcodes from non-terminated states is: $result" }
+                }
+            }
 
         val observers =
             mutableListOf(
@@ -162,6 +186,7 @@ class TvmMachine(
                 coverageStatistics,
                 timeStatistics,
                 additionalStopStrategy,
+                opcodeAtTheEndObserver,
             )
 
         observers += psContext.observers
