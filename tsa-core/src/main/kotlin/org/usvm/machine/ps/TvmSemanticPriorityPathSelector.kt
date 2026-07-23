@@ -41,8 +41,14 @@ class TvmSemanticPriorityPathSelector(
 
     fun add(state: TvmState) {
         when (state.semanticPriority) {
-            SemanticPriority.NORMAL -> innerPathSelector.add(listOf(state))
-            SemanticPriority.LOW -> lowPriorityStatesPs.add(listOf(state))
+            SemanticPriority.NORMAL -> {
+                innerPathSelector.add(listOf(state))
+            }
+            SemanticPriority.LOW -> {
+                if (!state.ctx.tvmOptions.ignoreLowPriorityStates) {
+                    lowPriorityStatesPs.add(listOf(state))
+                }
+            }
         }
     }
 

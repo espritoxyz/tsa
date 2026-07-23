@@ -76,7 +76,8 @@ class ContractsTest {
          * from cells of dict type.
          * TODO: enable test generation when resolve the issue above is fixed
          */
-        analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
+        val options = TvmOptions(ignoreLowPriorityStates = true)
+        analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false, options)
     }
 
     @Test
