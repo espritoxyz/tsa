@@ -98,6 +98,7 @@ sealed interface TlbStackFrame {
         val guard: UBoolExpr,
         val result: StackFrameStepResult<ReadResult>,
         val value: ReadResult?,
+        val doWhenForked: (TvmState) -> Unit,
     )
 
     fun skipLabel(

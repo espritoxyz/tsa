@@ -53,7 +53,7 @@ data class TlbStack(
                 // finished parsing
                 return@with scope.calcOnState {
                     listOf(
-                        GuardedResult(emptyRead, NewStack(this@TlbStack), value = null),
+                        GuardedResult(emptyRead, NewStack(this@TlbStack), value = null, doWhenForked = {}),
                         GuardedResult(
                             emptyRead.not(),
                             Error(
@@ -61,19 +61,20 @@ data class TlbStack(
                                 fromMutableTlb = false,
                             ),
                             value = null,
+                            doWhenForked = {},
                         ),
                     )
                 }
             }
 
-            result.add(GuardedResult(emptyRead, NewStack(this@TlbStack), value = null))
+            result.add(GuardedResult(emptyRead, NewStack(this@TlbStack), value = null, doWhenForked = {}))
 
             val lastFrame = frames.last()
 
             val frameSteps =
                 lastFrame.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
                     ?: return@with null
-            frameSteps.forEach { (guard, stackFrameStepResult, value) ->
+            frameSteps.forEach { (guard, stackFrameStepResult, value, doWhenForked) ->
                 if (guard.isFalse) {
                     return@forEach
                 }
@@ -89,6 +90,7 @@ data class TlbStack(
                                 guard and emptyRead.not(),
                                 NewStack(TlbStack(newFrames, deepestError)),
                                 value,
+                                doWhenForked,
                             ),
                         )
                     }
@@ -104,6 +106,7 @@ data class TlbStack(
                                 guard and emptyRead.not(),
                                 NewStack(newStack, stackFrameStepResult.concreteLoaded),
                                 value,
+                                doWhenForked,
                             ),
                         )
                     }
@@ -124,9 +127,14 @@ data class TlbStack(
                             val newStepResult =
                                 newStack.step(scope, loadData, badCellSizeIsExceptional, onBadCellSize)
                                     ?: return@with null
-                            newStepResult.forEach { (innerGuard, stepResult, value) ->
+                            newStepResult.forEach { (innerGuard, stepResult, value, innerDoWhenForked) ->
                                 val newGuard = ctx.mkAnd(guard, innerGuard)
-                                result.add(GuardedResult(newGuard and emptyRead.not(), stepResult, value))
+                                result.add(
+                                    GuardedResult(newGuard and emptyRead.not(), stepResult, value) {
+                                        doWhenForked(it)
+                                        innerDoWhenForked(it)
+                                    },
+                                )
                             }
                         } else {
                             // condition [nextLevelFrame == null] means that we were about to parse TvmAtomicDataLabel
@@ -148,7 +156,12 @@ data class TlbStack(
                                 lastFrame is StackFrameOfUnknown || lastFrame.path.any { it == TlbStructure.Unknown.id }
 
                             result.add(
-                                GuardedResult(guard and emptyRead.not(), Error(error, fromMutableTlb), value = null),
+                                GuardedResult(
+                                    guard and emptyRead.not(),
+                                    Error(error, fromMutableTlb),
+                                    value = null,
+                                    doWhenForked,
+                                ),
                             )
                         }
                     }
@@ -163,7 +176,7 @@ data class TlbStack(
                         val stepResults =
                             newStack.step(scope, newLoadData, badCellSizeIsExceptional, onBadCellSize)
                                 ?: return@with null
-                        stepResults.forEach { (innerGuard, stepResult, _) ->
+                        stepResults.forEach { (innerGuard, stepResult, _, innerDoWhenForked) ->
                             // values from steps are discarded as we are only interested
                             // in concrete bitvector reads when reading values across multiple
                             // frames. These values are passed in stepResult
@@ -192,7 +205,10 @@ data class TlbStack(
                                                 scope.calcOnState { allocSliceFromData(it) },
                                             ).uncheckedCast()
                                         },
-                                ),
+                                ) {
+                                    doWhenForked(it)
+                                    innerDoWhenForked(it)
+                                },
                             )
                         }
                     }
@@ -264,6 +280,7 @@ data class TlbStack(
         val guard: UBoolExpr,
         val result: StepResult,
         val value: ReadResult?,
+        val doWhenForked: (TvmState) -> Unit,
     )
 
     companion object {

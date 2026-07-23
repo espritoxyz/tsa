@@ -4,6 +4,7 @@ import kotlinx.collections.immutable.persistentListOf
 import org.ton.TlbAtomicLabel
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
+import org.ton.resolvePossibleVariants
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -85,8 +86,7 @@ fun calculateSizeInfoForLeaves(
                 is TlbStructure.SwitchPrefix -> {
                     val newDataLength = mkSizeAddExpr(curSize.dataLength, mkSizeExpr(curStruct.switchSize))
                     val possibleVariants =
-                        possibleSwitchVariants[curStruct]
-                            ?: error("Switch variants not found for switch $curStruct")
+                        curStruct.resolvePossibleVariants(possibleSwitchVariants)
 
                     possibleVariants.forEachIndexed { idx, (_, nextStruct) ->
                         val switchGuard =
