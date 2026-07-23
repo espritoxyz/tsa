@@ -1609,6 +1609,7 @@ fun sliceLoadAddrTlb(
                         val originalCell = memory.readField(slice, sliceCellField, addressSort)
                         val dataPos = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(state, slice)
 
+                        // TODO: fork instead of using ITE?
                         val addrLength =
                             slicePreloadAddrLengthWithoutSetException(
                                 slice,

@@ -169,27 +169,35 @@ private fun createPathSelectorLevel0(
     initialState: TvmState,
     ctx: PSCreationContext,
 ): UPathSelector<TvmState> {
-    val ps = createPathSelectorLevel1(ctx)
+    val ps =
+        TvmSemanticPriorityPathSelector {
+            createPathSelectorLevel1(ctx)
+        }
+    ps.add(initialState)
+    return ps
+}
+
+private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmState> {
+    val ps = createPathSelectorLevel2(ctx)
     val result =
         if (ps !is IterativeDeepeningPs<*, *, *, *> && ctx.options.loopIterationLimit != null) {
             LoopLimiterPs(ps, ctx.loopTracker, ctx.options.loopIterationLimit - 1)
         } else {
             ps
         }
-    result.add(listOf(initialState))
     return result
 }
 
-private fun createPathSelectorLevel1(ctx: PSCreationContext): UPathSelector<TvmState> =
+private fun createPathSelectorLevel2(ctx: PSCreationContext): UPathSelector<TvmState> =
     if (ctx.options.groupByOutOpcodes) {
         TvmOutOpcodePathSelector {
-            createPathSelectorLevel2(ctx)
+            createPathSelectorLevel3(ctx)
         }
     } else {
-        createPathSelectorLevel2(ctx)
+        createPathSelectorLevel3(ctx)
     }
 
-private fun createPathSelectorLevel2(ctx: PSCreationContext): UPathSelector<TvmState> =
+private fun createPathSelectorLevel3(ctx: PSCreationContext): UPathSelector<TvmState> =
     when (ctx.options.pathSelectionStrategy) {
         TvmPathSelectionStrategy.DFS_BASED -> {
             createSeedBasedPathSelector(ctx)

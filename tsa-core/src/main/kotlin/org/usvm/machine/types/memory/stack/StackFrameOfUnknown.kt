@@ -252,6 +252,8 @@ data class StackFrameOfUnknown(
                             result = res.result,
                             value = res.value,
                         ) {
+                            it.semanticPriority = label.priority
+
                             val restSizeField = UnknownBlockLengthField(newPath)
                             it.memory.writeField(
                                 loadData.cellRef,

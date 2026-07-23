@@ -33,6 +33,7 @@ import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.intValue
+import org.usvm.machine.state.SemanticPriority
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.getSliceRemainingBitsCount
@@ -83,6 +84,8 @@ sealed interface InferredTlbLabel {
 
     val struct: Structure
     val guard: UBoolExpr
+    val priority: SemanticPriority
+        get() = SemanticPriority.NORMAL
 
     fun labelSize(
         state: TvmState,
@@ -295,6 +298,7 @@ class ConcreteSizeInferredLabel(
     override val struct: InferredTlbLabel.Structure,
     override val guard: UBoolExpr,
     val concreteSize: Int,
+    override val priority: SemanticPriority = SemanticPriority.NORMAL,
 ) : InferredTlbLabel {
     override fun labelSize(
         state: TvmState,
@@ -457,6 +461,7 @@ class TvmCellDataMsgAddrRead(
                     InferredTlbLabel.Const("00"),
                     guard = tag eq mkBv("00", tag.sort.sizeBits),
                     concreteSize = 2,
+                    priority = SemanticPriority.LOW,
                 ),
                 BasicAddressInferredLabel(
                     guard = tag eq mkBv("10", tag.sort.sizeBits),

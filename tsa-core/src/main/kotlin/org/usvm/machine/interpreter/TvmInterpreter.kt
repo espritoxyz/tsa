@@ -263,6 +263,7 @@ import org.usvm.machine.state.CDataSizeDataBits
 import org.usvm.machine.state.CDataSizeDistinctCells
 import org.usvm.machine.state.ContractId
 import org.usvm.machine.state.DataSizeInfo
+import org.usvm.machine.state.SemanticPriority
 import org.usvm.machine.state.TvmInitialStateData
 import org.usvm.machine.state.TvmIntegerOutOfRangeError
 import org.usvm.machine.state.TvmPathConstraints
@@ -847,6 +848,8 @@ class TvmInterpreter(
         }
 
     override fun step(state: TvmState): StepResult<TvmState> {
+        state.semanticPriority = SemanticPriority.NORMAL
+
         manualStateProcessor.preprocessStateBeforeStep(state)
             ?: return StepResult(emptySequence(), originalStateAlive = false)
 
