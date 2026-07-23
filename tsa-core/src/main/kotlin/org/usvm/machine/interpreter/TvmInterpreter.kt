@@ -351,7 +351,6 @@ import org.usvm.machine.state.unsignedIntegerFitsBits
 import org.usvm.machine.state.writeSliceDataPos
 import org.usvm.machine.state.writeSliceRefPos
 import org.usvm.machine.toMethodId
-import org.usvm.machine.toTvmCell
 import org.usvm.machine.tryCatchIf
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmCellType
@@ -697,20 +696,22 @@ class TvmInterpreter(
 
         val states = manualStateProcessor.postProcessBeforePartialConcretization(state)
 
-        check(state.addressesToBeRandomized.isEmpty() || state.functionalDependencyAssertion.determinerRefs.isEmpty()) {
+        check(
+            state.addressesToBeRandomized.isEmpty() || state.functionalIndependenceAssertion.determinerRefs.isEmpty(),
+        ) {
             "cannot support both modes"
         }
 
         val clonedOldState =
             if (state.addressesToBeRandomized.isNotEmpty() ||
                 (
-                    state.functionalDependencyAssertion.determinerRefs.isNotEmpty() &&
-                        !state.functionalDependencyAssertion.areDeterminersFixed
+                    state.functionalIndependenceAssertion.determinerRefs.isNotEmpty() &&
+                        !state.functionalIndependenceAssertion.areDeterminersFixed
                 )
             ) {
                 check(states.size == 1 && states.single() == state) {
                     "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract " +
-                        "OR tsa_assert_functionally_determines"
+                        "OR tsa_mark_as_belonging_to_determiners_scope"
                 }
                 state.clone()
             } else {
@@ -729,8 +730,8 @@ class TvmInterpreter(
                 check(newStates.size == 1 && newStates.single() == state) {
                     "Cannot use manual post processor AND tsa_make_address_random_and_independent_from_contract"
                 }
-                if (clonedOldState.functionalDependencyAssertion.determinerRefs.isNotEmpty()) {
-                    processFunctionalDependencyAssertion(clonedOldState, state)
+                if (clonedOldState.functionalIndependenceAssertion.determinerRefs.isNotEmpty()) {
+                    processFunctionalIndependenceAssertion(clonedOldState, state)
                 } else if (clonedOldState.addressesToBeRandomized.isNotEmpty()) {
                     processAddressRandomization(clonedOldState, state)
                 } else {
@@ -754,12 +755,12 @@ class TvmInterpreter(
     /**
      * @return the postprocessed states that survive the functional dependency assertions
      */
-    private fun processFunctionalDependencyAssertion(
+    private fun processFunctionalIndependenceAssertion(
         clonedOldState: TvmState,
         stateAfterPostProcess: TvmState,
     ): List<TvmState> =
         with(clonedOldState.ctx) {
-            val refsToFix = clonedOldState.functionalDependencyAssertion.determinerRefs
+            val refsToFix = clonedOldState.functionalIndependenceAssertion.determinerRefs
             val (scope, resolver) =
                 setModelsFromDescendantStateAndFixateRefs(
                     clonedOldState,
@@ -768,7 +769,7 @@ class TvmInterpreter(
                 )
                     ?: return emptyList()
 
-            for (expr in clonedOldState.functionalDependencyAssertion.dependentRefs) {
+            for (expr in clonedOldState.functionalIndependenceAssertion.independentRefs) {
                 val model = resolver.resolveSlice(expr)
                 val modelSlice = clonedOldState.allocSliceFromCell(model.cell.toTvmCell())
                 clonedOldState.writeSliceDataPos(modelSlice.asSliceRef(), with(ctx) { model.dataPos.toSizeSort() })
@@ -777,11 +778,11 @@ class TvmInterpreter(
                     scope.slicesDataBitsAreEqual(expr, modelSlice)
                         ?: return listOf()
                 val isInequalitySat = scope.checkSat(with(ctx) { equalityCs.not() }) != null
-                if (isInequalitySat) {
+                if (!isInequalitySat) {
                     return listOf()
                 }
             }
-            clonedOldState.functionalDependencyAssertion.areDeterminersFixed = true
+            clonedOldState.functionalIndependenceAssertion.areDeterminersFixed = true
             return postProcessState(clonedOldState)
         }
 
