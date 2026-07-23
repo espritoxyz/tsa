@@ -37,6 +37,21 @@ class ReserveTest {
         val sender = "/intercontract/reserve/mode-4-remaining-balance/sender.fc"
     }
 
+    object Mode2NormalMessage {
+        val checker = "/intercontract/reserve/mode-2-normal-send/checker.fc"
+        val sender = "/intercontract/reserve/mode-2-normal-send/sender.fc"
+    }
+
+    object Mode2SendRemainingBalance {
+        val checker = "/intercontract/reserve/mode-2-remaining-balance/checker.fc"
+        val sender = "/intercontract/reserve/mode-2-remaining-balance/sender.fc"
+    }
+
+    object Mode2Clamp {
+        val checker = "/intercontract/reserve/mode-2-clamp/checker.fc"
+        val sender = "/intercontract/reserve/mode-2-clamp/sender.fc"
+    }
+
     object Mode0RepeatingReserves {
         val checker = "/intercontract/reserve/mode-0-repeating-reserves/checker.fc"
         val sender = "/intercontract/reserve/mode-0-repeating-reserves/sender.fc"
@@ -165,6 +180,67 @@ class ReserveTest {
         val checkerData = TvmConcreteContractData(contractC4)
         val tests = runAnalysis(checker, sender, checkerData)
         tests.assertPropertiesFound(hasExitCode(400))
+    }
+
+    @Test
+    fun `reserve 2 - normal message - suffices`() {
+        val checker = extractCheckerContractFromResource(Mode2NormalMessage.checker)
+        val sender = extractFuncContractFromResource(Mode2NormalMessage.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(2_000_000_000, 64) // initial balance
+                .storeInt(1_000_000_000, 64) // to reserve
+                .storeInt(500_000_000, 64) // to send
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertPropertiesFound(hasExitCode(10000))
+    }
+
+    @Test
+    fun `reserve 2 - normal message - insufficient funds`() {
+        val checker = extractCheckerContractFromResource(Mode2NormalMessage.checker)
+        val sender = extractFuncContractFromResource(Mode2NormalMessage.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(20_000_000_000, 64) // initial balance
+                .storeInt(15_000_000_000, 64) // to reserve
+                .storeInt(10_000_000_000, 64) // to send
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertInvariantsHold(doesNotEndWithExitCode(10000))
+        assertTrue(tests.isNotEmpty())
+    }
+
+    @Test
+    fun `reserve 2 - send remaining balance - true bound`() {
+        val checker = extractCheckerContractFromResource(Mode2SendRemainingBalance.checker)
+        val sender = extractFuncContractFromResource(Mode2SendRemainingBalance.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(20_000_000_000, 64) // initial balance
+                .storeInt(15_000_000_000, 64) // to reserve
+                .storeInt(8_000_000_000, 64) // expected upper bound on out message
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertInvariantsHold(doesNotEndWithExitCode(400))
+        tests.assertPropertiesFound(hasExitCode(10000))
+    }
+
+    @Test
+    fun `reserve 2 - reserve more than balance - clamped`() {
+        val checker = extractCheckerContractFromResource(Mode2Clamp.checker)
+        val sender = extractFuncContractFromResource(Mode2Clamp.sender)
+        val contractC4 =
+            CellBuilder()
+                .storeInt(20_000_000_000, 64) // initial balance
+                .storeInt(30_000_000_000, 64) // to reserve (more than the balance, gets clamped)
+                .endCell()
+        val checkerData = TvmConcreteContractData(contractC4)
+        val tests = runAnalysis(checker, sender, checkerData)
+        tests.assertPropertiesFound(hasExitCode(10000))
     }
 
     @Test

@@ -120,8 +120,8 @@ class CheckersTest {
     }
 
     private object FunctionalDepsTestData {
-        const val OK = "/checkers/functional-deps/ok.fc"
-        const val FAIL = "/checkers/functional-deps/fail.fc"
+        const val DEPENDS = "/checkers/functional-deps/depends.fc"
+        const val DOES_NOT_DEPEND = "/checkers/functional-deps/does-not-depend.fc"
     }
 
     @Test
@@ -738,8 +738,8 @@ class CheckersTest {
     }
 
     @Test
-    fun funcDepsOk() {
-        val checkerContract = extractCheckerContractFromResource(FunctionalDepsTestData.OK)
+    fun `works when there is dependency`() {
+        val checkerContract = extractCheckerContractFromResource(FunctionalDepsTestData.DEPENDS)
 
         val tests =
             analyzeInterContract(
@@ -748,14 +748,14 @@ class CheckersTest {
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = TvmOptions(stopOnFirstError = true),
             )
-
-        tests.assertPropertiesFound(hasExitCode(1000))
+        // if there is a dependency, the assertion will always fail
+        tests.assertInvariantsHold(doesNotEndWithExitCode(1000))
     }
 
     @Ignore("Incorrect implementation of dependency")
     @Test
-    fun funcDepsFail() {
-        val checkerContract = extractCheckerContractFromResource(FunctionalDepsTestData.FAIL)
+    fun `works when there is independence`() {
+        val checkerContract = extractCheckerContractFromResource(FunctionalDepsTestData.DOES_NOT_DEPEND)
 
         val tests =
             analyzeInterContract(
@@ -764,8 +764,8 @@ class CheckersTest {
                 methodId = TvmContext.RECEIVE_INTERNAL_ID,
                 options = TvmOptions(stopOnFirstError = true),
             )
-
-        tests.assertInvariantsHold(doesNotEndWithExitCode(1000))
+        // if there is at least a potential independence, there will be a surviving execution
+        tests.assertPropertiesFound(hasExitCode(1000))
     }
 
     @Test

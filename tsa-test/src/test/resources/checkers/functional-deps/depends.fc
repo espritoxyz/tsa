@@ -1,7 +1,7 @@
 #include "../../imports/stdlib.fc";
 #include "../../imports/tsa_functions.fc";
 
-slice mychoos(slice a, slice b) impure method_id(213){
+slice my_choose(slice a, slice b) impure method_id(213){
     return a;
 }
 
@@ -9,9 +9,12 @@ slice mychoos(slice a, slice b) impure method_id(213){
 () on_internal_message_send(int balance, int msg_value, cell mag, slice msg, int input_id) impure method_id {
     slice left = msg~load_msg_addr();
     slice right = msg~load_msg_addr();
-    slice result = mychoos(left, right);
-    tsa_assert_belongs_to_functionally_determiners_scope(left);
-    tsa_assert_belongs_to_functionally_dependent_scope(result); ;; should succeed
+    slice result = my_choose(left, right);
+    if (msg.preload_uint(1) == 0) {
+        result = begin_cell().end_cell().begin_parse();
+    }
+    tsa_mark_as_belonging_to_determiners_scope(left);
+    tsa_assert_belongs_to_functionally_independent_scope(result);
     throw(1000);
 }
 

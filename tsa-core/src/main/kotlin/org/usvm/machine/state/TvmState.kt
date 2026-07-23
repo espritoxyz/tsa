@@ -115,8 +115,8 @@ class TvmState(
     val initialRandomSeed: BigInteger?,
     var messageIdentifierMapping: PersistentMap<Int, C5ActionIdentifier.MsgIdentifier> = persistentMapOf(),
     var callstackCounter: PersistentMap<List<TvmPhysicalInstLocation>, Int> = persistentMapOf(),
-    val functionalDependencyAssertion: FunctionalDependencyAssertion =
-        FunctionalDependencyAssertion(
+    val functionalIndependenceAssertion: FunctionalIndependenceAssertion =
+        FunctionalIndependenceAssertion(
             persistentSetOf(),
             persistentSetOf(),
         ),
@@ -271,7 +271,7 @@ class TvmState(
             initialRandomSeed = initialRandomSeed,
             messageIdentifierMapping = messageIdentifierMapping,
             callstackCounter = callstackCounter,
-            functionalDependencyAssertion = functionalDependencyAssertion.copy(),
+            functionalIndependenceAssertion = functionalIndependenceAssertion.copy(),
             fixatedHashes = fixatedHashes,
             c5IdentifierList = c5IdentifierList,
             inputIdToTsaAccountId = inputIdToTsaAccountId,
@@ -368,8 +368,8 @@ class TvmStateDebugInfo(
         )
 }
 
-data class FunctionalDependencyAssertion(
-    var dependentRefs: PersistentSet<UHeapRef> = persistentSetOf(),
+data class FunctionalIndependenceAssertion(
+    var independentRefs: PersistentSet<UHeapRef> = persistentSetOf(),
     var determinerRefs: PersistentSet<UHeapRef> = persistentSetOf(),
     var areDeterminersFixed: Boolean = false,
 )
