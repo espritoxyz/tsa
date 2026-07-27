@@ -178,16 +178,6 @@ class TvmPostProcessor(
             postprocessInTheGoodOrder(state, scope)
                 ?: return null
 
-            assertConstraints(scope) { resolver ->
-                val fwdFeeConstraint =
-                    generateFwdFeeConstraints(scope, resolver)
-                        ?: return@assertConstraints null
-                fwdFeeConstraint
-            } ?: run {
-                logger.debug("Cannot assert (depth or fwd_fee or cdatasize) constraints")
-                return null
-            }
-
             // must be asserted separately since it relies on correct hash values
             assertConstraints(scope) { resolver ->
                 generateSignatureConstraints(scope, resolver)
@@ -250,12 +240,27 @@ class TvmPostProcessor(
         override val args: List<UHeapRef>,
         val sha256: Int257Expr,
     ) : DeferredEvaluationSymbol {
+        // we do not go recursively to children here, as sha256 is taken from the data string
         override fun collectDependentRefs(state: TvmState): List<UHeapRef> = args.flatMap { it.listLeaves() }
 
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
             resolver: TvmTestStateResolver,
         ): UBoolExpr? = fixateValueAndSha256(scope, args.single(), sha256, resolver)
+    }
+
+    inner class FwdFeeSymbol(
+        override val symbol: UExpr<*>,
+        override val args: List<UHeapRef>,
+        val fwdFeeInfo: FwdFeeInfo,
+    ) : DeferredEvaluationSymbol {
+        override fun collectDependentRefs(state: TvmState): List<UHeapRef> =
+            args.flatMap { collectReachableCells(it, state) }
+
+        override fun createFixationConstraint(
+            scope: TvmStepScopeManager,
+            resolver: TvmTestStateResolver,
+        ): UBoolExpr? = fixateValueAndFwdFee(scope, fwdFeeInfo, resolver)
     }
 
     inner class CDataSizeSymbol(
@@ -610,6 +615,15 @@ class TvmPostProcessor(
                 Sha256Symbol(symbol, listOf(ctx.mkConcreteHeapRef(ref)), sha256),
             )
         }
+        for (fwdFeeInfo in state.forwardFees) {
+            deferredEvalSymbols.add(
+                FwdFeeSymbol(
+                    fwdFeeInfo.symbolicFwdFee,
+                    listOfNotNull(fwdFeeInfo.stateInitRef, fwdFeeInfo.msgBodyRef),
+                    fwdFeeInfo,
+                ),
+            )
+        }
         return deferredEvalSymbols
     }
 
@@ -695,22 +709,6 @@ class TvmPostProcessor(
 
         return scope.assert(constraints)
     }
-
-    private fun generateFwdFeeConstraints(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val forwardFees = scope.calcOnState { forwardFees }
-
-            forwardFees.fold(trueExpr as UBoolExpr) { acc, fwdFeeInfo ->
-                val curConstraint =
-                    fixateValueAndFwdFee(scope, fwdFeeInfo, resolver)
-                        ?: return@with null
-
-                acc and curConstraint
-            }
-        }
 
     private fun generatePublicKeyConstraints(
         scope: TvmStepScopeManager,
