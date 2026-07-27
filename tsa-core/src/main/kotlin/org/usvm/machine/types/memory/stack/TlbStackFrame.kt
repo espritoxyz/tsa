@@ -80,7 +80,8 @@ sealed interface TlbStackFrame {
     fun readInModel(read: TlbStack.ConcreteReadInfo): ModelReadResult
 
     /**
-     * @param symbolicData is `null` iff there was no use of model on some symbolic data
+     * @param symbolicData  is the original expression that was used to create [data] reads.
+     * It is `null` iff there was no use of model on some symbolic expression to create [data]
      */
     data class ModelReadResult(
         val data: String,

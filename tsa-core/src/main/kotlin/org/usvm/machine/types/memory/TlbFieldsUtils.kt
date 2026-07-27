@@ -199,11 +199,14 @@ fun readInModelFromTlbFields(
     return ModelReadResult(result, guard, missedSlices, symbolicExprs)
 }
 
+/**
+ * @property symbolicExprs  are the original expressions that were used to create [data].
+ */
 data class ModelReadResult(
     val data: String,
     val guard: UBoolExpr,
     val missedSlices: List<Pair<UHeapRef, TvmTestSliceValue>>,
-    val symbolicExprs: MutableList<UExpr<*>>,
+    val symbolicExprs: List<UExpr<*>>,
 )
 
 fun generateTlbFieldConstraints(

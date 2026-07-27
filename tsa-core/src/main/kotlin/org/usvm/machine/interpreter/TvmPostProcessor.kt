@@ -575,9 +575,12 @@ class TvmPostProcessor(
     private fun collectDeferredEvalSymbols(state: TvmState): MutableList<DeferredEvaluationSymbol> {
         val deferredEvalSymbols = mutableListOf<DeferredEvaluationSymbol>()
         for ((ref, depth) in state.refToDepth) {
+            val depthSymbol =
+                (depth as? KBvZeroExtensionExpr)?.value
+                    ?: error("Expected zero-extension symbol, got $depth")
             deferredEvalSymbols.add(
                 DepthSymbol(
-                    (depth as KBvZeroExtensionExpr).value,
+                    depthSymbol,
                     listOf(ctx.mkConcreteHeapRef(ref)),
                     depth,
                 ),
@@ -590,15 +593,21 @@ class TvmPostProcessor(
                         datasizeInfo.distinctCells,
                         datasizeInfo.cellRefs,
                         datasizeInfo.dataBits,
-                    ).map { (it as KBvZeroExtensionExpr).value },
+                    ).map {
+                        (it as? KBvZeroExtensionExpr)?.value
+                            ?: error("expected zero-extension symbol, got $it")
+                    },
                     listOf(datasizeInfo.analyzedCell),
                     datasizeInfo,
                 ),
             )
         }
         for ((ref, sha256) in state.refToSha256) {
+            val symbol =
+                (sha256 as? KBvZeroExtensionExpr)?.value
+                    ?: error("Expected zero-extension symbol, got $sha256")
             deferredEvalSymbols.add(
-                Sha256Symbol((sha256 as KBvZeroExtensionExpr).value, listOf(ctx.mkConcreteHeapRef(ref)), sha256),
+                Sha256Symbol(symbol, listOf(ctx.mkConcreteHeapRef(ref)), sha256),
             )
         }
         return deferredEvalSymbols
