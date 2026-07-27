@@ -5,6 +5,7 @@ import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import io.ksmt.utils.uncheckedCast
 import mu.KLogging
+import org.ton.TvmParameterInfo
 import org.ton.api.pk.PrivateKeyEd25519
 import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
@@ -56,6 +57,7 @@ import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.getPossibleTypes
+import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.machine.types.wrap
 import org.usvm.mkSizeExpr
 import org.usvm.solver.UExprTranslator
@@ -172,7 +174,6 @@ class TvmPostProcessor(
                 return null
             }
 
-            // only assert depth for the time being
             postprocessInTheGoodOrder(state, scope)
                 ?: return null
 
@@ -425,23 +426,79 @@ class TvmPostProcessor(
                     .calcOnState { getPossibleTypes(ref as UConcreteHeapRef) }
                     .toList()
                     .filter { it !is TvmDictCellType }
-            val data =
+            val dataParts: List<UExpr<*>>? =
                 when (possibleTypes) {
                     listOf(TvmSliceType) -> {
                         scope.calcOnState {
-                            val dataLeft = getSliceRemainingBitsCount(ref)
-                            val dataPosition = readSliceDataPos(ref)
-                            val cell = readSliceCell(ref)
-                            scope.preloadDataBitsFromCellWithoutChecks(cell, dataPosition, dataLeft)
-                                ?: return@calcOnState null
+                            val exprs = mutableListOf<UExpr<*>>()
+                            for (sliceConcreteRef in ref.listLeaves()) {
+                                val state = this
+                                val labelMapper = state.dataCellInfoStorage.sliceMapper
+                                val stack =
+                                    labelMapper.getTlbStack(sliceConcreteRef)
+                                        ?: continue
+                                val cellRef = state.readSliceCell(sliceConcreteRef)
+
+                                val resolver = TvmTestStateResolver(ctx, tvmModels.first(), this)
+                                val sizeSymbolic =
+                                    state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(
+                                        state,
+                                        cellRef,
+                                    )
+                                val position = state.readSliceDataPos(sliceConcreteRef)
+                                val readCount = with(ctx) { sizeSymbolic bvSub position }
+                                val (valueFromTlbFields, guard, _, symbolicExprs) =
+                                    readInModelFromTlbFields(
+                                        cellRef,
+                                        resolver,
+                                        stack,
+                                        readCount,
+                                    )
+                                exprs.addAll(symbolicExprs)
+                            }
+                            if (exprs.isEmpty()) {
+                                val dataLeft = getSliceRemainingBitsCount(ref)
+                                val dataPosition = readSliceDataPos(ref)
+                                val cell = readSliceCell(ref)
+                                exprs.add(
+                                    scope.preloadDataBitsFromCellWithoutChecks(cell, dataPosition, dataLeft)
+                                        ?: return@calcOnState null,
+                                )
+                            }
+                            exprs
                         }
                     }
 
                     listOf(TvmCellType), listOf(TvmDataCellType), listOf(TvmBuilderType) -> {
-                        val data =
-                            scope.readCellData(ref)
-                                ?: return null
-                        data
+                        val exprs = mutableListOf<UExpr<*>>()
+                        for (concreteRef in ref.listLeaves()) {
+                            val state = scope.calcOnState { this }
+                            val labelMapper = state.dataCellInfoStorage.mapper
+                            val possibleLabels =
+                                labelMapper
+                                    .getLabelInfo(concreteRef)
+                                    ?.variants
+                                    ?.mapNotNull { it.key as? TvmParameterInfo.DataCellInfo }
+                                    ?: continue
+
+                            for (label in possibleLabels) {
+                                val (valueFromTlbFields, guard, _, symbolicExprs) =
+                                    readInModelFromTlbFields(
+                                        ref,
+                                        TvmTestStateResolver(ctx, state.tvmModels.first(), state),
+                                        label.dataCellStructure,
+                                    )
+                                exprs.addAll(symbolicExprs)
+                            }
+
+                            if (exprs.isEmpty()) {
+                                val data =
+                                    scope.readCellData(ref)
+                                        ?: return null
+                                exprs.add(data)
+                            }
+                        }
+                        exprs
                     }
 
                     listOf<TvmType>() -> { // tvm dict type
@@ -453,8 +510,8 @@ class TvmPostProcessor(
                     }
                 }
 
-            data ?: continue
-            interestingSymbolVisitor.apply(data)
+            dataParts ?: continue
+            dataParts.map { interestingSymbolVisitor.apply(it) }
             val found = interestingSymbolVisitor.found
             refsToDependentSymbols[ref] =
                 deferredEvalSymbols.filter {

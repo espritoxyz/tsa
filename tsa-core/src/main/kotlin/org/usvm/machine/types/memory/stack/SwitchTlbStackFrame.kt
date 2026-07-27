@@ -153,6 +153,7 @@ data class SwitchTlbStackFrame(
                         further?.let { listOf(it) } ?: emptyList(),
                         guard,
                         missedSlices = emptyList(),
+                        symbolicData = null,
                     )
                 }
             }
