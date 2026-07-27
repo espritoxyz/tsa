@@ -25,6 +25,7 @@ import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmContext.TvmInt257Sort
 import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
+import org.usvm.machine.intValue
 import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TsaAccountIdSymbol
@@ -225,7 +226,14 @@ class TvmPostProcessor(
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
             resolver: TvmTestStateResolver,
-        ): UBoolExpr? = fixateValueAndDepth(scope, args.single() as UConcreteHeapRef, depth, resolver)
+        ): UBoolExpr? =
+            fixateValueAndDepth(
+                scope,
+                args.singleOrNull() as? UConcreteHeapRef
+                    ?: error("Expected UConcreteHeapRef, got ${args.singleOrNull()}"),
+                depth,
+                resolver,
+            )
     }
 
     inner class Sha256Symbol(
@@ -236,7 +244,7 @@ class TvmPostProcessor(
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
             resolver: TvmTestStateResolver,
-        ): UBoolExpr? = fixateValueAndSha256(scope, args.first(), sha256, resolver)
+        ): UBoolExpr? = fixateValueAndSha256(scope, args.single(), sha256, resolver)
     }
 
     inner class CDataSizeSymbol(
@@ -323,6 +331,10 @@ class TvmPostProcessor(
                 }
             }
         val refsToConsider = deferredEvaluationSymbolsToDependentRefs.values.flatten().toHashSet()
+        // pin the form of `refsToConsider`
+        assertConstraints(scope) { resolver ->
+            ctx.mkAnd(pinFormsOfCells(refsToConsider, resolver))
+        } ?: return null
 
         val refsToDependentSymbols =
             collectDeferredEvalSymbolsDependentOnRefs(scope, deferredEvalSymbols, refsToConsider)
@@ -349,6 +361,42 @@ class TvmPostProcessor(
                 ?: return null
         }
         return Unit
+    }
+
+    private fun pinFormsOfCells(
+        refsToConsider: HashSet<UHeapRef>,
+        resolver: TvmTestStateResolver,
+    ): List<UBoolExpr> {
+        val state = resolver.state
+        val formPinQueue = mutableListOf(*refsToConsider.flatMap { it.listLeaves() }.toTypedArray())
+        val constraints = mutableListOf<UBoolExpr>()
+        val visited = hashSetOf<UExpr<*>>()
+        while (formPinQueue.isNotEmpty()) {
+            val toPinForm = formPinQueue.removeAt(0)
+            if (toPinForm in visited) continue
+            visited.add(toPinForm)
+            check(
+                state.getPossibleTypes(toPinForm as UConcreteHeapRef).all {
+                    it == TvmDataCellType || it == TvmDictCellType || it == TvmBuilderType
+                },
+            )
+
+            val refCount = state.readCellRefsCount(toPinForm.asCellRef())
+            val modeledRefCount = resolver.eval(refCount)
+            constraints.add(with(ctx) { refCount eq modeledRefCount })
+            val concreteRefCount = modeledRefCount.intValue()
+            if (concreteRefCount != 0) {
+                for (i in 0 until concreteRefCount) {
+                    val nextChild = state.readCellRef(toPinForm, ctx.mkSizeExpr(i))
+                    for (leaf in nextChild.listLeaves()) {
+                        if (leaf !in visited) {
+                            formPinQueue.add(leaf)
+                        }
+                    }
+                }
+            }
+        }
+        return constraints
     }
 
     /**
