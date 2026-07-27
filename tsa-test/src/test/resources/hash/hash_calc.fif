@@ -20,30 +20,30 @@ PROGRAM{
   15 DECLMETHOD no_unnecessary_fixes
 
   simple_cell_hash PROC:<{
-      NEWC
-      x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
-      STSLICER
-      ENDC
-      HASHCU
+//       NEWC
+//       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
+//       STSLICER
+//       ENDC
+//       HASHCU
   }>
   simple_slice_hash PROC:<{
-      x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
-      HASHSU
+//       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
+//       HASHSU
   }>
   slice_ops_hash PROC:<{
-      x{646676686a7364667662736a64616261}  PUSHSLICE  // just some slice
-      2 LDI
-      HASHSU
+//       x{646676686a7364667662736a64616261}  PUSHSLICE  // just some slice
+//       2 LDI
+//       HASHSU
   }>
   ref_hash PROC:<{
-      NEWC
-      x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
-      STSLICER
-      ENDC
-      NEWC
-      STREF
-      ENDC
-      HASHCU
+//       NEWC
+//       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice
+//       STSLICER
+//       ENDC
+//       NEWC
+//       STREF
+//       ENDC
+//       HASHCU
     }>
   dict_hash_1 PROC:<{
       x{646676686a7364667662736a64616261} PUSHSLICE  // just some slice

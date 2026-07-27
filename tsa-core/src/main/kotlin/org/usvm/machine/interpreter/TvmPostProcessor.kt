@@ -36,6 +36,7 @@ import org.usvm.machine.state.hash.DefaultUExprTransformer
 import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
+import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.hash.calculateConcreteHash
 import org.usvm.machine.state.messages.FwdFeeInfo
@@ -164,17 +165,6 @@ class TvmPostProcessor(
                 return null
             }
 
-            // forward fees might depend on the hashes, so we must fixate the hashes first
-            assertConstraints(scope) { resolver ->
-                val hashConstraint =
-                    generateHashConstraint(scope, resolver)
-                        ?: return@assertConstraints null
-                hashConstraint
-            } ?: run {
-                logger.debug("Cannot assert hash constraints")
-                return null
-            }
-
             postprocessInTheGoodOrder(state, scope)
                 ?: return null
 
@@ -247,6 +237,29 @@ class TvmPostProcessor(
             scope: TvmStepScopeManager,
             resolver: TvmTestStateResolver,
         ): UBoolExpr? = fixateValueAndSha256(scope, args.single(), sha256, resolver)
+    }
+
+    inner class HashSymbol(
+        override val symbol: TvmHashSymbol,
+        override val args: List<UHeapRef>,
+    ) : DeferredEvaluationSymbol {
+        override fun collectDependentRefs(state: TvmState): List<UHeapRef> =
+            args.flatMap { collectReachableCells(it, state) }
+
+        override fun createFixationConstraint(
+            scope: TvmStepScopeManager,
+            resolver: TvmTestStateResolver,
+        ): UBoolExpr? {
+            val constraint =
+                fixateValueAndHash(
+                    scope,
+                    args.single(),
+                    with(ctx) { symbol.zeroExtendToSort(int257sort) },
+                    resolver,
+                ) ?: return null
+            scope.calcOnState { fixatedHashes = fixatedHashes.add(symbol) }
+            return constraint
+        }
     }
 
     inner class FwdFeeSymbol(
@@ -392,11 +405,20 @@ class TvmPostProcessor(
             val toPinForm = formPinQueue.removeAt(0)
             if (toPinForm in visited) continue
             visited.add(toPinForm)
+            val possibleTypes = state.getPossibleTypes(toPinForm as UConcreteHeapRef).toList()
+            if (possibleTypes == listOf(TvmSliceType)) {
+                state.readSliceCell(toPinForm).listLeaves().forEach { cell ->
+                    if (cell !in visited) {
+                        formPinQueue.add(cell)
+                    }
+                }
+                continue
+            }
             check(
-                state.getPossibleTypes(toPinForm as UConcreteHeapRef).all {
-                    it == TvmDataCellType || it == TvmDictCellType || it == TvmBuilderType
+                possibleTypes.any {
+                    it == TvmCellType || it == TvmDataCellType || it == TvmDictCellType || it == TvmBuilderType
                 },
-            )
+            ) { "Expected cell or builder, got $possibleTypes for $toPinForm" }
 
             val refCount = state.readCellRefsCount(toPinForm.asCellRef())
             val modeledRefCount = resolver.eval(refCount)
@@ -624,6 +646,16 @@ class TvmPostProcessor(
                 ),
             )
         }
+        val hashCollector = HashCollector(ctx)
+        state.pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) }
+        state.signatureChecks.forEach { hashCollector.apply(it.hash) }
+        for ((ref, hash) in state.refToHash) {
+            if (hash in hashCollector.collectedHashes) {
+                deferredEvalSymbols.add(
+                    HashSymbol(hash, listOf(ctx.mkConcreteHeapRef(ref))),
+                )
+            }
+        }
         return deferredEvalSymbols
     }
 
@@ -734,38 +766,6 @@ class TvmPostProcessor(
             signatureChecks.fold(trueExpr as UBoolExpr) { acc, signatureCheck ->
                 val curConstraint = fixateSignatureCheck(signatureCheck, resolver)
 
-                acc and curConstraint
-            }
-        }
-
-    private fun generateHashConstraint(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val addressToHash = scope.calcOnState { refToHash }
-            val hashCollector = HashCollector(ctx)
-            scope.calcOnState {
-                pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) }
-                signatureChecks.forEach { hashCollector.apply(it.hash) }
-            }
-            addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
-                val isHashInCs = hash in hashCollector.collectedHashes
-                val curConstraint =
-                    if (isHashInCs) {
-                        val result =
-                            fixateValueAndHash(
-                                scope,
-                                mkConcreteHeapRef(ref),
-                                hash.zeroExtendToSort(int257sort),
-                                resolver,
-                            )
-                                ?: return null
-                        scope.calcOnState { fixatedHashes = fixatedHashes.add(hash) }
-                        result
-                    } else {
-                        ctx.trueExpr
-                    }
                 acc and curConstraint
             }
         }

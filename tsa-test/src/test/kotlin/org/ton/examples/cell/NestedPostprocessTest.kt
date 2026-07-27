@@ -14,6 +14,21 @@ class NestedPostprocessTest {
     }
 
     @Test
+    fun cellHashOfDeferredValuesTest() {
+        compareSymbolicAndConcreteResultsFunc(postprocessOrderTest, methods = setOf(2, 3))
+    }
+
+    @Test
+    fun nestedCellHashTest() {
+        compareSymbolicAndConcreteResultsFunc(postprocessOrderTest, methods = setOf(4))
+    }
+
+    @Test
+    fun `dictionary-hash-in-path-constraint`() {
+        compareSymbolicAndConcreteResultsFunc(postprocessOrderTest, methods = setOf(5))
+    }
+
+    @Test
     fun depthOfNestedHashTest() {
         compareSymbolicAndConcreteResultsFunc(depthNestedRefTest, methods = setOf(0))
     }

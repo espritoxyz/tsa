@@ -24,3 +24,50 @@ int sha256_of_depth() impure method_id (1) {
     var h2 = string_hash(c2.begin_parse());
     return h2;
 }
+
+int cell_hash_of_sha256() impure method_id (2) {
+    var c1 = begin_cell()
+        .store_uint(7, 32)
+        .end_cell();
+    var h1 = string_hash(c1.begin_parse());
+    var c2 = begin_cell()
+        .store_uint(h1, 256)
+        .end_cell();
+    return c2.cell_hash();
+}
+
+int cell_hash_of_depth() impure method_id (3) {
+    var c1 = begin_cell()
+        .store_uint(7, 32)
+        .end_cell();
+    var depth = c1.cell_depth();
+    var c2 = begin_cell()
+        .store_uint(depth, 16)
+        .end_cell();
+    return c2.cell_hash();
+}
+
+int nested_cell_hash() impure method_id (4) {
+    var c1 = begin_cell()
+        .store_uint(7, 32)
+        .end_cell();
+    var h1 = c1.cell_hash();
+    var c2 = begin_cell()
+        .store_uint(h1, 256)
+        .end_cell();
+    return c2.cell_hash();
+}
+
+int dictionary_hash_in_condition() impure method_id (5) {
+    cell dict = new_dict();
+    slice value = begin_cell()
+        .store_uint(7, 32)
+        .end_cell()
+        .begin_parse();
+    dict~udict_set(32, 1, value);
+
+    if (dict.cell_hash() == 0) {
+        return 1;
+    }
+    return 0;
+}
