@@ -212,6 +212,12 @@ class TvmPostProcessor(
         val symbol: UExpr<*>
         val args: List<UHeapRef>
 
+        fun collectDependentRefs(state: TvmState): List<UHeapRef>
+
+        fun isConnectedTo(symbol: UExpr<*>): Boolean = this.symbol == symbol
+
+        fun isConnectedToAny(symbols: Set<UExpr<*>>): Boolean = symbol in symbols
+
         fun createFixationConstraint(
             scope: TvmStepScopeManager,
             resolver: TvmTestStateResolver,
@@ -223,6 +229,9 @@ class TvmPostProcessor(
         override val args: List<UHeapRef>,
         val depth: Int257Expr,
     ) : DeferredEvaluationSymbol {
+        override fun collectDependentRefs(state: TvmState): List<UHeapRef> =
+            args.flatMap { collectReachableCells(it, state) }
+
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
             resolver: TvmTestStateResolver,
@@ -241,6 +250,8 @@ class TvmPostProcessor(
         override val args: List<UHeapRef>,
         val sha256: Int257Expr,
     ) : DeferredEvaluationSymbol {
+        override fun collectDependentRefs(state: TvmState): List<UHeapRef> = args.flatMap { it.listLeaves() }
+
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
             resolver: TvmTestStateResolver,
@@ -254,6 +265,13 @@ class TvmPostProcessor(
     ) : DeferredEvaluationSymbol {
         override val symbol: UExpr<*>
             get() = args.first().tctx.nullValue
+
+        override fun collectDependentRefs(state: TvmState): List<UHeapRef> =
+            args.flatMap { collectReachableCells(it, state) }
+
+        override fun isConnectedTo(symbol: UExpr<*>): Boolean = symbol in connectedSymbols
+
+        override fun isConnectedToAny(symbols: Set<UExpr<*>>): Boolean = connectedSymbols.any { it in symbols }
 
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
@@ -323,13 +341,7 @@ class TvmPostProcessor(
          */
 
         val deferredEvaluationSymbolsToDependentRefs =
-            deferredEvalSymbols.associateWith { symbol ->
-                if (symbol !is Sha256Symbol) {
-                    symbol.args.flatMap { collectReachableCells(it, state) }
-                } else {
-                    symbol.args.flatMap { it.listLeaves() } // no recursion, as sha256 only fixates leaves
-                }
-            }
+            deferredEvalSymbols.associateWith { symbol -> symbol.collectDependentRefs(state) }
         val refsToConsider = deferredEvaluationSymbolsToDependentRefs.values.flatten().toHashSet()
         // pin the form of `refsToConsider`
         assertConstraints(scope) { resolver ->
@@ -429,7 +441,7 @@ class TvmPostProcessor(
 
     private fun collectDeferredEvalSymbolsDependentOnRefs(
         scope: TvmStepScopeManager,
-        deferredEvalSymbols: MutableList<DeferredEvaluationSymbol>,
+        deferredEvalSymbols: List<DeferredEvaluationSymbol>,
         refsToConsider: HashSet<UHeapRef>,
     ): Map<UHeapRef, List<DeferredEvaluationSymbol>>? {
         val interestingSymbolVisitor =
@@ -437,14 +449,7 @@ class TvmPostProcessor(
                 val found = hashSetOf<UExpr<*>>()
 
                 override fun <Sort : USort> transform(expr: UTrackedSymbol<Sort>): UExpr<Sort> {
-                    if (deferredEvalSymbols.any {
-                            if (it is CDataSizeSymbol) {
-                                expr in it.connectedSymbols
-                            } else {
-                                it.symbol == expr
-                            }
-                        }
-                    ) {
+                    if (deferredEvalSymbols.any { it.isConnectedTo(expr) }) {
                         found.add(expr)
                     }
                     return super<UExprTranslator>.transform(expr)
@@ -560,15 +565,9 @@ class TvmPostProcessor(
 
             dataParts ?: continue
             dataParts.map { interestingSymbolVisitor.apply(it) }
-            val found = interestingSymbolVisitor.found
+            val foundSymbols = interestingSymbolVisitor.found
             refsToDependentSymbols[ref] =
-                deferredEvalSymbols.filter {
-                    if (it is CDataSizeSymbol) {
-                        it.connectedSymbols.any { symbol -> symbol in found }
-                    } else {
-                        it.symbol in found
-                    }
-                }
+                deferredEvalSymbols.filter { it.isConnectedToAny(foundSymbols) }
         }
         return refsToDependentSymbols
     }
