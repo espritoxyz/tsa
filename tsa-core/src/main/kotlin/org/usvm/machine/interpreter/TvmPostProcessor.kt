@@ -457,6 +457,8 @@ class TvmPostProcessor(
     /**
      * Takes in a graph and returns the minimal amount of batches that disjointly cover all the nodes and
      * such that there are no edges that belong to a single batch.
+     * @param deferredEvalSymbols are the graph nodes
+     * @param deferredEvalSymbolDependency are the map from the nodes to its list of neighbors
      */
     private fun splitIntoLayers(
         deferredEvalSymbols: List<DeferredEvaluationSymbol>,
