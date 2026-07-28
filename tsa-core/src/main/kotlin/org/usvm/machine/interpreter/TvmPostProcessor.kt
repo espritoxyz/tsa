@@ -31,6 +31,7 @@ import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.assertType
 import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.hash.DefaultUExprTransformer
 import org.usvm.machine.state.hash.HashCollector
@@ -345,7 +346,7 @@ class TvmPostProcessor(
      * `h` depends on `s`
      *
      */
-    private fun TvmContext.postprocessInTheGoodOrder(
+    private fun postprocessInTheGoodOrder(
         state: TvmState,
         scope: TvmStepScopeManager,
     ): Unit? {
@@ -361,9 +362,9 @@ class TvmPostProcessor(
         val deferredEvaluationSymbolsToDependentRefs =
             deferredEvalSymbols.associateWith { symbol -> symbol.collectDependentRefs(state) }
         val refsToConsider = deferredEvaluationSymbolsToDependentRefs.values.flatten().toHashSet()
-        // pin the form of `refsToConsider`
+
         assertConstraints(scope) { resolver ->
-            ctx.mkAnd(pinFormsOfCells(refsToConsider, resolver))
+            ctx.mkAnd(createPinFormsOfCellsConstraints(refsToConsider, resolver))
         } ?: return null
 
         val refsToDependentSymbols =
@@ -393,7 +394,7 @@ class TvmPostProcessor(
         return Unit
     }
 
-    private fun pinFormsOfCells(
+    private fun createPinFormsOfCellsConstraints(
         refsToConsider: HashSet<UHeapRef>,
         resolver: TvmTestStateResolver,
     ): List<UBoolExpr> {
@@ -405,8 +406,21 @@ class TvmPostProcessor(
             val toPinForm = formPinQueue.removeAt(0)
             if (toPinForm in visited) continue
             visited.add(toPinForm)
-            val possibleTypes = state.getPossibleTypes(toPinForm as UConcreteHeapRef).toList()
-            if (possibleTypes == listOf(TvmSliceType)) {
+            val possibleTypes = state.getPossibleTypes(toPinForm).toList()
+            val actualType =
+                if (possibleTypes.toSet() == setOf(TvmDataCellType, TvmDictCellType)) {
+                    // such an ambiguity in the postprocess means that the cell was not used in reads whatsoever, so we are free to assume
+                    // that it is, in fact, a cell
+                    state.assertType(toPinForm, TvmCellType)
+                    TvmDataCellType
+                } else {
+                    possibleTypes.single()
+                }
+
+            if (actualType == TvmSliceType) {
+                // here we overapproximate the actual number of cells to pin the form
+                // (by ignore the dataPos field of the slice),
+                // possibly lowering the completeness of an analysis
                 state.readSliceCell(toPinForm).listLeaves().forEach { cell ->
                     if (cell !in visited) {
                         formPinQueue.add(cell)
@@ -414,11 +428,13 @@ class TvmPostProcessor(
                 }
                 continue
             }
+            if (actualType == TvmDictCellType) {
+                // TODO: properly iterate over all the entries, probably ignoring the guards
+                continue
+            }
             check(
-                possibleTypes.any {
-                    it == TvmCellType || it == TvmDataCellType || it == TvmDictCellType || it == TvmBuilderType
-                },
-            ) { "Expected cell or builder, got $possibleTypes for $toPinForm" }
+                actualType == TvmCellType || actualType == TvmDataCellType || actualType == TvmBuilderType,
+            ) { "Unreachable" }
 
             val refCount = state.readCellRefsCount(toPinForm.asCellRef())
             val modeledRefCount = resolver.eval(refCount)
@@ -505,7 +521,12 @@ class TvmPostProcessor(
                 scope
                     .calcOnState { getPossibleTypes(ref as UConcreteHeapRef) }
                     .toList()
-                    .filter { it !is TvmDictCellType }
+            if (possibleTypes.toSet() == setOf(TvmCellType, TvmDictCellType)) {
+                // such an ambiguity in the postprocess means that the cell was not used in reads whatsoever, so we are free to assume
+                // that it is, in fact, a cell
+                scope.calcOnState { assertType(ref, TvmCellType) }
+            }
+
             val dataParts: List<UExpr<*>>? =
                 when (possibleTypes) {
                     listOf(TvmSliceType) -> {
@@ -549,7 +570,12 @@ class TvmPostProcessor(
                         }
                     }
 
-                    listOf(TvmCellType), listOf(TvmDataCellType), listOf(TvmBuilderType) -> {
+                    listOf(TvmCellType), listOf(TvmDataCellType), listOf(TvmBuilderType),
+                    listOf(
+                        TvmDataCellType,
+                        TvmDictCellType,
+                    ),
+                    -> {
                         val exprs = mutableListOf<UExpr<*>>()
                         for (concreteRef in ref.listLeaves()) {
                             val state = scope.calcOnState { this }
@@ -579,6 +605,11 @@ class TvmPostProcessor(
                             }
                         }
                         exprs
+                    }
+
+                    listOf(TvmDictCellType) -> {
+                        // TODO: properly collect the dependent symbols on the dictionaries
+                        continue
                     }
 
                     listOf<TvmType>() -> { // tvm dict type
