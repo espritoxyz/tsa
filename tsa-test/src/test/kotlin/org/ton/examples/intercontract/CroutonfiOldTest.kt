@@ -1,6 +1,8 @@
 package org.ton.examples.intercontract
 
-import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
+import org.ton.RUN_HARD_TESTS_REGEX
+import org.ton.RUN_HARD_TESTS_VAR
 import org.ton.test.utils.extractBocContractFromResource
 import org.ton.test.utils.extractCheckerContractFromResource
 import org.ton.test.utils.extractCommunicationSchemeFromResource
@@ -76,9 +78,8 @@ class CroutonfiOldTest {
         )
     }
 
-//    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
-
-    @RepeatedTest(40)
+    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
+    @Test
     fun findTonDrainSymbolicC4() {
         val checkerContract = extractCheckerContractFromResource(checkerPath)
         val vaultContract = extractBocContractFromResource(vaultCodePath)

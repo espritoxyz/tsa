@@ -24,7 +24,7 @@ class NestedPostprocessTest {
     }
 
     @Test
-    fun `dictionary-hash-in-path-constraint`() {
+    fun `dictionary hash in path constraints`() {
         compareSymbolicAndConcreteResultsFunc(postprocessOrderTest, methods = setOf(5))
     }
 

@@ -186,7 +186,7 @@ fun readInModelFromTlbFields(
     var guard: UBoolExpr = state.ctx.trueExpr
     val missedSlices = mutableListOf<Pair<UHeapRef, TvmTestSliceValue>>()
 
-    val symbolicExprs = mutableListOf<UExpr<*>>()
+    val symbolicExprs = mutableListOf<UExpr<*>?>()
     while (!stack.isEmpty) {
         val (readValue, leftToRead, newStack, curGuard, slices, symbolicExpr) = stack.readInModel(readInfo)
         result += readValue
@@ -194,9 +194,10 @@ fun readInModelFromTlbFields(
         stack = newStack
         guard = state.ctx.mkAnd(guard, curGuard)
         missedSlices += slices
+        symbolicExprs.add(symbolicExpr)
     }
 
-    return ModelReadResult(result, guard, missedSlices, symbolicExprs)
+    return ModelReadResult(result, guard, missedSlices, symbolicExprs.filterNotNull())
 }
 
 /**

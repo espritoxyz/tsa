@@ -18,6 +18,7 @@ import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.UTrackedSymbol
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.isFalse
 import org.usvm.isTrue
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
@@ -77,7 +78,6 @@ import org.usvm.test.resolver.endCell
 import org.usvm.test.resolver.transformTestCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import org.usvm.utils.flattenReferenceIte
-import org.usvm.utils.intValueOrNull
 import java.math.BigInteger
 import java.security.MessageDigest
 import kotlin.random.Random
@@ -189,11 +189,18 @@ class TvmPostProcessor(
             return state
         }
 
+    data class CollectDepRefResult(
+        val dependentRefs: List<UHeapRef>,
+        val refStructureConstraints: List<UBoolExpr>,
+    )
+
     sealed interface DeferredEvaluationSymbol {
         val symbol: UExpr<*>
         val args: List<UHeapRef>
 
-        fun collectDependentRefs(state: TvmState): List<UHeapRef>
+        fun collectDependentRefsAndCreateReferencesStructureConstraints(
+            resolver: TvmTestStateResolver,
+        ): CollectDepRefResult
 
         fun isConnectedTo(symbol: UExpr<*>): Boolean = this.symbol == symbol
 
@@ -210,8 +217,10 @@ class TvmPostProcessor(
         override val args: List<UHeapRef>,
         val depth: Int257Expr,
     ) : DeferredEvaluationSymbol {
-        override fun collectDependentRefs(state: TvmState): List<UHeapRef> =
-            args.flatMap { collectReachableCells(it, state) }
+        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
+            resolver: TvmTestStateResolver,
+        ): CollectDepRefResult =
+            args.map { collectReachableCellsAndCreateRefStructureConstraints(resolver, it) }.combine()
 
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
@@ -232,7 +241,9 @@ class TvmPostProcessor(
         val sha256: Int257Expr,
     ) : DeferredEvaluationSymbol {
         // we do not go recursively to children here, as sha256 is taken from the data string
-        override fun collectDependentRefs(state: TvmState): List<UHeapRef> = args.flatMap { it.listLeaves() }
+        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
+            resolver: TvmTestStateResolver,
+        ): CollectDepRefResult = CollectDepRefResult(args.flatMap { it.listLeaves() }, emptyList())
 
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
@@ -244,8 +255,10 @@ class TvmPostProcessor(
         override val symbol: TvmHashSymbol,
         override val args: List<UHeapRef>,
     ) : DeferredEvaluationSymbol {
-        override fun collectDependentRefs(state: TvmState): List<UHeapRef> =
-            args.flatMap { collectReachableCells(it, state) }
+        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
+            resolver: TvmTestStateResolver,
+        ): CollectDepRefResult =
+            args.map { collectReachableCellsAndCreateRefStructureConstraints(resolver, it) }.combine()
 
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
@@ -268,8 +281,10 @@ class TvmPostProcessor(
         override val args: List<UHeapRef>,
         val fwdFeeInfo: FwdFeeInfo,
     ) : DeferredEvaluationSymbol {
-        override fun collectDependentRefs(state: TvmState): List<UHeapRef> =
-            args.flatMap { collectReachableCells(it, state) }
+        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
+            resolver: TvmTestStateResolver,
+        ): CollectDepRefResult =
+            args.map { collectReachableCellsAndCreateRefStructureConstraints(resolver, it) }.combine()
 
         override fun createFixationConstraint(
             scope: TvmStepScopeManager,
@@ -285,8 +300,10 @@ class TvmPostProcessor(
         override val symbol: UExpr<*>
             get() = args.first().tctx.nullValue
 
-        override fun collectDependentRefs(state: TvmState): List<UHeapRef> =
-            args.flatMap { collectReachableCells(it, state) }
+        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
+            resolver: TvmTestStateResolver,
+        ): CollectDepRefResult =
+            args.map { collectReachableCellsAndCreateRefStructureConstraints(resolver, it) }.combine()
 
         override fun isConnectedTo(symbol: UExpr<*>): Boolean = symbol in connectedSymbols
 
@@ -305,33 +322,75 @@ class TvmPostProcessor(
                 extractAllocated = true,
                 extractStatic = true,
             )
-        }.map { it.second }
+        }.filter { !it.first.isFalse }.map { it.second }
 
-    private fun collectReachableCells(
-        ref: UHeapRef,
-        state: TvmState,
-    ): HashSet<UHeapRef> =
-        with(state.ctx) {
-            val flattenedInitial = ref.listLeaves()
-            // TODO: handle the cases where this is a slice or a builder (not relevant yet as sha is not yet updated)
-            val result = hashSetOf<UHeapRef>(*flattenedInitial.toTypedArray())
-            val visitingQueue = mutableListOf<UHeapRef>(*flattenedInitial.toTypedArray())
-            while (visitingQueue.isNotEmpty()) {
-                val front = visitingQueue.removeAt(0)
-                val refCount = state.readCellRefsCount(front.asCellRef()).intValueOrNull
-                if (refCount != null) {
-                    for (i in 0 until refCount) {
-                        val nextChild = state.readCellRef(front, ctx.mkSizeExpr(i))
-                        for (leaf in nextChild.listLeaves()) {
-                            if (result.add(leaf)) {
-                                visitingQueue.add(leaf)
-                            }
+    private fun List<CollectDepRefResult>.combine(): CollectDepRefResult =
+        CollectDepRefResult(
+            dependentRefs = flatMap { it.dependentRefs },
+            refStructureConstraints = flatMap { it.refStructureConstraints },
+        )
+
+    private fun collectReachableCellsAndCreateRefStructureConstraints(
+        resolver: TvmTestStateResolver,
+        cellRef: UHeapRef,
+    ): CollectDepRefResult {
+        val state = resolver.state
+        val flattenedInitial = cellRef.listLeaves()
+        val result = hashSetOf<UHeapRef>(*flattenedInitial.toTypedArray())
+        val visitingQueue = mutableListOf<UHeapRef>(*flattenedInitial.toTypedArray())
+        val constraints = mutableListOf<UBoolExpr>()
+        val visited = hashSetOf<UExpr<*>>()
+        while (visitingQueue.isNotEmpty()) {
+            val front = visitingQueue.removeAt(0)
+            if (front in visited) continue
+            visited.add(front)
+            val possibleTypes = state.getPossibleTypes(front as UConcreteHeapRef).toList()
+            val actualType =
+                if (possibleTypes.toSet() == setOf(TvmDataCellType, TvmDictCellType)) {
+                    // such an ambiguity in the postprocess means that the cell was not used in reads whatsoever, so we are free to assume
+                    // that it is, in fact, a cell
+                    state.assertType(front, TvmCellType)
+                    TvmDataCellType
+                } else {
+                    possibleTypes.single()
+                }
+
+            if (actualType == TvmSliceType) {
+                // here we overapproximate the actual number of cells to pin the form
+                // (by ignore the dataPos field of the slice),
+                // possibly lowering the completeness of an analysis
+                state.readSliceCell(front).listLeaves().forEach { cell ->
+                    if (result.add(cell)) {
+                        visitingQueue.add(cell)
+                    }
+                }
+                continue
+            }
+            if (actualType == TvmDictCellType) {
+                // TODO: properly iterate over all the entries, probably ignoring the guards
+                continue
+            }
+            check(
+                actualType == TvmCellType || actualType == TvmDataCellType || actualType == TvmBuilderType,
+            ) { "Unreachable" }
+
+            val refCount = state.readCellRefsCount(front.asCellRef())
+            val modeledRefCount = resolver.eval(refCount)
+            constraints.add(with(ctx) { refCount eq modeledRefCount })
+            val concreteRefCount = modeledRefCount.intValue()
+            if (concreteRefCount != 0) {
+                for (i in 0 until concreteRefCount) {
+                    val nextChild = state.readCellRef(front, ctx.mkSizeExpr(i))
+                    for (leaf in nextChild.listLeaves()) {
+                        if (result.add(leaf)) {
+                            visitingQueue.add(leaf)
                         }
                     }
                 }
             }
-            result
         }
+        return CollectDepRefResult(result.toList(), constraints)
+    }
 
     /**
      * In this section, we say that expression A *depends* on expression B
@@ -359,13 +418,17 @@ class TvmPostProcessor(
             We want to establish a dependency graph on the deferred evaluation symbols
          */
 
-        val deferredEvaluationSymbolsToDependentRefs =
-            deferredEvalSymbols.associateWith { symbol -> symbol.collectDependentRefs(state) }
-        val refsToConsider = deferredEvaluationSymbolsToDependentRefs.values.flatten().toHashSet()
-
+        lateinit var deferredEvaluationSymbolsToDependentRefs: Map<DeferredEvaluationSymbol, List<UHeapRef>>
         assertConstraints(scope) { resolver ->
-            ctx.mkAnd(createPinFormsOfCellsConstraints(refsToConsider, resolver))
+            val collectionResults =
+                deferredEvalSymbols.associateWith { symbol ->
+                    symbol.collectDependentRefsAndCreateReferencesStructureConstraints(resolver)
+                }
+            deferredEvaluationSymbolsToDependentRefs =
+                collectionResults.mapValues { it.value.dependentRefs }
+            ctx.mkAnd(collectionResults.values.flatMap { it.refStructureConstraints })
         } ?: return null
+        val refsToConsider = deferredEvaluationSymbolsToDependentRefs.values.flatten().toHashSet()
 
         val refsToDependentSymbols =
             collectDeferredEvalSymbolsDependentOnRefs(scope, deferredEvalSymbols, refsToConsider)
@@ -394,71 +457,14 @@ class TvmPostProcessor(
         return Unit
     }
 
-    private fun createPinFormsOfCellsConstraints(
-        refsToConsider: HashSet<UHeapRef>,
-        resolver: TvmTestStateResolver,
-    ): List<UBoolExpr> {
-        val state = resolver.state
-        val formPinQueue = mutableListOf(*refsToConsider.flatMap { it.listLeaves() }.toTypedArray())
-        val constraints = mutableListOf<UBoolExpr>()
-        val visited = hashSetOf<UExpr<*>>()
-        while (formPinQueue.isNotEmpty()) {
-            val toPinForm = formPinQueue.removeAt(0)
-            if (toPinForm in visited) continue
-            visited.add(toPinForm)
-            val possibleTypes = state.getPossibleTypes(toPinForm).toList()
-            val actualType =
-                if (possibleTypes.toSet() == setOf(TvmDataCellType, TvmDictCellType)) {
-                    // such an ambiguity in the postprocess means that the cell was not used in reads whatsoever, so we are free to assume
-                    // that it is, in fact, a cell
-                    state.assertType(toPinForm, TvmCellType)
-                    TvmDataCellType
-                } else {
-                    possibleTypes.single()
-                }
-
-            if (actualType == TvmSliceType) {
-                // here we overapproximate the actual number of cells to pin the form
-                // (by ignore the dataPos field of the slice),
-                // possibly lowering the completeness of an analysis
-                state.readSliceCell(toPinForm).listLeaves().forEach { cell ->
-                    if (cell !in visited) {
-                        formPinQueue.add(cell)
-                    }
-                }
-                continue
-            }
-            if (actualType == TvmDictCellType) {
-                // TODO: properly iterate over all the entries, probably ignoring the guards
-                continue
-            }
-            check(
-                actualType == TvmCellType || actualType == TvmDataCellType || actualType == TvmBuilderType,
-            ) { "Unreachable" }
-
-            val refCount = state.readCellRefsCount(toPinForm.asCellRef())
-            val modeledRefCount = resolver.eval(refCount)
-            constraints.add(with(ctx) { refCount eq modeledRefCount })
-            val concreteRefCount = modeledRefCount.intValue()
-            if (concreteRefCount != 0) {
-                for (i in 0 until concreteRefCount) {
-                    val nextChild = state.readCellRef(toPinForm, ctx.mkSizeExpr(i))
-                    for (leaf in nextChild.listLeaves()) {
-                        if (leaf !in visited) {
-                            formPinQueue.add(leaf)
-                        }
-                    }
-                }
-            }
-        }
-        return constraints
-    }
-
     /**
      * Takes in a graph and returns the minimal amount of batches that disjointly cover all the nodes and
      * such that there are no edges that belong to a single batch.
      * @param deferredEvalSymbols are the graph nodes
-     * @param deferredEvalSymbolDependency are the map from the nodes to its list of neighbors
+     * @param deferredEvalSymbolDependency are the map from the nodes to its list of neighbors.
+     *
+     * The function assumes that the graph is acyclic, which is normally the case for dependencies which are based on
+     * the relations "A is contained in the data of B"
      */
     private fun splitIntoLayers(
         deferredEvalSymbols: List<DeferredEvaluationSymbol>,
@@ -520,10 +526,8 @@ class TvmPostProcessor(
             interestingSymbolVisitor.found.clear()
             //  TODO: maybe reuse TLb somehow?
             val possibleTypes =
-                scope
-                    .calcOnState { getPossibleTypes(ref as UConcreteHeapRef) }
-                    .toList()
-            if (possibleTypes.toSet() == setOf(TvmCellType, TvmDictCellType)) {
+                scope.calcOnState { getPossibleTypes(ref as UConcreteHeapRef).toSet() }
+            if (possibleTypes == setOf(TvmCellType, TvmDictCellType)) {
                 // such an ambiguity in the postprocess means that the cell was not used in reads whatsoever, so we are free to assume
                 // that it is, in fact, a cell
                 scope.calcOnState { assertType(ref, TvmCellType) }
@@ -531,15 +535,24 @@ class TvmPostProcessor(
 
             val dataParts: List<UExpr<*>>? =
                 when (possibleTypes) {
-                    listOf(TvmSliceType) -> {
+                    setOf(TvmSliceType) -> {
                         scope.calcOnState {
                             val exprs = mutableListOf<UExpr<*>>()
+                            val dataLeft = getSliceRemainingBitsCount(ref)
+                            val dataPosition = readSliceDataPos(ref)
                             for (sliceConcreteRef in ref.listLeaves()) {
                                 val state = this
                                 val labelMapper = state.dataCellInfoStorage.sliceMapper
                                 val stack =
                                     labelMapper.getTlbStack(sliceConcreteRef)
-                                        ?: continue
+                                if (stack == null) {
+                                    val cell = readSliceCell(sliceConcreteRef)
+                                    exprs.add(
+                                        scope.preloadDataBitsFromCellWithoutChecks(cell, dataPosition, dataLeft)
+                                            ?: return@calcOnState null,
+                                    )
+                                    continue
+                                }
                                 val cellRef = state.readSliceCell(sliceConcreteRef)
 
                                 val resolver = TvmTestStateResolver(ctx, tvmModels.first(), this)
@@ -550,6 +563,8 @@ class TvmPostProcessor(
                                     )
                                 val position = state.readSliceDataPos(sliceConcreteRef)
                                 val readCount = with(ctx) { sizeSymbolic bvSub position }
+                                // note: we ignore missing slices, because they occur in `Tlb*ByRef`, which we process
+                                // in children separately
                                 val (valueFromTlbFields, guard, _, symbolicExprs) =
                                     readInModelFromTlbFields(
                                         cellRef,
@@ -559,6 +574,7 @@ class TvmPostProcessor(
                                     )
                                 exprs.addAll(symbolicExprs)
                             }
+                            // fallback for no-tlb case
                             if (exprs.isEmpty()) {
                                 val dataLeft = getSliceRemainingBitsCount(ref)
                                 val dataPosition = readSliceDataPos(ref)
@@ -572,11 +588,8 @@ class TvmPostProcessor(
                         }
                     }
 
-                    listOf(TvmCellType), listOf(TvmDataCellType), listOf(TvmBuilderType),
-                    listOf(
-                        TvmDataCellType,
-                        TvmDictCellType,
-                    ),
+                    setOf(TvmCellType), setOf(TvmDataCellType), setOf(TvmBuilderType),
+                    setOf(TvmDataCellType, TvmDictCellType),
                     -> {
                         val exprs = mutableListOf<UExpr<*>>()
                         for (concreteRef in ref.listLeaves()) {
@@ -592,7 +605,7 @@ class TvmPostProcessor(
                             for (label in possibleLabels) {
                                 val (valueFromTlbFields, guard, _, symbolicExprs) =
                                     readInModelFromTlbFields(
-                                        ref,
+                                        concreteRef,
                                         TvmTestStateResolver(ctx, state.tvmModels.first(), state),
                                         label.dataCellStructure,
                                     )
@@ -609,17 +622,13 @@ class TvmPostProcessor(
                         exprs
                     }
 
-                    listOf(TvmDictCellType) -> {
+                    setOf(TvmDictCellType) -> {
                         // TODO: properly collect the dependent symbols on the dictionaries
                         continue
                     }
 
-                    listOf<TvmType>() -> { // tvm dict type
-                        continue
-                    }
-
                     else -> {
-                        error("Unsupported type in postprocessing")
+                        error("Unsupported type in postprocessing: $possibleTypes")
                     }
                 }
 
@@ -671,9 +680,12 @@ class TvmPostProcessor(
             )
         }
         for (fwdFeeInfo in state.forwardFees) {
+            val symbol =
+                (fwdFeeInfo.symbolicFwdFee as? KBvZeroExtensionExpr)?.value
+                    ?: error("Expected zero-extension symbol, got ${fwdFeeInfo.symbolicFwdFee}")
             deferredEvalSymbols.add(
                 FwdFeeSymbol(
-                    fwdFeeInfo.symbolicFwdFee,
+                    symbol,
                     listOfNotNull(fwdFeeInfo.stateInitRef, fwdFeeInfo.msgBodyRef),
                     fwdFeeInfo,
                 ),
