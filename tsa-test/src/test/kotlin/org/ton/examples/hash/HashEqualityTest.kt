@@ -26,6 +26,7 @@ class HashEqualityTest {
     private val hashEqCellBuilderPath = "/hash/hash_eq_with_cell_builder.fc"
     private val hashEqBuilderBuilderPath = "/hash/hash_eq_with_builder_builder.fc"
     private val hashEqConcretePath = "/hash/hash_eq_concrete.fc"
+    private val hashSha256EqPath = "/hash/hash_sha256_eq.fc"
 
     private val drainWithStateInitChecker = "/hash/drain-check/drain_checker_stateinit.fc"
     private val vulnerableContract = "/hash/drain-check/vulnerable.fc"
@@ -127,6 +128,20 @@ class HashEqualityTest {
         )
 
         TvmTestExecutor.executeGeneratedTests(tests, extractResource(hashEqConcretePath), ContractType.Func)
+    }
+
+    @Test
+    fun `test sha256 and cell hash equality`() {
+        val tests =
+            funcCompileAndAnalyzeAllMethods(
+                extractResource(hashSha256EqPath),
+                tvmOptions = tvmOptions,
+                methodWhiteList = setOf(TvmContext.RECEIVE_INTERNAL_ID),
+            ).single()
+
+        tests.assertPropertiesFound(hasExitCode(111))
+        tests.assertInvariantHolds(doesNotEndWithExitCode(112))
+        tests.assertPropertiesFound(hasExitCode(116))
     }
 
     @Test

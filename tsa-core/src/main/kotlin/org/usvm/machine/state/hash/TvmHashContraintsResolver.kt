@@ -3,6 +3,7 @@ package org.usvm.machine.state.hash
 import io.ksmt.expr.KBitVecValue
 import io.ksmt.expr.KBvAndExpr
 import io.ksmt.expr.KBvOrExpr
+import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.expr.KEqExpr
 import io.ksmt.expr.KExpr
 import io.ksmt.expr.transformer.KNonRecursiveTransformerBase
@@ -14,8 +15,10 @@ import org.usvm.UBoolExpr
 import org.usvm.UBvSort
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
+import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.collections.immutable.internal.MutabilityOwnership
+import org.usvm.machine.SizeExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmStepScopeManager
@@ -29,13 +32,22 @@ import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.assertBuilderType
 import org.usvm.machine.state.assertDataCellType
 import org.usvm.machine.state.extractFullCellIfItIsConcrete
+import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.killCurrentState
 import org.usvm.machine.state.makeCellToSliceTlbNoFork
+import org.usvm.machine.state.mockCellDepth
+import org.usvm.machine.state.mockHash
+import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
+import org.usvm.machine.state.readCellDataLength
+import org.usvm.machine.state.readCellRef
 import org.usvm.machine.state.readCellRefsCount
+import org.usvm.machine.state.readSliceCell
+import org.usvm.machine.state.readSliceDataPos
 import org.usvm.machine.state.sliceLoadRefNoForkNoUnderflowCHeck
 import org.usvm.machine.state.slicesDataBitsAreEqual
 import org.usvm.machine.types.TvmBuilderType
 import org.usvm.machine.types.TvmDataCellType
+import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.getPossibleTypes
 import org.usvm.mkSizeExpr
@@ -355,17 +367,122 @@ class TvmHashConstraintsResolver(
                     return null
                 }
             // not null iff other is hash
-            val rewrittenHashEquality = tryRewriteHashEquality(accountId.boundStateInitHash, other)
+            val rewrittenHashEquality =
+                tryRewriteSha256HashEquality(accountId.boundStateInitHash, other)
+                    ?: tryRewriteHashEquality(accountId.boundStateInitHash, other)
             return with(ctx) {
                 if (rewrittenHashEquality != null) {
                     accountId.isStateInit and rewrittenHashEquality
                 } else if (other is KBitVecValue<*>) {
-                    mkNot(accountId.isStateInit) and
-                        mkEq(accountId.symbolicAccountId, other.uncheckedCast())
+                    mkNot(accountId.isStateInit) and mkEq(accountId.symbolicAccountId, other.uncheckedCast())
                 } else {
                     null
                 }
             }
+        }
+
+        private fun findSha256Ref(expr: UExpr<*>): UConcreteHeapRef? {
+            val address =
+                state.refToSha256.entries
+                    .singleOrNull { (_, sha256) ->
+                        require(sha256 is KBvZeroExtensionExpr)
+                        sha256.value == expr
+                    }?.key ?: return null
+            return ctx.mkConcreteHeapRef(address)
+        }
+
+        /**
+         * See https://docs.ton.org/foundations/serialization/cells#standard-cell-representation-and-its-hash
+         */
+        private fun buildLevelZeroCellRepresentation(cell: UConcreteHeapRef): UExpr<KBvSort>? =
+            with(ctx) {
+                if (TvmDataCellType !in state.getPossibleTypes(cell)) {
+                    return null
+                }
+                // if we are here, the hash-to-sha256 comparison was created, which we can assume is authorization
+                // and thus is not related to dictionaries, so we can assert the data cell type
+                scope.assertDataCellType(cell)
+                    ?: error("scope died")
+                val dataBits =
+                    state.readCellDataLength(cell).intValueOrNull
+                        ?: return null
+                val refsCount =
+                    state.readCellRefsCount(cell.asCellRef()).intValueOrNull
+                        ?: return null
+                val data =
+                    if (dataBits == 0) {
+                        null
+                    } else {
+                        scope.preloadDataBitsFromCellWithoutChecks(cell, mkSizeExpr(0), dataBits)
+                            ?: return null
+                    }
+                val frontPaddedData =
+                    if (dataBits % 8 == 0) {
+                        data
+                    } else {
+                        requireNotNull(data)
+                        val paddingBits = 8 - dataBits % 8
+                        mkBvConcatExpr(data, mkBv(1 shl (paddingBits - 1), paddingBits.toUInt()))
+                    }
+                val parts = mutableListOf<UExpr<KBvSort>>()
+                parts += mkBv(refsCount, 8u) // from documentation: r + 8 * s + 32 * l = r by our non-exotic assumptions
+                parts += mkBv(dataBits / 8 + (dataBits + 7) / 8, 8u)
+                frontPaddedData?.let { parts += it }
+
+                val children = mutableListOf<UHeapRef>()
+                repeat(refsCount) { idx ->
+                    val child = state.readCellRef(cell, mkSizeExpr(idx))
+                    children += child
+                    parts += mkBvExtractExpr(high = 15, low = 0, value = state.mockCellDepth(child))
+                }
+                children.forEach { child ->
+                    parts += mkBvExtractExpr(high = 255, low = 0, value = state.mockHash(child))
+                }
+                parts.reduce(::mkBvConcatExpr)
+            }
+
+        /**
+         * @return string and its length
+         */
+        private fun readSha256InputString(
+            sha256Ref: UConcreteHeapRef,
+            expectedBits: Int,
+        ): Pair<UExpr<UBvSort>, SizeExpr>? {
+            val possibleTypes = state.getPossibleTypes(sha256Ref).toSet()
+            val (cell, offset, remainingBits) =
+                if (TvmSliceType in possibleTypes) {
+                    Triple(
+                        state.readSliceCell(sha256Ref),
+                        state.readSliceDataPos(sha256Ref),
+                        state.getSliceRemainingBitsCount(sha256Ref),
+                    )
+                } else if (TvmBuilderType in possibleTypes) {
+                    Triple(sha256Ref, ctx.mkSizeExpr(0), state.readCellDataLength(sha256Ref))
+                } else {
+                    return null
+                }
+            val input = scope.preloadDataBitsFromCellWithoutChecks(cell, offset, expectedBits) ?: return null
+            return input to remainingBits
+        }
+
+        private fun tryRewriteSha256HashEquality(
+            l: UExpr<*>,
+            r: UExpr<*>,
+        ): UBoolExpr? {
+            val (sha256Ref, hash) =
+                findSha256Ref(l)?.let { it to (r as? TvmHashSymbol) }
+                    ?: findSha256Ref(r)?.let { it to (l as? TvmHashSymbol) }
+                    ?: return null
+            hash ?: return null
+            val representation =
+                buildLevelZeroCellRepresentation(hash.ref)
+                    ?: return null
+            val (input, inputLength) =
+                readSha256InputString(sha256Ref, representation.sort.sizeBits.toInt())
+                    ?: return null
+            val representationEquality = ctx.mkEq(input, representation)
+            val lengthCondition = with(ctx) { inputLength eq mkSizeExpr(representation.sort.sizeBits.toInt()) }
+            return ctx.mkAnd(lengthCondition, representationEquality)
         }
 
         private fun tryRewriteHashEquality(
@@ -411,6 +528,7 @@ class TvmHashConstraintsResolver(
                         val propagated =
                             groups.map {
                                 tryRewriteEqualityWithTsaAccountId(it.first, it.second)
+                                    ?: tryRewriteSha256HashEquality(it.first, it.second)
                                     ?: tryRewriteHashEquality(it.first, it.second)
                                     ?: ctx.mkEq(it.first, it.second)
                             }
@@ -422,6 +540,7 @@ class TvmHashConstraintsResolver(
                 }
 
                 tryRewriteEqualityWithTsaAccountId(l, r)
+                    ?: tryRewriteSha256HashEquality(l, r)
                     ?: tryRewriteHashEquality(l, r)
                     ?: ctx.mkEq(l, r)
             }

@@ -1,0 +1,27 @@
+#include "util.fc";
+#include "../../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    slice msg = in_msg_full.begin_parse();
+    msg~load_uint(4);
+    slice sender = msg~load_msg_addr();
+
+    cell expected_code = begin_cell().store_uint(15, 8).end_cell();
+    int expected_nonce = msg_body~load_uint(64);
+    cell expected_data = begin_cell().store_uint(expected_nonce, 64).end_cell();
+    slice representation = begin_cell()
+        .store_uint(2, 8)
+        .store_uint(1, 8)
+        .store_uint(52, 8)
+        .store_uint(cell_depth(expected_code), 16)
+        .store_uint(cell_depth(expected_data), 16)
+        .store_uint(cell_hash(expected_code), 256)
+        .store_uint(cell_hash(expected_data), 256)
+        .end_cell()
+        .begin_parse();
+    int expected_account_id = string_hash(representation);
+    (_, int sender_account_id) = parse_std_addr(sender);
+    if (sender_account_id != expected_account_id) {
+        throw(500);
+    }
+}
