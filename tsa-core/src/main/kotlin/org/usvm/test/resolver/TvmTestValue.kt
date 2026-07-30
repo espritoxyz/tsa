@@ -49,6 +49,12 @@ data class TvmTestDataCellValue(
     val knownTypes: List<TvmCellDataTypeLoad> = listOf(),
     val isExotic: Boolean = false,
 ) : TvmTestCellValue {
+    init {
+        if (isExotic) {
+            println("exotic")
+        }
+    }
+
     fun dataCellDepth(): Int =
         if (refs.isEmpty()) {
             0

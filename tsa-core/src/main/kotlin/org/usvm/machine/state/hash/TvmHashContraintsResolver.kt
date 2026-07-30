@@ -234,8 +234,8 @@ class TvmHashConstraintsResolver(
             ref2: UConcreteHeapRef,
         ): UBoolExpr =
             with(ctx) {
-                val exotic1 = state.fieldManagers.cellExoticFieldManager.readCellData(state, ref1)
-                val exotic2 = state.fieldManagers.cellExoticFieldManager.readCellData(state, ref2)
+                val exotic1 = state.fieldManagers.cellExoticFieldManager.readCellIsExotic(state, ref1)
+                val exotic2 = state.fieldManagers.cellExoticFieldManager.readCellIsExotic(state, ref2)
                 mkEq(exotic1, exotic2)
             }
 

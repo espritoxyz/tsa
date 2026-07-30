@@ -111,7 +111,7 @@ class TvmTestStateResolver(
     private val labelMapper
         get() = state.dataCellInfoStorage.mapper
 
-    private val constraintVisitor = ConstraintsVisitor(ctx)
+    val constraintVisitor = ConstraintsVisitor(ctx)
 
     fun <T : USort> eval(expr: UExpr<T>) = model.eval(expr)
 
@@ -607,7 +607,7 @@ class TvmTestStateResolver(
 
             val knownActions = state.dataCellLoadedTypeInfo.referenceToActions[modelRef] ?: persistentListOf()
             val isExotic =
-                eval(state.fieldManagers.cellExoticFieldManager.readCellData(state, cell))
+                eval(state.fieldManagers.cellExoticFieldManager.readCellIsExotic(state, cell))
                     .isTrue
             val tvmCellValue = TvmTestDataCellValue(data, refs, resolveTypeLoad(knownActions), isExotic)
 
@@ -883,7 +883,7 @@ class TvmTestStateResolver(
         (expr as? KBitVecValue)?.toBigIntegerSigned() ?: error("Unexpected expr $expr")
 }
 
-private class ConstraintsVisitor(
+class ConstraintsVisitor(
     ctx: TvmContext,
 ) : HashCollector(ctx) {
     val refs = mutableSetOf<UConcreteHeapRef>()

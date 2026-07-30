@@ -19,6 +19,7 @@ import org.usvm.USort
 import org.usvm.UTrackedSymbol
 import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.isFalse
+import org.usvm.isStatic
 import org.usvm.isTrue
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
@@ -48,6 +49,7 @@ import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
 import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
 import org.usvm.machine.state.readCellData
+import org.usvm.machine.state.readCellDataLength
 import org.usvm.machine.state.readCellRef
 import org.usvm.machine.state.readCellRefsCount
 import org.usvm.machine.state.readSliceCell
@@ -151,8 +153,10 @@ class TvmPostProcessor(
 
             // must be asserted first
             assertConstraints(scope) { resolver ->
-                generateRandomAddressConstraint(scope, resolver)
-                    ?: return@assertConstraints null
+                val generateRandomAddressConstraint =
+                    generateRandomAddressConstraint(scope, resolver)
+                        ?: return@assertConstraints null
+                generateRandomAddressConstraint
             } ?: run {
                 logger.debug("Cannot assert random address constraints")
                 return null
@@ -337,7 +341,7 @@ class TvmPostProcessor(
         val state = resolver.state
         val flattenedInitial = cellRef.listLeaves()
         val result = hashSetOf<UHeapRef>(*flattenedInitial.toTypedArray())
-        val visitingQueue = mutableListOf<UHeapRef>(*flattenedInitial.toTypedArray())
+        val visitingQueue = mutableListOf<UConcreteHeapRef>(*flattenedInitial.toTypedArray())
         val constraints = mutableListOf<UBoolExpr>()
         val visited = hashSetOf<UExpr<*>>()
         while (visitingQueue.isNotEmpty()) {
@@ -375,9 +379,20 @@ class TvmPostProcessor(
             ) { "Unreachable" }
 
             val refCount = state.readCellRefsCount(front.asCellRef())
-            val modeledRefCount = resolver.eval(refCount)
-            constraints.add(with(ctx) { refCount eq modeledRefCount })
-            val concreteRefCount = modeledRefCount.intValue()
+            val concreteRefCount =
+                if (front.isStatic && front !in resolver.constraintVisitor.refs) {
+                    // does not occur in path constraints -> empty cell
+                    constraints.add(with(ctx) { refCount eq mkSizeExpr(0) })
+                    val dataBits = state.readCellDataLength(front.asCellRef())
+                    constraints.add(with(ctx) { dataBits eq mkSizeExpr(0) })
+                    val isExotic = state.fieldManagers.cellExoticFieldManager.readCellIsExotic(state, front)
+                    constraints.add(ctx.mkNot(isExotic))
+                    0
+                } else {
+                    val modeledRefCount = resolver.eval(refCount)
+                    constraints.add(with(ctx) { refCount eq modeledRefCount })
+                    modeledRefCount.intValue()
+                }
             if (concreteRefCount != 0) {
                 for (i in 0 until concreteRefCount) {
                     val nextChild = state.readCellRef(front, ctx.mkSizeExpr(i))
@@ -475,7 +490,12 @@ class TvmPostProcessor(
         val prevLayers = hashSetOf<DeferredEvaluationSymbol>()
         val unprocessedSymbols = mutableSetOf<DeferredEvaluationSymbol>()
         unprocessedSymbols.addAll(deferredEvalSymbols)
+        var depth = 0
         while (unprocessedSymbols.isNotEmpty()) {
+            if (depth > deferredEvalSymbols.size) {
+                error("infinite loop")
+            }
+            depth += 1
             val nextLayer = hashSetOf<DeferredEvaluationSymbol>()
             for (symbol in unprocessedSymbols) {
                 val refDeps = deferredEvalSymbolDependency[symbol] ?: hashSetOf()
@@ -527,7 +547,7 @@ class TvmPostProcessor(
             //  TODO: maybe reuse TLb somehow?
             val possibleTypes =
                 scope.calcOnState { getPossibleTypes(ref as UConcreteHeapRef).toSet() }
-            if (possibleTypes == setOf(TvmCellType, TvmDictCellType)) {
+            if (possibleTypes == setOf(TvmDataCellType, TvmDictCellType)) {
                 // such an ambiguity in the postprocess means that the cell was not used in reads whatsoever, so we are free to assume
                 // that it is, in fact, a cell
                 scope.calcOnState { assertType(ref, TvmCellType) }

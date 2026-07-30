@@ -390,7 +390,7 @@ fun TvmState.extractFullCellIfItIsConcrete(ref: UConcreteHeapRef): Cell? =
         val refsLength =
             fieldManagers.cellRefsLengthFieldManager.readCellRefLength(this@extractFullCellIfItIsConcrete, ref)
 
-        val isExotic = fieldManagers.cellExoticFieldManager.readCellData(this@extractFullCellIfItIsConcrete, ref)
+        val isExotic = fieldManagers.cellExoticFieldManager.readCellIsExotic(this@extractFullCellIfItIsConcrete, ref)
 
         if (data !is KInterpretedValue ||
             dataLength !is KInterpretedValue ||
