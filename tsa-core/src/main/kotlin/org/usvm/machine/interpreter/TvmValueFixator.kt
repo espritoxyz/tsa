@@ -132,6 +132,9 @@ class TvmValueFixator(
                             ?: return@with null
                     }
 
+                if (modelReadResult.data != truncateSliceCell(value).data) {
+                    error("Inconsistent data read from the model")
+                }
                 // TODO: check that modelReadResult matches [value]
 
                 val dataGuard = children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
