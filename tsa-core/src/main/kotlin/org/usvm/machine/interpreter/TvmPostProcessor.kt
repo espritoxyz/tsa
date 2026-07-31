@@ -1,45 +1,30 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KBitVecValue
-import io.ksmt.expr.KBvZeroExtensionExpr
 import io.ksmt.utils.BvUtils.toBigIntegerUnsigned
 import io.ksmt.utils.uncheckedCast
 import mu.KLogging
-import org.ton.TvmParameterInfo
 import org.ton.api.pk.PrivateKeyEd25519
 import org.ton.bitstring.BitString
 import org.ton.bitstring.toBitString
 import org.ton.cell.Cell
 import org.usvm.UBoolExpr
 import org.usvm.UBvSort
-import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
 import org.usvm.UHeapRef
-import org.usvm.USort
-import org.usvm.UTrackedSymbol
 import org.usvm.forkblacklists.UForkBlackList
-import org.usvm.isFalse
-import org.usvm.isStatic
 import org.usvm.isTrue
-import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
-import org.usvm.machine.TvmContext.Companion.tctx
 import org.usvm.machine.TvmContext.TvmInt257Sort
-import org.usvm.machine.TvmSizeSort
 import org.usvm.machine.TvmStepScopeManager
-import org.usvm.machine.intValue
 import org.usvm.machine.intblast.TvmBvTransformer
 import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
-import org.usvm.machine.state.assertType
-import org.usvm.machine.state.getSliceRemainingBitsCount
 import org.usvm.machine.state.hash.DefaultUExprTransformer
-import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
-import org.usvm.machine.state.hash.TvmHashSymbol
 import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
 import org.usvm.machine.state.hash.calculateConcreteHash
 import org.usvm.machine.state.messages.FwdFeeInfo
@@ -47,26 +32,8 @@ import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
-import org.usvm.machine.state.preloadDataBitsFromCellWithoutChecks
-import org.usvm.machine.state.readCellData
-import org.usvm.machine.state.readCellDataLength
-import org.usvm.machine.state.readCellRef
-import org.usvm.machine.state.readCellRefsCount
-import org.usvm.machine.state.readSliceCell
-import org.usvm.machine.state.readSliceDataPos
-import org.usvm.machine.tctx
-import org.usvm.machine.types.TvmBuilderType
-import org.usvm.machine.types.TvmCellType
-import org.usvm.machine.types.TvmDataCellType
-import org.usvm.machine.types.TvmDictCellType
-import org.usvm.machine.types.TvmSliceType
 import org.usvm.machine.types.TvmType
-import org.usvm.machine.types.asCellRef
-import org.usvm.machine.types.getPossibleTypes
-import org.usvm.machine.types.memory.readInModelFromTlbFields
 import org.usvm.machine.types.wrap
-import org.usvm.mkSizeExpr
-import org.usvm.solver.UExprTranslator
 import org.usvm.solver.USatResult
 import org.usvm.test.resolver.TvmTestAuthValue
 import org.usvm.test.resolver.TvmTestBuilderValue
@@ -79,7 +46,6 @@ import org.usvm.test.resolver.TvmTestStateResolver
 import org.usvm.test.resolver.endCell
 import org.usvm.test.resolver.transformTestCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
-import org.usvm.utils.flattenReferenceIte
 import java.math.BigInteger
 import java.security.MessageDigest
 import kotlin.random.Random
@@ -170,7 +136,7 @@ class TvmPostProcessor(
                 return null
             }
 
-            postprocessInTheGoodOrder(state, scope)
+            postprocessDeferredEvalSymbols(state, scope)
                 ?: return null
 
             // must be asserted separately since it relies on correct hash values
@@ -198,215 +164,6 @@ class TvmPostProcessor(
         val refStructureConstraints: List<UBoolExpr>,
     )
 
-    sealed interface DeferredEvaluationSymbol {
-        val symbol: UExpr<*>
-        val args: List<UHeapRef>
-
-        fun collectDependentRefsAndCreateReferencesStructureConstraints(
-            resolver: TvmTestStateResolver,
-        ): CollectDepRefResult
-
-        fun isConnectedTo(symbol: UExpr<*>): Boolean = this.symbol == symbol
-
-        fun isConnectedToAny(symbols: Set<UExpr<*>>): Boolean = symbol in symbols
-
-        fun createFixationConstraint(
-            scope: TvmStepScopeManager,
-            resolver: TvmTestStateResolver,
-        ): UBoolExpr?
-    }
-
-    inner class DepthSymbol(
-        override val symbol: UExpr<*>,
-        override val args: List<UHeapRef>,
-        val depth: Int257Expr,
-    ) : DeferredEvaluationSymbol {
-        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
-            resolver: TvmTestStateResolver,
-        ): CollectDepRefResult =
-            args.map { collectReachableCellsAndCreateRefStructureConstraints(resolver, it) }.combine()
-
-        override fun createFixationConstraint(
-            scope: TvmStepScopeManager,
-            resolver: TvmTestStateResolver,
-        ): UBoolExpr? =
-            fixateValueAndDepth(
-                scope,
-                args.singleOrNull() as? UConcreteHeapRef
-                    ?: error("Expected UConcreteHeapRef, got ${args.singleOrNull()}"),
-                depth,
-                resolver,
-            )
-    }
-
-    inner class Sha256Symbol(
-        override val symbol: UExpr<*>,
-        override val args: List<UHeapRef>,
-        val sha256: Int257Expr,
-    ) : DeferredEvaluationSymbol {
-        // we do not go recursively to children here, as sha256 is taken from the data string
-        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
-            resolver: TvmTestStateResolver,
-        ): CollectDepRefResult = CollectDepRefResult(args.flatMap { it.listLeaves() }, emptyList())
-
-        override fun createFixationConstraint(
-            scope: TvmStepScopeManager,
-            resolver: TvmTestStateResolver,
-        ): UBoolExpr? = fixateValueAndSha256(scope, args.single(), sha256, resolver)
-    }
-
-    inner class HashSymbol(
-        override val symbol: TvmHashSymbol,
-        override val args: List<UHeapRef>,
-    ) : DeferredEvaluationSymbol {
-        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
-            resolver: TvmTestStateResolver,
-        ): CollectDepRefResult =
-            args.map { collectReachableCellsAndCreateRefStructureConstraints(resolver, it) }.combine()
-
-        override fun createFixationConstraint(
-            scope: TvmStepScopeManager,
-            resolver: TvmTestStateResolver,
-        ): UBoolExpr? {
-            val constraint =
-                fixateValueAndHash(
-                    scope,
-                    args.single(),
-                    with(ctx) { symbol.zeroExtendToSort(int257sort) },
-                    resolver,
-                ) ?: return null
-            scope.calcOnState { fixatedHashes = fixatedHashes.add(symbol) }
-            return constraint
-        }
-    }
-
-    inner class FwdFeeSymbol(
-        override val symbol: UExpr<*>,
-        override val args: List<UHeapRef>,
-        val fwdFeeInfo: FwdFeeInfo,
-    ) : DeferredEvaluationSymbol {
-        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
-            resolver: TvmTestStateResolver,
-        ): CollectDepRefResult =
-            args.map { collectReachableCellsAndCreateRefStructureConstraints(resolver, it) }.combine()
-
-        override fun createFixationConstraint(
-            scope: TvmStepScopeManager,
-            resolver: TvmTestStateResolver,
-        ): UBoolExpr? = fixateValueAndFwdFee(scope, fwdFeeInfo, resolver)
-    }
-
-    inner class CDataSizeSymbol(
-        val connectedSymbols: List<UExpr<*>>,
-        override val args: List<UHeapRef>,
-        val cdatasizeInfo: DataSizeInfo,
-    ) : DeferredEvaluationSymbol {
-        override val symbol: UExpr<*>
-            get() = args.first().tctx.nullValue
-
-        override fun collectDependentRefsAndCreateReferencesStructureConstraints(
-            resolver: TvmTestStateResolver,
-        ): CollectDepRefResult =
-            args.map { collectReachableCellsAndCreateRefStructureConstraints(resolver, it) }.combine()
-
-        override fun isConnectedTo(symbol: UExpr<*>): Boolean = symbol in connectedSymbols
-
-        override fun isConnectedToAny(symbols: Set<UExpr<*>>): Boolean = connectedSymbols.any { it in symbols }
-
-        override fun createFixationConstraint(
-            scope: TvmStepScopeManager,
-            resolver: TvmTestStateResolver,
-        ): UBoolExpr? = fixateCdatasizeInfo(scope, cdatasizeInfo, resolver)
-    }
-
-    private fun UHeapRef.listLeaves(): List<UConcreteHeapRef> =
-        with(tctx) {
-            flattenReferenceIte(
-                this@listLeaves,
-                extractAllocated = true,
-                extractStatic = true,
-            )
-        }.filter { !it.first.isFalse }.map { it.second }
-
-    private fun List<CollectDepRefResult>.combine(): CollectDepRefResult =
-        CollectDepRefResult(
-            dependentRefs = flatMap { it.dependentRefs },
-            refStructureConstraints = flatMap { it.refStructureConstraints },
-        )
-
-    private fun collectReachableCellsAndCreateRefStructureConstraints(
-        resolver: TvmTestStateResolver,
-        cellRef: UHeapRef,
-    ): CollectDepRefResult {
-        val state = resolver.state
-        val flattenedInitial = cellRef.listLeaves()
-        val result = hashSetOf<UHeapRef>(*flattenedInitial.toTypedArray())
-        val visitingQueue = mutableListOf<UConcreteHeapRef>(*flattenedInitial.toTypedArray())
-        val constraints = mutableListOf<UBoolExpr>()
-        val visited = hashSetOf<UExpr<*>>()
-        while (visitingQueue.isNotEmpty()) {
-            val front = visitingQueue.removeAt(0)
-            if (front in visited) continue
-            visited.add(front)
-            val possibleTypes = state.getPossibleTypes(front as UConcreteHeapRef).toList()
-            val actualType =
-                if (possibleTypes.toSet() == setOf(TvmDataCellType, TvmDictCellType)) {
-                    // such an ambiguity in the postprocess means that the cell was not used in reads whatsoever, so we are free to assume
-                    // that it is, in fact, a cell
-                    state.assertType(front, TvmCellType)
-                    TvmDataCellType
-                } else {
-                    possibleTypes.single()
-                }
-
-            if (actualType == TvmSliceType) {
-                // here we overapproximate the actual number of cells to pin the form
-                // (by ignore the dataPos field of the slice),
-                // possibly lowering the completeness of an analysis
-                state.readSliceCell(front).listLeaves().forEach { cell ->
-                    if (result.add(cell)) {
-                        visitingQueue.add(cell)
-                    }
-                }
-                continue
-            }
-            if (actualType == TvmDictCellType) {
-                // TODO: properly iterate over all the entries, probably ignoring the guards
-                continue
-            }
-            check(
-                actualType == TvmCellType || actualType == TvmDataCellType || actualType == TvmBuilderType,
-            ) { "Unreachable" }
-
-            val refCount = state.readCellRefsCount(front.asCellRef())
-            val concreteRefCount =
-                if (front.isStatic && front !in resolver.constraintVisitor.refs) {
-                    // does not occur in path constraints -> empty cell
-                    constraints.add(with(ctx) { refCount eq mkSizeExpr(0) })
-                    val dataBits = state.readCellDataLength(front.asCellRef())
-                    constraints.add(with(ctx) { dataBits eq mkSizeExpr(0) })
-                    val isExotic = state.fieldManagers.cellExoticFieldManager.readCellIsExotic(state, front)
-                    constraints.add(ctx.mkNot(isExotic))
-                    0
-                } else {
-                    val modeledRefCount = resolver.eval(refCount)
-                    constraints.add(with(ctx) { refCount eq modeledRefCount })
-                    modeledRefCount.intValue()
-                }
-            if (concreteRefCount != 0) {
-                for (i in 0 until concreteRefCount) {
-                    val nextChild = state.readCellRef(front, ctx.mkSizeExpr(i))
-                    for (leaf in nextChild.listLeaves()) {
-                        if (result.add(leaf)) {
-                            visitingQueue.add(leaf)
-                        }
-                    }
-                }
-            }
-        }
-        return CollectDepRefResult(result.toList(), constraints)
-    }
-
     /**
      * In this section, we say that expression A *depends* on expression B
      * iff we have to fixate the value of B before evaluating/fixating the value of A.
@@ -420,7 +177,7 @@ class TvmPostProcessor(
      * `h` depends on `s`
      *
      */
-    private fun postprocessInTheGoodOrder(
+    private fun postprocessDeferredEvalSymbols(
         state: TvmState,
         scope: TvmStepScopeManager,
     ): Unit? {
@@ -462,7 +219,7 @@ class TvmPostProcessor(
             val toAssert = mutableListOf<UBoolExpr>()
             for (expr in layer) {
                 val constraint =
-                    expr.createFixationConstraint(scope, resolver)
+                    expr.createFixationConstraint(scope, resolver, this)
                         ?: return null
                 toAssert.add(constraint)
             }
@@ -508,220 +265,6 @@ class TvmPostProcessor(
             unprocessedSymbols.removeAll(nextLayer)
         }
         return result
-    }
-
-    private fun collectDeferredEvalSymbolsDependentOnRefs(
-        scope: TvmStepScopeManager,
-        deferredEvalSymbols: List<DeferredEvaluationSymbol>,
-        refsToConsider: HashSet<UHeapRef>,
-    ): Map<UHeapRef, List<DeferredEvaluationSymbol>>? {
-        val interestingSymbolVisitor =
-            object : TvmBvTransformer, UExprTranslator<TvmType, TvmSizeSort>(ctx.tctx()) {
-                val found = hashSetOf<UExpr<*>>()
-
-                override fun <Sort : USort> transform(expr: UTrackedSymbol<Sort>): UExpr<Sort> {
-                    if (deferredEvalSymbols.any { it.isConnectedTo(expr) }) {
-                        found.add(expr)
-                    }
-                    return super<UExprTranslator>.transform(expr)
-                }
-
-                override fun transform(expr: TvmSymbolicHashSymbol): UExpr<UBvSort> {
-                    found.add(expr)
-                    return expr
-                }
-
-                override fun transform(expr: TvmConstantHashSymbol): UExpr<UBvSort> {
-                    found.add(expr)
-                    return expr
-                }
-
-                override fun transform(expr: TsaAccountIdSymbol): UExpr<UBvSort> {
-                    found.add(expr)
-                    return expr
-                }
-            }
-        val refsToDependentSymbols = mutableMapOf<UHeapRef, List<DeferredEvaluationSymbol>>()
-        for (ref in refsToConsider) {
-            interestingSymbolVisitor.found.clear()
-            //  TODO: maybe reuse TLb somehow?
-            val possibleTypes =
-                scope.calcOnState { getPossibleTypes(ref as UConcreteHeapRef).toSet() }
-            if (possibleTypes == setOf(TvmDataCellType, TvmDictCellType)) {
-                // such an ambiguity in the postprocess means that the cell was not used in reads whatsoever, so we are free to assume
-                // that it is, in fact, a cell
-                scope.calcOnState { assertType(ref, TvmCellType) }
-            }
-
-            val dataParts: List<UExpr<*>>? =
-                when (possibleTypes) {
-                    setOf(TvmSliceType) -> {
-                        scope.calcOnState {
-                            val exprs = mutableListOf<UExpr<*>>()
-                            val dataLeft = getSliceRemainingBitsCount(ref)
-                            val dataPosition = readSliceDataPos(ref)
-                            for (sliceConcreteRef in ref.listLeaves()) {
-                                val state = this
-                                val labelMapper = state.dataCellInfoStorage.sliceMapper
-                                val stack =
-                                    labelMapper.getTlbStack(sliceConcreteRef)
-                                if (stack == null) {
-                                    val cell = readSliceCell(sliceConcreteRef)
-                                    exprs.add(
-                                        scope.preloadDataBitsFromCellWithoutChecks(cell, dataPosition, dataLeft)
-                                            ?: return@calcOnState null,
-                                    )
-                                    continue
-                                }
-                                val cellRef = state.readSliceCell(sliceConcreteRef)
-
-                                val resolver = TvmTestStateResolver(ctx, tvmModels.first(), this)
-                                val sizeSymbolic =
-                                    state.fieldManagers.cellDataLengthFieldManager.readCellDataLength(
-                                        state,
-                                        cellRef,
-                                    )
-                                val position = state.readSliceDataPos(sliceConcreteRef)
-                                val readCount = with(ctx) { sizeSymbolic bvSub position }
-                                // note: we ignore missing slices, because they occur in `Tlb*ByRef`, which we process
-                                // in children separately
-                                val (valueFromTlbFields, guard, _, symbolicExprs) =
-                                    readInModelFromTlbFields(
-                                        cellRef,
-                                        resolver,
-                                        stack,
-                                        readCount,
-                                    )
-                                exprs.addAll(symbolicExprs)
-                            }
-                            // fallback for no-tlb case
-                            if (exprs.isEmpty()) {
-                                val dataLeft = getSliceRemainingBitsCount(ref)
-                                val dataPosition = readSliceDataPos(ref)
-                                val cell = readSliceCell(ref)
-                                exprs.add(
-                                    scope.preloadDataBitsFromCellWithoutChecks(cell, dataPosition, dataLeft)
-                                        ?: return@calcOnState null,
-                                )
-                            }
-                            exprs
-                        }
-                    }
-
-                    setOf(TvmCellType), setOf(TvmDataCellType), setOf(TvmBuilderType),
-                    setOf(TvmDataCellType, TvmDictCellType),
-                    -> {
-                        val exprs = mutableListOf<UExpr<*>>()
-                        for (concreteRef in ref.listLeaves()) {
-                            val state = scope.calcOnState { this }
-                            val labelMapper = state.dataCellInfoStorage.mapper
-                            val possibleLabels =
-                                labelMapper
-                                    .getLabelInfo(concreteRef)
-                                    ?.variants
-                                    ?.mapNotNull { it.key as? TvmParameterInfo.DataCellInfo }
-                                    ?: continue
-
-                            for (label in possibleLabels) {
-                                val (valueFromTlbFields, guard, _, symbolicExprs) =
-                                    readInModelFromTlbFields(
-                                        concreteRef,
-                                        TvmTestStateResolver(ctx, state.tvmModels.first(), state),
-                                        label.dataCellStructure,
-                                    )
-                                exprs.addAll(symbolicExprs)
-                            }
-
-                            if (exprs.isEmpty()) {
-                                val data =
-                                    scope.readCellData(ref)
-                                        ?: return null
-                                exprs.add(data)
-                            }
-                        }
-                        exprs
-                    }
-
-                    setOf(TvmDictCellType) -> {
-                        // TODO: properly collect the dependent symbols on the dictionaries
-                        continue
-                    }
-
-                    else -> {
-                        error("Unsupported type in postprocessing: $possibleTypes")
-                    }
-                }
-
-            dataParts ?: continue
-            dataParts.map { interestingSymbolVisitor.apply(it) }
-            val foundSymbols = interestingSymbolVisitor.found
-            refsToDependentSymbols[ref] =
-                deferredEvalSymbols.filter { it.isConnectedToAny(foundSymbols) }
-        }
-        return refsToDependentSymbols
-    }
-
-    private fun collectDeferredEvalSymbols(state: TvmState): MutableList<DeferredEvaluationSymbol> {
-        val deferredEvalSymbols = mutableListOf<DeferredEvaluationSymbol>()
-        for ((ref, depth) in state.refToDepth) {
-            val depthSymbol =
-                (depth as? KBvZeroExtensionExpr)?.value
-                    ?: error("Expected zero-extension symbol, got $depth")
-            deferredEvalSymbols.add(
-                DepthSymbol(
-                    depthSymbol,
-                    listOf(ctx.mkConcreteHeapRef(ref)),
-                    depth,
-                ),
-            )
-        }
-        for (datasizeInfo in state.cdatasizeInfos) {
-            deferredEvalSymbols.add(
-                CDataSizeSymbol(
-                    listOf(
-                        datasizeInfo.distinctCells,
-                        datasizeInfo.cellRefs,
-                        datasizeInfo.dataBits,
-                    ).map {
-                        (it as? KBvZeroExtensionExpr)?.value
-                            ?: error("expected zero-extension symbol, got $it")
-                    },
-                    listOf(datasizeInfo.analyzedCell),
-                    datasizeInfo,
-                ),
-            )
-        }
-        for ((ref, sha256) in state.refToSha256) {
-            val symbol =
-                (sha256 as? KBvZeroExtensionExpr)?.value
-                    ?: error("Expected zero-extension symbol, got $sha256")
-            deferredEvalSymbols.add(
-                Sha256Symbol(symbol, listOf(ctx.mkConcreteHeapRef(ref)), sha256),
-            )
-        }
-        for (fwdFeeInfo in state.forwardFees) {
-            val symbol =
-                (fwdFeeInfo.symbolicFwdFee as? KBvZeroExtensionExpr)?.value
-                    ?: error("Expected zero-extension symbol, got ${fwdFeeInfo.symbolicFwdFee}")
-            deferredEvalSymbols.add(
-                FwdFeeSymbol(
-                    symbol,
-                    listOfNotNull(fwdFeeInfo.stateInitRef, fwdFeeInfo.msgBodyRef),
-                    fwdFeeInfo,
-                ),
-            )
-        }
-        val hashCollector = HashCollector(ctx)
-        state.pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) }
-        state.signatureChecks.forEach { hashCollector.apply(it.hash) }
-        for ((ref, hash) in state.refToHash) {
-            if (hash in hashCollector.collectedHashes) {
-                deferredEvalSymbols.add(
-                    HashSymbol(hash, listOf(ctx.mkConcreteHeapRef(ref))),
-                )
-            }
-        }
-        return deferredEvalSymbols
     }
 
     private fun enumerateAuthValues(state: TvmState): AuthAnalysisResult =
@@ -913,7 +456,7 @@ class TvmPostProcessor(
     /**
      * Generate expression that fixates ref's value given by model, and its hash (which is originally a mock).
      * */
-    private fun fixateValueAndHash(
+    internal fun fixateValueAndHash(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         hash: UExpr<TvmInt257Sort>,
@@ -929,7 +472,7 @@ class TvmPostProcessor(
             return fixateValueCond and hashCond
         }
 
-    private fun fixateValueAndSha256(
+    internal fun fixateValueAndSha256(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         sha256: UExpr<TvmInt257Sort>,
@@ -945,11 +488,11 @@ class TvmPostProcessor(
             return fixateValueCond and sha256Cs
         }
 
-    private fun fixateValueAndDepth(
+    internal fun fixateValueAndDepth(
         scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
         ref: UHeapRef,
         depth: UExpr<TvmInt257Sort>,
-        resolver: TvmTestStateResolver,
     ): UBoolExpr? =
         with(ctx) {
             val value = resolver.resolveRef(ref)
@@ -961,7 +504,7 @@ class TvmPostProcessor(
             return fixateValueCond and depthCond
         }
 
-    private fun fixateValueAndFwdFee(
+    fun fixateValueAndFwdFee(
         scope: TvmStepScopeManager,
         fwdFeeInfo: FwdFeeInfo,
         resolver: TvmTestStateResolver,
@@ -1001,7 +544,7 @@ class TvmPostProcessor(
             return fixateStateInitCond and fixateMsgBodyCond and fwdFeeCond
         }
 
-    private fun fixateCdatasizeInfo(
+    fun fixateCdatasizeInfo(
         scope: TvmStepScopeManager,
         cdatasizeInfo: DataSizeInfo,
         resolver: TvmTestStateResolver,
