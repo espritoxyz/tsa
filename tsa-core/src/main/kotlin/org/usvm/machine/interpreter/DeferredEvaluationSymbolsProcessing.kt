@@ -209,7 +209,7 @@ fun collectDeferredEvalSymbolsDependentOnRefs(
                             val position = state.readSliceDataPos(sliceConcreteRef)
                             val readCount = with(ctx) { sizeSymbolic bvSub position }
                             // note: we ignore missing slices, because they occur in `Tlb*ByRef`, which we process
-                            // in children separately
+                            // in children separately.
                             val (valueFromTlbFields, guard, _, symbolicExprs) =
                                 readInModelFromTlbFields(
                                     cellRef,
@@ -218,6 +218,7 @@ fun collectDeferredEvalSymbolsDependentOnRefs(
                                     readCount,
                                 )
                             exprs.addAll(symbolicExprs)
+                            exprs.add(guard)
                         }
                         // fallback for no-tlb case
                         if (exprs.isEmpty()) {
@@ -245,7 +246,7 @@ fun collectDeferredEvalSymbolsDependentOnRefs(
                                 .getLabelInfo(concreteRef)
                                 ?.variants
                                 ?.mapNotNull { it.key as? TvmParameterInfo.DataCellInfo }
-                                ?: continue
+                                ?: emptyList()
 
                         for (label in possibleLabels) {
                             val (valueFromTlbFields, guard, _, symbolicExprs) =
@@ -339,6 +340,15 @@ fun collectDeferredEvalSymbols(state: TvmState): List<DeferredEvaluationSymbol> 
     }
     val hashCollector = HashCollector(ctx)
     state.pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) }
+    /*
+    note (metametamoon): We might miss some of the hashes values that are created in
+    path constraints during the handling of the deferred evaluation symbols.
+    However, we would like to avoid fixating the hashes if there is no need for such fixation
+    to make the analysis more complete (even though we probably might not need this with such a smart
+    default evaluation symbol postprocessing), so we really don't want to include the unwanted hashes here.
+    If the debugging showed that the problems is here (e.g. by looking at UNSAT cores), one should consider
+     **over**-approximating the number of possibly fixated hashes here.
+     */
     state.signatureChecks.forEach { hashCollector.apply(it.hash) }
     for ((ref, hash) in state.refToHash) {
         if (hash in hashCollector.collectedHashes) {
