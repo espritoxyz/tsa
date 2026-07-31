@@ -56,7 +56,7 @@ class TvmReferenceToLabelMapper private constructor(
 
     fun addressWasGiven(ref: UConcreteHeapRef) = ref.address in inputAddressToLabels
 
-    fun getLabelInfo(ref: UConcreteHeapRef) =
+    fun getLabelInfo(ref: UConcreteHeapRef): LabelInfo? =
         if (ref.isAllocated) {
             val cellInfo = allocatedAddressToCellInfo[ref.address]
             cellInfo?.let { LabelInfo(mapOf(cellInfo to ctx.trueExpr)) }

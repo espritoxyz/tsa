@@ -79,12 +79,17 @@ sealed interface TlbStackFrame {
 
     fun readInModel(read: TlbStack.ConcreteReadInfo): ModelReadResult
 
+    /**
+     * @param symbolicData  is the original expression that was used to create [data] reads.
+     * It is `null` iff there was no use of model on some symbolic expression to create [data]
+     */
     data class ModelReadResult(
         val data: String,
         val nextRead: TlbStack.ConcreteReadInfo,
         val nextFrames: List<TlbStackFrame>,
         val guard: UBoolExpr,
         val missedSlices: List<Pair<UHeapRef, TvmTestSliceValue>>,
+        val symbolicData: UExpr<*>?,
     )
 
     fun compareWithOtherFrame(

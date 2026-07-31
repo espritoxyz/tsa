@@ -31,7 +31,7 @@ class TvmCellExoticFieldManager(
         memory.writeField(cellRef, isExoticField, boolSort, value, guard = trueExpr)
     }
 
-    fun readCellData(
+    fun readCellIsExotic(
         state: TvmState,
         cellRef: UHeapRef,
     ): UBoolExpr =

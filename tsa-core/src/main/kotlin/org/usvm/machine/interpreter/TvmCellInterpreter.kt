@@ -1781,7 +1781,7 @@ class TvmCellInterpreter(
             scope.doWithState(ctx.throwTypeCheckError)
             return
         }
-        val isExotic = scope.calcOnState { fieldManagers.cellExoticFieldManager.readCellData(this, cell) }
+        val isExotic = scope.calcOnState { fieldManagers.cellExoticFieldManager.readCellIsExotic(this, cell) }
 
         scope.assert(
             with(ctx) { isExotic.not() },

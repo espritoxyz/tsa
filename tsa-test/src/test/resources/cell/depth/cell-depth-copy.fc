@@ -1,0 +1,11 @@
+#include "stdlib.fc";
+#include "utils.fc";
+
+(int, int) rec_test() impure method_id (0) {
+    var c1 = begin_cell().end_cell();
+    var h1 = c1.cell_depth();
+    var c2 = begin_cell().store_uint(257, h1).end_cell();
+    var h2 = c2.cell_depth();
+
+    return (h1, h2);
+}
