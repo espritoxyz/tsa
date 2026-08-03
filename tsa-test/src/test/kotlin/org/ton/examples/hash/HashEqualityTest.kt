@@ -16,7 +16,9 @@ import org.usvm.machine.TlbOptions
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmOptions
 import org.usvm.machine.analyzeInterContract
+import org.usvm.test.resolver.TvmTestDataCellValue
 import org.usvm.test.resolver.TvmTestFailure
+import java.math.BigInteger
 import kotlin.test.Test
 
 class HashEqualityTest {
@@ -27,6 +29,7 @@ class HashEqualityTest {
     private val hashEqBuilderBuilderPath = "/hash/hash_eq_with_builder_builder.fc"
     private val hashEqConcretePath = "/hash/hash_eq_concrete.fc"
     private val hashSha256EqPath = "/hash/hash_sha256_eq.fc"
+    private val hashSha256EqSymbolicRefPath = "/hash/hash_sha256_eq_symbolic_ref.fc"
 
     private val drainWithStateInitChecker = "/hash/drain-check/drain_checker_stateinit.fc"
     private val vulnerableContract = "/hash/drain-check/vulnerable.fc"
@@ -142,6 +145,23 @@ class HashEqualityTest {
         tests.assertPropertiesFound(hasExitCode(111))
         tests.assertInvariantHolds(doesNotEndWithExitCode(112))
         tests.assertPropertiesFound(hasExitCode(116))
+    }
+
+    @Test
+    fun `test sha256 and cell hash equality with symbolic ref`() {
+        val checker = extractCheckerContractFromResource(hashSha256EqSymbolicRefPath)
+        val contract = extractFuncContractFromResource(hashSha256EqSymbolicRefPath)
+        val tests =
+            analyzeInterContract(
+                contracts = listOf(checker, contract),
+                startContractId = 0,
+                methodId = BigInteger.ZERO,
+            )
+
+        tests.assertPropertiesFound(hasExitCode(1000))
+        tests.filter(hasExitCode(1000)).assertInvariantHolds {
+            it.fetchedValues[0] == TvmTestDataCellValue(data = "00001101")
+        }
     }
 
     @Test

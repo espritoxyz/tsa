@@ -1,0 +1,26 @@
+#include "../imports/stdlib.fc";
+#include "../imports/tsa_functions.fc";
+
+() on_internal_message_send(int balance, int msg_value, cell in_msg_full, slice msg_body, int input_id) impure method_id {
+    cell value = begin_cell().store_ref(msg_body~load_ref()).end_cell();
+    slice value_slice = value.begin_parse();
+    cell value_ref = value_slice~load_ref();
+    cell concrete_ref = begin_cell().store_uint(13, 8).end_cell();
+    slice representation = begin_cell()
+        .store_uint(1, 8)
+        .store_uint(0, 8)
+        .store_uint(cell_depth(concrete_ref), 16)
+        .store_uint(cell_hash(concrete_ref), 256)
+        .end_cell()
+        .begin_parse();
+
+    if (string_hash(representation) == cell_hash(value)) {
+        tsa_fetch_value(value_ref, 0);
+        throw(1000);
+    }
+    throw(500);
+}
+
+() main() impure {
+    tsa_send_internal_message(1, 0);
+}

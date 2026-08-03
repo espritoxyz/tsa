@@ -394,27 +394,27 @@ class TvmHashConstraintsResolver(
         /**
          * See https://docs.ton.org/foundations/serialization/cells#standard-cell-representation-and-its-hash
          */
-        private fun buildLevelZeroCellRepresentation(cell: UConcreteHeapRef): UExpr<KBvSort>? =
+        private fun buildLevelZeroCellRepresentation(cell: UConcreteHeapRef): Pair<UExpr<KBvSort>?, Unit?> =
             with(ctx) {
                 if (TvmDataCellType !in state.getPossibleTypes(cell)) {
-                    return null
+                    return null to Unit
                 }
                 // if we are here, the hash-to-sha256 comparison was created, which we can assume is authorization
                 // and thus is not related to dictionaries, so we can assert the data cell type
                 scope.assertDataCellType(cell)
-                    ?: error("scope died")
+                    ?: return null to null
                 val dataBits =
                     state.readCellDataLength(cell).intValueOrNull
-                        ?: return null
+                        ?: return null to Unit
                 val refsCount =
                     state.readCellRefsCount(cell.asCellRef()).intValueOrNull
-                        ?: return null
+                        ?: return null to Unit
                 val data =
                     if (dataBits == 0) {
                         null
                     } else {
                         scope.preloadDataBitsFromCellWithoutChecks(cell, mkSizeExpr(0), dataBits)
-                            ?: return null
+                            ?: return null to Unit
                     }
                 val frontPaddedData =
                     if (dataBits % 8 == 0) {
@@ -438,7 +438,7 @@ class TvmHashConstraintsResolver(
                 children.forEach { child ->
                     parts += mkBvExtractExpr(high = 255, low = 0, value = state.mockHash(child))
                 }
-                parts.reduce(::mkBvConcatExpr)
+                parts.reduce(::mkBvConcatExpr) to Unit
             }
 
         /**
@@ -474,9 +474,12 @@ class TvmHashConstraintsResolver(
                     ?: findSha256Ref(r)?.let { it to (l as? TvmHashSymbol) }
                     ?: return null
             hash ?: return null
-            val representation =
+            val (representation, status) =
                 buildLevelZeroCellRepresentation(hash.ref)
                     ?: return null
+            if (representation == null) {
+                return null
+            }
             val (input, inputLength) =
                 readSha256InputString(sha256Ref, representation.sort.sizeBits.toInt())
                     ?: return null
