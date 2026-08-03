@@ -18,6 +18,7 @@ import org.usvm.UExpr
 import org.usvm.UHeapRef
 import org.usvm.USort
 import org.usvm.collections.immutable.internal.MutabilityOwnership
+import org.usvm.forkblacklists.UForkBlackList
 import org.usvm.machine.SizeExpr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.tctx
@@ -394,27 +395,35 @@ class TvmHashConstraintsResolver(
         /**
          * See https://docs.ton.org/foundations/serialization/cells#standard-cell-representation-and-its-hash
          */
-        private fun buildLevelZeroCellRepresentation(cell: UConcreteHeapRef): Pair<UExpr<KBvSort>?, Unit?> =
+        private fun buildLevelZeroCellRepresentation(cell: UConcreteHeapRef): UExpr<KBvSort>? =
             with(ctx) {
                 if (TvmDataCellType !in state.getPossibleTypes(cell)) {
-                    return null to Unit
+                    return null
                 }
+                // if we cannot assert, just skip
+                val safeScope =
+                    TvmStepScopeManager(
+                        scope.calcOnState { this },
+                        UForkBlackList.createDefault(),
+                        false,
+                    )
+
                 // if we are here, the hash-to-sha256 comparison was created, which we can assume is authorization
                 // and thus is not related to dictionaries, so we can assert the data cell type
-                scope.assertDataCellType(cell)
-                    ?: return null to null
+                safeScope.assertDataCellType(cell)
+                    ?: return null
                 val dataBits =
                     state.readCellDataLength(cell).intValueOrNull
-                        ?: return null to Unit
+                        ?: return null
                 val refsCount =
                     state.readCellRefsCount(cell.asCellRef()).intValueOrNull
-                        ?: return null to Unit
+                        ?: return null
                 val data =
                     if (dataBits == 0) {
                         null
                     } else {
                         scope.preloadDataBitsFromCellWithoutChecks(cell, mkSizeExpr(0), dataBits)
-                            ?: return null to Unit
+                            ?: return null
                     }
                 val frontPaddedData =
                     if (dataBits % 8 == 0) {
@@ -438,7 +447,7 @@ class TvmHashConstraintsResolver(
                 children.forEach { child ->
                     parts += mkBvExtractExpr(high = 255, low = 0, value = state.mockHash(child))
                 }
-                parts.reduce(::mkBvConcatExpr) to Unit
+                parts.reduce(::mkBvConcatExpr)
             }
 
         /**
@@ -474,12 +483,9 @@ class TvmHashConstraintsResolver(
                     ?: findSha256Ref(r)?.let { it to (l as? TvmHashSymbol) }
                     ?: return null
             hash ?: return null
-            val (representation, status) =
+            val representation =
                 buildLevelZeroCellRepresentation(hash.ref)
                     ?: return null
-            if (representation == null) {
-                return null
-            }
             val (input, inputLength) =
                 readSha256InputString(sha256Ref, representation.sort.sizeBits.toInt())
                     ?: return null
