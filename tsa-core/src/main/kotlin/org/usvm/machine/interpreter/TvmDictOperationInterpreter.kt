@@ -2015,12 +2015,39 @@ class TvmDictOperationInterpreter(
 
         val sliceValue = scope.calcOnState { dictGetValue(dictCellRef, dictId, key) }
 
+        assertDictValueDoesNotOverflow(scope, dictId, sliceValue)
+            ?: return
+
+        if (ctx.tvmOptions.forkOnEachPossibleElementInDictGet) {
+            val leaves = scope.ctx.flattenReferenceIte(sliceValue, extractAllocated = true, extractStatic = true)
+            val actions = leaves.map { (guard, ref) ->
+                TvmStepScopeManager.ActionOnCondition(
+                    caseIsExceptional = false,
+                    condition = guard,
+                    paramForDoForAllBlock = ref,
+                    action = {}
+                )
+            }
+
+            scope.doWithConditions(actions) { ref ->
+                val unwrappedValue =
+                    unwrapDictValue(this, ref, valueType)
+                        ?: return@doWithConditions
+
+                doWithState {
+                    addValueOnStack(unwrappedValue, valueType)
+                    if (!nullDefaultValue) {
+                        addOnStack(ctx.trueValue, TvmIntegerType)
+                    }
+                    newStmt(inst.nextStmt())
+                }
+            }
+            return
+        }
+
         val unwrappedValue =
             unwrapDictValue(scope, sliceValue, valueType)
                 ?: return
-
-        assertDictValueDoesNotOverflow(scope, dictId, sliceValue)
-            ?: return
 
         scope.doWithState {
             addValueOnStack(unwrappedValue, valueType)

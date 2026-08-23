@@ -11,6 +11,7 @@ import org.ton.bytecode.TvmCodeBlock
 import org.ton.bytecode.TvmDisasmCodeBlock
 import org.ton.bytecode.TvmInst
 import org.ton.bytecode.TvmRealInst
+import org.ton.cell.Cell
 import org.ton.disasm.TvmPhysicalInstLocation
 import org.ton.targets.TvmTarget
 import org.usvm.PathNode
@@ -123,6 +124,7 @@ class TvmState(
     var fixatedHashes: PersistentSet<TvmHashSymbol> = persistentSetOf(),
     var c5IdentifierList: PersistentMap<UConcreteHeapRef, PersistentList<C5ActionIdentifier>> = persistentMapOf(),
     var inputIdToTsaAccountId: PersistentMap<Int, AccountIdInfo> = persistentMapOf(),
+    var authCheckExcludedCodes: PersistentSet<Cell> = persistentSetOf(),
     /**
      * Authorized entities enumerated for the `tsa_enable_auth_check` intrinsic. Computed during post-processing.
      */
@@ -275,6 +277,7 @@ class TvmState(
             fixatedHashes = fixatedHashes,
             c5IdentifierList = c5IdentifierList,
             inputIdToTsaAccountId = inputIdToTsaAccountId,
+            authCheckExcludedCodes = authCheckExcludedCodes,
             resolvedAuthValues = resolvedAuthValues,
             semanticPriority = semanticPriority,
         ).also { newState ->

@@ -191,6 +191,10 @@ class TvmPostProcessor(
                 }
 
             state.resolvedAuthValues = enumerateAuthValues(state)
+            if ((state.resolvedAuthValues as? AuthAnalysisResult.Collected)?.authorizedEntities?.isEmpty() == true) {
+                logger.debug("No authorized entities found")
+                return null
+            }
 
             return state
         }
@@ -241,7 +245,10 @@ class TvmPostProcessor(
                     val codeEqCs =
                         fixator.fixateConcreteValue(scope, tsaAccountId.code)
                             ?: break
-                    values.add(TvmTestAuthValue.AuthorizedCode(code))
+                    val concreteCode = transformTestCellIntoCell(code)
+                    if (concreteCode !in state.authCheckExcludedCodes) {
+                        values.add(TvmTestAuthValue.AuthorizedCode(code))
+                    }
                     scope.assert(tsaAccountId.isStateInit.not() or (tsaAccountId.isStateInit and codeEqCs.not()))
                         ?: break
                 } else {

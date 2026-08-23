@@ -118,6 +118,11 @@ fun main() {
         () tsa_enable_auth_check(int input_id) impure method_id(22) {
             ;; do nothing
         }
+
+        ;; excludes a fully concrete checker-built code cell from authorization check results
+        () tsa_exclude_code_from_auth_check(cell code) impure method_id(23) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

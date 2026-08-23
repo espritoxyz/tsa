@@ -28,7 +28,10 @@ import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import org.usvm.test.resolver.TvmTestAuthValue
 import org.usvm.test.resolver.TvmTestFailure
+import org.usvm.test.resolver.transformTestCellIntoCell
 import java.math.BigInteger
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 fun TvmContractSymbolicTestResult.toSarifReport(methodsMapping: Map<MethodId, String>): String =
     SarifSchema210(
@@ -197,15 +200,7 @@ private fun convertAuthValuesToJson(authValues: AuthAnalysisResult): JsonElement
             val authorizedEntities =
                 authValues.authorizedEntities.map {
                     when (it) {
-                        is TvmTestAuthValue.AuthorizedCode -> {
-                            val cellBase64 = it.code.toBase64()
-                            Json.encodeToJsonElement(
-                                mapOf(
-                                    "type" to "code",
-                                    "code" to cellBase64,
-                                ),
-                            )
-                        }
+                        is TvmTestAuthValue.AuthorizedCode -> convertAuthorizedCodeToJson(it)
 
                         is TvmTestAuthValue.AuthorizedOwner -> {
                             Json.encodeToJsonElement(
@@ -233,5 +228,21 @@ private fun convertAuthValuesToJson(authValues: AuthAnalysisResult): JsonElement
             Json.encodeToJsonElement("Unknown")
         }
     }
+
+@OptIn(ExperimentalEncodingApi::class)
+internal fun convertAuthorizedCodeToJson(value: TvmTestAuthValue.AuthorizedCode): JsonElement {
+    val cellBase64 = value.code.toBase64()
+    val codeHashBase64 =
+        Base64.encode(
+            transformTestCellIntoCell(value.code).hash().toByteArray(),
+        )
+    return Json.encodeToJsonElement(
+        mapOf(
+            "type" to "code",
+            "code" to cellBase64,
+            "codeHashBase64" to codeHashBase64,
+        ),
+    )
+}
 
 private fun resolveRuleId(methodResult: TvmFailure): String = methodResult.exit.ruleName

@@ -13,6 +13,7 @@ dependencies {
     implementation("io.github.detekt.sarif4k:sarif4k:0.6.0")
 
     implementation(group = Packages.tonKotlin, name = "ton-kotlin-bigint", version = Versions.tonKotlin)
+    implementation(group = Packages.tonKotlin, name = "ton-kotlin-tvm", version = Versions.tonKotlin)
 }
 
 tasks.register("formatAndLintAll") {

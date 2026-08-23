@@ -61,12 +61,13 @@ private data class NewTlbStack(
 
 private data class Error(
     val error: TvmStructuralError,
-    override val doWhenForked: (TvmState) -> Unit,
-) : MakeSliceTypeLoadOutcome
+) : MakeSliceTypeLoadOutcome {
+    override val doWhenForked: (TvmState) -> Unit = {}
+}
 
-private data class NoTlbStack(
-    override val doWhenForked: (TvmState) -> Unit,
-) : MakeSliceTypeLoadOutcome
+private data object NoTlbStack: MakeSliceTypeLoadOutcome {
+    override val doWhenForked: (TvmState) -> Unit = {}
+}
 
 private fun <T> MutableMap<T, UBoolExpr>.addGuardedOutcome(
     key: T,
@@ -127,7 +128,7 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
             calcOnState {
                 dataCellInfoStorage.sliceMapper.getTlbStack(load.sliceRef)
             } ?: run {
-                outcomes.addGuardedTypeloadOutcome(NoTlbStack(doWhenForked = {}), null, load.guard)
+                outcomes.addGuardedTypeloadOutcome(NoTlbStack, null, load.guard)
                 return@forEach
             }
 
@@ -169,9 +170,9 @@ fun <ReadResult> TvmStepScopeManager.makeSliceTypeLoad(
                     is TlbStack.Error -> {
                         val outcome =
                             if (!stepResult.ignore(ctx, load.cellRef)) {
-                                Error(stepResult.error, doWhenForked)
+                                Error(stepResult.error)
                             } else {
-                                NoTlbStack(doWhenForked)
+                                NoTlbStack
                             }
                         outcomes.addGuardedTypeloadOutcome(outcome, value, guard and load.guard)
                     }
@@ -497,6 +498,20 @@ fun TvmState.copyTlbToNewBuilder(
         dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
             ?: return
     dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, tlbBuilder)
+}
+
+fun TvmState.appendTlbBuilder(
+    oldBuilder: UConcreteHeapRef,
+    appendedBuilder: UConcreteHeapRef,
+    newBuilder: UConcreteHeapRef,
+) {
+    val oldTlbBuilder =
+        dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
+            ?: return
+    val appendedTlbBuilder =
+        dataCellInfoStorage.mapper.getTlbBuilder(appendedBuilder)
+            ?: return
+    dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, oldTlbBuilder.append(appendedTlbBuilder))
 }
 
 private fun TvmState.addTlbLabelToBuilder(

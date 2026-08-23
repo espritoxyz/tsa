@@ -22,6 +22,7 @@ const val MARK_SLICE_AS_DETERMINER = 17
 const val SET_ADDRESS = 20
 const val FORK_WITHOUT_SOLVER = 21
 const val ENABLE_AUTH_CHECK = 22
+const val EXCLUDE_CODE_FROM_AUTH_CHECK = 23
 
 /**
  * Were calculated using python script:

@@ -98,6 +98,11 @@ int tsa_fork_without_solver(int from, int to_inclusive) impure method_id(21) {
     ;; do nothing
 }
 
+;; excludes a fully concrete checker-built code cell from authorization check results
+() tsa_exclude_code_from_auth_check(cell code) impure method_id(23) {
+    ;; do nothing
+}
+
 ;; making symbolic values API functions
 
 int tsa_mk_int(int bits, int signed) impure method_id(100) {

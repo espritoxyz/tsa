@@ -34,6 +34,7 @@ import org.usvm.machine.state.addInt
 import org.usvm.machine.state.addOnStack
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.callMethod
+import org.usvm.machine.state.extractFullCellIfItIsConcrete
 import org.usvm.machine.state.generateSymbolicAuthCheckAddress
 import org.usvm.machine.state.getBalanceOf
 import org.usvm.machine.state.initializeContractExecutionMemory
@@ -204,6 +205,10 @@ class TsaCheckerFunctionsInterpreter(
 
             ENABLE_AUTH_CHECK -> {
                 performEnableAuthCheck(scope, stmt)
+            }
+
+            EXCLUDE_CODE_FROM_AUTH_CHECK -> {
+                performExcludeCodeFromAuthCheck(scope, stmt)
             }
 
             SET_ADDRESS -> {
@@ -660,6 +665,29 @@ class TsaCheckerFunctionsInterpreter(
             val (address, accountId) = this.generateSymbolicAuthCheckAddress()
             val addressSlice = allocSliceFromCell(address.value).asSliceRef()
             this.inputIdToTsaAccountId = persistentMapOf(inputId to AccountIdInfo(accountId, addressSlice))
+            newStmt(stmt.nextStmt())
+        }
+    }
+
+    private fun performExcludeCodeFromAuthCheck(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        val codeRef =
+            scope.takeLastCell()
+                ?: run {
+                    scope.calcOnState { ctx.throwTypeCheckError(this) }
+                    return
+                }
+        val concreteCodeRef =
+            codeRef as? UConcreteHeapRef
+                ?: error("tsa_exclude_code_from_auth_check accepts only fully concrete checker-built cells")
+
+        scope.doWithState {
+            val code =
+                extractFullCellIfItIsConcrete(concreteCodeRef)
+                    ?: error("tsa_exclude_code_from_auth_check accepts only fully concrete checker-built cells")
+            authCheckExcludedCodes = authCheckExcludedCodes.add(code)
             newStmt(stmt.nextStmt())
         }
     }

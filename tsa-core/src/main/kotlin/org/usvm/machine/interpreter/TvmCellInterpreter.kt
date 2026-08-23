@@ -1,6 +1,7 @@
 package org.usvm.machine.interpreter
 
 import io.ksmt.expr.KBitVecValue
+import mu.KLogging
 import org.ton.Endian
 import org.ton.bytecode.TvmCell
 import org.ton.bytecode.TvmCellBuildBbitsInst
@@ -176,6 +177,7 @@ import org.usvm.machine.types.TvmDataCellType
 import org.usvm.machine.types.TvmIntegerType
 import org.usvm.machine.types.TvmRealReferenceType
 import org.usvm.machine.types.TvmSliceType
+import org.usvm.machine.types.appendTlbBuilder
 import org.usvm.machine.types.asSliceRef
 import org.usvm.machine.types.assertEndOfCell
 import org.usvm.machine.types.copyTlbToNewBuilder
@@ -2124,6 +2126,9 @@ class TvmCellInterpreter(
         }
 
         val cell = scope.builderToCell(builder)
+        logger.debug {
+            "Built cell $cell"
+        }
 
         scope.doWithState {
             addOnStack(cell, TvmCellType)
@@ -2265,6 +2270,7 @@ class TvmCellInterpreter(
         builderStoreSlice(toBuilder, resultBuilder, fromBuilderSlice, quietBlock) ?: return
 
         doWithState {
+            appendTlbBuilder(toBuilder, fromBuilder, resultBuilder)
             addOnStack(resultBuilder, TvmBuilderType)
             if (quiet) {
                 addOnStack(zeroValue, TvmIntegerType)
@@ -2286,5 +2292,9 @@ class TvmCellInterpreter(
 
     private data object StackSliceExtractor : SliceExtractor {
         override fun slice(scope: TvmStepScopeManager): UHeapRef? = scope.calcOnState { takeLastSlice() }
+    }
+
+    companion object {
+        private val logger = object : KLogging() {}.logger
     }
 }

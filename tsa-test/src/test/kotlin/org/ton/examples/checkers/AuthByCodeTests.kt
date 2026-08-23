@@ -26,12 +26,16 @@ import org.usvm.test.resolver.toTvmCell
 import org.usvm.test.resolver.transformTestCellIntoCell
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 const val INF = 5
 
 class AuthByCodeTests {
     private val checker = "/checkers/auth/auth-code-enumeration-checker.fc"
     private val checkerWithOpcodes = "/checkers/auth/auth-code-enumeration-checker-with-opcode.fc"
+    private val checkerWithExclusion = "/checkers/auth/auth-code-enumeration-checker-with-exclusion.fc"
+    private val checkerWithNonmatchingExclusion =
+        "/checkers/auth/auth-code-enumeration-checker-with-nonmatching-exclusion.fc"
 
     private val contractHashCheckWithFixedData = "/checkers/auth/contract-with-hash-check-fixed-data-auth.fc"
 
@@ -46,6 +50,27 @@ class AuthByCodeTests {
                 (it.exitCode() == 1000) implies {
                     it.authorizedCodes().size == 1
                 }
+            },
+        )
+    }
+
+    @Test
+    fun `excluded concrete code kills state with only that authorization`() {
+        val checker = extractCheckerContractFromResource(checkerWithExclusion)
+        val contract = extractFuncContractFromResource(contractHashCheckWithFixedData)
+        val tests = analyzeInterContract(contracts = listOf(checker, contract))
+        assertTrue(tests.none(hasExitCode(1000)))
+    }
+
+    @Test
+    fun `nonmatching concrete code exclusion preserves auth results`() {
+        val checker = extractCheckerContractFromResource(checkerWithNonmatchingExclusion)
+        val contract = extractFuncContractFromResource(contractHashCheckWithFixedData)
+        val tests = analyzeInterContract(contracts = listOf(checker, contract))
+        tests.assertPropertiesFound(hasExitCode(1000))
+        tests.filter(hasExitCode(1000)).assertInvariantsHold(
+            {
+                it.authorizedCodes().size == 1
             },
         )
     }
