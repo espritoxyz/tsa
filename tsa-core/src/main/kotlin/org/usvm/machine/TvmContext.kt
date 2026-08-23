@@ -864,39 +864,51 @@ class TvmContext(
         val iteCount: Int,
     )
 
+    /**
+     * Collects all concrete leaves of the [expr] ite-tree together with the conditions selecting them.
+     *
+     * Returns null if [expr] is not a tree of ites over interpreted values,
+     * or if the tree is too big to be summarized (see [MAX_CONCRETE_ITE_VALUES] and [MAX_CONCRETE_ITE_NODES]).
+     *
+     * NOTE: the traversal is deliberately iterative: ite-trees produced by concrete dictionaries
+     * can be thousands of levels deep, and a recursive traversal blows the stack on them.
+     */
     private fun <T : KSort> summarizeConcreteIte(expr: KExpr<T>): ConcreteIteSummary<T>? {
-        return when (expr) {
-            is KInterpretedValue<T> -> ConcreteIteSummary(linkedMapOf(expr to trueExpr), iteCount = 0)
-            is KIteExpr<T> -> {
-                val trueSummary = summarizeConcreteIte(expr.trueBranch) ?: return null
-                val falseSummary = summarizeConcreteIte(expr.falseBranch) ?: return null
-                val values = LinkedHashMap<KInterpretedValue<T>, KExpr<KBoolSort>>()
-
-                fun addValueCondition(
-                    value: KInterpretedValue<T>,
-                    valueCondition: KExpr<KBoolSort>,
-                ) {
-                    val previousCondition = values[value]
-                    values[value] =
-                        if (previousCondition == null) {
-                            valueCondition
-                        } else {
-                            mkOr(previousCondition, valueCondition, flat = false)
-                        }
-                }
-
-                trueSummary.valueConditions.forEach { (value, valueCondition) ->
-                    addValueCondition(value, mkAnd(expr.condition, valueCondition))
-                }
-                falseSummary.valueConditions.forEach { (value, valueCondition) ->
-                    addValueCondition(value, mkAnd(expr.condition.not(), valueCondition))
-                }
-
-                if (values.size > MAX_CONCRETE_ITE_VALUES) return null
-                ConcreteIteSummary(values, trueSummary.iteCount + falseSummary.iteCount + 1)
-            }
-            else -> null
+        if (expr !is KInterpretedValue<T> && expr !is KIteExpr<T>) {
+            return null
         }
+
+        val values = LinkedHashMap<KInterpretedValue<T>, KExpr<KBoolSort>>()
+        var iteCount = 0
+
+        // Depth-first traversal that visits leaves in the same left-to-right order as the tree structure.
+        val unprocessed = mutableListOf<Pair<KExpr<T>, KExpr<KBoolSort>>>(expr to trueExpr)
+        while (unprocessed.isNotEmpty()) {
+            val (cur, pathCondition) = unprocessed.removeLast()
+            when (cur) {
+                is KInterpretedValue<T> -> {
+                    val previousCondition = values[cur]
+                    values[cur] =
+                        if (previousCondition == null) {
+                            pathCondition
+                        } else {
+                            mkOr(previousCondition, pathCondition, flat = false)
+                        }
+
+                    if (values.size > MAX_CONCRETE_ITE_VALUES) return null
+                }
+                is KIteExpr<T> -> {
+                    iteCount++
+                    if (iteCount > MAX_CONCRETE_ITE_NODES) return null
+
+                    unprocessed.add(cur.falseBranch to mkAnd(pathCondition, cur.condition.not()))
+                    unprocessed.add(cur.trueBranch to mkAnd(pathCondition, cur.condition))
+                }
+                else -> return null
+            }
+        }
+
+        return ConcreteIteSummary(values, iteCount)
     }
 
     private fun <T : KSort> simplifyConcreteIte(
@@ -1158,6 +1170,7 @@ class TvmContext(
     companion object {
         private const val MAX_SIMPLIFICATION_DEPTH = 500
         private const val MAX_CONCRETE_ITE_VALUES = 16
+        private const val MAX_CONCRETE_ITE_NODES = 64
 
         const val MAX_DATA_LENGTH: Int = 1023
         const val MAX_REFS_NUMBER: Int = 4
