@@ -420,10 +420,7 @@ class TvmTransactionInterpreter(
         restActions: TvmStepScopeManager.(MessageHandlingState) -> Unit,
     ) {
         val mode = ReserveMode(reserveAction.mode)
-        if (mode.hasReserveAllExcept() ||
-            mode.hasInvertSign() ||
-            mode.hasReserveBounceIfActionFail()
-        ) {
+        if (mode.hasReserveAllExcept() || mode.hasInvertSign()) {
             TODO("The unsupported reserve mode: ${mode.flags}")
         }
         val reserve =
