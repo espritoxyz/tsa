@@ -680,6 +680,10 @@ private fun TvmStepScopeManager.sliceIsAddress(
 
         val result = results.single()
 
+        if (!result.guard.isTrue) {
+            return false
+        }
+
         // check that start is "100"
         return result.value?.expr?.let { (it eq fourSizeExpr.unsignedExtendToInteger()).isTrue } == true
     }
@@ -699,4 +703,18 @@ fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
         val newSlice = allocSliceFromData(value, sizeBits)
         storeSliceTlbLabelInBuilder(oldBuilder, newBuilder, newSlice)
     }
+}
+
+fun TvmState.appendTlbBuilder(
+    oldBuilder: UConcreteHeapRef,
+    appendedBuilder: UConcreteHeapRef,
+    newBuilder: UConcreteHeapRef,
+) {
+    val oldTlbBuilder =
+        dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
+            ?: return
+    val appendedTlbBuilder =
+        dataCellInfoStorage.mapper.getTlbBuilder(appendedBuilder)
+            ?: return
+    dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, oldTlbBuilder.append(appendedTlbBuilder))
 }
