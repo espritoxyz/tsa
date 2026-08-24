@@ -212,6 +212,10 @@ class TvmActionsInterpreter(
                 } ?: return@doWithState
                 builderStoreNextRefNoOverflowCheck(updatedActions, msg)
 
+                logger.debug {
+                    "Sending message cell ref $msg"
+                }
+
                 val callstack =
                     callStack.stackTrace(stmt).map {
                         val callStackInst = it.instruction as? TvmRealInst

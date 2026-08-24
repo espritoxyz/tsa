@@ -22,6 +22,7 @@ import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.hash.DefaultUExprTransformer
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
@@ -32,6 +33,7 @@ import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
+import org.usvm.machine.state.slicesDataBitsAreEqual
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
@@ -44,6 +46,7 @@ import org.usvm.test.resolver.TvmTestReferenceValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestStateResolver
 import org.usvm.test.resolver.endCell
+import org.usvm.test.resolver.toTvmCell
 import org.usvm.test.resolver.transformTestCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
@@ -120,7 +123,7 @@ class TvmPostProcessor(
             // must be asserted first
             assertConstraints(scope) { resolver ->
                 val generateRandomAddressConstraint =
-                    generateRandomAddressConstraint(scope, resolver)
+                    generateRandomAddressConstraint(scope)
                         ?: return@assertConstraints null
                 generateRandomAddressConstraint
             } ?: run {
@@ -378,29 +381,27 @@ class TvmPostProcessor(
             }
         }
 
-    private fun generateRandomAddressConstraint(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
+    private fun generateRandomAddressConstraint(scope: TvmStepScopeManager): UBoolExpr? =
         with(ctx) {
             val addresses = scope.calcOnState { fixatedRandomAddresses }
 
             addresses.fold(trueExpr as UBoolExpr) { acc, ref ->
-                val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
-                val randomAddress = generateRandomAddress()
+                val randomAddress = generateRandomAddressCell()
+                val randomConcreteSlice = scope.calcOnState { allocSliceFromCell(randomAddress.toTvmCell()) }
 
                 val curConstraint =
-                    fixator.fixateConcreteValueForSlice(scope, ref, randomAddress)
+                    scope.slicesDataBitsAreEqual(ref, randomConcreteSlice)
                         ?: return@with null
 
                 acc and curConstraint
             }
         }
 
-    private fun generateRandomAddress(): TvmTestSliceValue {
+    private fun generateRandomAddressCell(): TvmTestDataCellValue {
         val prefix = TvmContext.STD_ADDRESS_TAG + "0".repeat(TvmContext.STD_WORKCHAIN_BITS + 1)
         val mainPart = random.nextBytes(TvmContext.ADDRESS_BITS / 8).toBitString().toBinary()
-        return TvmTestSliceValue(cell = TvmTestDataCellValue(prefix + mainPart))
+        val cell = TvmTestDataCellValue(prefix + mainPart)
+        return cell
     }
 
     private fun fixatePublicKey(
