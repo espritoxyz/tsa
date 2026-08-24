@@ -335,7 +335,7 @@ class ContractsTest {
             funcCompileAndAnalyzeAllMethods(
                 funcResourcePath,
                 methodsBlackList = methodsBlackList,
-                tvmOptions = TvmOptions(quietMode = false),
+                tvmOptions = TvmOptions(quietMode = false, ignoreLowPriorityStates = true),
             )
         checkAtLeastOneStateForAllMethods(methodsNumber = methodsNumber, methodStates)
 

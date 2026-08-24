@@ -4,6 +4,7 @@ import io.ksmt.expr.KExpr
 import io.ksmt.sort.KBoolSort
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
+import mu.KLogging
 import org.ton.DestinationDescription
 import org.ton.LinearDestinations
 import org.ton.OpcodeToDestination
@@ -18,7 +19,6 @@ import org.usvm.api.makeSymbolicPrimitive
 import org.usvm.api.readField
 import org.usvm.isFalse
 import org.usvm.isTrue
-import org.usvm.logger
 import org.usvm.machine.Int257Expr
 import org.usvm.machine.TvmContext
 import org.usvm.machine.TvmContext.Companion.OP_BITS
@@ -971,6 +971,10 @@ class TvmTransactionInterpreter(
             scope.slicePreloadNextRef(slice)
                 ?: return null
 
+        logger.debug {
+            "Parsing message from cell $msg"
+        }
+
         val msgSlice = scope.calcOnState { allocSliceFromCell(msg) }
         makeCellToSliceTlbNoFork(scope, msg, msgSlice) // for further TL-B readings
 
@@ -1119,6 +1123,10 @@ class TvmTransactionInterpreter(
 
             checkRes != null
         }
+
+    companion object {
+        private val logger = object : KLogging() {}.logger
+    }
 }
 
 fun <T> chooseHandlerBasedOnOpcode(
