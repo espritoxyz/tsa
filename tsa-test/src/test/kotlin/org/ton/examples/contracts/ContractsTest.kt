@@ -76,8 +76,7 @@ class ContractsTest {
          * from cells of dict type.
          * TODO: enable test generation when resolve the issue above is fixed
          */
-        val options = TvmOptions(ignoreLowPriorityStates = true)
-        analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false, options)
+        analyzeSpecificMethodBoc(pumpersPath, MethodId.ZERO, enableTestGeneration = false)
     }
 
     @Test
@@ -385,7 +384,7 @@ class ContractsTest {
             BocAnalyzer.analyzeSpecificMethod(
                 bocPath,
                 methodId,
-                tvmOptions = options ?: TvmOptions(quietMode = false),
+                tvmOptions = options ?: TvmOptions(quietMode = false, ignoreLowPriorityStates = true),
             )
         assertTrue { tests.isNotEmpty() }
 
