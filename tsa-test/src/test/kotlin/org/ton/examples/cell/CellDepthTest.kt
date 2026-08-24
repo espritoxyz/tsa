@@ -5,11 +5,17 @@ import kotlin.test.Test
 
 class CellDepthTest {
     private val cellDepthPath: String = "/cell/depth/cell-depth.fc"
+    private val cellDepthCopyPath: String = "/cell/depth/cell-depth-copy.fc"
     private val unreachableCellDepthPath: String = "/cell/depth/cell-depth-unreachable.fc"
 
     @Test
     fun cellDepthValueTest() {
         compareSymbolicAndConcreteResultsFunc(cellDepthPath, methods = setOf(0, 1))
+    }
+
+    @Test
+    fun cellDepthMyTest() {
+        compareSymbolicAndConcreteResultsFunc(cellDepthCopyPath, methods = setOf(0))
     }
 
     @Test

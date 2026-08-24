@@ -235,7 +235,7 @@ class TvmContext(
                 return lhs
             }
 
-            distributeOverMatchingIte(lhs, rhs, ::mkTvmMul)?.let { return it }
+            distributeOverIte(lhs, rhs, ::mkTvmMul)?.let { return it }
         }
 
         return mkTvmMulNoSimplify(lhs, rhs)
@@ -859,12 +859,76 @@ class TvmContext(
         return super.mkBvOrExpr(arg0, arg1)
     }
 
+    private data class ConcreteIteSummary<T : KSort>(
+        val valueConditions: LinkedHashMap<KInterpretedValue<T>, KExpr<KBoolSort>>,
+        val iteCount: Int,
+    )
+
+    private fun <T : KSort> summarizeConcreteIte(expr: KExpr<T>): ConcreteIteSummary<T>? {
+        if (expr !is KInterpretedValue<T> && expr !is KIteExpr<T>) {
+            return null
+        }
+
+        val values = LinkedHashMap<KInterpretedValue<T>, KExpr<KBoolSort>>()
+        var iteCount = 0
+
+        val unprocessed = mutableListOf<Pair<KExpr<T>, KExpr<KBoolSort>>>(expr to trueExpr)
+        while (unprocessed.isNotEmpty()) {
+            val (cur, pathCondition) = unprocessed.removeLast()
+            when (cur) {
+                is KInterpretedValue<T> -> {
+                    val previousCondition = values[cur]
+                    values[cur] =
+                        if (previousCondition == null) {
+                            pathCondition
+                        } else {
+                            mkOr(previousCondition, pathCondition, flat = false)
+                        }
+
+                    if (values.size > MAX_CONCRETE_ITE_VALUES) return null
+                }
+                is KIteExpr<T> -> {
+                    iteCount++
+                    if (iteCount > MAX_CONCRETE_ITE_NODES) return null
+
+                    unprocessed.add(cur.falseBranch to mkAnd(pathCondition, cur.condition.not()))
+                    unprocessed.add(cur.trueBranch to mkAnd(pathCondition, cur.condition))
+                }
+                else -> return null
+            }
+        }
+
+        return ConcreteIteSummary(values, iteCount)
+    }
+
+    private fun <T : KSort> simplifyConcreteIte(
+        condition: KExpr<KBoolSort>,
+        trueBranch: KExpr<T>,
+        falseBranch: KExpr<T>,
+    ): KExpr<T>? {
+        if (trueBranch !is KInterpretedValue && trueBranch !is KIteExpr) return null
+        if (falseBranch !is KInterpretedValue && falseBranch !is KIteExpr) return null
+
+        val root = mkIteNoSimplify(condition, trueBranch, falseBranch)
+        val summary = summarizeConcreteIte(root) ?: return null
+        if (summary.valueConditions.size > summary.iteCount) return null
+
+        val values = summary.valueConditions.entries.toList()
+        var result: KExpr<T> = values.last().key
+        for ((value, valueCondition) in values.asReversed().drop(1)) {
+            result = mkIteNoSimplify(valueCondition, value, result)
+        }
+        return result
+    }
+
     override fun <T : KSort> mkIte(
         condition: KExpr<KBoolSort>,
         trueBranch: KExpr<T>,
         falseBranch: KExpr<T>,
     ): KExpr<T> {
         withSimplificationDepthGuard {
+            simplifyConcreteIte(condition, trueBranch, falseBranch)?.let { return it }
+
             // ite(C, ite(C2, T2, F), F) → ite(C ∧ C2, T2, F)
             if (trueBranch is KIteExpr && trueBranch.falseBranch == falseBranch) {
                 return mkIte(
@@ -945,6 +1009,8 @@ class TvmContext(
             }
         }
 
+        distributeOverIte(lhs, rhs) { a, b -> mkEq(a, b, order) }?.let { return it }
+
         if (rhs is KInterpretedValue && lhs !is KInterpretedValue) {
             return mkEq(rhs, lhs)
         }
@@ -1015,8 +1081,13 @@ class TvmContext(
         extensionSize: Int,
         value: KExpr<T>,
     ): KExpr<KBvSort> {
-        if (value is KBvZeroExtensionExpr) {
-            return mkBvZeroExtensionExpr(extensionSize + value.extensionSize, value.value)
+        withSimplificationDepthGuard {
+            if (value is KBvZeroExtensionExpr) {
+                return mkBvZeroExtensionExpr(extensionSize + value.extensionSize, value.value)
+            }
+            distributeUnaryOverIte(value) {
+                mkBvZeroExtensionExpr(extensionSize, it)
+            }?.let { return it }
         }
         return super.mkBvZeroExtensionExpr(extensionSize, value)
     }
@@ -1088,6 +1159,8 @@ class TvmContext(
 
     companion object {
         private const val MAX_SIMPLIFICATION_DEPTH = 500
+        private const val MAX_CONCRETE_ITE_VALUES = 16
+        private const val MAX_CONCRETE_ITE_NODES = 64
 
         const val MAX_DATA_LENGTH: Int = 1023
         const val MAX_REFS_NUMBER: Int = 4

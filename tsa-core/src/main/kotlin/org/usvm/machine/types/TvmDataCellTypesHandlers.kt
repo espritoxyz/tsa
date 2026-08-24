@@ -720,3 +720,17 @@ fun TvmStepScopeManager.storeCellDataTlbLabelInBuilder(
         storeSliceTlbLabelInBuilder(oldBuilder, newBuilder, newSlice)
     }
 }
+
+fun TvmState.appendTlbBuilder(
+    oldBuilder: UConcreteHeapRef,
+    appendedBuilder: UConcreteHeapRef,
+    newBuilder: UConcreteHeapRef,
+) {
+    val oldTlbBuilder =
+        dataCellInfoStorage.mapper.getTlbBuilder(oldBuilder)
+            ?: return
+    val appendedTlbBuilder =
+        dataCellInfoStorage.mapper.getTlbBuilder(appendedBuilder)
+            ?: return
+    dataCellInfoStorage.mapper.addTlbBuilder(newBuilder, oldTlbBuilder.append(appendedTlbBuilder))
+}

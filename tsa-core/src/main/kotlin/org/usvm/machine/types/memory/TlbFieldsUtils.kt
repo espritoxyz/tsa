@@ -187,22 +187,28 @@ fun readInModelFromTlbFields(
     var guard: UBoolExpr = state.ctx.trueExpr
     val missedSlices = mutableListOf<Pair<UHeapRef, TvmTestSliceValue>>()
 
+    val symbolicExprs = mutableListOf<UExpr<*>?>()
     while (!stack.isEmpty) {
-        val (readValue, leftToRead, newStack, curGuard, slices) = stack.readInModel(readInfo)
+        val (readValue, leftToRead, newStack, curGuard, slices, symbolicExpr) = stack.readInModel(readInfo)
         result += readValue
         readInfo = leftToRead
         stack = newStack
         guard = state.ctx.mkAnd(guard, curGuard)
         missedSlices += slices
+        symbolicExprs.add(symbolicExpr)
     }
 
-    return ModelReadResult(result, guard, missedSlices)
+    return ModelReadResult(result, guard, missedSlices, symbolicExprs.filterNotNull())
 }
 
+/**
+ * @property symbolicExprs  are the original expressions that were used to create [data].
+ */
 data class ModelReadResult(
     val data: String,
     val guard: UBoolExpr,
     val missedSlices: List<Pair<UHeapRef, TvmTestSliceValue>>,
+    val symbolicExprs: List<UExpr<*>>,
 )
 
 fun generateTlbFieldConstraints(

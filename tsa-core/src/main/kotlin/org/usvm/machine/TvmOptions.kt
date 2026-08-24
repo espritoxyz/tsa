@@ -61,6 +61,7 @@ data class TvmOptions(
      */
     val enumeratingModelsCountLimit: Int = 5,
     val ignoreLowPriorityStates: Boolean = false,
+    val forkOnEachPossibleElementInDictGet: Boolean = false,
 ) {
     init {
         check(enableOutMessageAnalysis || !intercontractOptions.isIntercontractEnabled) {

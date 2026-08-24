@@ -223,7 +223,7 @@ data class TlbStack(
     fun readInModel(readInfo: ConcreteReadInfo): ModelReadResult {
         require(frames.isNotEmpty())
         val lastFrame = frames.last()
-        val (readValue, leftToRead, newFrames, guard, slices) = lastFrame.readInModel(readInfo)
+        val (readValue, leftToRead, newFrames, guard, slices, symbolicExpr) = lastFrame.readInModel(readInfo)
         val deepFrames =
             if (newFrames.isEmpty()) {
                 skipSingleStep(readInfo.resolver.state, readInfo.ref, frames.viewWithoutLast())
@@ -231,7 +231,7 @@ data class TlbStack(
                 frames.viewWithoutLast()
             }
         val newTlbStack = TlbStack(deepFrames + newFrames)
-        return ModelReadResult(readValue, leftToRead, newTlbStack, guard, slices)
+        return ModelReadResult(readValue, leftToRead, newTlbStack, guard, slices, symbolicExpr)
     }
 
     data class ModelReadResult(
@@ -240,6 +240,7 @@ data class TlbStack(
         val nextStack: TlbStack,
         val guard: UBoolExpr,
         val missedSlices: List<Pair<UHeapRef, TvmTestSliceValue>>,
+        val symbolicExpr: UExpr<*>?,
     )
 
     fun compareWithOtherStack(

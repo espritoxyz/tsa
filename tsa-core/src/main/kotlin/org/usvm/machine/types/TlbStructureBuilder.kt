@@ -80,6 +80,14 @@ class TlbStructureBuilder private constructor(
         return TlbStructureBuilder(labelBuilders.add(KnownTypePrefixBuilder(label, initializeTlbField)))
     }
 
+    fun append(other: TlbStructureBuilder): TlbStructureBuilder =
+        other.labelBuilders.fold(this) { result, builder ->
+            when (builder) {
+                is KnownTypePrefixBuilder -> result.addTlbLabel(builder.label, builder.initializeTlbField)
+                is ConstantFieldBuilder -> result.addConstant(builder.bitString)
+            }
+        }
+
     fun addConstant(bitString: String): TlbStructureBuilder {
         when (val last = labelBuilders.lastOrNull()) {
             is ConstantFieldBuilder -> {

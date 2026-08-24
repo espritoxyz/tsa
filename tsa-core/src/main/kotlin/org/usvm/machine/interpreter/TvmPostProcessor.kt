@@ -22,8 +22,8 @@ import org.usvm.machine.state.DataSizeInfo
 import org.usvm.machine.state.TsaAccountIdSymbol
 import org.usvm.machine.state.TvmSignatureCheck
 import org.usvm.machine.state.TvmState
+import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.hash.DefaultUExprTransformer
-import org.usvm.machine.state.hash.HashCollector
 import org.usvm.machine.state.hash.TvmConstantHashSymbol
 import org.usvm.machine.state.hash.TvmHashConstraintsResolver
 import org.usvm.machine.state.hash.TvmSymbolicHashSymbol
@@ -33,6 +33,7 @@ import org.usvm.machine.state.messages.calculateConcreteForwardFee
 import org.usvm.machine.state.messages.calculateNumberOfBitsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfCellRefsInUniqueCells
 import org.usvm.machine.state.messages.calculateNumberOfUniqueCells
+import org.usvm.machine.state.slicesDataBitsAreEqual
 import org.usvm.machine.types.TvmType
 import org.usvm.machine.types.wrap
 import org.usvm.solver.USatResult
@@ -45,6 +46,7 @@ import org.usvm.test.resolver.TvmTestReferenceValue
 import org.usvm.test.resolver.TvmTestSliceValue
 import org.usvm.test.resolver.TvmTestStateResolver
 import org.usvm.test.resolver.endCell
+import org.usvm.test.resolver.toTvmCell
 import org.usvm.test.resolver.transformTestCellIntoCell
 import org.usvm.test.resolver.truncateSliceCell
 import java.math.BigInteger
@@ -120,8 +122,10 @@ class TvmPostProcessor(
 
             // must be asserted first
             assertConstraints(scope) { resolver ->
-                generateRandomAddressConstraint(scope, resolver)
-                    ?: return@assertConstraints null
+                val generateRandomAddressConstraint =
+                    generateRandomAddressConstraint(scope)
+                        ?: return@assertConstraints null
+                generateRandomAddressConstraint
             } ?: run {
                 logger.debug("Cannot assert random address constraints")
                 return null
@@ -135,45 +139,8 @@ class TvmPostProcessor(
                 return null
             }
 
-            // forward fees might depend on the hashes, so we must fixate the hashes first
-            assertConstraints(scope) { resolver ->
-                val hashConstraint =
-                    generateHashConstraint(scope, resolver)
-                        ?: return@assertConstraints null
-                hashConstraint
-            } ?: run {
-                logger.debug("Cannot assert hash constraints")
-                return null
-            }
-
-            assertConstraints(scope) { resolver ->
-                val sha256Constraint =
-                    generateSha256Constraints(scope, resolver)
-                        ?: return@assertConstraints null
-                sha256Constraint
-            } ?: run {
-                logger.debug("Cannot assert sha256 constraints")
-                return null
-            }
-
-            assertConstraints(scope) { resolver ->
-                val depthConstraint =
-                    generateDepthConstraint(scope, resolver)
-                        ?: return@assertConstraints null
-
-                val fwdFeeConstraint =
-                    generateFwdFeeConstraints(scope, resolver)
-                        ?: return@assertConstraints null
-
-                val datasizeConstraint =
-                    generateDatasizeConstraints(scope, resolver)
-                        ?: return@assertConstraints null
-
-                depthConstraint and fwdFeeConstraint and datasizeConstraint
-            } ?: run {
-                logger.debug("Cannot assert (depth or fwd_fee or cdatasize) constraints")
-                return null
-            }
+            postprocessDeferredEvalSymbols(state, scope)
+                ?: return null
 
             // must be asserted separately since it relies on correct hash values
             assertConstraints(scope) { resolver ->
@@ -194,6 +161,114 @@ class TvmPostProcessor(
 
             return state
         }
+
+    data class CollectDepRefResult(
+        val dependentRefs: List<UHeapRef>,
+        val refStructureConstraints: List<UBoolExpr>,
+    )
+
+    /**
+     * In this section, we say that expression A *depends* on expression B
+     * iff we have to fixate the value of B before evaluating/fixating the value of A.
+     *
+     * The plan is to construct the dependency graph on the deferred evaluation symbols
+     * (the symbols that require the computation on the resolved values) and using the said graph separate the symbols into optimal
+     * batches such that a batch does not contain dependent symbols.
+     *
+     * We construct the dependency graph via the intermediate cells:  if `h = hash(c)`, then `h` depends on `c`, and if
+     * `c.data` (or `c.refs[0].refs[1].data`) contain symbol s in subexpression, `c` depends on `s`, so, by transitivity,
+     * `h` depends on `s`
+     *
+     */
+    private fun postprocessDeferredEvalSymbols(
+        state: TvmState,
+        scope: TvmStepScopeManager,
+    ): Unit? {
+        val deferredEvalSymbols = collectDeferredEvalSymbols(state)
+
+        /*
+            In this section, we say that expression A *depends* on expression B
+            iff we have to fixate the value of B before evaluating/fixating the value of A.
+
+            We want to establish a dependency graph on the deferred evaluation symbols
+         */
+
+        lateinit var deferredEvaluationSymbolsToDependentRefs: Map<DeferredEvaluationSymbol, List<UHeapRef>>
+        assertConstraints(scope) { resolver ->
+            val collectionResults =
+                deferredEvalSymbols.associateWith { symbol ->
+                    symbol.collectDependentRefsAndCreateReferencesStructureConstraints(resolver)
+                }
+            deferredEvaluationSymbolsToDependentRefs =
+                collectionResults.mapValues { it.value.dependentRefs }
+            ctx.mkAnd(collectionResults.values.flatMap { it.refStructureConstraints })
+        } ?: return null
+        val refsToConsider = deferredEvaluationSymbolsToDependentRefs.values.flatten().toHashSet()
+
+        val refsToDependentSymbols =
+            collectDeferredEvalSymbolsDependentOnRefs(scope, deferredEvalSymbols, refsToConsider)
+                ?: return null
+        val deferredEvalSymbolDependency =
+            deferredEvaluationSymbolsToDependentRefs.mapValues { entry ->
+                entry.value.flatMap { refsToDependentSymbols.getOrDefault(it, listOf()) }
+            }
+
+        val processOrder = splitIntoLayers(deferredEvalSymbols, deferredEvalSymbolDependency)
+        for (layer in processOrder) {
+            val resolver =
+                scope.calcOnState {
+                    TvmTestStateResolver(ctx, tvmModels.first(), state)
+                }
+            val toAssert = mutableListOf<UBoolExpr>()
+            for (expr in layer) {
+                val constraint =
+                    expr.createFixationConstraint(scope, resolver, this)
+                        ?: return null
+                toAssert.add(constraint)
+            }
+            scope.assert(ctx.mkAnd(toAssert))
+                ?: return null
+        }
+        return Unit
+    }
+
+    /**
+     * Takes in a graph and returns the minimal amount of batches that disjointly cover all the nodes and
+     * such that there are no edges that belong to a single batch.
+     * @param deferredEvalSymbols are the graph nodes
+     * @param deferredEvalSymbolDependency are the map from the nodes to its list of neighbors.
+     *
+     * The function assumes that the graph is acyclic, which is normally the case for dependencies which are based on
+     * the relations "A is contained in the data of B"
+     */
+    private fun splitIntoLayers(
+        deferredEvalSymbols: List<DeferredEvaluationSymbol>,
+        deferredEvalSymbolDependency: Map<DeferredEvaluationSymbol, List<DeferredEvaluationSymbol>>,
+    ): List<HashSet<DeferredEvaluationSymbol>> {
+        // TODO: the algorithm here is quadratic, but I am pretty sure that this can be done in linear time
+        val result = mutableListOf<HashSet<DeferredEvaluationSymbol>>()
+        val prevLayers = hashSetOf<DeferredEvaluationSymbol>()
+        val unprocessedSymbols = mutableSetOf<DeferredEvaluationSymbol>()
+        unprocessedSymbols.addAll(deferredEvalSymbols)
+        var depth = 0
+        while (unprocessedSymbols.isNotEmpty()) {
+            if (depth > deferredEvalSymbols.size) {
+                error("infinite loop")
+            }
+            depth += 1
+            val nextLayer = hashSetOf<DeferredEvaluationSymbol>()
+            for (symbol in unprocessedSymbols) {
+                val refDeps = deferredEvalSymbolDependency[symbol] ?: hashSetOf()
+                if (refDeps.all { prevLayers.contains(it) }) {
+                    nextLayer.add(symbol)
+                }
+            }
+            result.add(nextLayer)
+            prevLayers.addAll(nextLayer)
+            unprocessedSymbols.removeAll(nextLayer)
+        }
+        return result
+    }
 
     private fun enumerateAuthValues(state: TvmState): AuthAnalysisResult =
         with(ctx) {
@@ -278,32 +353,6 @@ class TvmPostProcessor(
         return scope.assert(constraints)
     }
 
-    private fun generateFwdFeeConstraints(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val forwardFees = scope.calcOnState { forwardFees }
-
-            forwardFees.fold(trueExpr as UBoolExpr) { acc, fwdFeeInfo ->
-                val curConstraint =
-                    fixateValueAndFwdFee(scope, fwdFeeInfo, resolver)
-                        ?: return@with null
-
-                acc and curConstraint
-            }
-        }
-
-    private fun generateDatasizeConstraints(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val datasizeInfos = scope.calcOnState { cdatasizeInfos }
-
-            mkAnd(datasizeInfos.map { fixateCdatasizeInfo(scope, it, resolver) ?: return@with null })
-        }
-
     private fun generatePublicKeyConstraints(
         scope: TvmStepScopeManager,
         resolver: TvmTestStateResolver,
@@ -332,91 +381,27 @@ class TvmPostProcessor(
             }
         }
 
-    private fun generateDepthConstraint(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val addressToDepth = scope.calcOnState { refToDepth }
-
-            addressToDepth.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
-                val curConstraint =
-                    fixateValueAndDepth(scope, mkConcreteHeapRef(ref), depth, resolver)
-                        ?: return@with null
-                acc and curConstraint
-            }
-        }
-
-    private fun generateSha256Constraints(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val refToSha256 = scope.calcOnState { refToSha256 }
-
-            refToSha256.entries.fold(trueExpr as UBoolExpr) { acc, (ref, depth) ->
-                val curConstraint =
-                    fixateValueAndSha256(scope, mkConcreteHeapRef(ref), depth, resolver)
-                        ?: return@with null
-                acc and curConstraint
-            }
-        }
-
-    private fun generateHashConstraint(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
-        with(ctx) {
-            val addressToHash = scope.calcOnState { refToHash }
-            val hashCollector = HashCollector(ctx)
-            scope.calcOnState {
-                pathConstraints.tvmConstraintsSequence().forEach { hashCollector.apply(it) }
-                signatureChecks.forEach { hashCollector.apply(it.hash) }
-            }
-            addressToHash.entries.fold(trueExpr as UBoolExpr) { acc, (ref, hash) ->
-                val isHashInCs = hash in hashCollector.collectedHashes
-                val curConstraint =
-                    if (isHashInCs) {
-                        val result =
-                            fixateValueAndHash(
-                                scope,
-                                mkConcreteHeapRef(ref),
-                                hash.zeroExtendToSort(int257sort),
-                                resolver,
-                            )
-                                ?: return null
-                        scope.calcOnState { fixatedHashes = fixatedHashes.add(hash) }
-                        result
-                    } else {
-                        ctx.trueExpr
-                    }
-                acc and curConstraint
-            }
-        }
-
-    private fun generateRandomAddressConstraint(
-        scope: TvmStepScopeManager,
-        resolver: TvmTestStateResolver,
-    ): UBoolExpr? =
+    private fun generateRandomAddressConstraint(scope: TvmStepScopeManager): UBoolExpr? =
         with(ctx) {
             val addresses = scope.calcOnState { fixatedRandomAddresses }
 
             addresses.fold(trueExpr as UBoolExpr) { acc, ref ->
-                val fixator = TvmValueFixator(resolver, ctx, structuralConstraintsOnly = false)
-                val randomAddress = generateRandomAddress()
+                val randomAddress = generateRandomAddressCell()
+                val randomConcreteSlice = scope.calcOnState { allocSliceFromCell(randomAddress.toTvmCell()) }
 
                 val curConstraint =
-                    fixator.fixateConcreteValueForSlice(scope, ref, randomAddress)
+                    scope.slicesDataBitsAreEqual(ref, randomConcreteSlice)
                         ?: return@with null
 
                 acc and curConstraint
             }
         }
 
-    private fun generateRandomAddress(): TvmTestSliceValue {
+    private fun generateRandomAddressCell(): TvmTestDataCellValue {
         val prefix = TvmContext.STD_ADDRESS_TAG + "0".repeat(TvmContext.STD_WORKCHAIN_BITS + 1)
         val mainPart = random.nextBytes(TvmContext.ADDRESS_BITS / 8).toBitString().toBinary()
-        return TvmTestSliceValue(cell = TvmTestDataCellValue(prefix + mainPart))
+        val cell = TvmTestDataCellValue(prefix + mainPart)
+        return cell
     }
 
     private fun fixatePublicKey(
@@ -472,7 +457,7 @@ class TvmPostProcessor(
     /**
      * Generate expression that fixates ref's value given by model, and its hash (which is originally a mock).
      * */
-    private fun fixateValueAndHash(
+    internal fun fixateValueAndHash(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         hash: UExpr<TvmInt257Sort>,
@@ -488,7 +473,7 @@ class TvmPostProcessor(
             return fixateValueCond and hashCond
         }
 
-    private fun fixateValueAndSha256(
+    internal fun fixateValueAndSha256(
         scope: TvmStepScopeManager,
         ref: UHeapRef,
         sha256: UExpr<TvmInt257Sort>,
@@ -504,11 +489,11 @@ class TvmPostProcessor(
             return fixateValueCond and sha256Cs
         }
 
-    private fun fixateValueAndDepth(
+    internal fun fixateValueAndDepth(
         scope: TvmStepScopeManager,
+        resolver: TvmTestStateResolver,
         ref: UHeapRef,
         depth: UExpr<TvmInt257Sort>,
-        resolver: TvmTestStateResolver,
     ): UBoolExpr? =
         with(ctx) {
             val value = resolver.resolveRef(ref)
@@ -520,7 +505,7 @@ class TvmPostProcessor(
             return fixateValueCond and depthCond
         }
 
-    private fun fixateValueAndFwdFee(
+    fun fixateValueAndFwdFee(
         scope: TvmStepScopeManager,
         fwdFeeInfo: FwdFeeInfo,
         resolver: TvmTestStateResolver,
@@ -560,7 +545,7 @@ class TvmPostProcessor(
             return fixateStateInitCond and fixateMsgBodyCond and fwdFeeCond
         }
 
-    private fun fixateCdatasizeInfo(
+    fun fixateCdatasizeInfo(
         scope: TvmStepScopeManager,
         cdatasizeInfo: DataSizeInfo,
         resolver: TvmTestStateResolver,

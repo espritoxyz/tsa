@@ -1,0 +1,15 @@
+#include "../depth/stdlib.fc";
+
+int depth_of_nested_hash() impure method_id (0) {
+    var c1 = begin_cell()
+        .store_uint(7, 32)
+        .end_cell();
+    var h1 = string_hash(c1.begin_parse());
+    var inner = begin_cell()
+        .store_uint(h1, 256)
+        .end_cell();
+    var outer = begin_cell()
+        .store_ref(inner)
+        .end_cell();
+    return outer.cell_depth();
+}

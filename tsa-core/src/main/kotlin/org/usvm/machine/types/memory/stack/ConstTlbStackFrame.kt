@@ -212,6 +212,7 @@ data class ConstTlbStackFrame(
             newFrames,
             read.ref.ctx.trueExpr,
             missedSlices = emptyList(),
+            symbolicData = null,
         )
     }
 

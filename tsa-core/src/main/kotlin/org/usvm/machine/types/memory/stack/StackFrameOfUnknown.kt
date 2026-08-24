@@ -365,6 +365,8 @@ data class StackFrameOfUnknown(
                     emptyList(),
                     guard,
                     missedSlices = emptyList(),
+                    symbolicData = dataSymbolic, // its ok to overestimate the number of dependencies
+                    // by not ignoring the `read.leftBits` slicing
                 )
             } else {
                 val nextFrame =

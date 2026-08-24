@@ -233,6 +233,7 @@ data class KnownTypeTlbStackFrame(
                         listOf(this@KnownTypeTlbStackFrame, newFrame),
                         trueExpr,
                         missedSlices = emptyList(),
+                        symbolicData = null,
                     )
                 }
 
@@ -263,6 +264,7 @@ data class KnownTypeTlbStackFrame(
                         newFrame?.let { listOf(it) } ?: emptyList(),
                         guard,
                         missedSlices = emptyList(),
+                        symbolicData = contentSymbolic,
                     )
                 }
 
@@ -296,6 +298,7 @@ data class KnownTypeTlbStackFrame(
                         newFrame?.let { listOf(it) } ?: emptyList(),
                         guard,
                         missedSlices = emptyList(),
+                        symbolicData = intValueSymbolic,
                     )
                 }
 
@@ -324,6 +327,7 @@ data class KnownTypeTlbStackFrame(
                         newFrame?.let { listOf(it) } ?: emptyList(),
                         guard = trueExpr,
                         missedSlices = listOf(slice to content),
+                        symbolicData = null, // why?
                     )
                 }
             }

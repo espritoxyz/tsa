@@ -111,7 +111,13 @@ class TvmValueFixator(
                 scope.calcOnState {
                     dataCellInfoStorage.sliceMapper.getTlbStack(modelRef)
                 }
-            if (tlbStack != null && !tlbStack.lastFrameIsUnknownWithOffset()) {
+
+            val truncatedCell = truncateSliceCell(value)
+
+            if (tlbStack != null &&
+                !tlbStack.lastFrameIsUnknownWithOffset() &&
+                (truncatedCell.data.isNotEmpty() || truncatedCell.refs.isNotEmpty())
+            ) {
                 val cellLength =
                     scope.calcOnState {
                         fieldManagers.cellDataLengthFieldManager.readCellDataLength(this, cellRef)
@@ -132,11 +138,13 @@ class TvmValueFixator(
                             ?: return@with null
                     }
 
-                // TODO: check that modelReadResult matches [value]
+                if (modelReadResult.data != truncatedCell.data) {
+                    error("Inconsistent data read from the model")
+                }
 
                 val dataGuard = children.fold(modelReadResult.guard) { acc, cond -> acc and cond }
 
-                val refs = truncateSliceCell(value).refs
+                val refs = truncatedCell.refs
 
                 val restGuard =
                     fixateConcreteValueForDataCell(
