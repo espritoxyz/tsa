@@ -864,15 +864,6 @@ class TvmContext(
         val iteCount: Int,
     )
 
-    /**
-     * Collects all concrete leaves of the [expr] ite-tree together with the conditions selecting them.
-     *
-     * Returns null if [expr] is not a tree of ites over interpreted values,
-     * or if the tree is too big to be summarized (see [MAX_CONCRETE_ITE_VALUES] and [MAX_CONCRETE_ITE_NODES]).
-     *
-     * NOTE: the traversal is deliberately iterative: ite-trees produced by concrete dictionaries
-     * can be thousands of levels deep, and a recursive traversal blows the stack on them.
-     */
     private fun <T : KSort> summarizeConcreteIte(expr: KExpr<T>): ConcreteIteSummary<T>? {
         if (expr !is KInterpretedValue<T> && expr !is KIteExpr<T>) {
             return null
@@ -881,7 +872,6 @@ class TvmContext(
         val values = LinkedHashMap<KInterpretedValue<T>, KExpr<KBoolSort>>()
         var iteCount = 0
 
-        // Depth-first traversal that visits leaves in the same left-to-right order as the tree structure.
         val unprocessed = mutableListOf<Pair<KExpr<T>, KExpr<KBoolSort>>>(expr to trueExpr)
         while (unprocessed.isNotEmpty()) {
             val (cur, pathCondition) = unprocessed.removeLast()
