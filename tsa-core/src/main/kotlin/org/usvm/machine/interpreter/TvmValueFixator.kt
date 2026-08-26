@@ -292,7 +292,12 @@ class TvmValueFixator(
                     trueExpr
                 }
 
-            childrenCond and refCond and dataCond
+            val isExoticCond =
+                scope.calcOnState {
+                    fieldManagers.cellExoticFieldManager.readCellIsExotic(this, ref) eq mkBool(value.isExotic)
+                }
+
+            childrenCond and refCond and dataCond and isExoticCond
         }
 
     private fun fixateConcreteValueForDictCell(

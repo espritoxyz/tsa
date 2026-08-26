@@ -1319,9 +1319,9 @@ fun TvmState.allocateCell(cellValue: Cell): UConcreteHeapRef =
         val cell = allocEmptyCell()
 
         if (cellValue.type.isExotic) {
-            fieldManagers.cellExoticFieldManager.writeCellData(this@allocateCell, cell, trueExpr)
+            fieldManagers.cellExoticFieldManager.writeIsExotic(this@allocateCell, cell, trueExpr)
         } else {
-            fieldManagers.cellExoticFieldManager.writeCellData(this@allocateCell, cell, falseExpr)
+            fieldManagers.cellExoticFieldManager.writeIsExotic(this@allocateCell, cell, falseExpr)
         }
 
         if (bits.isNotEmpty()) {
@@ -1341,7 +1341,7 @@ fun TvmState.allocateCell(cellValue: Cell): UConcreteHeapRef =
 fun TvmState.allocEmptyCell() =
     with(ctx) {
         memory.allocConcrete(TvmDataCellType).also { cell ->
-            fieldManagers.cellExoticFieldManager.writeCellData(memory, cell, falseExpr)
+            fieldManagers.cellExoticFieldManager.writeIsExotic(memory, cell, falseExpr)
             fieldManagers.cellDataFieldManager.writeCellData(memory, cell, mkBv(0, cellDataSort))
             fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
                 this@allocEmptyCell,

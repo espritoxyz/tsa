@@ -17,13 +17,13 @@ class TvmCellExoticFieldManager(
 ) {
     fun clone(): TvmCellExoticFieldManager = TvmCellExoticFieldManager(ctx)
 
-    fun writeCellData(
+    fun writeIsExotic(
         state: TvmState,
         cellRef: UHeapRef,
         value: UBoolExpr,
-    ) = writeCellData(state.memory, cellRef, value)
+    ) = writeIsExotic(state.memory, cellRef, value)
 
-    fun writeCellData(
+    fun writeIsExotic(
         memory: UWritableMemory<TvmType>,
         cellRef: UHeapRef,
         value: UBoolExpr,
