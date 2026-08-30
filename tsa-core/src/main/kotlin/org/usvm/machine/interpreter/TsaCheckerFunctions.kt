@@ -22,6 +22,7 @@ const val MARK_SLICE_AS_DETERMINER = 17
 const val SET_ADDRESS = 20
 const val FORK_WITHOUT_SOLVER = 21
 const val ENABLE_AUTH_CHECK = 22
+const val REGISTER_METHOD_INTERCEPTION = 23
 
 /**
  * Were calculated using python script:
@@ -79,3 +80,9 @@ enum class ReceiverType {
     Internal,
     External,
 }
+
+data class MethodInterception(
+    val substitutionMethodId: Int,
+    val argCount: Int,
+    val retCount: Int,
+)

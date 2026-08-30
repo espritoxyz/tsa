@@ -326,6 +326,7 @@ import org.usvm.machine.state.input.ReceiverInput
 import org.usvm.machine.state.input.RecvExternalInput
 import org.usvm.machine.state.input.RecvInternalInput
 import org.usvm.machine.state.input.TvmStackInput
+import org.usvm.machine.state.interceptCallForSubstitution
 import org.usvm.machine.state.jumpToContinuation
 import org.usvm.machine.state.killCurrentState
 import org.usvm.machine.state.lastStmt
@@ -3432,6 +3433,25 @@ class TvmInterpreter(
     ) {
         tsaCheckerFunctionsInterpreter.doTSACheckerOperation(scope, stmt, methodIdInt)
             ?: return
+
+        val interception =
+            scope.calcOnState {
+                if (contractsCode[currentContract].isContractWithTSACheckerFunctions) {
+                    null
+                } else {
+                    registeredMethodInterceptions[methodIdInt]
+                }
+            }
+        if (interception != null) {
+            scope.interceptCallForSubstitution(
+                substitutionMethodId = interception.substitutionMethodId,
+                argCount = interception.argCount,
+                retCount = interception.retCount,
+                returnStmt = stmt.nextStmt(),
+                contractsCode = contractsCode,
+            )
+            return
+        }
 
         val nextMethod =
             extractMethod(scope, methodIdInt)

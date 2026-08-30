@@ -118,6 +118,13 @@ fun main() {
         () tsa_enable_auth_check(int input_id) impure method_id(22) {
             ;; do nothing
         }
+        
+        ;; intercepts calls to [initial_method_id] in non-checker contracts and instead executes
+        ;; the checker method [substitution_method_id] (in full checker context);
+        ;; [arg_count] top stack entries are passed as arguments and [ret_count] entries are returned
+        () tsa_register_method_interception(int initial_method_id, int substitution_method_id, int arg_count, int ret_count) impure method_id(23) {
+            ;; do nothing
+        }
         """.trimIndent()
 
     val mkSymbolicApiFunctions =

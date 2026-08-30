@@ -214,6 +214,10 @@ class TsaCheckerFunctionsInterpreter(
                 performForkWithoutSolver(scope, stmt)
             }
 
+            REGISTER_METHOD_INTERCEPTION -> {
+                performRegisterMethodInterception(scope, stmt)
+            }
+
             else -> {
                 return Unit
             }
@@ -813,6 +817,35 @@ class TsaCheckerFunctionsInterpreter(
             }
 
         scope.doWithConditions(actions) {}
+    }
+
+    private fun performRegisterMethodInterception(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+    ) {
+        scope.doWithState {
+            val functionName = "tsa_register_method_interception"
+            val retCount = getConcreteIntFromStack(parameterName = "ret_count", functionName = functionName)
+            val argCount = getConcreteIntFromStack(parameterName = "arg_count", functionName = functionName)
+            val substitutionMethodId =
+                getConcreteIntFromStack(parameterName = "substitution_method_id", functionName = functionName)
+            val initialMethodId =
+                getConcreteIntFromStack(parameterName = "initial_method_id", functionName = functionName)
+
+            check(argCount >= 0 && retCount >= 0) {
+                "arg_count and ret_count of $functionName must be non-negative, but found $argCount and $retCount"
+            }
+            check(!registeredMethodInterceptions.containsKey(initialMethodId)) {
+                "Method with id $initialMethodId is already intercepted"
+            }
+
+            registeredMethodInterceptions =
+                registeredMethodInterceptions.put(
+                    initialMethodId,
+                    MethodInterception(substitutionMethodId, argCount, retCount),
+                )
+            newStmt(stmt.nextStmt())
+        }
     }
 
     private fun performGetBalance(
