@@ -4,6 +4,7 @@ import org.ton.bytecode.MethodId
 import org.ton.bytecode.TsaContractCode
 import org.usvm.UExpr
 import org.usvm.forkblacklists.UForkBlackList
+import org.usvm.logger
 import org.usvm.machine.state.TvmState
 import org.usvm.machine.state.TvmTerminated
 import org.usvm.machine.state.input.RecvInternalInput
@@ -86,9 +87,10 @@ class TvmOpcodeExtractor(
         }
     }
 
-    private fun extractOpcodeFromState(
+    fun extractOpcodeFromState(
         state: TvmState,
         isEnd: Boolean,
+        loadFromStandardInput: Boolean = true,
     ): Pair<Set<BigInteger>, Unit?> =
         with(state.ctx) {
             val scope =
@@ -100,15 +102,16 @@ class TvmOpcodeExtractor(
 
             val opcodes = mutableSetOf<BigInteger>()
 
+            val loadOpcodeFunction = if (loadFromStandardInput) ::loadOpcode else ::loadOpcodeFromAdditionalInput
             val status =
-                loadOpcode(scope) { value ->
+                loadOpcodeFunction(scope) { value ->
                     checkSat(value eq randomOpcode.toBv257())
                         ?: run {
                             // get here if [value == random opcode] couldn't be satisfied (maybe due to unknown)
 
                             opcodes += listPossibleOpcodes(this, value)
 
-                            return@loadOpcode null
+                            return@loadOpcodeFunction null
                         }
 
                     if (isEnd) null else Unit
@@ -125,6 +128,38 @@ class TvmOpcodeExtractor(
             val input =
                 initialInput as? RecvInternalInput
                     ?: error("Unexpected input: $initialInput")
+
+            // hack
+            val oldIsExceptional = isExceptional
+            isExceptional = false
+
+            val (_, value) =
+                sliceLoadIntTlbNoForkAndNoRegister(
+                    scope,
+                    input.msgBodySliceMaybeBounced,
+                    sizeBits = opcodeLength,
+                    isSigned = false,
+                ) ?: return@calcOnState null
+
+            scope.onOpcode(value)
+                ?: return@calcOnState null
+
+            scope.calcOnState {
+                isExceptional = oldIsExceptional
+            }
+        }
+
+    private fun loadOpcodeFromAdditionalInput(
+        scope: TvmStepScopeManager,
+        onOpcode: TvmStepScopeManager.(UExpr<TvmContext.TvmInt257Sort>) -> Unit?,
+    ): Unit? =
+        scope.calcOnState {
+            val input =
+                additionalInputs[0] as? RecvInternalInput
+                    ?: run {
+                        logger.warn("Unexpected input: $initialInput")
+                        return@calcOnState null
+                    }
 
             // hack
             val oldIsExceptional = isExceptional
