@@ -58,6 +58,7 @@ data class SwitchTlbStackFrame(
                                 ),
                             ),
                             value = null,
+                            doWhenForked = {},
                         ),
                     )
                 }
@@ -73,6 +74,7 @@ data class SwitchTlbStackFrame(
                                 TvmStructuralError(TvmReadingOutOfSwitchBounds(loadData.type), phase),
                             ),
                             value = null,
+                            doWhenForked = {},
                         ),
                     )
 
@@ -97,6 +99,7 @@ data class SwitchTlbStackFrame(
                             (readSize eq switchSize) and guard,
                             stepResult,
                             value,
+                            doWhenForked = {},
                         ),
                     )
 
@@ -106,6 +109,7 @@ data class SwitchTlbStackFrame(
                             mkSizeLtExpr(readSize, switchSize) and guard,
                             NextFrame(ConstTlbStackFrame(key, variant, readSize, path, leftTlbDepth)),
                             value,
+                            doWhenForked = {},
                         ),
                     )
                 }

@@ -30,9 +30,11 @@ sealed class TvmHashSymbol(
     override fun internEquals(other: Any): Boolean =
         structurallyEqual(
             other,
-        ) { fallbackExpr }
+            { fallbackExpr },
+            { ref },
+        )
 
-    override fun internHashCode(): Int = hash(fallbackExpr)
+    override fun internHashCode(): Int = hash(fallbackExpr, ref)
 }
 
 class TvmSymbolicHashSymbol(

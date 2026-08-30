@@ -127,6 +127,7 @@ class TvmState(
      * Authorized entities enumerated for the `tsa_enable_auth_check` intrinsic. Computed during post-processing.
      */
     var resolvedAuthValues: AuthAnalysisResult = AuthAnalysisResult.NotCollected,
+    var semanticPriority: SemanticPriority = SemanticPriority.NORMAL,
 ) : UState<TvmType, TvmCodeBlock, TvmInst, TvmContext, TvmTarget, TvmState>(
         ctx,
         ownership,
@@ -275,6 +276,7 @@ class TvmState(
             c5IdentifierList = c5IdentifierList,
             inputIdToTsaAccountId = inputIdToTsaAccountId,
             resolvedAuthValues = resolvedAuthValues,
+            semanticPriority = semanticPriority,
         ).also { newState ->
             newState.dataCellInfoStorage = dataCellInfoStorage.clone()
             newState.contractIdToInitialData = contractIdToInitialData
@@ -371,3 +373,8 @@ data class FunctionalIndependenceAssertion(
     var determinerRefs: PersistentSet<UHeapRef> = persistentSetOf(),
     var areDeterminersFixed: Boolean = false,
 )
+
+enum class SemanticPriority {
+    NORMAL,
+    LOW,
+}

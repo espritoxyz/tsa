@@ -1,0 +1,14 @@
+#include "../imports/stdlib.fc";
+
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    in_msg~load_msg_addr();
+    in_msg~load_msg_addr();
+    in_msg~load_msg_addr();
+    in_msg~load_msg_addr();
+    slice addr = in_msg~load_msg_addr();
+
+    addr~impure_touch();
+
+    throw(999);
+}

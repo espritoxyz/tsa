@@ -9,6 +9,7 @@ import org.ton.TlbStructure
 import org.ton.TvmParameterInfo
 import org.ton.compositeLabelOfUnknown
 import org.ton.defaultTlbMaybeRefLabel
+import org.ton.resolvePossibleVariants
 import org.usvm.UBoolExpr
 import org.usvm.UConcreteHeapRef
 import org.usvm.UExpr
@@ -187,8 +188,7 @@ class CalculatedTlbLabelInfo(
         require(maxDepth in 0..maxTlbDepth) {
             "Cannot calculate possible switch variants for depth $maxDepth"
         }
-        return possibleSwitchVariants[maxDepth][switch]
-            ?: error("Possible variants for switch $switch at depth $maxDepth not found.")
+        return switch.resolvePossibleVariants(possibleSwitchVariants[maxDepth])
     }
 
     private val hasUnknownLeaves: Map<TlbCompositeLabel, Boolean> =

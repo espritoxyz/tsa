@@ -11,9 +11,10 @@
     int op = msg_body~load_uint(32);
     tsa_assert(op == 100);
 
-    msg_body~load_msg_addr();
+    slice addr = msg_body~load_msg_addr();
     msg_body.end_parse();
 
+    tsa_assert(slice_bits(addr) == 267);
     tsa_assert(msg_value >= 1000000000);
     
     tsa_allow_failures();

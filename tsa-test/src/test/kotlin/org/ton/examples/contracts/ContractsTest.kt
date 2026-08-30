@@ -335,7 +335,7 @@ class ContractsTest {
             funcCompileAndAnalyzeAllMethods(
                 funcResourcePath,
                 methodsBlackList = methodsBlackList,
-                tvmOptions = TvmOptions(quietMode = false),
+                tvmOptions = TvmOptions(quietMode = false, ignoreLowPriorityStates = true),
             )
         checkAtLeastOneStateForAllMethods(methodsNumber = methodsNumber, methodStates)
 
@@ -384,7 +384,7 @@ class ContractsTest {
             BocAnalyzer.analyzeSpecificMethod(
                 bocPath,
                 methodId,
-                tvmOptions = options ?: TvmOptions(quietMode = false),
+                tvmOptions = options ?: TvmOptions(quietMode = false, ignoreLowPriorityStates = true),
             )
         assertTrue { tests.isNotEmpty() }
 

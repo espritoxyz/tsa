@@ -32,7 +32,7 @@ class ArbitraryDestination {
                     ),
                 startContractId = 0,
                 methodId = BigInteger.ZERO,
-                options = TvmOptions(enableOutMessageAnalysis = true),
+                options = TvmOptions(enableOutMessageAnalysis = true, ignoreLowPriorityStates = true),
             )
 
         tests.assertPropertiesFound(hasExitCode(1000))

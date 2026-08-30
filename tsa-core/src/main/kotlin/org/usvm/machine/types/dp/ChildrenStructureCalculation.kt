@@ -2,6 +2,7 @@ package org.usvm.machine.types.dp
 
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
+import org.ton.resolvePossibleVariants
 import org.usvm.machine.TvmContext
 import org.usvm.machine.types.memory.generateGuardForSwitch
 
@@ -112,8 +113,7 @@ private fun getChildrenStructure(
             is TlbStructure.SwitchPrefix -> {
                 var atLeastOneBranch = false
                 val possibleVariants =
-                    possibleSwitchVariants[struct]
-                        ?: error("Switch variants not found for switch $struct")
+                    struct.resolvePossibleVariants(possibleSwitchVariants)
                 val result =
                     possibleVariants.foldIndexed(
                         ChildrenStructure.empty(),
