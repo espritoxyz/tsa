@@ -18,6 +18,7 @@ import org.ton.test.utils.hasExitCode
 import org.usvm.machine.TvmConcreteContractData
 import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.interpreter.AuthAnalysisResult
+import org.usvm.machine.toTvmCell
 import org.usvm.test.resolver.TvmSymbolicTest
 import org.usvm.test.resolver.TvmSymbolicTestFull
 import org.usvm.test.resolver.TvmTestAuthValue
@@ -51,6 +52,7 @@ class AuthByCodeTests {
     }
 
     private val authHashCheckWithNonFixedData = "/checkers/auth/contract-with-hash-check-non-fixed-data.fc"
+    private val authSha256StateInit = "/checkers/auth/contract-with-sha256-stateinit-auth.fc"
 
     @Test
     fun `hash-based auth with not fixed data`() {
@@ -63,6 +65,17 @@ class AuthByCodeTests {
                 it.authorizedCodes().size == 1
             },
         )
+    }
+
+    @Test
+    fun `sha256-based auth with not fixed data`() {
+        val checker = extractCheckerContractFromResource(checker)
+        val contract = extractFuncContractFromResource(authSha256StateInit)
+        val tests = analyzeInterContract(contracts = listOf(checker, contract))
+        tests.assertPropertiesFound(hasExitCode(1000))
+        tests.filter(hasExitCode(1000)).assertInvariantHolds {
+            it.authorizedCodes().single().toTvmCell() == CellBuilder().storeUInt(15, 8).endCell().toTvmCell()
+        }
     }
 
     private val authSliceBitsComparison =

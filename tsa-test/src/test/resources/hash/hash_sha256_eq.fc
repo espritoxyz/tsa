@@ -1,0 +1,14 @@
+#include "../imports/stdlib.fc";
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice msg_body) impure {
+    int a = msg_body~load_uint(8);
+    int b = msg_body~load_uint(8);
+    cell value = begin_cell().store_uint(b, 8).end_cell();
+    slice representation = begin_cell().store_uint(0, 8).store_uint(2, 8).store_uint(a, 8).end_cell().begin_parse();
+
+    if (string_hash(representation) == cell_hash(value)) {
+        throw_unless(112, a == b);
+        throw(111);
+    }
+    throw(116);
+}
