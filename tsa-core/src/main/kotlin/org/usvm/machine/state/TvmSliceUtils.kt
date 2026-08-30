@@ -1578,13 +1578,14 @@ fun sliceLoadAddrTlb(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     updatedSlice: UConcreteHeapRef,
+    forkOnAddrNone: Boolean = true,
     quietBlock: (TvmState.() -> Unit)? = null,
     action: TvmStepScopeManager.(UHeapRef) -> Unit,
 ) {
     val ctx = scope.calcOnState { ctx }
     scope.makeSliceTypeLoad(
         slice,
-        TvmCellDataMsgAddrRead(ctx),
+        TvmCellDataMsgAddrRead(ctx, forkOnAddrNone),
         updatedSlice,
         badCellSizeIsExceptional = quietBlock == null,
         onBadCellSize =
@@ -1613,7 +1614,7 @@ fun sliceLoadAddrTlb(
                         val addrLength =
                             slicePreloadAddrLengthWithoutSetException(
                                 slice,
-                                mustProcessAllAddressFormats = true,
+                                mustProcessAllAddressFormats = forkOnAddrNone,
                             ) ?: return@calcOnState
                         sliceMoveDataPtr(updatedSlice, addrLength)
 

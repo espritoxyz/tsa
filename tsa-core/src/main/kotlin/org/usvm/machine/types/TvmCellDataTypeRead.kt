@@ -365,6 +365,7 @@ fun TlbBasicMsgAddrLabel.readBvOfAddress(
 // As a read result expects address length + slice with the address
 class TvmCellDataMsgAddrRead(
     val ctx: TvmContext,
+    val forkOnAddrNone: Boolean = true,
 ) : TvmCellDataTypeRead<UExprPairReadResult<TvmSizeSort, UAddressSort>> {
     override fun readFromConstant(
         state: TvmState,
@@ -457,16 +458,22 @@ class TvmCellDataMsgAddrRead(
                     dataSuffix,
                 )
             return listOf(
-                ConcreteSizeInferredLabel(
-                    InferredTlbLabel.Const("00"),
-                    guard = tag eq mkBv("00", tag.sort.sizeBits),
-                    concreteSize = 2,
-                    priority = SemanticPriority.LOW,
-                ),
                 BasicAddressInferredLabel(
                     guard = tag eq mkBv("10", tag.sort.sizeBits),
                 ),
-            )
+            ).let {
+                if (forkOnAddrNone) {
+                    it +
+                        ConcreteSizeInferredLabel(
+                            InferredTlbLabel.Const("00"),
+                            guard = tag eq mkBv("00", tag.sort.sizeBits),
+                            concreteSize = 2,
+                            priority = SemanticPriority.LOW,
+                        )
+                } else {
+                    it
+                }
+            }
         }
 }
 
