@@ -99,6 +99,16 @@ sealed interface TlbStructure {
     val id: Int
 }
 
+fun TlbStructure.SwitchPrefix.resolvePossibleVariants(
+    possibleVariants: Map<TlbStructure.SwitchPrefix, List<TlbStructure.SwitchPrefix.SwitchVariant>>,
+): List<TlbStructure.SwitchPrefix.SwitchVariant> =
+    possibleVariants[this]
+        ?: if (owner == TlbStructure.UnknownStructOwner) {
+            variants
+        } else {
+            error("Possible variants for switch $this not found")
+        }
+
 object TlbStructureIdProvider {
     private var nextId = 2
 

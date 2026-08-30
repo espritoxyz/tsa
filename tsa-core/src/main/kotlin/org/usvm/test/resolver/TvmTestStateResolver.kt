@@ -509,7 +509,9 @@ class TvmTestStateResolver(
         val concreteRef = evaluateInModel(ref) as UConcreteHeapRef
         val possibleTypes = state.getPossibleTypes(concreteRef)
         val type = possibleTypes.first()
-        require(type is TvmFinalReferenceType)
+        require(type is TvmFinalReferenceType) {
+            "Unexpected type"
+        }
         return when (type) {
             TvmSliceType -> resolveSlice(ref, fromTlbStack)
             TvmDataCellType, TvmDictCellType -> resolveCell(ref, fromTlbStack)

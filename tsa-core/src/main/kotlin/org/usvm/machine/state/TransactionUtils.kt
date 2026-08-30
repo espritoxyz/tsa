@@ -98,7 +98,7 @@ fun sliceLoadAddrTlbNoFork(
 
         scope.doNotKillScopeOnDoWithConditions = true
 
-        sliceLoadAddrTlb(scope, slice, updatedSlice, quietBlock = quietBlock) { value ->
+        sliceLoadAddrTlb(scope, slice, updatedSlice, quietBlock = quietBlock, forkOnAddrNone = false) { value ->
             validateSliceLoadState(originalStateId)
 
             result = value

@@ -24,6 +24,8 @@ import org.usvm.machine.analyzeInterContract
 import org.usvm.machine.getFuncContract
 import org.usvm.test.resolver.TvmSymbolicTestSuite
 import kotlin.test.Test
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 private const val REPLAY_FOUND = 1000
 
@@ -48,6 +50,7 @@ class ReplayAttackCheckerTest {
         contractPath: String,
         seqnoRestriction: Int? = null,
         methodId: Int? = null,
+        timeout: Duration = Duration.INFINITE,
     ): TvmSymbolicTestSuite {
         val contractPath = extractResource(contractPath)
         val checkerPath = extractResource(checkerPath)
@@ -77,6 +80,7 @@ class ReplayAttackCheckerTest {
             TvmOptions(
                 stopOnFirstError = false,
                 enableOutMessageAnalysis = true,
+                timeout = timeout,
             )
 
         return analyzeInterContract(
@@ -157,7 +161,7 @@ class ReplayAttackCheckerTest {
     @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testWalletHighload() {
-        val tests = runTest(highloadWalletV3)
+        val tests = runTest(highloadWalletV3, timeout = 3.minutes)
 
         checkInvariants(
             tests,
@@ -165,7 +169,6 @@ class ReplayAttackCheckerTest {
         )
     }
 
-    @EnabledIfEnvironmentVariable(named = RUN_HARD_TESTS_VAR, matches = RUN_HARD_TESTS_REGEX)
     @Test
     fun testWalletHighloadVulnerable() {
         val tests = runTest(highloadWalletVulnerable)

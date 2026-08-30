@@ -60,6 +60,7 @@ data class TvmOptions(
      * variable.
      */
     val enumeratingModelsCountLimit: Int = 5,
+    val ignoreLowPriorityStates: Boolean = false,
     val forkOnEachPossibleElementInDictGet: Boolean = false,
 ) {
     init {

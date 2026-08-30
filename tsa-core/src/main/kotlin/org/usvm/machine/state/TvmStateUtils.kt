@@ -156,7 +156,7 @@ fun TvmState.setExit(result: TvmResult.TvmTerminalResult) {
 fun TvmState.generateSymbolicCell(mightBeExotic: Boolean = false): UConcreteHeapRef =
     generateSymbolicRef(TvmCellType).also {
         if (!mightBeExotic) {
-            fieldManagers.cellExoticFieldManager.writeCellData(this@generateSymbolicCell, it, ctx.falseExpr)
+            fieldManagers.cellExoticFieldManager.writeIsExotic(this@generateSymbolicCell, it, ctx.falseExpr)
         }
     }
 

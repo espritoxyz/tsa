@@ -36,6 +36,9 @@ fun transformTestDataCellIntoCell(value: TvmTestDataCellValue): Cell {
     val refs = value.refs.map(::transformTestCellIntoCell)
     val binaryData = BitString(value.data.map { it == '1' })
     return if (value.isExotic) {
+        check(binaryData.size >= 8) {
+            "Invalid data for exotic cell: $binaryData"
+        }
         buildCell {
             isExotic = true
             storeBits(binaryData)

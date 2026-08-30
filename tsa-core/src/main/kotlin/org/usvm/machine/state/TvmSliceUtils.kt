@@ -1319,9 +1319,9 @@ fun TvmState.allocateCell(cellValue: Cell): UConcreteHeapRef =
         val cell = allocEmptyCell()
 
         if (cellValue.type.isExotic) {
-            fieldManagers.cellExoticFieldManager.writeCellData(this@allocateCell, cell, trueExpr)
+            fieldManagers.cellExoticFieldManager.writeIsExotic(this@allocateCell, cell, trueExpr)
         } else {
-            fieldManagers.cellExoticFieldManager.writeCellData(this@allocateCell, cell, falseExpr)
+            fieldManagers.cellExoticFieldManager.writeIsExotic(this@allocateCell, cell, falseExpr)
         }
 
         if (bits.isNotEmpty()) {
@@ -1341,7 +1341,7 @@ fun TvmState.allocateCell(cellValue: Cell): UConcreteHeapRef =
 fun TvmState.allocEmptyCell() =
     with(ctx) {
         memory.allocConcrete(TvmDataCellType).also { cell ->
-            fieldManagers.cellExoticFieldManager.writeCellData(memory, cell, falseExpr)
+            fieldManagers.cellExoticFieldManager.writeIsExotic(memory, cell, falseExpr)
             fieldManagers.cellDataFieldManager.writeCellData(memory, cell, mkBv(0, cellDataSort))
             fieldManagers.cellDataLengthFieldManager.writeCellDataLength(
                 this@allocEmptyCell,
@@ -1578,13 +1578,14 @@ fun sliceLoadAddrTlb(
     scope: TvmStepScopeManager,
     slice: UHeapRef,
     updatedSlice: UConcreteHeapRef,
+    forkOnAddrNone: Boolean = true,
     quietBlock: (TvmState.() -> Unit)? = null,
     action: TvmStepScopeManager.(UHeapRef) -> Unit,
 ) {
     val ctx = scope.calcOnState { ctx }
     scope.makeSliceTypeLoad(
         slice,
-        TvmCellDataMsgAddrRead(ctx),
+        TvmCellDataMsgAddrRead(ctx, forkOnAddrNone),
         updatedSlice,
         badCellSizeIsExceptional = quietBlock == null,
         onBadCellSize =
@@ -1609,24 +1610,11 @@ fun sliceLoadAddrTlb(
                         val originalCell = memory.readField(slice, sliceCellField, addressSort)
                         val dataPos = fieldManagers.cellDataLengthFieldManager.readSliceDataPos(state, slice)
 
-                        checkCellDataUnderflow(
-                            this@makeSliceTypeLoad,
-                            originalCell,
-                            minSize = mkBvAddExpr(dataPos, twoSizeExpr),
-                            maxSize = null,
-                            quietBlock = quietBlock,
-                        ) ?: return@calcOnState
-
-                        val tag =
-                            slicePreloadDataBitsWithoutChecks(slice, sizeBits = 2)
-                                ?: return@calcOnState
-
-                        // Special case: when tag is concrete, we don't want to assert that this is StdAddress
-                        // (even if our options for that are set)
+                        // TODO: fork instead of using ITE?
                         val addrLength =
                             slicePreloadAddrLengthWithoutSetException(
                                 slice,
-                                mustProcessAllAddressFormats = tag is KInterpretedValue,
+                                mustProcessAllAddressFormats = forkOnAddrNone,
                             ) ?: return@calcOnState
                         sliceMoveDataPtr(updatedSlice, addrLength)
 

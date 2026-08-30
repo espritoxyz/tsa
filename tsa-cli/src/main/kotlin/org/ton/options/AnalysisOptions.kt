@@ -115,4 +115,11 @@ class AnalysisOptions : OptionGroup("Symbolic analysis options") {
     val useStrictDfsPathSelector by option("--strict-dfs-path-selector")
         .flag(default = false)
         .help("Path selector")
+
+    val analyzeLowPriorityStates by option("--analyze-low-priority-states")
+        .flag(default = false)
+        .help(
+            "Explore states with low semantic priority (after all other states) instead of dropping them. " +
+                "Default: such states are dropped.",
+        )
 }

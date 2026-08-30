@@ -2,6 +2,7 @@ package org.usvm.machine.types.dp
 
 import org.ton.TlbCompositeLabel
 import org.ton.TlbStructure
+import org.ton.resolvePossibleVariants
 import org.usvm.machine.TvmContext
 import org.usvm.machine.types.memory.generateGuardForSwitch
 import org.usvm.mkSizeAddExpr
@@ -66,8 +67,7 @@ private fun getDataLength(
             is TlbStructure.SwitchPrefix -> {
                 val switchSize = struct.switchSize
                 val possibleVariants =
-                    possibleSwitchVariants[struct]
-                        ?: error("Switch variants not found for switch $struct")
+                    struct.resolvePossibleVariants(possibleSwitchVariants)
 
                 val childLengths =
                     possibleVariants.mapIndexedNotNull { idx, (_, variant) ->

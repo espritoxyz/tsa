@@ -74,6 +74,7 @@ private fun createTvmOptions(
             addTimeoutIfNotSatiated = analysisOptions.addTimeoutIfNotSatiated,
             shortResolve = analysisOptions.shortResolve,
             groupByOutOpcodes = analysisOptions.groupStatesByOutMessages,
+            ignoreLowPriorityStates = !analysisOptions.analyzeLowPriorityStates,
             pathSelectionStrategy =
                 if (analysisOptions.useStrictDfsPathSelector) {
                     TvmPathSelectionStrategy.DFS_STRICT
