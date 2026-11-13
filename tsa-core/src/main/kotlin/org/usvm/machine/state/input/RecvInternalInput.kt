@@ -22,6 +22,8 @@ import org.usvm.machine.state.allocEmptyBuilderWithTlb
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.allocSliceFromData
 import org.usvm.machine.state.builderStoreIntTlb
+import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
+import org.usvm.machine.state.generateSymbolicCell
 import org.usvm.machine.state.builderStoreSliceTlb
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.generateSymbolicAddressCell
@@ -35,6 +37,7 @@ import org.usvm.machine.state.readSliceCell
 import org.usvm.machine.types.ConcreteSliceRef
 import org.usvm.machine.types.asCellRef
 import org.usvm.machine.types.asSliceRef
+import org.usvm.mkSizeExpr
 import org.usvm.sizeSort
 
 class RecvInternalInput(
@@ -76,7 +79,55 @@ class RecvInternalInput(
     // bounced:Bool
     override val bounced: UBoolExpr = state.ctx.mkEq(bouncedFlag, state.ctx.mkBv(1, 1u))
 
-    private val msgBodyCellBounced: UConcreteHeapRef by lazy {
+    // AUDIT PATCH: the symbolic bounced body is either the old format (0xffffffff + <=256 bits) or the
+    // TVM 12 rich format (0xfffffffe original_body:^Cell original_info:^Cell bounced_by_phase:uint8
+    // exit_code:int32 compute_phase:(Maybe ...)); the choice is a fresh symbolic boolean.
+    private val bouncedRichFlag: UBoolExpr =
+        if (state.ctx.tvmOptions.analyzeBouncedMessaged) {
+            state.makeSymbolicPrimitive(state.ctx.boolSort)
+        } else {
+            state.ctx.falseExpr
+        }
+
+    private val msgBodyCellBouncedRich: UConcreteHeapRef by lazy {
+        with(state.ctx) {
+            val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)
+            val builder = state.allocEmptyBuilderWithTlb()
+            builderStoreIntTlb(
+                scope,
+                builder,
+                builder,
+                0xfffffffeL.toBv257(),
+                sizeBits = sizeExpr32,
+                isSigned = false,
+                endian = Endian.BigEndian,
+            ) ?: error("Cannot store rich bounced message prefix")
+            state.builderStoreNextRefNoOverflowCheck(builder, state.generateSymbolicCell()) // original_body
+            state.builderStoreNextRefNoOverflowCheck(builder, state.generateSymbolicCell()) // original_info
+            val bouncedByPhase = state.makeSymbolicPrimitive(mkBvSort(8u)).zeroExtendToSort(int257sort)
+            builderStoreIntTlb(scope, builder, builder, bouncedByPhase, sizeBits = mkSizeExpr(8), isSigned = false, endian = Endian.BigEndian)
+                ?: error("Cannot store bounced_by_phase")
+            val exitCode = state.makeSymbolicPrimitive(mkBvSort(32u)).zeroExtendToSort(int257sort)
+            builderStoreIntTlb(scope, builder, builder, exitCode, sizeBits = sizeExpr32, isSigned = false, endian = Endian.BigEndian)
+                ?: error("Cannot store exit_code")
+            // compute_phase present with symbolic gas_used:uint32 vm_steps:uint32
+            builderStoreIntTlb(scope, builder, builder, oneValue, sizeBits = mkSizeExpr(1), isSigned = false, endian = Endian.BigEndian)
+                ?: error("Cannot store maybe bit")
+            val computeInfo = state.makeSymbolicPrimitive(mkBvSort(64u)).zeroExtendToSort(int257sort)
+            builderStoreIntTlb(scope, builder, builder, computeInfo, sizeBits = mkSizeExpr(64), isSigned = false, endian = Endian.BigEndian)
+                ?: error("Cannot store compute phase info")
+            val stepResult = scope.stepResult()
+            check(stepResult.originalStateAlive) { "Original state died while building rich bounced message" }
+            check(stepResult.forkedStates.none()) { "Unexpected forks while building rich bounced message" }
+            state.builderToCell(builder)
+        }
+    }
+
+    private val msgBodyCellBounced: UHeapRef by lazy {
+        with(state.ctx) { mkIte(bouncedRichFlag, msgBodyCellBouncedRich, msgBodyCellBouncedOld) }
+    }
+
+    private val msgBodyCellBouncedOld: UConcreteHeapRef by lazy {
         with(state.ctx) {
             // hack for using builder operations
             val scope = TvmStepScopeManager(state, UForkBlackList.createDefault(), allowFailuresOnCurrentStep = false)

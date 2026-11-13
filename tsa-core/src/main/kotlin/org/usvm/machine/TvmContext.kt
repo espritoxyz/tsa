@@ -1171,7 +1171,8 @@ class TvmContext(
         val CELL_DATA_BITS: UInt = MAX_DATA_LENGTH.toUInt()
 
         // Apr 05 2024 12:08:29 GMT+0000
-        const val UNIX_TIME_MIN: Long = 1712318909
+        // AUDIT PATCH: lower bound of `now`, overridable with -Dtsa.unixTimeMin=<seconds>
+        val UNIX_TIME_MIN: Long = System.getProperty("tsa.unixTimeMin")?.toLong() ?: 1712318909L
 
         // Jan 01 2100 00:00:00 GMT+0000
         const val UNIX_TIME_MAX: Long = 4102444800

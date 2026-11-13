@@ -140,6 +140,8 @@ data class TsaArtificialBouncePhaseInst(
     val computePhaseResult: TvmResult.TvmTerminalResult,
     val actionPhaseResult: TvmResult.TvmTerminalResult?,
     override val location: TvmInstLocation,
+    // AUDIT PATCH: TVM 12 `bounced_by_phase` (1 = compute phase failed, 2 = action phase failed)
+    val bouncedByPhase: Int = 1,
 ) : TsaArtificialInst {
     override val mnemonic: String get() = "artificial_bounce_phase"
 

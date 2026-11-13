@@ -51,6 +51,10 @@ import org.usvm.machine.state.addSlice
 import org.usvm.machine.state.allocEmptyBuilder
 import org.usvm.machine.state.allocSliceFromCell
 import org.usvm.machine.state.builderStoreDataBits
+import org.usvm.mkSizeExpr
+import org.usvm.machine.state.builderStoreGramsTlb
+import org.usvm.machine.state.builderStoreIntTlb
+import org.usvm.machine.state.builderStoreNextRefNoOverflowCheck
 import org.usvm.machine.state.builderToCell
 import org.usvm.machine.state.callCheckerMethodIfExists
 import org.usvm.machine.state.callContinuation
@@ -103,6 +107,9 @@ import org.usvm.test.resolver.TvmTestStateResolver
  * - [TsaArtificialBouncePhaseInst]
  * - [TsaArtificialExitInst]
  */
+// AUDIT PATCH: TVM 12 new_bounce_body tag
+private const val RICH_BOUNCED_MESSAGE_TAG: Long = 0xfffffffeL
+
 class TvmArtificialInstInterpreter(
     val ctx: TvmContext,
     private val contractsCode: List<TsaContractCode>,
@@ -443,8 +450,42 @@ class TvmArtificialInstInterpreter(
                 }
 
                 is ActionHandlingResult.RealFailure -> {
-                    calcOnState {
-                        ctx.setFailure(actionsHandlingResult.failure, level = TvmFailureType.UnknownError)(this)
+                    // AUDIT PATCH: TVM 12 bounce-on-action-fail. If an action of the failed action phase
+                    // carried mode +16, the inbound message is bounced (bounced_by_phase = 2) with the
+                    // remaining message balance instead of the failure being terminal.
+                    val bounceOnFailCond =
+                        with(ctx) {
+                            val conds =
+                                stmt.parsingResult.parsedOrderedActions
+                                    .filterIsInstance<TvmTransactionInterpreter.ParsedMessageWithResolvedReceiver>()
+                                    .map { mkBvAndExpr(it.sendMessageMode, 16.toBv257()) neq zeroValue }
+                            if (conds.isEmpty()) falseExpr else mkOr(conds)
+                        }
+                    val actionBounceEnabled = System.getProperty("tsa.actionBounce") != "false"
+                    if (actionBounceEnabled && checkSat(bounceOnFailCond) != null) {
+                        assert(bounceOnFailCond)
+                            ?: return@handleMessageCosts null
+                        val failure =
+                            TvmFailure(
+                                actionsHandlingResult.failure,
+                                TvmFailureType.UnknownError,
+                                TvmComputePhase,
+                                calcOnState { pathNode },
+                            )
+                        doWithState {
+                            newStmt(
+                                TsaArtificialBouncePhaseInst(
+                                    failure,
+                                    null,
+                                    lastStmt.location,
+                                    bouncedByPhase = 2,
+                                ),
+                            )
+                        }
+                    } else {
+                        calcOnState {
+                            ctx.setFailure(actionsHandlingResult.failure, level = TvmFailureType.UnknownError)(this)
+                        }
                     }
                 }
 
@@ -685,7 +726,14 @@ class TvmArtificialInstInterpreter(
                                 return@doWithConditions
                             }
 
-                            constructBouncedMessage(this, receivedMsgData, sender.contractId) { bouncedMessage ->
+                            val computeFailure = stmt.computePhaseResult as TvmFailure
+                            constructBouncedMessage(
+                                this,
+                                receivedMsgData,
+                                sender.contractId,
+                                computeFailure.exit.exitCode,
+                                stmt.bouncedByPhase,
+                            ) { bouncedMessage ->
                                 doWithState {
                                     messageQueue =
                                         messageQueue.add(
@@ -725,13 +773,48 @@ class TvmArtificialInstInterpreter(
         scope: TvmStepScopeManager,
         oldMessage: MessageAsStackArguments,
         oldMessageSender: ContractId,
+        exitCode: Int,
+        bouncedByPhase: Int,
         restActions: TvmStepScopeManager.(MessageAsStackArguments) -> Unit,
     ) {
-        val msgCellAndBodySliceOrNull =
+        // AUDIT PATCH: TVM 12 rich bounce format is used when the original message had (extra_flags & 1) = 1
+        // (the `ihr_fee` field of the original message holds `extra_flags`).
+        val extraFlags = oldMessage.messageTlb.commonMessageInfo.ihrFee
+        val richCond = with(ctx) { mkBvAndExpr(extraFlags, oneValue) neq zeroValue }
+        scope.doWithConditions(
+            givenConditionsWithActions =
+                listOf(
+                    TvmStepScopeManager.ActionOnCondition(
+                        caseIsExceptional = false,
+                        condition = richCond,
+                        paramForDoForAllBlock = true,
+                        action = { },
+                    ),
+                    TvmStepScopeManager.ActionOnCondition(
+                        caseIsExceptional = false,
+                        condition = with(ctx) { richCond.not() },
+                        paramForDoForAllBlock = false,
+                        action = { },
+                    ),
+                ),
+        ) { isRich ->
+            constructBouncedMessageImpl(this, oldMessage, oldMessageSender, exitCode, bouncedByPhase, isRich, restActions)
+        }
+    }
+
+    private fun constructBouncedMessageImpl(
+        scope: TvmStepScopeManager,
+        oldMessage: MessageAsStackArguments,
+        oldMessageSender: ContractId,
+        exitCode: Int,
+        bouncedByPhase: Int,
+        rich: Boolean,
+        restActions: TvmStepScopeManager.(MessageAsStackArguments) -> Unit,
+    ) {
+        val extraFlags = oldMessage.messageTlb.commonMessageInfo.ihrFee
+        val constructed =
             with(ctx) {
                 val builder = scope.calcOnState { allocEmptyBuilder() }
-                scope.builderStoreDataBits(builder, bouncedMessageTagLong.toBv(32u))
-                    ?: error("Unexpected cell overflow")
                 val dataPos =
                     scope.calcOnState {
                         readSliceDataPos(oldMessage.messageBody)
@@ -744,16 +827,72 @@ class TvmArtificialInstInterpreter(
                         )
                     }
                 val length = mkBvSubExpr(cellLength, dataPos)
-                val leftLength =
-                    mkIte(
-                        mkBvSignedGreaterExpr(length, 256.toBv()),
-                        256.toBv(ctx.sizeSort),
-                        length,
-                    )
-                val leftData =
-                    scope.slicePreloadDataBits(oldMessage.messageBody.value, leftLength)
+                if (!rich) {
+                    // old format: 0xffffffff + up to 256 bits of the original body
+                    scope.builderStoreDataBits(builder, bouncedMessageTagLong.toBv(32u))
+                        ?: error("Unexpected cell overflow")
+                    val leftLength =
+                        mkIte(
+                            mkBvSignedGreaterExpr(length, 256.toBv()),
+                            256.toBv(ctx.sizeSort),
+                            length,
+                        )
+                    val leftData =
+                        scope.slicePreloadDataBits(oldMessage.messageBody.value, leftLength)
+                            ?: return@with null
+                    scope.builderStoreDataBits(builder, builder, leftData, leftLength, null)
+                } else {
+                    // new_bounce_body#fffffffe original_body:^Cell original_info:^NewBounceOriginalInfo
+                    //   bounced_by_phase:uint8 exit_code:int32 compute_phase:(Maybe NewBounceComputePhaseInfo)
+                    scope.builderStoreDataBits(builder, RICH_BOUNCED_MESSAGE_TAG.toBv(32u))
+                        ?: error("Unexpected cell overflow")
+                    // original_body: the root bits of the original body without refs
+                    // (RichBounceOnlyRootCell; (extra_flags & 2) = 1 would return the whole body -- not modelled)
+                    val bodyBuilder = scope.calcOnState { allocEmptyBuilder() }
+                    val rootData =
+                        scope.slicePreloadDataBits(oldMessage.messageBody.value, length)
+                            ?: return@with null
+                    scope.builderStoreDataBits(bodyBuilder, bodyBuilder, rootData, length, null)
+                    val originalBodyCell = scope.calcOnState { builderToCell(bodyBuilder) }
+                    // original_info: value:CurrencyCollection created_lt:uint64 created_at:uint32
+                    val infoBuilder = scope.calcOnState { allocEmptyBuilder() }
+                    builderStoreGramsTlb(scope, infoBuilder, infoBuilder, oldMessage.msgValue)
                         ?: return@with null
-                scope.builderStoreDataBits(builder, builder, leftData, leftLength, null)
+                    scope.builderStoreDataBits(infoBuilder, 0.toBv(1u))
+                        ?: return@with null
+                    builderStoreIntTlb(
+                        scope,
+                        infoBuilder,
+                        infoBuilder,
+                        oldMessage.messageTlb.commonMessageInfo.createdLt,
+                        mkSizeExpr(64),
+                    ) ?: return@with null
+                    builderStoreIntTlb(
+                        scope,
+                        infoBuilder,
+                        infoBuilder,
+                        oldMessage.messageTlb.commonMessageInfo.createdAt,
+                        mkSizeExpr(32),
+                    ) ?: return@with null
+                    val infoCell = scope.calcOnState { builderToCell(infoBuilder) }
+                    scope.doWithState {
+                        builderStoreNextRefNoOverflowCheck(builder, originalBodyCell)
+                        builderStoreNextRefNoOverflowCheck(builder, infoCell)
+                    }
+                    scope.builderStoreDataBits(builder, bouncedByPhase.toBv(8u))
+                        ?: return@with null
+                    scope.builderStoreDataBits(builder, mkBv(exitCode, 32u))
+                        ?: return@with null
+                    // compute_phase: present (bounced_by_phase > 0), contents symbolic
+                    scope.builderStoreDataBits(builder, 1.toBv(1u))
+                        ?: return@with null
+                    val gasUsed = scope.calcOnState { makeSymbolicPrimitive(mkBvSort(32u)) }
+                    val vmSteps = scope.calcOnState { makeSymbolicPrimitive(mkBvSort(32u)) }
+                    scope.builderStoreDataBits(builder, gasUsed)
+                        ?: return@with null
+                    scope.builderStoreDataBits(builder, vmSteps)
+                        ?: return@with null
+                }
                 val body =
                     scope.calcOnState {
                         val cell = builderToCell(builder)
@@ -765,7 +904,6 @@ class TvmArtificialInstInterpreter(
                         getContractInfoParamOf(ADDRESS_PARAMETER_IDX, oldMessageSender).cellValue
                             ?: error("no destination :(")
                     }
-                // TODO fill the ihrFee, msgValue, ... with reasonable values
                 val bouncedFlags =
                     Flags(
                         intMsgInfo = 0.toBv257(),
@@ -775,8 +913,20 @@ class TvmArtificialInstInterpreter(
                     )
                 val dstAddressSlice = scope.calcOnState { allocSliceFromCell(destinationAddressCell) }
                 scope.calcOnState { dataCellInfoStorage.mapper.addAddressSlice(dstAddressSlice) }
-                // according to transaction.cpp:prepare_bounce_phase from tone monorepo,
-                // the stateinit does not exist in bounce message (in the old format, pre TVM 12)
+                // AUDIT PATCH: the bounced value is the original value minus the fees of the failed
+                // transaction (gas of the failed phase + forward fee of the bounce), modelled as a
+                // symbolic fee with 0 <= fee <= value.
+                val fee = scope.calcOnState { makeSymbolicPrimitive(int257sort) }
+                scope.assert(
+                    mkAnd(
+                        mkBvSignedGreaterOrEqualExpr(fee, zeroValue),
+                        mkBvSignedLessOrEqualExpr(fee, oldMessage.msgValue),
+                    ),
+                ) ?: return@with null
+                val bouncedValue = mkBvSubExpr(oldMessage.msgValue, fee)
+                // the bounced message keeps bits 0 and 1 of extra_flags
+                val bouncedExtraFlags = mkBvAndExpr(extraFlags, 3.toBv257())
+                // according to transaction.cpp:prepare_bounce_phase, the stateinit does not exist in bounce message
                 val content =
                     TlbInternalMessageContent(
                         commonMessageInfo =
@@ -784,8 +934,8 @@ class TvmArtificialInstInterpreter(
                                 flags = bouncedFlags,
                                 srcAddressSlice = oldMessage.destAddrSlice,
                                 dstAddressSlice = dstAddressSlice,
-                                msgValue = zeroValue,
-                                ihrFee = zeroValue,
+                                msgValue = bouncedValue,
+                                ihrFee = bouncedExtraFlags,
                                 fwdFee = zeroValue,
                                 createdLt = zeroValue,
                                 createdAt = zeroValue,
@@ -793,13 +943,13 @@ class TvmArtificialInstInterpreter(
                         stateInit = TlbStateInit.None,
                         body = body,
                     )
-                content to dstAddressSlice
+                Triple(content, dstAddressSlice, bouncedValue)
             }
-        msgCellAndBodySliceOrNull?.let { (content, dstAddressSlice) ->
+        constructed?.let { (content, dstAddressSlice, bouncedValue) ->
             content.constructMessageCellFromContent(scope) { (messageBody, fullMessage) ->
                 scope.restActions(
                     MessageAsStackArguments(
-                        msgValue = oldMessage.msgValue,
+                        msgValue = bouncedValue,
                         fullMessage = fullMessage,
                         messageBody = messageBody,
                         destAddrSlice = dstAddressSlice,
@@ -1058,3 +1208,4 @@ class TvmArtificialInstInterpreter(
         phase = previousEventState.phase
     }
 }
+

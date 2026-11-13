@@ -17,6 +17,9 @@ import org.ton.bytecode.TvmCellBuildStbrInst
 import org.ton.bytecode.TvmCellBuildStbrefrInst
 import org.ton.bytecode.TvmCellBuildStbrqInst
 import org.ton.bytecode.TvmCellBuildStiInst
+import org.ton.bytecode.TvmCellBuildStirInst
+import org.ton.bytecode.TvmCellBuildStixrInst
+import org.ton.bytecode.TvmCellBuildStuxrInst
 import org.ton.bytecode.TvmCellBuildStixInst
 import org.ton.bytecode.TvmCellBuildStonesInst
 import org.ton.bytecode.TvmCellBuildStrefAltInst
@@ -936,6 +939,20 @@ class TvmCellInterpreter(
 
             is TvmCellBuildStiInst -> {
                 visitStoreIntInst(scope, stmt, stmt.c + 1, true)
+            }
+
+            // AUDIT PATCH: reversed-argument variants (b x -- b')
+            is TvmCellBuildStirInst -> {
+                doSwap(scope)
+                visitStoreIntInst(scope, stmt, stmt.c + 1, true)
+            }
+
+            is TvmCellBuildStixrInst -> {
+                visitStoreIntXrInst(scope, stmt, true)
+            }
+
+            is TvmCellBuildStuxrInst -> {
+                visitStoreIntXrInst(scope, stmt, false)
             }
 
             is TvmCellBuildStuxInst -> {
@@ -1972,10 +1989,27 @@ class TvmCellInterpreter(
         scope: TvmStepScopeManager,
         stmt: TvmInst,
         isSigned: Boolean,
+    ) = visitStoreIntXInstImpl(scope, stmt, isSigned, reversed = false)
+
+    // AUDIT PATCH: STIXR/STUXR (b x l -- b')
+    private fun visitStoreIntXrInst(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+        isSigned: Boolean,
+    ) = visitStoreIntXInstImpl(scope, stmt, isSigned, reversed = true)
+
+    private fun visitStoreIntXInstImpl(
+        scope: TvmStepScopeManager,
+        stmt: TvmInst,
+        isSigned: Boolean,
+        reversed: Boolean,
     ) = with(ctx) {
         scope.consumeDefaultGas(stmt)
 
         val bits = scope.takeLastIntOrThrowTypeError() ?: return
+        if (reversed) {
+            doSwap(scope)
+        }
         val builder = scope.calcOnState { takeLastBuilder() }
         if (builder == null) {
             scope.doWithState(throwTypeCheckError)
